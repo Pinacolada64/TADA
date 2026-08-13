@@ -52,14 +52,14 @@ class TestVehicleDepartureFlavor(unittest.TestCase):
 
 
 class TestNoErrorExitBypassIntegration(unittest.IsolatedAsyncioTestCase):
-    """Against the real level 6 data -- room 248 (Outer Space) carries
+    """Against the real level 6 data -- room 806 (Outer Space) carries
     'no_error_exit_west' with no real west exit backing it; confirms the
     bypass suppresses "Can't go there." and redisplays the room without
     relocating."""
 
     async def test_no_error_exit_room_exists_in_level_6(self):
         server = Server('127.0.0.1', 0)
-        room = server.game_map.get_room(6, 248)
+        room = server.game_map.get_room(6, 806)
         self.assertIsNotNone(room)
         self.assertIn('no_error_exit_west', room.flags)
         # No real west exit backing the flag -- that's the whole point.
@@ -69,16 +69,16 @@ class TestNoErrorExitBypassIntegration(unittest.IsolatedAsyncioTestCase):
         server = Server('127.0.0.1', 0)
         ctx = MagicMock()
         ctx.server = server
-        ctx.client.room = 248
+        ctx.client.room = 806
         ctx.player.map_level = 6
-        ctx.player.map_room = 248
+        ctx.player.map_room = 806
         ctx.send = AsyncMock()
 
         await server._move(ctx, 'w')
 
         # Player never actually moved.
-        self.assertEqual(ctx.client.room, 248)
-        self.assertEqual(ctx.player.map_room, 248)
+        self.assertEqual(ctx.client.room, 806)
+        self.assertEqual(ctx.player.map_room, 806)
         # And didn't see the generic failure message.
         sent = str(ctx.send.call_args_list)
         self.assertNotIn("Can't go", sent)

@@ -863,22 +863,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "It really is difficult to see anything here, except for a fierce whiteness.."
-        },
-        {
-            "number": 51,
-            "name": "Dried Plain",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 31,
-                "east": 52
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You stumble on thru the dried grass. It is quite high here.."
+            "desc": "It really is difficult to see anything here, except for a fierce whitness.."
         },
         {
             "number": 52,
@@ -887,8 +872,23 @@
             "flags": [],
             "exits": {
                 "north": 32,
-                "south": 72,
-                "west": 51
+                "east": 53
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You stumble on thru the dried grass. It is quite high here.."
+        },
+        {
+            "number": 53,
+            "name": "Dried Plain",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 33,
+                "south": 73,
+                "west": 52
             },
             "monster": 0,
             "item": 0,
@@ -897,7 +897,7 @@
             "desc": "This is the beginning of a dried plain. The sandy desert stretches to the north..."
         },
         {
-            "number": 53,
+            "number": 54,
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
@@ -905,27 +905,10 @@
                 "no_error_exit_west"
             ],
             "exits": {
-                "north": 33,
-                "east": 54
+                "north": 34,
+                "east": 55
             },
             "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 54,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 34,
-                "south": 74,
-                "east": 55,
-                "west": 53
-            },
-            "monster": 77,
             "item": 0,
             "weapon": 0,
             "food": 0,
@@ -935,16 +918,14 @@
             "number": 55,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_west"
-            ],
+            "flags": [],
             "exits": {
                 "north": 35,
                 "south": 75,
                 "east": 56,
                 "west": 54
             },
-            "monster": 0,
+            "monster": 77,
             "item": 0,
             "weapon": 0,
             "food": 0,
@@ -954,7 +935,9 @@
             "number": 56,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_error_exit_west"
+            ],
             "exits": {
                 "north": 36,
                 "south": 76,
@@ -971,10 +954,7 @@
             "number": 57,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_east",
-                "no_error_exit_south"
-            ],
+            "flags": [],
             "exits": {
                 "north": 37,
                 "south": 77,
@@ -991,7 +971,10 @@
             "number": 58,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_error_exit_east",
+                "no_error_exit_south"
+            ],
             "exits": {
                 "north": 38,
                 "south": 78,
@@ -1025,9 +1008,7 @@
             "number": 60,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_north"
-            ],
+            "flags": [],
             "exits": {
                 "north": 40,
                 "south": 80,
@@ -1063,32 +1044,14 @@
             "number": 62,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_error_exit_north"
+            ],
             "exits": {
                 "north": 42,
                 "south": 82,
                 "east": 63,
                 "west": 61
-            },
-            "monster": 0,
-            "item": 83,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 63,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_east",
-                "no_error_exit_south"
-            ],
-            "exits": {
-                "north": 43,
-                "south": 83,
-                "east": 64,
-                "west": 62
             },
             "monster": 0,
             "item": 0,
@@ -1097,10 +1060,30 @@
             "desc": "You travel in a dusty desert."
         },
         {
-            "number": 64,
+            "number": 63,
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [],
+            "exits": {
+                "north": 43,
+                "south": 83,
+                "east": 64,
+                "west": 62
+            },
+            "monster": 0,
+            "item": 83,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 64,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [
+                "no_error_exit_east",
+                "no_error_exit_south"
+            ],
             "exits": {
                 "north": 44,
                 "south": 84,
@@ -1117,12 +1100,11 @@
             "number": 65,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_south",
-                "no_error_exit_east"
-            ],
+            "flags": [],
             "exits": {
                 "north": 45,
+                "south": 85,
+                "east": 66,
                 "west": 64
             },
             "monster": 0,
@@ -1133,15 +1115,33 @@
         },
         {
             "number": 66,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [
+                "no_error_exit_south",
+                "no_error_exit_east"
+            ],
+            "exits": {
+                "north": 46,
+                "west": 65
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 68,
             "name": "Icy Mountains",
             "room_alignment": "neutral",
             "flags": [
                 "snow"
             ],
             "exits": {
-                "north": 46,
-                "south": 86,
-                "east": 67
+                "north": 48,
+                "south": 88,
+                "east": 69
             },
             "monster": 92,
             "item": 0,
@@ -1150,16 +1150,16 @@
             "desc": "You are on a steep, snow clogged trail winding between jagged rocks.. There is a sinister looking guard tower here!"
         },
         {
-            "number": 67,
+            "number": 69,
             "name": "Icy Pathway",
             "room_alignment": "neutral",
             "flags": [
                 "snow"
             ],
             "exits": {
-                "south": 87,
-                "east": 68,
-                "west": 66
+                "south": 89,
+                "east": 70,
+                "west": 68
             },
             "monster": 0,
             "item": 0,
@@ -1168,15 +1168,15 @@
             "desc": "The trail is rather level here. The bitter air seems thin, making you wonder how high up you are..."
         },
         {
-            "number": 68,
+            "number": 70,
             "name": "Icy Pathway",
             "room_alignment": "neutral",
             "flags": [
                 "snow"
             ],
             "exits": {
-                "north": 48,
-                "west": 67
+                "north": 50,
+                "west": 69
             },
             "monster": 0,
             "item": 0,
@@ -1185,13 +1185,13 @@
             "desc": "The pathway is quite narrow here. Blinding snow makes it difficult to see.."
         },
         {
-            "number": 69,
+            "number": 72,
             "name": "Dried Plain",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 89,
-                "east": 70
+                "south": 92,
+                "east": 73
             },
             "monster": 0,
             "item": 0,
@@ -1200,14 +1200,14 @@
             "desc": "How dreary the plain is!"
         },
         {
-            "number": 70,
+            "number": 73,
             "name": "Dried Plain",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 50,
-                "east": 71,
-                "west": 69
+                "north": 53,
+                "east": 74,
+                "west": 72
             },
             "monster": 0,
             "item": 0,
@@ -1216,13 +1216,13 @@
             "desc": "The plain wanders aimlessly on.."
         },
         {
-            "number": 71,
+            "number": 74,
             "name": "Dried Plain",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 91,
-                "west": 70
+                "south": 94,
+                "west": 73
             },
             "monster": 0,
             "item": 0,
@@ -1231,7 +1231,7 @@
             "desc": "The plains look just a tad greener here,"
         },
         {
-            "number": 72,
+            "number": 75,
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
@@ -1239,59 +1239,8 @@
                 "no_error_exit_west"
             ],
             "exits": {
-                "north": 52,
-                "east": 73
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 73,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 53,
-                "south": 93,
-                "east": 74,
-                "west": 72
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 74,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 54,
-                "south": 94,
-                "east": 75,
-                "west": 73
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 75,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
                 "north": 55,
-                "south": 95,
-                "east": 76,
-                "west": 74
+                "east": 76
             },
             "monster": 0,
             "item": 0,
@@ -1303,10 +1252,7 @@
             "number": 76,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_east",
-                "no_error_exit_south"
-            ],
+            "flags": [],
             "exits": {
                 "north": 56,
                 "south": 96,
@@ -1340,9 +1286,7 @@
             "number": 78,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_south"
-            ],
+            "flags": [],
             "exits": {
                 "north": 58,
                 "south": 98,
@@ -1359,7 +1303,10 @@
             "number": 79,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_error_exit_east",
+                "no_error_exit_south"
+            ],
             "exits": {
                 "north": 59,
                 "south": 99,
@@ -1376,10 +1323,7 @@
             "number": 80,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_south",
-                "no_error_exit_east"
-            ],
+            "flags": [],
             "exits": {
                 "north": 60,
                 "south": 100,
@@ -1396,7 +1340,9 @@
             "number": 81,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_error_exit_south"
+            ],
             "exits": {
                 "north": 61,
                 "south": 101,
@@ -1413,11 +1359,10 @@
             "number": 82,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_south"
-            ],
+            "flags": [],
             "exits": {
                 "north": 62,
+                "south": 102,
                 "east": 83,
                 "west": 81
             },
@@ -1432,10 +1377,13 @@
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
+                "no_error_exit_south",
                 "no_error_exit_east"
             ],
             "exits": {
+                "north": 63,
                 "south": 103,
+                "east": 84,
                 "west": 82
             },
             "monster": 0,
@@ -1446,42 +1394,45 @@
         },
         {
             "number": 84,
-            "name": "Rocky Shore Line",
+            "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "snow"
-            ],
+            "flags": [],
             "exits": {
                 "north": 64,
-                "south": 104
+                "south": 104,
+                "east": 85,
+                "west": 83
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The ocean inlet is to the south. Snow covered cliffs are to either side, but a rocky trail winds between them north.."
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 85,
-            "name": "Cold Cave",
+            "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [],
-            "hidden_exit_east": 86,
+            "flags": [
+                "no_error_exit_south"
+            ],
             "exits": {
-                "north": 65
+                "north": 65,
+                "east": 86,
+                "west": 84
             },
-            "monster": 91,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is a shallow cave, too shallow to provide much protection from the cold. The snow is quite packed down.."
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 86,
-            "name": "Inner Cave",
+            "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "no_flee"
+                "no_error_exit_east"
             ],
             "exits": {
                 "south": 106,
@@ -1491,58 +1442,48 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The air is quite a bit warmer in here. There are crude implements lying about, and rather a lot of garbage.. NNER C@VE |<<,0,0,0,0,0,1,0,1,0,0 The air is quite a bit warmer in here. There are crude implements lying about, and rather a lot of garbage.."
-        },
-        {
-            "number": 87,
-            "name": "Dried Plain",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 67,
-                "east": 88
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The grass is so brown, not much living here at all, except the occasional bug."
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 88,
-            "name": "Dried Plain",
+            "name": "Rocky Shore Line",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "vehicle_exit_south",
+                "snow"
+            ],
             "exits": {
-                "south": 108,
-                "west": 87
+                "north": 68,
+                "south": 108
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "'Still, it is more pleasant than the desert!' you muse to yourself, as you trudge across the plain.."
+            "desc": "The ocean inlet is to the south. Snow covered cliffs are to either side, but a rocky trail winds between them north.."
         },
         {
             "number": 89,
-            "name": "The Plain",
+            "name": "Cold Cave",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 69,
-                "east": 90
+                "north": 69
             },
-            "monster": 0,
+            "monster": 91,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Yes, the grass is quite green. Birds chirp from some scrub nearby."
+            "desc": "This is a shallow cave, too shallow to provide much protection from the cold. The snow is quite packed down..",
+            "hidden_exit_east": 90
         },
         {
             "number": 90,
-            "name": "Wooded Glen",
+            "name": "Inner Cave",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
                 "south": 110,
                 "west": 89
@@ -1551,10 +1492,70 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
+            "desc": "The air is quite a bit warmer in here. There are crude implements lying about, and rather a lot of garbage.."
+        },
+        {
+            "number": 92,
+            "name": "Dried Plain",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 72,
+                "east": 93
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The grass is so brown, not much living here at all, except the occasional bug."
+        },
+        {
+            "number": 93,
+            "name": "Dried Plain",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 113,
+                "west": 92
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "'Still, it is more pleasent than the desert!' you muse to yourself, as you trudge across the plain.."
+        },
+        {
+            "number": 94,
+            "name": "The Plain",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 74,
+                "east": 95
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Yes, the grass is quite green. Birds chirp from some scrub nearby."
+        },
+        {
+            "number": 95,
+            "name": "Wooded Glen",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 115,
+                "west": 94
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
             "desc": "You travel thru some lush trees, feeling the coolness of the shade against your skin.."
         },
         {
-            "number": 91,
+            "number": 96,
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
@@ -1562,93 +1563,8 @@
                 "no_error_exit_west"
             ],
             "exits": {
-                "north": 71,
-                "east": 92
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 92,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 72,
-                "south": 112,
-                "east": 93,
-                "west": 91
-            },
-            "monster": 11,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 93,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 73,
-                "south": 113,
-                "east": 94,
-                "west": 92
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 94,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 74,
-                "south": 114,
-                "east": 95,
-                "west": 93
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 95,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 75,
-                "south": 115,
-                "east": 96,
-                "west": 94
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 96,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
                 "north": 76,
-                "south": 116,
-                "east": 97,
-                "west": 95
+                "east": 97
             },
             "monster": 0,
             "item": 0,
@@ -1660,20 +1576,18 @@
             "number": 97,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_east"
-            ],
+            "flags": [],
             "exits": {
                 "north": 77,
                 "south": 117,
                 "east": 98,
                 "west": 96
             },
-            "monster": 0,
+            "monster": 11,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert. You see a faded sign lying in the sand. It says something about the Fountain of Youth, but you can't make it all out..."
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 98,
@@ -1689,19 +1603,18 @@
             "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 49,
+            "food": 0,
             "desc": "You travel in a dusty desert."
         },
         {
             "number": 99,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_east",
-                "no_error_exit_south"
-            ],
+            "flags": [],
             "exits": {
                 "north": 79,
+                "south": 119,
+                "east": 100,
                 "west": 98
             },
             "monster": 0,
@@ -1712,17 +1625,20 @@
         },
         {
             "number": 100,
-            "name": "The Oasis",
-            "room_alignment": "free_fire",
+            "name": "The Desert",
+            "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 120
+                "north": 80,
+                "south": 120,
+                "east": 81,
+                "west": 99
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 47,
-            "desc": "This is a beautiful Oasis. Birds chirp softly. The desert seems a bad dream."
+            "food": 0,
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 101,
@@ -1731,7 +1647,92 @@
             "flags": [],
             "exits": {
                 "north": 81,
-                "south": 121
+                "south": 121,
+                "east": 102,
+                "west": 120
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 102,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [
+                "no_error_exit_east"
+            ],
+            "exits": {
+                "north": 82,
+                "south": 122,
+                "east": 103,
+                "west": 101
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert. You see a faded sign lying in the sand. It says something about the Fountain of Youth, but you can't make it all out..."
+        },
+        {
+            "number": 103,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 83,
+                "south": 123,
+                "east": 104,
+                "west": 102
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 49,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 104,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [
+                "no_error_exit_east",
+                "no_error_exit_south"
+            ],
+            "exits": {
+                "north": 84,
+                "west": 103
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 105,
+            "name": "The Oasis",
+            "room_alignment": "free_fire",
+            "flags": [],
+            "exits": {
+                "south": 125
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 47,
+            "desc": "This is a beautiful Oasis. Birds chirp softly. The desert seems a bad dream."
+        },
+        {
+            "number": 106,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 86,
+                "south": 126
             },
             "monster": 0,
             "item": 0,
@@ -1740,16 +1741,17 @@
             "desc": "You travel in the desert."
         },
         {
-            "number": 102,
+            "number": 108,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
+                "vehicle_departure_north",
                 "water",
                 "snow"
             ],
             "exits": {
-                "north": 82,
-                "south": 122
+                "north": 88,
+                "south": 128
             },
             "monster": 0,
             "item": 0,
@@ -1758,14 +1760,14 @@
             "desc": "You are in an icy inlet. The main ocean is to the south. A rocky landing is to the north. The wind is bitter cold..."
         },
         {
-            "number": 103,
+            "number": 109,
             "name": "Back Of Cave",
             "room_alignment": "neutral",
             "flags": [
                 "no_flee"
             ],
             "exits": {
-                "east": 104
+                "east": 110
             },
             "monster": 0,
             "item": 80,
@@ -1774,15 +1776,15 @@
             "desc": "This is the back of the cave. There are large piles of straw here, apparently used for bedding..."
         },
         {
-            "number": 104,
+            "number": 110,
             "name": "Inner Cave",
             "room_alignment": "neutral",
             "flags": [
                 "no_flee"
             ],
             "exits": {
-                "north": 84,
-                "west": 103
+                "north": 90,
+                "west": 109
             },
             "monster": 0,
             "item": 81,
@@ -1791,28 +1793,28 @@
             "desc": "The air is deliciously warm here. A roaring fireplace is in the corner.. The cave runs north and west."
         },
         {
-            "number": 105,
+            "number": 113,
             "name": "The Plain",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 85,
-                "east": 106
+                "north": 93,
+                "east": 114
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The plain is rather green here. A sparkling fountain bubbles up from a pool of crystal-clear water."
+            "desc": "The plain is rather green here. You scare up a rabbit, but are too slow to catch it.."
         },
         {
-            "number": 106,
+            "number": 114,
             "name": "Wooded Glen",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 107,
-                "west": 105
+                "east": 115,
+                "west": 113
             },
             "monster": 0,
             "item": 0,
@@ -1821,14 +1823,14 @@
             "desc": "You walk thru a wooded glen, feeling good at the scents in the air.."
         },
         {
-            "number": 107,
+            "number": 115,
             "name": "Wooded Glen",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 87,
-                "east": 108,
-                "west": 106
+                "north": 95,
+                "east": 116,
+                "west": 114
             },
             "monster": 0,
             "item": 0,
@@ -1837,13 +1839,15 @@
             "desc": "The woods are rather thicker here, as you follow a meandering footpath... You distinctly hear gurgling water nearby."
         },
         {
-            "number": 108,
+            "number": 116,
             "name": "Northern River Bank",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "vehicle_exit_south"
+            ],
             "exits": {
-                "south": 128,
-                "west": 107
+                "south": 136,
+                "west": 115
             },
             "monster": 82,
             "item": 0,
@@ -1852,7 +1856,7 @@
             "desc": "A narrow, but swift river is to the south. A small village is visible on the other side.."
         },
         {
-            "number": 109,
+            "number": 117,
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
@@ -1860,177 +1864,39 @@
                 "no_error_exit_south"
             ],
             "exits": {
-                "north": 89,
-                "east": 110
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 110,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 90,
-                "south": 130,
-                "east": 111,
-                "west": 109
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 111,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 91,
-                "south": 131,
-                "east": 112,
-                "west": 110
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 112,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 92,
-                "south": 132,
-                "east": 113,
-                "west": 111
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 113,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 93,
-                "south": 133,
-                "east": 114,
-                "west": 112
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 114,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 94,
-                "south": 134,
-                "east": 115,
-                "west": 113
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 115,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_east",
-                "no_error_exit_south"
-            ],
-            "exits": {
-                "north": 95,
-                "west": 114
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 116,
-            "name": "Rocky Ravine",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 96,
-                "east": 117
-            },
-            "monster": 103,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "There are rocks on either side. The wind whistles softly.. Something stirs in the shadows! \"Who dares disturb the Fountain?!?\""
-        },
-        {
-            "number": 117,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_east",
-                "no_error_exit_south"
-            ],
-            "exits": {
                 "north": 97,
-                "west": 116
+                "east": 118
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in the desert. A ravine is to the west.. A little sign is stuck among the rocks, it sez; \"BEWARE THE GUARDIAN\""
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 118,
-            "name": "The Ocean",
+            "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
+            "flags": [],
             "exits": {
                 "north": 98,
                 "south": 138,
-                "east": 119
+                "east": 119,
+                "west": 117
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A narrow inlet is north. It is choked with ice burgs, but there may be a way thru them.."
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 119,
-            "name": "The Ocean",
+            "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
+            "flags": [],
             "exits": {
+                "north": 99,
                 "south": 139,
                 "east": 120,
                 "west": 118
@@ -2039,16 +1905,15 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Definitely colder here, white covered mountains can be seen to the north. But there is no landing site visible.."
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 120,
-            "name": "The Ocean",
+            "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
+            "flags": [],
             "exits": {
+                "north": 100,
                 "south": 140,
                 "east": 101,
                 "west": 119
@@ -2057,156 +1922,128 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Crashing surf is to the north.."
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 121,
-            "name": "The Ocean",
+            "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "water_with_rocks"
-            ],
+            "flags": [],
             "exits": {
+                "north": 101,
                 "south": 141,
+                "east": 122,
                 "west": 140
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Thundering breakers to the north and east, warn you away from that direction."
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 122,
-            "name": "Rivertown Library",
+            "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 123
+                "north": 102,
+                "south": 142,
+                "east": 123,
+                "west": 121
             },
             "monster": 0,
-            "item": 79,
+            "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "'This is a rather odd little library,' you think, seeing only one book. 'A learned lot these town folks!' you snicker to yourself.."
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 123,
-            "name": "Southern River Bank",
+            "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_error_exit_east",
+                "no_error_exit_south"
+            ],
             "exits": {
                 "north": 103,
-                "east": 124,
                 "west": 122
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You are on the southern river bank. The village of Rivertown lies mostly to the southeast, but there is one odd little building to the west. It says; \"RIVERTOWN PUBLIC LIBRARY\" over its decrepit door. A rather pretentious title, given it's state of dis-repair.."
-        },
-        {
-            "number": 124,
-            "name": "Rivertown",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "south": 144,
-                "west": 123
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "This is a rather ramshackle little village. The smell of fish hangs in the air."
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 125,
-            "name": "The Desert",
+            "name": "Rocky Ravine",
             "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_west",
-                "no_error_exit_south"
-            ],
+            "flags": [],
             "exits": {
                 "north": 105,
                 "east": 126
             },
-            "monster": 0,
+            "monster": 103,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "There are rocks on either side. The wind wistles softly.. Something stirs in the shadows! \"Who dares disturb the Fountain?!?\""
         },
         {
             "number": 126,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_error_exit_east",
+                "no_error_exit_south"
+            ],
             "exits": {
                 "north": 106,
-                "south": 146,
-                "east": 127,
                 "west": 125
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 127,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 107,
-                "south": 147,
-                "east": 128,
-                "west": 126
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "You travel in the desert. A ravine is to the west.. A little sign is stuck among the rocks, it sez; \"BEWARE THE GUARDIAN\""
         },
         {
             "number": 128,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 108,
                 "south": 148,
-                "east": 129,
-                "west": 127
+                "east": 129
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "A narrow inlet is north. It is choked with ice burgs, but there may be a way thru them.."
         },
         {
             "number": 129,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "no_error_exit_south",
-                "no_error_exit_east"
+                "water"
             ],
             "exits": {
-                "north": 109,
+                "south": 149,
+                "east": 130,
                 "west": 128
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "Definitly colder here, white covered mountains can be seen to the north. But there is no landing site visible.."
         },
         {
             "number": 130,
@@ -2217,7 +2054,176 @@
             ],
             "exits": {
                 "south": 150,
-                "east": 131
+                "east": 131,
+                "west": 129
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Crashing surf is to the north.."
+        },
+        {
+            "number": 131,
+            "name": "The Ocean",
+            "room_alignment": "neutral",
+            "flags": [
+                "water_with_rocks"
+            ],
+            "exits": {
+                "south": 151,
+                "west": 130
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Thundering breakers to the north and east, warn you away from that direction."
+        },
+        {
+            "number": 135,
+            "name": "Rivertown Library",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 136
+            },
+            "monster": 0,
+            "item": 79,
+            "weapon": 0,
+            "food": 0,
+            "desc": "'This is a rather odd little library,' you think, seeing only one book. 'A learned lot these town folks!' you snicker to yourself.."
+        },
+        {
+            "number": 136,
+            "name": "Southern River Bank",
+            "room_alignment": "neutral",
+            "flags": [
+                "vehicle_exit_north"
+            ],
+            "exits": {
+                "north": 116,
+                "east": 137,
+                "west": 135
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are on the southern river bank. The village of Rivertown lies mostly to the southeast, but there is one odd little building to the west. It says; \"RIVERTOWN PUBLIC LIBRARY\" over its decrepid door. A rather pretentious title, given it's state of dis-repair.."
+        },
+        {
+            "number": 137,
+            "name": "Rivertown",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 157,
+                "west": 136
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is a rather ramshackle little village. The smell of fish hangs in the air."
+        },
+        {
+            "number": 138,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [
+                "no_error_exit_west",
+                "no_error_exit_south"
+            ],
+            "exits": {
+                "north": 118,
+                "east": 139
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 139,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 119,
+                "south": 159,
+                "east": 140,
+                "west": 138
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 140,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 120,
+                "south": 160,
+                "east": 121,
+                "west": 139
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 141,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 121,
+                "south": 161,
+                "east": 142,
+                "west": 160
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 142,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [
+                "no_error_exit_south",
+                "no_error_exit_east"
+            ],
+            "exits": {
+                "north": 122,
+                "west": 141
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 144,
+            "name": "The Ocean",
+            "room_alignment": "neutral",
+            "flags": [
+                "water"
+            ],
+            "exits": {
+                "south": 164,
+                "east": 145
             },
             "monster": 0,
             "item": 0,
@@ -2226,255 +2232,13 @@
             "desc": "You appear to have come across a large mass of floating seaweed. It is very thick to the northwest.."
         },
         {
-            "number": 131,
-            "name": "The Ocean",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "south": 151,
-                "east": 132,
-                "west": 130
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "Cold headlands are north, you paddle to keep warm.."
-        },
-        {
-            "number": 132,
-            "name": "The Ocean",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "south": 152,
-                "east": 133,
-                "west": 131
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "Cold bleak shores are to the north, but sheer rock cliffs prevent landing."
-        },
-        {
-            "number": 133,
-            "name": "The Ocean",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "south": 153,
-                "east": 134,
-                "west": 132
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The air feels colder here. White capped mountains are visible to the north, but no landing sites are visible amongst the jumbled shoreline.."
-        },
-        {
-            "number": 134,
-            "name": "The Ocean",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "north": 114,
-                "south": 154,
-                "east": 135,
-                "west": 133
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "A small island is to the south, you may be able to land from this side.. The air is quite nippy here.."
-        },
-        {
-            "number": 135,
-            "name": "The Ocean",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "north": 115,
-                "south": 155,
-                "east": 136,
-                "west": 134
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The water is a bit chillier here..."
-        },
-        {
-            "number": 136,
-            "name": "The Ocean",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "north": 116,
-                "south": 156,
-                "east": 137,
-                "west": 135
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "Waves lap over the side of the dingy.."
-        },
-        {
-            "number": 137,
-            "name": "The Ocean",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "north": 117,
-                "south": 157,
-                "east": 138,
-                "west": 136
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The sea is rather quieter here..."
-        },
-        {
-            "number": 138,
-            "name": "The Ocean",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "south": 158,
-                "east": 139,
-                "west": 137
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "Roaring surf breaks on jagged reefs to the north. There is a sparkling beach to the east, on a large island."
-        },
-        {
-            "number": 139,
-            "name": "Isle Of Headhunters",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "south": 159,
-                "east": 140,
-                "west": 138
-            },
-            "monster": 83,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The ocean sparkles to the west. Dank jungle surrounds you...."
-        },
-        {
-            "number": 140,
-            "name": "Village",
-            "room_alignment": "neutral",
-            "flags": [],
-            "hidden_exit_east": 141,
-            "exits": {
-                "west": 139
-            },
-            "monster": 84,
-            "item": 40,
-            "weapon": 0,
-            "food": 0,
-            "desc": "This is apparently the head hunters village. A group of huts of some sort, surround a large fire pit. The jungle is impenetrable in all directions except the way you came."
-        },
-        {
-            "number": 141,
-            "name": "The Chief'S Treasure Room",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "west": 160
-            },
-            "monster": 0,
-            "item": 78,
-            "weapon": 57,
-            "food": 0,
-            "desc": "This is a small dank room tunneled into the hillside, various odd artifacts lie about. The opening you came thru is to the west.."
-        },
-        {
-            "number": 142,
-            "name": "Rivertown Fish Market",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "south": 162,
-                "east": 143
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 53,
-            "desc": "A small fish market is here. The cats are busy trying to steal a tidbit or two."
-        },
-        {
-            "number": 143,
-            "name": "Rivertown",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 123,
-                "south": 163,
-                "east": 144,
-                "west": 142
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "This appears to be the town square, such as it is. A small child peers at you shyly. A strangely familiar bar is to the east.."
-        },
-        {
-            "number": 144,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_west",
-                "no_error_exit_south"
-            ],
-            "exits": {
-                "north": 124,
-                "east": 145
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 50,
-            "desc": "You travel in a dusty desert."
-        },
-        {
             "number": 145,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
-                "north": 125,
                 "south": 165,
                 "east": 146,
                 "west": 144
@@ -2483,25 +2247,25 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "Cold headlands are north, you paddle to keep warm.."
         },
         {
             "number": 146,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "no_error_exit_south",
-                "no_error_exit_east"
+                "water"
             ],
             "exits": {
-                "north": 126,
+                "south": 166,
+                "east": 147,
                 "west": 145
             },
             "monster": 0,
-            "item": 95,
+            "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "Cold bleak shores are to the north, but sheer rock cliffs prevent landing."
         },
         {
             "number": 147,
@@ -2512,22 +2276,25 @@
             ],
             "exits": {
                 "south": 167,
-                "east": 148
+                "east": 148,
+                "west": 146
             },
-            "monster": 89,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is a broad inlet. A roaring river comes tumbling down from the hills to the north. The river is much to fast for you to paddle that way. But it doesn't seem to bother the sailing craft approaching you.."
+            "desc": "The air feels colder here. White capped mountains are visible to the north, but no landing sites are visible umongst the jumbled shoreline.."
         },
         {
             "number": 148,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
+                "vehicle_departure_south",
                 "water"
             ],
             "exits": {
+                "north": 128,
                 "south": 168,
                 "east": 149,
                 "west": 147
@@ -2536,7 +2303,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You are in a long broad passage leading from the northeast to the southwest. Breakers about all around you.."
+            "desc": "A small island is to the south, you may be able to land from this side.. The air is quite nippy here.."
         },
         {
             "number": 149,
@@ -2547,6 +2314,7 @@
             ],
             "exits": {
                 "north": 129,
+                "south": 169,
                 "east": 150,
                 "west": 148
             },
@@ -2554,7 +2322,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A slow current is coming from the west, where the ocean passes thru a narrow straight. Jumbled rocks line the shore line, making you a bit nervous.."
+            "desc": "The water is a bit chillier here..."
         },
         {
             "number": 150,
@@ -2572,8 +2340,8 @@
             "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 55,
-            "desc": "You appear to have stumbled into a kelp field..."
+            "food": 0,
+            "desc": "Waves lap over the side of the dingy.."
         },
         {
             "number": 151,
@@ -2592,238 +2360,229 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A gentle current seems to be flowing from east to west here.."
+            "desc": "The sea is rather quieter here..."
         },
         {
             "number": 152,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "water_with_rocks"
+                "water"
             ],
             "exits": {
-                "north": 132,
                 "south": 172,
+                "east": 153,
                 "west": 151
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A small coral island is to the east, but crashing breakers warn of trying to reach it from this side.."
+            "desc": "Roaring surf breaks on jagged reefs to the north. There is a sparkling beach to the east, on a large island."
         },
         {
             "number": 153,
-            "name": "Coral Island",
+            "name": "Isle Of Headhunters",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "vehicle_exit_west"
+            ],
             "exits": {
-                "north": 133
+                "south": 173,
+                "east": 154,
+                "west": 152
             },
-            "monster": 0,
-            "item": 85,
+            "monster": 83,
+            "item": 0,
             "weapon": 0,
-            "food": 49,
-            "desc": "This is a tiny coral island. Not much is around, except for a few bugs.."
+            "food": 0,
+            "desc": "The ocean sparkles to the west. Dank jungle surrounds you...."
         },
         {
             "number": 154,
-            "name": "The Ocean",
+            "name": "Village",
             "room_alignment": "neutral",
-            "flags": [
-                "water_with_rocks"
-            ],
+            "flags": [],
             "exits": {
-                "north": 134,
-                "south": 174,
-                "east": 155
+                "west": 153
             },
-            "monster": 0,
-            "item": 0,
+            "monster": 84,
+            "item": 40,
             "weapon": 0,
             "food": 0,
-            "desc": "A coral reef thunders to the west. Beyound that can be seen a small island."
+            "desc": "This is apparently the head hunters village. A group of huts of somesort, surround a large fire pit. The jungle is impenatrable in all directions except the way you came.",
+            "hidden_exit_east": 155
         },
         {
             "number": 155,
-            "name": "The Ocean",
+            "name": "The Chief'S Treasure Room",
             "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
+            "flags": [],
             "exits": {
-                "north": 135,
-                "south": 175,
-                "east": 156,
                 "west": 154
             },
             "monster": 0,
-            "item": 0,
-            "weapon": 0,
+            "item": 78,
+            "weapon": 57,
             "food": 0,
-            "desc": "Are you getting tired of paddling yet?"
+            "desc": "This is a small dank room tunneled into the hillside, various odd artifacts lie about. The opening you came thru is to the west.."
         },
         {
             "number": 156,
-            "name": "The Ocean",
+            "name": "Rivertown Fish Market",
             "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
+            "flags": [],
             "exits": {
-                "north": 136,
                 "south": 176,
-                "east": 157,
-                "west": 155
+                "east": 157
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 55,
-            "desc": "You force your way thru a kelp bed.."
+            "food": 53,
+            "desc": "A small fish market is here. The cats are busy trying to steal a tidbit or two."
         },
         {
             "number": 157,
-            "name": "The Ocean",
+            "name": "Rivertown",
             "room_alignment": "neutral",
-            "flags": [
-                "water_with_rocks"
-            ],
+            "flags": [],
             "exits": {
                 "north": 137,
                 "south": 177,
+                "east": 158,
                 "west": 156
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "There are towering cliffs, dark against the eastern horizon.. You can see a faint trail sloping down to the east, where a horse paddock can be seen."
-        },
-        {
-            "number": 158,
-            "name": "Isle Of Headhunters",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 138,
-                "south": 178,
-                "east": 159
-            },
-            "monster": 83,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The ocean roars to the south, all else is jungle.."
+            "desc": "This appears to be the town square, such as it is. A small child peers at you shyly. A strangly familiar bar is to the east.. A faint trail nearby leads toward a horse paddock."
         },
         {
             "number": 159,
-            "name": "Isle Of Headhunters",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "south": 179,
-                "east": 160,
-                "west": 158
-            },
-            "monster": 0,
-            "item": 37,
-            "weapon": 0,
-            "food": 41,
-            "desc": "The jungle hangs heavy around you. Steam and insects abound.."
-        },
-        {
-            "number": 160,
-            "name": "Isle Of Headhunters",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "south": 180,
-                "west": 159
-            },
-            "monster": 8,
-            "item": 12,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You see what looks to be skeletons of previous travelers, mouldering in the jungle..."
-        },
-        {
-            "number": 161,
-            "name": "Rivertown",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 141,
-                "east": 162
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The street wanders amongst tattered little buildings.."
-        },
-        {
-            "number": 162,
-            "name": "Rivertown",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 142,
-                "east": 163,
-                "west": 161
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "Town's people peer at you curiously, they are not used to strangers.."
-        },
-        {
-            "number": 163,
-            "name": "Rivertown",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "east": 164,
-                "west": 162
-            },
-            "monster": 60,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "This section of town looks even worse than the others. You begin to ponder the wisdom of continuing, as some toughs look you over.."
-        },
-        {
-            "number": 164,
-            "name": "Rivertown",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "west": 163
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "A short plump girl motions you over. When you approach, she says; \"Value highly the Amulet of Life, if you value yours!\" Rather pleased with her attempt at cryptic remarks, she warms to the subject. \"You look like a nice person Deary, so I shall also tell ye that there is rumored that a book in the great northern reaches of the desert, professing to know much about this powerful object!\" As you leave, she can't resist one parting shot of wisdom, \"Here tell that the ancient arcane art of the Rangers labels the location of the book as 340!\""
-        },
-        {
-            "number": 165,
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "no_error_exit_south",
-                "no_error_exit_west"
+                "no_error_exit_west",
+                "no_error_exit_south"
             ],
             "exits": {
-                "north": 145,
-                "east": 166
+                "north": 139,
+                "east": 160
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 50,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 160,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 140,
+                "south": 180,
+                "east": 141,
+                "west": 159
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
             "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 161,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [
+                "no_error_exit_south",
+                "no_error_exit_east"
+            ],
+            "exits": {
+                "north": 141,
+                "west": 180
+            },
+            "monster": 0,
+            "item": 95,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 162,
+            "name": "The Ocean",
+            "room_alignment": "neutral",
+            "flags": [
+                "water"
+            ],
+            "exits": {
+                "south": 182,
+                "east": 163
+            },
+            "monster": 89,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is a broad inlet. A roaring river comes tumbling down from the hills to the north. The river is much to fast for you to paddle that way. But it doesn't seem to bother the sailing craft aproaching you.."
+        },
+        {
+            "number": 163,
+            "name": "The Ocean",
+            "room_alignment": "neutral",
+            "flags": [
+                "water"
+            ],
+            "exits": {
+                "south": 183,
+                "east": 164,
+                "west": 162
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a long broad passage leading from the northeast to the southwest. Breakers about all around you.."
+        },
+        {
+            "number": 164,
+            "name": "The Ocean",
+            "room_alignment": "neutral",
+            "flags": [
+                "water"
+            ],
+            "exits": {
+                "north": 144,
+                "east": 165,
+                "west": 163
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A slow current is coming from the west, where the ocean passes thru a narrow straight. Jumbled rocks line the shore line, making you a bit nervous.."
+        },
+        {
+            "number": 165,
+            "name": "The Ocean",
+            "room_alignment": "neutral",
+            "flags": [
+                "water"
+            ],
+            "exits": {
+                "north": 145,
+                "south": 185,
+                "east": 166,
+                "west": 164
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 55,
+            "desc": "You appear to have stumbled into a kelp field..."
         },
         {
             "number": 166,
@@ -2833,6 +2592,7 @@
                 "water"
             ],
             "exits": {
+                "north": 146,
                 "south": 186,
                 "east": 167,
                 "west": 165
@@ -2840,61 +2600,60 @@
             "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 58,
-            "desc": "Flying fish flutter past, some striking your valiant little craft.."
+            "food": 0,
+            "desc": "A gentle current seems to be flowing from east to west here.."
         },
         {
             "number": 167,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "water"
+                "water_with_rocks"
             ],
             "exits": {
                 "north": 147,
                 "south": 187,
-                "east": 168,
                 "west": 166
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You are in a broad straight. So broad, that land can not be seen in any direction.."
+            "desc": "A small coral island is to the east, but crashing breakers warn of trying to reach it from this side.."
         },
         {
             "number": 168,
-            "name": "The Ocean",
+            "name": "Coral Island",
             "room_alignment": "neutral",
             "flags": [
-                "water"
+                "vehicle_exit_north"
             ],
             "exits": {
-                "north": 148,
-                "west": 167
+                "north": 148
             },
             "monster": 0,
-            "item": 0,
+            "item": 85,
             "weapon": 0,
-            "food": 0,
-            "desc": "You are in a broad straight, which runs from the southwest to the northeast."
+            "food": 49,
+            "desc": "This is a tiny coral island. Not much is around, except for a few bugs.."
         },
         {
             "number": 169,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "water"
+                "water_with_rocks"
             ],
             "exits": {
                 "north": 149,
+                "south": 189,
                 "east": 170
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Powerful currents from the southwest make that direction impractical.."
+            "desc": "A coral reef thunders to the west. Beyound that can be seen a small island."
         },
         {
             "number": 170,
@@ -2905,14 +2664,15 @@
             ],
             "exits": {
                 "north": 150,
+                "south": 190,
                 "east": 171,
                 "west": 169
             },
-            "monster": 87,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You would be complaining about the huge breakers to the south, if you weren't distracted by the shark.."
+            "desc": "Are you getting tired of paddling yet?"
         },
         {
             "number": 171,
@@ -2930,8 +2690,8 @@
             "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 0,
-            "desc": "A small tree branch floats by, looking quite lost.."
+            "food": 55,
+            "desc": "You force your way thru a kelp bed.."
         },
         {
             "number": 172,
@@ -2941,102 +2701,87 @@
                 "water_with_rocks"
             ],
             "exits": {
+                "north": 152,
                 "south": 192,
-                "east": 173,
                 "west": 171
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A small coral island is to the north, but there is no landing on this side.."
+            "desc": "There are towering cliffs, dark against the eastern horizon.."
         },
         {
             "number": 173,
-            "name": "The Ocean",
+            "name": "Isle Of Headhunters",
             "room_alignment": "neutral",
             "flags": [
-                "water"
+                "vehicle_exit_south"
             ],
             "exits": {
                 "north": 153,
                 "south": 193,
-                "east": 174,
-                "west": 172
+                "east": 174
             },
-            "monster": 0,
+            "monster": 83,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Again, those pesky land birds flutter about. Don't they know any better?"
+            "desc": "The ocean roars to the south, all else is jungle.."
         },
         {
             "number": 174,
-            "name": "The Ocean",
+            "name": "Isle Of Headhunters",
             "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
+            "flags": [],
             "exits": {
-                "north": 154,
                 "south": 194,
                 "east": 175,
                 "west": 173
             },
             "monster": 0,
-            "item": 0,
+            "item": 37,
             "weapon": 0,
-            "food": 60,
-            "desc": "A summer rain patters gently upon the waves.. Something smells fishy.."
+            "food": 41,
+            "desc": "The jungle hangs heavy around you. Steam and insects abound.."
         },
         {
             "number": 175,
-            "name": "The Ocean",
+            "name": "Isle Of Headhunters",
             "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
+            "flags": [],
             "exits": {
-                "north": 155,
                 "south": 195,
-                "east": 176,
                 "west": 174
             },
-            "monster": 0,
-            "item": 0,
+            "monster": 8,
+            "item": 12,
             "weapon": 0,
-            "food": 51,
-            "desc": "A sudden rain squall completely fills your little dingy with warm fresh water."
+            "food": 0,
+            "desc": "You see what looks to be skeletons of previous travelers, mouldering in the jungle..."
         },
         {
             "number": 176,
-            "name": "The Ocean",
+            "name": "Rivertown",
             "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
+            "flags": [],
             "exits": {
                 "north": 156,
-                "south": 196,
-                "east": 177,
-                "west": 175
+                "east": 177
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You see a small land bird land on the bow of the dingy for a short rest.."
+            "desc": "The street wanders umongst tattered little buildings.."
         },
         {
             "number": 177,
-            "name": "The Ocean",
+            "name": "Rivertown",
             "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
+            "flags": [],
             "exits": {
                 "north": 157,
-                "south": 197,
                 "east": 178,
                 "west": 176
             },
@@ -3044,56 +2789,54 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You see the white gleam of sunlight off of a white sandy beach to the north."
+            "desc": "Town's people peer at you curiously, they are not used to strangers.."
         },
         {
             "number": 178,
-            "name": "Isle Of Headhunters",
+            "name": "Rivertown",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 158,
-                "south": 198,
-                "east": 179
+                "east": 179,
+                "west": 177
+            },
+            "monster": 60,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This section of town looks even worse than the others. You begin to ponder the wisdom of continuing, as some toughs look you over.."
+        },
+        {
+            "number": 179,
+            "name": "Rivertown",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "west": 178
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You are on a white beach, the jungle looks foreboding to the north.."
-        },
-        {
-            "number": 179,
-            "name": "Isle Of Headhunters",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 159,
-                "south": 199,
-                "west": 178
-            },
-            "monster": 83,
-            "item": 74,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You are on a sparkling beach. A dense jungle is northwards.."
+            "desc": "A short plump girl motions you over. When you approach, she says; \"Value highly the Amulet of Life, if you value yours!\" Rather pleased with her attempt at cryptic remarks, she warms to the subject. \"You look like a nice person Deary, so I shall also tell ye that there is rumored that a book in the great northern reaches of the desert, professing to know much about this powerful object!\" As you leave, she can't resist one parting shot of wisdom, \"Here tell that the ancient arcane art of the Rangers labels the location of the book as 340!\""
         },
         {
             "number": 180,
-            "name": "The Ocean",
+            "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "water"
+                "no_error_exit_south",
+                "no_error_exit_west"
             ],
             "exits": {
-                "south": 200,
+                "north": 160,
                 "east": 161
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A driving north wind makes progress in that direction impossible.."
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 181,
@@ -3107,11 +2850,11 @@
                 "east": 182,
                 "west": 200
             },
-            "monster": 89,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 0,
-            "desc": "You see a small skiff racing towards you from the forbidding coast to the north.."
+            "food": 58,
+            "desc": "Flying fish flutter past, some striking your valiant little craft.."
         },
         {
             "number": 182,
@@ -3121,6 +2864,7 @@
                 "water"
             ],
             "exits": {
+                "north": 162,
                 "south": 202,
                 "east": 183,
                 "west": 181
@@ -3129,7 +2873,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is the beginning of a broad east-west strait... Cliffs are north."
+            "desc": "You are in a broad straight. So broad, that land can not be seen in any direction.."
         },
         {
             "number": 183,
@@ -3139,33 +2883,14 @@
                 "water"
             ],
             "exits": {
-                "south": 203,
-                "east": 184,
+                "north": 163,
                 "west": 182
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You can't help but admire the wild mountains to the north. From a safe distance of course.."
-        },
-        {
-            "number": 184,
-            "name": "The Ocean",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "south": 204,
-                "east": 185,
-                "west": 183
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The current here gently sweeps from east to west. Mountains are visible north."
+            "desc": "You are in a broad straight, which runs from the southwest to the northeast."
         },
         {
             "number": 185,
@@ -3176,61 +2901,68 @@
             ],
             "exits": {
                 "north": 165,
-                "east": 186,
-                "west": 184
+                "east": 186
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 59,
-            "desc": "The current is quite swift here, going from east to west. Headlands are barely visible to the south.. Flying fish skitter past.."
+            "food": 0,
+            "desc": "Powerful currents from the southwest make that direction impractacle.."
         },
         {
             "number": 186,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "water_with_rocks"
+                "water"
             ],
             "exits": {
                 "north": 166,
+                "east": 187,
                 "west": 185
             },
-            "monster": 0,
+            "monster": 87,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This straight seems to go on forever. Rollers crash to the east.."
+            "desc": "You would be complaing about the huge breakers to the south, if you wern't distracted by the shark.."
         },
         {
             "number": 187,
-            "name": "Rocky Ravine",
+            "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
+                "north": 167,
                 "south": 207,
-                "east": 188
+                "east": 188,
+                "west": 186
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "'Whatever possesed me to come this way?' you muse, as you continue to stumble over the rocky terrain.."
+            "desc": "A small tree branch floats by, looking quite lost.."
         },
         {
             "number": 188,
-            "name": "Rocky Ravine",
+            "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "south": 208,
+                "east": 189,
                 "west": 187
             },
-            "monster": 75,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "All the jumbled rocks, baking in the sun would be a good place for snakes.."
+            "desc": "A small coral island is to the north, but there is no landing on this side.."
         },
         {
             "number": 189,
@@ -3242,13 +2974,14 @@
             "exits": {
                 "north": 169,
                 "south": 209,
-                "east": 190
+                "east": 190,
+                "west": 188
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 51,
-            "desc": "Rain squalls chill you to the bone..."
+            "food": 0,
+            "desc": "Again, those pesky land birds flutter about. Don't they know any better?"
         },
         {
             "number": 190,
@@ -3263,11 +2996,11 @@
                 "east": 191,
                 "west": 189
             },
-            "monster": 88,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 56,
-            "desc": "You wake with a start, to discover a seagull trying to make a nest in your pack!"
+            "food": 60,
+            "desc": "A summer rain patters gently upon the waves.. Something smells fishy.."
         },
         {
             "number": 191,
@@ -3285,8 +3018,8 @@
             "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 0,
-            "desc": "You wonder if Columbus had it this rough.."
+            "food": 51,
+            "desc": "A sudden rain squall completely fills your little dingy with warm fresh water."
         },
         {
             "number": 192,
@@ -3301,17 +3034,18 @@
                 "east": 193,
                 "west": 191
             },
-            "monster": 86,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A weird howling, chills your blood.."
+            "desc": "You see a small land bird land on the bow of the dingy for a short rest.."
         },
         {
             "number": 193,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
+                "vehicle_departure_north",
                 "water"
             ],
             "exits": {
@@ -3324,45 +3058,43 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You must be miles and miles away from the nearest land!"
+            "desc": "You see the white gleam of sunlight off of a white sandy beach to the north."
         },
         {
             "number": 194,
-            "name": "The Ocean",
+            "name": "Isle Of Headhunters",
             "room_alignment": "neutral",
             "flags": [
-                "water"
+                "vehicle_exit_south"
             ],
             "exits": {
                 "north": 174,
                 "south": 214,
-                "east": 195,
-                "west": 193
+                "east": 195
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Vaguely, you wonder if it would be possible to catch any fish.."
+            "desc": "You are on a white beach, the jungle looks forebidding to the north.."
         },
         {
             "number": 195,
-            "name": "The Ocean",
+            "name": "Isle Of Headhunters",
             "room_alignment": "neutral",
             "flags": [
-                "water"
+                "vehicle_exit_south"
             ],
             "exits": {
                 "north": 175,
                 "south": 215,
-                "east": 196,
                 "west": 194
             },
-            "monster": 0,
-            "item": 0,
+            "monster": 83,
+            "item": 74,
             "weapon": 0,
             "food": 0,
-            "desc": "The ocean starts to look monotonous..."
+            "desc": "You are on a sparkling beach. A dense jungle is northwards.."
         },
         {
             "number": 196,
@@ -3372,16 +3104,14 @@
                 "water"
             ],
             "exits": {
-                "north": 176,
                 "south": 216,
-                "east": 197,
-                "west": 195
+                "east": 197
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You barely make out the tops of a jungle away to the north.."
+            "desc": "A driving north wind makes progress in that direction impossible.."
         },
         {
             "number": 197,
@@ -3391,16 +3121,15 @@
                 "water"
             ],
             "exits": {
-                "north": 177,
                 "south": 217,
                 "east": 198,
                 "west": 196
             },
-            "monster": 0,
+            "monster": 89,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A large jungle-laden island is north, barely visible thru the mist.."
+            "desc": "You see a small skiff racing towards you from the forbidding coast to the north.."
         },
         {
             "number": 198,
@@ -3410,7 +3139,6 @@
                 "water"
             ],
             "exits": {
-                "north": 178,
                 "south": 218,
                 "east": 199,
                 "west": 197
@@ -3419,7 +3147,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Large rollers start to get to your stomach.."
+            "desc": "This is the begining of a broad east-west straight... Cliffs are north."
         },
         {
             "number": 199,
@@ -3429,7 +3157,6 @@
                 "water"
             ],
             "exits": {
-                "north": 179,
                 "south": 219,
                 "east": 200,
                 "west": 198
@@ -3438,7 +3165,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The wind seems to be picking up a bit.."
+            "desc": "You can't help but admire the wild moutains to the north. From a safe distance of course.."
         },
         {
             "number": 200,
@@ -3448,7 +3175,7 @@
                 "water"
             ],
             "exits": {
-                "north": 180,
+                "south": 220,
                 "east": 181,
                 "west": 199
             },
@@ -3456,7 +3183,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "High cliffs are to the southeast.."
+            "desc": "The current here gently sweeps from east to west. Mountains are visible north."
         },
         {
             "number": 201,
@@ -3470,63 +3197,43 @@
                 "east": 202,
                 "west": 220
             },
-            "monster": 86,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 0,
-            "desc": "Something bumps the bottom of the dingy!"
+            "food": 59,
+            "desc": "The current is quite swift here, going from east to west. Headlands are barely visble to the south.. Flying fish skitter past.."
         },
         {
             "number": 202,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "water"
+                "water_with_rocks"
             ],
             "exits": {
                 "north": 182,
-                "east": 203,
                 "west": 201
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The straight stretches to the east and west. Vertical cliffs plunge into the ocean to the south."
+            "desc": "This straight seems to go on forever. Rollers crash to the east.."
         },
         {
-            "number": 203,
-            "name": "The Desert",
+            "number": 204,
+            "name": "Rocky Ravine",
             "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_north",
-                "no_error_exit_east"
-            ],
+            "flags": [],
             "exits": {
-                "south": 223,
-                "west": 202
+                "south": 224,
+                "east": 205
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 204,
-            "name": "Tiny Meadow",
-            "room_alignment": "neutral",
-            "flags": [
-                "grassy"
-            ],
-            "exits": {
-                "east": 205
-            },
-            "monster": 0,
-            "item": 74,
-            "weapon": 0,
-            "food": 51,
-            "desc": "The ravine abruptly spills out into this tiny meadow, with rich grass and a very tiny pond of water in it's middle."
+            "desc": "'Whatever possesed me to come this way?' you muse, as you continue to stumble over the rocky terrain.."
         },
         {
             "number": 205,
@@ -3534,37 +3241,21 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 185,
                 "south": 225,
                 "west": 204
             },
-            "monster": 0,
+            "monster": 75,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The ravine does not seem quite as deep and forbidding here, as you work your way up a slow incline.."
-        },
-        {
-            "number": 206,
-            "name": "Rocky Ravine",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 186,
-                "south": 226
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You see scrubby brush growing overhead, as you struggle over the rocks.."
+            "desc": "All the jumbled rocks, baking in the sun would be a good place for snakes.."
         },
         {
             "number": 207,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "water_with_rocks"
+                "water"
             ],
             "exits": {
                 "north": 187,
@@ -3574,8 +3265,8 @@
             "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 0,
-            "desc": "There MUST be a place to land somewhere along the rugged coastline to the west, but this obviously isn't it!"
+            "food": 51,
+            "desc": "Rain squalls chill you to the bone..."
         },
         {
             "number": 208,
@@ -3590,21 +3281,22 @@
                 "east": 209,
                 "west": 207
             },
-            "monster": 0,
+            "monster": 88,
             "item": 0,
             "weapon": 0,
-            "food": 0,
-            "desc": "'Hum, de dum..' You try to hum a favorite traveling tune.."
+            "food": 56,
+            "desc": "You wake with a start, to discover a seagull trying to make a nest in your pack!"
         },
         {
             "number": 209,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "water_with_rocks"
+                "water"
             ],
             "exits": {
                 "north": 189,
+                "south": 229,
                 "east": 210,
                 "west": 208
             },
@@ -3612,7 +3304,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A tiny island is to the south, but this side is all cliffs.."
+            "desc": "You wonder if Columbos had it this rough.."
         },
         {
             "number": 210,
@@ -3627,11 +3319,11 @@
                 "east": 211,
                 "west": 209
             },
-            "monster": 0,
+            "monster": 86,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A small land bird flies by overhead.."
+            "desc": "A weird howling, chills your blood.."
         },
         {
             "number": 211,
@@ -3650,7 +3342,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Storm clouds lurk on the far northern horizon.."
+            "desc": "You must be miles and miles away from the nearest land!"
         },
         {
             "number": 212,
@@ -3669,7 +3361,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Your mind wanders as you paddle, forever it seems..."
+            "desc": "Vaguely, you wonder if it would be possible to catch any fish.."
         },
         {
             "number": 213,
@@ -3688,13 +3380,14 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "No land for miles and miles.."
+            "desc": "The ocean starts to look monotous..."
         },
         {
             "number": 214,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
+                "vehicle_departure_north",
                 "water"
             ],
             "exits": {
@@ -3707,13 +3400,14 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "'Row, row, row your boat..'.. You smile as you realize what a ridicules song that is. Never the less you continue, \"Merrily, merrily, merrily...\""
+            "desc": "You barely make out the tops of a jungle away to the north.."
         },
         {
             "number": 215,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
+                "vehicle_departure_north",
                 "water"
             ],
             "exits": {
@@ -3726,7 +3420,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A seagull passes over head, dropping a tremendous load uncomfortably nearby."
+            "desc": "A large jungle ladden island is north, barely visible thru the mist.."
         },
         {
             "number": 216,
@@ -3741,11 +3435,11 @@
                 "east": 217,
                 "west": 215
             },
-            "monster": 85,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The water seems to be gurgling or something here.."
+            "desc": "Large rollers start to get to your stomach.."
         },
         {
             "number": 217,
@@ -3756,58 +3450,61 @@
             ],
             "exits": {
                 "north": 197,
+                "south": 237,
+                "east": 218,
                 "west": 216
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Giant cliffs tower away to the east and south. Much too rough to approach."
+            "desc": "The wind seems to be picking up a bit.."
         },
         {
             "number": 218,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "no_error_exit_north",
-                "no_error_exit_west"
+                "water"
             ],
             "exits": {
-                "south": 238,
-                "east": 219
+                "north": 198,
+                "east": 219,
+                "west": 217
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "High cliffs are to the southeast.."
         },
         {
             "number": 219,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "no_error_exit_north"
+                "water"
             ],
             "exits": {
-                "south": 239,
+                "north": 199,
                 "east": 220,
                 "west": 218
             },
-            "monster": 0,
+            "monster": 86,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "Something bumps the bottom of the dingy!"
         },
         {
             "number": 220,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 200,
-                "south": 240,
                 "east": 201,
                 "west": 219
             },
@@ -3815,7 +3512,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "The straight stretches to the east and west. Vertical cliffs plunge into the ocean to the south."
         },
         {
             "number": 221,
@@ -3836,34 +3533,20 @@
             "desc": "You travel in a dusty desert."
         },
         {
-            "number": 222,
-            "name": "Rocky Ravine",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "south": 242,
-                "east": 223
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "This is a rugged ravine, with huge boulders rising on either side of you. The ravine seems to wonder off that way over there.."
-        },
-        {
             "number": 223,
-            "name": "Rocky Ravine",
+            "name": "Tiny Meadow",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "grassy"
+            ],
             "exits": {
-                "east": 224,
-                "west": 222
+                "east": 224
             },
             "monster": 0,
-            "item": 0,
+            "item": 74,
             "weapon": 0,
-            "food": 0,
-            "desc": "The rocky ravine continues this way, not getting any more gentle.."
+            "food": 51,
+            "desc": "The ravine abruptly spills out into this tiny meadow, with rich grass and a very tiny pond of water in it's middle."
         },
         {
             "number": 224,
@@ -3879,41 +3562,22 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The ravine seems to branch off here..."
+            "desc": "The ravine does not seem quite as deep and forbidding here, as you work your way up a slow incline.."
         },
         {
             "number": 225,
-            "name": "Nowhere",
+            "name": "Rocky Ravine",
             "room_alignment": "neutral",
-            "flags": [
-                "outer_space"
-            ],
+            "flags": [],
             "exits": {
+                "north": 205,
                 "south": 245
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is some more of the strange fog..."
-        },
-        {
-            "number": 226,
-            "name": "The Ocean",
-            "room_alignment": "neutral",
-            "flags": [
-                "water_with_rocks"
-            ],
-            "exits": {
-                "north": 206,
-                "south": 246,
-                "east": 227
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "Towering headlands to the west, rising over the din of crashing reefs.."
+            "desc": "You see scrubby brush growing overhead, as you struggle over the rocks.."
         },
         {
             "number": 227,
@@ -3925,38 +3589,42 @@
             "exits": {
                 "north": 207,
                 "south": 247,
-                "west": 226
+                "east": 228
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "There is a tiny island to the east, but it appears to be all cliffs.."
+            "desc": "There MUST be a place to land somwhere along the rugged coastline to the west, but this odviously isn't it!"
         },
         {
             "number": 228,
-            "name": "Tiny Island",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "east": 229
-            },
-            "monster": 76,
-            "item": 76,
-            "weapon": 0,
-            "food": 0,
-            "desc": "This is a small deserted island. Trade winds blow thru the few trees present. The only beach is to the west, the other sides being jagged cliffs."
-        },
-        {
-            "number": 229,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
                 "water"
             ],
             "exits": {
+                "north": 208,
+                "south": 248,
+                "east": 229,
+                "west": 227
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "'Hum, de dum..' You try to hum a favorite traveling tune.."
+        },
+        {
+            "number": 229,
+            "name": "The Ocean",
+            "room_alignment": "neutral",
+            "flags": [
+                "water_with_rocks"
+            ],
+            "exits": {
                 "north": 209,
-                "south": 249,
                 "east": 230,
                 "west": 228
             },
@@ -3964,7 +3632,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "What's that? A small island to the west, and a narrow beach too!"
+            "desc": "A tiny island is to the south, but this side is all cliffs.."
         },
         {
             "number": 230,
@@ -3983,7 +3651,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You see a branch float by, making you wonder if land is somewhere around.."
+            "desc": "A small land bird flies by overhead.."
         },
         {
             "number": 231,
@@ -4002,7 +3670,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You inspect the blisters on your hands from rowing.."
+            "desc": "Storm clouds lurk on the far northern horizon.."
         },
         {
             "number": 232,
@@ -4021,7 +3689,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You absent mindedly wonder how deep the water is here.."
+            "desc": "Your mind wanders as you paddle, forever it seems..."
         },
         {
             "number": 233,
@@ -4040,7 +3708,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "It occurs to you that maybe rowing a dingy across an ocean is not too smart.."
+            "desc": "No land for miles and miles.."
         },
         {
             "number": 234,
@@ -4059,7 +3727,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Your arms start to ache from the rowing.."
+            "desc": "'Row, row, row your boat..'.. You smile as you realize what a ridicules song that is. Never the less you continue, \"Merrily, merrily, merrily...\""
         },
         {
             "number": 235,
@@ -4070,16 +3738,54 @@
             ],
             "exits": {
                 "north": 215,
+                "south": 255,
+                "east": 236,
                 "west": 234
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Imposing headlands are off to the southeast."
+            "desc": "A seagull passes over head, dropping a tremendous load uncomfortably nearby."
         },
         {
             "number": 236,
+            "name": "The Ocean",
+            "room_alignment": "neutral",
+            "flags": [
+                "water"
+            ],
+            "exits": {
+                "north": 216,
+                "south": 256,
+                "east": 237,
+                "west": 235
+            },
+            "monster": 85,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The water seems to be gurgling or something here.."
+        },
+        {
+            "number": 237,
+            "name": "The Ocean",
+            "room_alignment": "neutral",
+            "flags": [
+                "water"
+            ],
+            "exits": {
+                "north": 217,
+                "west": 236
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Giant cliffs tower away to the east and south. Much too rough to approach."
+        },
+        {
+            "number": 239,
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
@@ -4087,59 +3793,8 @@
                 "no_error_exit_west"
             ],
             "exits": {
-                "south": 256,
-                "east": 237
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 237,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 217,
-                "south": 257,
-                "east": 238,
-                "west": 236
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 238,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 218,
-                "south": 258,
-                "east": 239,
-                "west": 237
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 239,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 219,
                 "south": 259,
-                "east": 240,
-                "west": 238
+                "east": 240
             },
             "monster": 0,
             "item": 0,
@@ -4151,9 +3806,10 @@
             "number": 240,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_error_exit_north"
+            ],
             "exits": {
-                "north": 220,
                 "south": 260,
                 "east": 221,
                 "west": 239
@@ -4168,12 +3824,11 @@
             "number": 241,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_east"
-            ],
+            "flags": [],
             "exits": {
                 "north": 221,
                 "south": 261,
+                "east": 242,
                 "west": 260
             },
             "monster": 0,
@@ -4184,151 +3839,142 @@
         },
         {
             "number": 242,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [
+                "no_error_exit_north",
+                "no_error_exit_east"
+            ],
+            "exits": {
+                "south": 262,
+                "west": 241
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 243,
             "name": "Rocky Ravine",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 222,
-                "east": 243
+                "south": 263,
+                "east": 244
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The ravine seems to lead to the east to a strangely-darkened area. There is a sign here which says: /----------------------------------\\ ! WARNING! DO NOT GO TO THE EAST   ! ! IF YOU WANT TO LEAVE HERE!!      ! \\----------------------------------/"
-        },
-        {
-            "number": 243,
-            "name": "Nowhere",
-            "room_alignment": "neutral",
-            "flags": [
-                "outer_space"
-            ],
-            "exits": {
-                "north": 223
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "This is a very strange fog. You can barely make out a sign; /----------------------------------\\ | SEE? I TOLD YOU NOT TO COME HERE | | BUT WOULD YOU LISTEN? NOOOOOO!!! | \\----------------------------------/"
+            "desc": "This is a rugged ravine, with huge boulders rising on either side of you. The ravine seems to wonder off that way over there.."
         },
         {
             "number": 244,
-            "name": "The Ocean",
+            "name": "Rocky Ravine",
             "room_alignment": "neutral",
-            "flags": [
-                "water_with_rocks"
-            ],
+            "flags": [],
             "exits": {
-                "north": 224,
-                "east": 245
+                "east": 245,
+                "west": 243
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Towering peaks rise to the southwest, dark and foreboding. Distant breakers tell stark predictions of trying to go that way.."
+            "desc": "The rocky ravine continues this way, not getting any more gentle.."
         },
         {
             "number": 245,
-            "name": "The Ocean",
+            "name": "Rocky Ravine",
             "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
+            "flags": [],
             "exits": {
                 "north": 225,
                 "south": 265,
-                "east": 246,
                 "west": 244
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You daydream of the Wall Bar & Grill, and Skips hot greasy hash.."
+            "desc": "The ravine seems to branch off here..."
         },
         {
             "number": 246,
-            "name": "The Ocean",
+            "name": "Nowhere",
             "room_alignment": "neutral",
             "flags": [
-                "water_with_rocks"
+                "outer_space"
             ],
             "exits": {
-                "south": 266,
-                "east": 247,
-                "west": 245
+                "south": 266
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A tiny island is to the north, but there are jagged cliffs to the waterline.."
+            "desc": "This is some more of the strange fog..."
         },
         {
             "number": 247,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "water"
+                "water_with_rocks"
             ],
             "exits": {
                 "north": 227,
                 "south": 267,
-                "east": 248,
-                "west": 246
+                "east": 248
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This little dingy sure gets uncomfortable!"
+            "desc": "Towering headlands to the west, rising over the din of crashing reefs.."
         },
         {
             "number": 248,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "water"
+                "water_with_rocks"
             ],
             "exits": {
                 "north": 228,
                 "south": 268,
-                "east": 249,
                 "west": 247
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Ocean and yet more ocean..."
+            "desc": "There is a tiny island to the east, but it appears to be all cliffs.."
         },
         {
             "number": 249,
-            "name": "The Ocean",
+            "name": "Tiny Island",
             "room_alignment": "neutral",
             "flags": [
-                "water"
+                "vehicle_exit_east"
             ],
             "exits": {
-                "north": 229,
-                "south": 269,
-                "east": 250,
-                "west": 248
+                "east": 250
             },
-            "monster": 0,
-            "item": 0,
+            "monster": 76,
+            "item": 76,
             "weapon": 0,
             "food": 0,
-            "desc": "It is hard to see where one is going, what with these huge swells..."
+            "desc": "This is a small deserted island. Trade winds blow thru the few trees present. The only beach is to the west, the other sides being jagged cliffs."
         },
         {
             "number": 250,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
+                "vehicle_departure_west",
                 "water"
             ],
             "exits": {
@@ -4341,7 +3987,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Water, water everywhere..."
+            "desc": "What's that? A small island to the west, and a narrow beach too!"
         },
         {
             "number": 251,
@@ -4360,7 +4006,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The waves go 'lap lap lap' against the side of your faithful dingy.."
+            "desc": "You see a branch float by, making you wonder if land is somewhere around.."
         },
         {
             "number": 252,
@@ -4372,49 +4018,60 @@
             "exits": {
                 "north": 232,
                 "south": 272,
+                "east": 253,
                 "west": 251
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Distant headlands are barely visible to the southeast.."
+            "desc": "You inspect the blisters on your hands from rowing.."
         },
         {
             "number": 253,
-            "name": "",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {},
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": ""
-        },
-        {
-            "number": 254,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "no_error_exit_north",
-                "no_error_exit_west"
+                "water"
             ],
             "exits": {
-                "south": 274,
-                "east": 255
+                "north": 233,
+                "south": 273,
+                "east": 254,
+                "west": 252
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert. The breeze seems a bit cooler here.."
+            "desc": "You absent mindedly wonder how deep the water is here.."
+        },
+        {
+            "number": 254,
+            "name": "The Ocean",
+            "room_alignment": "neutral",
+            "flags": [
+                "water"
+            ],
+            "exits": {
+                "north": 234,
+                "south": 274,
+                "east": 255,
+                "west": 253
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "It occurs to you that maybe rowing a dingy across an ocean is not too smart.."
         },
         {
             "number": 255,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 235,
                 "south": 275,
@@ -4425,52 +4082,36 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "Your arms start to ache from the rowing.."
         },
         {
             "number": 256,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 236,
-                "south": 276,
-                "east": 257,
                 "west": 255
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 257,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 237,
-                "south": 277,
-                "east": 258,
-                "west": 256
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "Imposing headlands are off to the southeast."
         },
         {
             "number": 258,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_error_exit_north",
+                "no_error_exit_west"
+            ],
             "exits": {
-                "north": 238,
                 "south": 278,
-                "east": 259,
-                "west": 257
+                "east": 259
             },
             "monster": 0,
             "item": 0,
@@ -4516,12 +4157,11 @@
             "number": 261,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_north",
-                "no_error_exit_east"
-            ],
+            "flags": [],
             "exits": {
+                "north": 241,
                 "south": 281,
+                "east": 262,
                 "west": 280
             },
             "monster": 0,
@@ -4532,60 +4172,44 @@
         },
         {
             "number": 262,
-            "name": "Kings Chamber",
+            "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "no_flee"
-            ],
+            "flags": [],
             "exits": {
-                "east": 263
+                "north": 242,
+                "south": 282,
+                "east": 263,
+                "west": 261
             },
-            "monster": 93,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is a very richly decorated chamber indeed. There is a rather handsome fellow glaring at you from his throne..."
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 263,
-            "name": "Carpeted Hallway",
+            "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "no_flee"
+                "no_error_exit_east"
             ],
             "exits": {
-                "east": 264,
+                "north": 243,
+                "south": 283,
                 "west": 262
             },
-            "monster": 92,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Things look rather luxurious here, except for the guard of course."
-        },
-        {
-            "number": 264,
-            "name": "Drawing Room",
-            "room_alignment": "neutral",
-            "flags": [
-                "no_flee"
-            ],
-            "exits": {
-                "south": 284
-            },
-            "monster": 92,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "This is the Kings Drawing room. He comes here when he wants to draw.."
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 265,
-            "name": "The Ocean",
+            "name": "Rocky Ravine",
             "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
+            "flags": [],
             "exits": {
                 "north": 245,
                 "east": 266
@@ -4594,45 +4218,40 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Reefs continue to crash to the southwest, the sound driving you nutty..."
+            "desc": "The ravine seems to lead to the east to a strangly darkened area. There is a sign here which says: /----------------------------------\\ ! WARNING! DO NOT GO TO THE EAST   ! ! IF YOU WANT TO LEAVE HERE!!      ! \\----------------------------------/"
         },
         {
             "number": 266,
-            "name": "The Ocean",
+            "name": "Nowhere",
             "room_alignment": "neutral",
             "flags": [
-                "water"
+                "outer_space"
             ],
             "exits": {
-                "north": 246,
-                "south": 286,
-                "east": 267,
-                "west": 265
+                "north": 246
             },
-            "monster": 87,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Flying fish skitter across the water, as if fleeing something.."
+            "desc": "This is a very strange fog. You can barely make out a sign; /----------------------------------\\ | SEE? I TOLD YOU NOT TO COME HERE | | BUT WOULD YOU LISTEN? NOOOOOO!!! | \\----------------------------------/"
         },
         {
             "number": 267,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "water"
+                "water_with_rocks"
             ],
             "exits": {
                 "north": 247,
-                "south": 287,
-                "east": 268,
-                "west": 266
+                "east": 268
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Turbulent waters to the south seem to warn against trespassing there.."
+            "desc": "Towering peaks rise to the southwest, dark and forboding. Distant breakers tell stark predictions of trying to go that way.."
         },
         {
             "number": 268,
@@ -4651,17 +4270,16 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The cold wind of the ocean makes you think longingly of the desert sun.."
+            "desc": "You daydream of the Wall Bar & Grill, and Skips hot greasy hash.."
         },
         {
             "number": 269,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "water"
+                "water_with_rocks"
             ],
             "exits": {
-                "north": 249,
                 "south": 289,
                 "east": 270,
                 "west": 268
@@ -4670,7 +4288,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Some far distant storm, sends the rollers cruising thru, making it hard to hold on to your lunch.."
+            "desc": "A tiny island is to the north, but there are jagged cliffs to the waterline.."
         },
         {
             "number": 270,
@@ -4689,7 +4307,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The swells roll relentlessly.."
+            "desc": "This little dingy sure gets uncomfortable!"
         },
         {
             "number": 271,
@@ -4708,7 +4326,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The long swells roll in from some far distant area.."
+            "desc": "Ocean and yet more ocean..."
         },
         {
             "number": 272,
@@ -4718,6 +4336,7 @@
                 "water"
             ],
             "exits": {
+                "north": 252,
                 "south": 292,
                 "east": 273,
                 "west": 271
@@ -4726,29 +4345,34 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The beach shines to the east.."
+            "desc": "It is hard to see where one is going, what with these huge swells..."
         },
         {
             "number": 273,
-            "name": "Beach",
+            "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
+                "north": 253,
                 "south": 293,
                 "east": 274,
                 "west": 272
             },
-            "monster": 88,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 54,
-            "desc": "A long flat beach is here. Huge rollers come crashing into the sand, various sea birds in hot pursuit. Some vague urge seems to draw you to the ocean..."
+            "food": 0,
+            "desc": "Water, water everywhere..."
         },
         {
             "number": 274,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 254,
                 "south": 294,
@@ -4759,58 +4383,55 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert. The smell of seaweed hangs heavy in the air."
+            "desc": "The waves go 'lap lap lap' against the side of your faithful dingy.."
         },
         {
             "number": 275,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 255,
                 "south": 295,
-                "east": 276,
                 "west": 274
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert. The smell of sea air hangs faintly on the wind."
+            "desc": "Distant headlands are barely visible to the southeast.."
         },
         {
             "number": 276,
-            "name": "The Desert",
+            "name": "",
             "room_alignment": "neutral",
             "flags": [],
-            "exits": {
-                "north": 256,
-                "south": 296,
-                "east": 277,
-                "west": 275
-            },
+            "exits": {},
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert. Is that your imagination, or is there the faint smell of ocean in the air?"
+            "desc": ""
         },
         {
             "number": 277,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_error_exit_north",
+                "no_error_exit_west"
+            ],
             "exits": {
-                "north": 257,
                 "south": 297,
-                "east": 278,
-                "west": 276
+                "east": 278
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "You travel in a dusty desert. The breeze seems a bit cooler here.."
         },
         {
             "number": 278,
@@ -4884,12 +4505,11 @@
             "number": 282,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_north",
-                "no_error_exit_east"
-            ],
+            "flags": [],
             "exits": {
+                "north": 262,
                 "south": 302,
+                "east": 283,
                 "west": 281
             },
             "monster": 0,
@@ -4900,88 +4520,87 @@
         },
         {
             "number": 283,
-            "name": "Castle Kitchen",
+            "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "no_flee"
-            ],
+            "flags": [],
             "exits": {
-                "north": 263
+                "north": 263,
+                "south": 303,
+                "east": 284,
+                "west": 282
             },
-            "monster": 92,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 5,
-            "desc": "This is the kitchen to the great castle. A guard is having lunch. He doesn't like being disturbed on his lunch break."
+            "food": 0,
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 284,
-            "name": "Maze Of Hallways",
+            "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "no_flee"
+                "no_error_exit_north",
+                "no_error_exit_east"
             ],
             "exits": {
                 "south": 304,
                 "west": 283
             },
-            "monster": 70,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": ""
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 285,
-            "name": "Maze Of Hallways",
+            "name": "Kings Chamber",
             "room_alignment": "neutral",
             "flags": [
                 "no_flee"
             ],
             "exits": {
-                "south": 305,
-                "west": 284
+                "east": 286
             },
-            "monster": 0,
+            "monster": 93,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Strangely quiet here.."
+            "desc": "This is a very richly decorated chamber indeed. There is a rather handsome fellow glaring at you from his throne..."
         },
         {
             "number": 286,
-            "name": "The Ocean",
+            "name": "Carpeted Hallway",
             "room_alignment": "neutral",
             "flags": [
-                "water"
+                "no_flee"
             ],
             "exits": {
-                "north": 266,
-                "east": 287
+                "east": 287,
+                "west": 285
             },
-            "monster": 0,
+            "monster": 92,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Breakers rumble to the south-west."
+            "desc": "Things look rather luxurious here, except for the guard of course."
         },
         {
             "number": 287,
-            "name": "The Ocean",
+            "name": "Drawing Room",
             "room_alignment": "neutral",
             "flags": [
-                "water"
+                "no_flee"
             ],
             "exits": {
-                "north": 267,
-                "east": 288,
-                "west": 286
+                "south": 307
             },
-            "monster": 0,
+            "monster": 92,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Roaring breakers to the south speak of reefs there.."
+            "desc": "This is the Kings Drawing room. He comes here when he wants to draw.."
         },
         {
             "number": 288,
@@ -4992,15 +4611,13 @@
             ],
             "exits": {
                 "north": 268,
-                "south": 308,
-                "east": 289,
-                "west": 287
+                "east": 289
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Land is dim on the western horizon."
+            "desc": "Reefs continue to crash to the southwest, the sound driving you nutty..."
         },
         {
             "number": 289,
@@ -5015,11 +4632,11 @@
                 "east": 290,
                 "west": 288
             },
-            "monster": 89,
+            "monster": 87,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A strangely old-fashioned galleon pulls alongside!!"
+            "desc": "Flying fish skitter across the water, as if fleeing something.."
         },
         {
             "number": 290,
@@ -5038,7 +4655,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "What you would give to be able to walk and stretch your legs.."
+            "desc": "Turbulent waters to the south seem to warn agains trespassing there.."
         },
         {
             "number": 291,
@@ -5057,7 +4674,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You hope that soft hissing noise is not coming from the dingy.."
+            "desc": "The cold wind of the ocean makes you think longingly of the desert sun.."
         },
         {
             "number": 292,
@@ -5076,29 +4693,34 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The ocean is fairly calm here. The long beach is visible to the east.."
+            "desc": "Some far distant storm, sends the rollers cruising thru, making it hard to hold on to your lunch.."
         },
         {
             "number": 293,
-            "name": "Beach",
+            "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 273,
+                "south": 313,
                 "east": 294,
                 "west": 292
             },
             "monster": 0,
             "item": 0,
-            "weapon": 24,
+            "weapon": 0,
             "food": 0,
-            "desc": "There is a broad flat beach here. The waves do not seem too high. Sea birds circle overhead."
+            "desc": "The swells roll relentlessly.."
         },
         {
             "number": 294,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 274,
                 "south": 314,
@@ -5109,15 +4731,17 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert. The smell of ocean water is strong here.."
+            "desc": "The long swells roll in from some far distant area.."
         },
         {
             "number": 295,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "vehicle_departure_east",
+                "water"
+            ],
             "exits": {
-                "north": 275,
                 "south": 315,
                 "east": 296,
                 "west": 294
@@ -5126,24 +4750,25 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert. You imagine you smell the ocean..."
+            "desc": "The beach shines to the east.."
         },
         {
             "number": 296,
-            "name": "The Desert",
+            "name": "Beach",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "vehicle_exit_west"
+            ],
             "exits": {
-                "north": 276,
                 "south": 316,
                 "east": 297,
                 "west": 295
             },
-            "monster": 0,
+            "monster": 88,
             "item": 0,
             "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
+            "food": 54,
+            "desc": "A long flat beach is here. Huge rollers come crashing into the sand, various sea birds in hot pursuit. Some vague urge seems to draw you to the ocean..."
         },
         {
             "number": 297,
@@ -5160,7 +4785,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "You travel in a dusty desert. The smell of seaweed hangs heavy in the air."
         },
         {
             "number": 298,
@@ -5177,7 +4802,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "You travel in a dusty desert. The smell of sea air hangs faintly on the wind."
         },
         {
             "number": 299,
@@ -5194,7 +4819,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "You travel in a dusty desert. Is that your imagination, or is there the faint smell of ocean in the air?"
         },
         {
             "number": 300,
@@ -5224,7 +4849,7 @@
                 "east": 302,
                 "west": 320
             },
-            "monster": 77,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
@@ -5251,12 +4876,11 @@
             "number": 303,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_north",
-                "no_error_exit_east"
-            ],
+            "flags": [],
             "exits": {
+                "north": 283,
                 "south": 323,
+                "east": 304,
                 "west": 302
             },
             "monster": 0,
@@ -5267,52 +4891,54 @@
         },
         {
             "number": 304,
-            "name": "Maze Of Hallways",
+            "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "no_flee"
-            ],
+            "flags": [],
             "exits": {
-                "east": 305
-            },
-            "monster": 92,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You would stop for a bite to eat, if these guards would leave you alone.."
-        },
-        {
-            "number": 305,
-            "name": "Maze Of Hallways",
-            "room_alignment": "neutral",
-            "flags": [
-                "no_flee"
-            ],
-            "exits": {
-                "north": 285,
-                "west": 304
-            },
-            "monster": 70,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "Hmmm.. This guard looks uglier than the others.."
-        },
-        {
-            "number": 306,
-            "name": "Maze Of Hallways",
-            "room_alignment": "neutral",
-            "flags": [
-                "no_flee"
-            ],
-            "exits": {
-                "east": 307
+                "north": 284,
+                "south": 324,
+                "east": 305,
+                "west": 303
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "How confusing this place is!"
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 305,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [
+                "no_error_exit_north",
+                "no_error_exit_east"
+            ],
+            "exits": {
+                "south": 325,
+                "west": 304
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 306,
+            "name": "Castle Kitchen",
+            "room_alignment": "neutral",
+            "flags": [
+                "no_flee"
+            ],
+            "exits": {
+                "north": 286
+            },
+            "monster": 92,
+            "item": 0,
+            "weapon": 0,
+            "food": 5,
+            "desc": "This is the kitchen to the great castle. A guard is having lunch. He doesn't like being disturbed on his lunch break."
         },
         {
             "number": 307,
@@ -5322,31 +4948,31 @@
                 "no_flee"
             ],
             "exits": {
-                "south": 327
+                "south": 327,
+                "west": 306
             },
-            "monster": 92,
+            "monster": 70,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Jeez, these guards are everywhere!"
+            "desc": ""
         },
         {
             "number": 308,
-            "name": "The Ocean",
+            "name": "Maze Of Hallways",
             "room_alignment": "neutral",
             "flags": [
-                "water_with_rocks"
+                "no_flee"
             ],
             "exits": {
-                "north": 288,
                 "south": 328,
-                "east": 309
+                "west": 307
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Towering headlands are to the west.."
+            "desc": "Strangely quiet here.."
         },
         {
             "number": 309,
@@ -5357,15 +4983,13 @@
             ],
             "exits": {
                 "north": 289,
-                "south": 329,
-                "east": 310,
-                "west": 308
+                "east": 310
             },
-            "monster": 86,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The water seems to gush upwards on all sides, tossing the small dingy wildly."
+            "desc": "Breakers rumble to the south-west."
         },
         {
             "number": 310,
@@ -5376,7 +5000,6 @@
             ],
             "exits": {
                 "north": 290,
-                "south": 330,
                 "east": 311,
                 "west": 309
             },
@@ -5384,7 +5007,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This kind of makes you actually miss the desert.."
+            "desc": "Roaring breakers to the south speak of reefs there.."
         },
         {
             "number": 311,
@@ -5403,7 +5026,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "No land in sight. Kind of depressing really.."
+            "desc": "Land is dim on the western horizon."
         },
         {
             "number": 312,
@@ -5418,51 +5041,58 @@
                 "east": 313,
                 "west": 311
             },
-            "monster": 0,
+            "monster": 89,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Rolling, rolling... enough to make you sick.."
+            "desc": "A strangly old fashioned Galleon pulls alongside!!"
         },
         {
             "number": 313,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "water_with_rocks"
+                "water"
             ],
             "exits": {
+                "north": 293,
+                "south": 333,
+                "east": 314,
                 "west": 312
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is a tidal area surrounded by unclimbable cliffs..."
+            "desc": "What you would give to be able to walk and stretch your legs.."
         },
         {
             "number": 314,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "no_error_exit_west"
+                "water"
             ],
             "exits": {
                 "north": 294,
                 "south": 334,
-                "east": 315
+                "east": 315,
+                "west": 313
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert. You stand high above a gigantic ocean to the west The cliffs at your feet are much too rugged to climb.."
+            "desc": "You hope that soft hissing noise is not coming from the dingy.."
         },
         {
             "number": 315,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "vehicle_departure_east",
+                "water"
+            ],
             "exits": {
                 "north": 295,
                 "south": 335,
@@ -5473,24 +5103,25 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "The ocean is fairly calm here. The long beach is visible to the east.."
         },
         {
             "number": 316,
-            "name": "The Desert",
+            "name": "Beach",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "vehicle_exit_west"
+            ],
             "exits": {
                 "north": 296,
-                "south": 336,
                 "east": 317,
                 "west": 315
             },
             "monster": 0,
             "item": 0,
-            "weapon": 0,
+            "weapon": 24,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "There is a broad flat beach here. The waves do not seem too high. Sea birds circle overhead."
         },
         {
             "number": 317,
@@ -5504,10 +5135,10 @@
                 "west": 316
             },
             "monster": 0,
-            "item": 77,
+            "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "You travel in a dusty desert. The smell of ocean water is strong here.."
         },
         {
             "number": 318,
@@ -5524,7 +5155,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "You travel in a dusty desert. You imagine you smell the ocean..."
         },
         {
             "number": 319,
@@ -5575,11 +5206,11 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert. The gently smell of water teases your nose.."
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 322,
-            "name": "Desert Oasis",
+            "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -5588,11 +5219,11 @@
                 "east": 323,
                 "west": 321
             },
-            "monster": 79,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 51,
-            "desc": "You travel in a dusty desert. There is a small oasis here.."
+            "food": 0,
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 323,
@@ -5615,13 +5246,29 @@
             "number": 324,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_north",
-                "no_error_exit_east"
-            ],
+            "flags": [],
             "exits": {
+                "north": 304,
                 "south": 344,
+                "east": 325,
                 "west": 323
+            },
+            "monster": 77,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 325,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 305,
+                "south": 345,
+                "east": 326,
+                "west": 324
             },
             "monster": 0,
             "item": 0,
@@ -5630,109 +5277,87 @@
             "desc": "You travel in a dusty desert."
         },
         {
-            "number": 325,
-            "name": "Hidden Passageway",
-            "room_alignment": "neutral",
-            "flags": [
-                "no_flee"
-            ],
-            "exits": {
-                "north": 305
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "What a stuffy little passage, but at least you have lost those pesky guards for now..."
-        },
-        {
             "number": 326,
-            "name": "Room Of Mirrors",
+            "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
-                "no_flee"
+                "no_error_exit_north",
+                "no_error_exit_east"
             ],
             "exits": {
-                "north": 306,
                 "south": 346,
                 "west": 325
             },
-            "monster": 92,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Which way to go.... The guards seem to be everywhere!"
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 327,
-            "name": "Tricky Hallway",
+            "name": "Maze Of Hallways",
             "room_alignment": "neutral",
             "flags": [
                 "no_flee"
             ],
             "exits": {
-                "west": 326
+                "east": 328
             },
             "monster": 92,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You seem to be drawing a crowd.."
+            "desc": "You would stop for a bite to eat, if these guards would leave you alone.."
         },
         {
             "number": 328,
-            "name": "The Ocean",
+            "name": "Maze Of Hallways",
             "room_alignment": "neutral",
             "flags": [
-                "water_with_rocks"
+                "no_flee"
             ],
             "exits": {
                 "north": 308,
-                "south": 348,
-                "east": 329
+                "west": 327
             },
-            "monster": 0,
+            "monster": 70,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The water seems a bit muddy here. Rocky reefs threaten in the west.."
+            "desc": "Hmmm.. This guard looks uglier than the others.."
         },
         {
             "number": 329,
-            "name": "The Ocean",
+            "name": "Maze Of Hallways",
             "room_alignment": "neutral",
             "flags": [
-                "water"
+                "no_flee"
             ],
             "exits": {
-                "north": 309,
-                "south": 349,
-                "east": 330,
-                "west": 328
+                "east": 330
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The water is sightly muddy here.."
+            "desc": "How confusing this place is!"
         },
         {
             "number": 330,
-            "name": "The Ocean",
+            "name": "Maze Of Hallways",
             "room_alignment": "neutral",
             "flags": [
-                "water_with_rocks"
+                "no_flee"
             ],
             "exits": {
-                "north": 310,
-                "east": 331,
-                "west": 329
+                "south": 350
             },
-            "monster": 0,
+            "monster": 92,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The waves pounding against distant reefs to the south makes your skin crawl."
+            "desc": "Jeez, these guards are everywhere!"
         },
         {
             "number": 331,
@@ -5743,55 +5368,60 @@
             ],
             "exits": {
                 "north": 311,
-                "east": 332,
-                "west": 330
+                "south": 351,
+                "east": 332
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The waves pound off coral reefs to the south.."
+            "desc": "Towering headlands are to the west.."
         },
         {
             "number": 332,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "water_with_rocks"
+                "water"
             ],
             "exits": {
                 "north": 312,
+                "south": 352,
+                "east": 333,
                 "west": 331
             },
-            "monster": 88,
+            "monster": 86,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Flying fish cross over your bow, driving the seabird nuts.. Coral reefs to the south and east make progress in those directions unlikely."
+            "desc": "The water seems to gush upwards on all sides, tossing the small dingy wildly."
         },
         {
             "number": 333,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "no_error_exit_west",
-                "no_error_exit_north"
+                "water"
             ],
             "exits": {
+                "north": 313,
                 "south": 353,
-                "east": 334
+                "east": 334,
+                "west": 332
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "This kind of makes you actually miss the desert.."
         },
         {
             "number": 334,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 314,
                 "south": 354,
@@ -5802,13 +5432,15 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "No land in sight. Kind of depressing really.."
         },
         {
             "number": 335,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 315,
                 "south": 355,
@@ -5819,41 +5451,41 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "Rolling, rolling... enough to make you sick.."
         },
         {
             "number": 336,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
-                "north": 316,
-                "south": 356,
-                "east": 337,
                 "west": 335
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "This is a tidal area surrounded by unclimbable cliffs..."
         },
         {
             "number": 337,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_error_exit_west"
+            ],
             "exits": {
                 "north": 317,
                 "south": 357,
-                "east": 338,
-                "west": 336
+                "east": 338
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "You travel in a dusty desert. You stand high above a gigantic ocean to the west The cliffs at your feet are much too rugged to climb.."
         },
         {
             "number": 338,
@@ -5901,7 +5533,7 @@
                 "west": 339
             },
             "monster": 0,
-            "item": 0,
+            "item": 77,
             "weapon": 0,
             "food": 0,
             "desc": "You travel in a dusty desert."
@@ -5938,7 +5570,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert. There is a faint smell of water here.."
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 343,
@@ -5968,14 +5600,48 @@
                 "east": 345,
                 "west": 343
             },
-            "monster": 77,
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert. The gently smell of water teases your nose.."
+        },
+        {
+            "number": 345,
+            "name": "Desert Oasis",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 325,
+                "south": 365,
+                "east": 346,
+                "west": 344
+            },
+            "monster": 79,
+            "item": 0,
+            "weapon": 0,
+            "food": 51,
+            "desc": "You travel in a dusty desert. There is a small oasis here.."
+        },
+        {
+            "number": 346,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 326,
+                "south": 366,
+                "east": 347,
+                "west": 345
+            },
+            "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
             "desc": "You travel in a dusty desert."
         },
         {
-            "number": 345,
+            "number": 347,
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [
@@ -5983,8 +5649,8 @@
                 "no_error_exit_east"
             ],
             "exits": {
-                "south": 365,
-                "west": 344
+                "south": 367,
+                "west": 346
             },
             "monster": 0,
             "item": 0,
@@ -5993,111 +5659,80 @@
             "desc": "You travel in a dusty desert."
         },
         {
-            "number": 346,
-            "name": "Long Corridor",
+            "number": 348,
+            "name": "Hidden Passagway",
             "room_alignment": "neutral",
             "flags": [
                 "no_flee"
             ],
             "exits": {
-                "east": 347
+                "north": 328
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is a long corridor, full of darkness."
+            "desc": "What a stuffy little passage, but at least you have lost those pesky guards for now..."
         },
         {
-            "number": 347,
-            "name": "Grand Entry Way",
+            "number": 349,
+            "name": "Room Of Mirrors",
             "room_alignment": "neutral",
             "flags": [
                 "no_flee"
             ],
             "exits": {
-                "north": 327
+                "north": 329,
+                "south": 369,
+                "west": 348
             },
             "monster": 92,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is a very large room in the castle. The entry way, which leads off to the north..."
+            "desc": "Which way to go.... The guards seem to be everywhere!"
         },
         {
-            "number": 348,
-            "name": "The Ocean",
+            "number": 350,
+            "name": "Tricky Hallway",
             "room_alignment": "neutral",
             "flags": [
-                "water"
+                "no_flee"
             ],
             "exits": {
-                "north": 328,
-                "east": 349
+                "west": 349
             },
-            "monster": 0,
+            "monster": 92,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "There is a tremendous current here, judging from the color of the water, it is from a large river flowing into the ocean to the south. The current is too strong to row against. Rocky reefs are to the west.."
+            "desc": "You seem to be drawing a crowd.."
         },
         {
-            "number": 349,
+            "number": 351,
             "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
                 "water_with_rocks"
             ],
             "exits": {
-                "north": 329,
-                "west": 348
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "Waves crash into coral reefs to the east, and against cliffs to the south.."
-        },
-        {
-            "number": 350,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_west"
-            ],
-            "exits": {
-                "north": 330,
-                "south": 370,
-                "east": 351
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You travel in a dusty desert."
-        },
-        {
-            "number": 351,
-            "name": "The Desert",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
                 "north": 331,
                 "south": 371,
-                "east": 352,
-                "west": 350
+                "east": 352
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "The water seems a bit muddy here. Rocky reefs threaton in the west.."
         },
         {
             "number": 352,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 332,
                 "south": 372,
@@ -6108,16 +5743,17 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "The water is sightly muddy here.."
         },
         {
             "number": 353,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 333,
-                "south": 373,
                 "east": 354,
                 "west": 352
             },
@@ -6125,19 +5761,17 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "The waves pounding against distant reefs to the south makes your skin crawl."
         },
         {
             "number": 354,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
             "flags": [
-                "no_error_exit_south",
-                "no_error_exit_west"
+                "water_with_rocks"
             ],
             "exits": {
                 "north": 334,
-                "south": 374,
                 "east": 355,
                 "west": 353
             },
@@ -6145,24 +5779,24 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "The waves pound off coral reefs to the south.."
         },
         {
             "number": 355,
-            "name": "The Desert",
+            "name": "The Ocean",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water_with_rocks"
+            ],
             "exits": {
                 "north": 335,
-                "south": 375,
-                "east": 356,
                 "west": 354
             },
-            "monster": 0,
+            "monster": 88,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert. There is a tiny town to the south.."
+            "desc": "Flying fish cross over your bow, driving the seabird nuts.. Coral reefs to the south and east make progress in those directions unlikely."
         },
         {
             "number": 356,
@@ -6170,13 +5804,11 @@
             "room_alignment": "neutral",
             "flags": [
                 "no_error_exit_west",
-                "no_error_exit_south"
+                "no_error_exit_north"
             ],
             "exits": {
-                "north": 336,
                 "south": 376,
-                "east": 357,
-                "west": 355
+                "east": 357
             },
             "monster": 0,
             "item": 0,
@@ -6290,12 +5922,11 @@
             "number": 363,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "no_error_exit_north",
-                "no_error_exit_east"
-            ],
+            "flags": [],
             "exits": {
+                "north": 343,
                 "south": 383,
+                "east": 364,
                 "west": 362
             },
             "monster": 0,
@@ -6306,67 +5937,71 @@
         },
         {
             "number": 364,
-            "name": "The Great Door",
+            "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "snow"
-            ],
+            "flags": [],
             "exits": {
+                "north": 344,
                 "south": 384,
-                "east": 365
+                "east": 365,
+                "west": 363
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The path abruptly ends right before a gigantic castle! No one is about, so you try the great door, but discover it is locked. There is a keyhole in the very center of the doorway. A tiny path winds thru the woods to the east..."
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 365,
-            "name": "Icy Head Waters",
+            "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [
-                "snow"
-            ],
+            "flags": [],
             "exits": {
                 "north": 345,
+                "south": 385,
+                "east": 366,
                 "west": 364
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Below you to the north is a roaring river. You imagine you could ride the river to the ocean barely visible far below, but you know if you do, you will not be able to come back that way..."
+            "desc": "You travel in a dusty desert. There is a faint smell of water here.."
         },
         {
             "number": 366,
-            "name": "Dried Plain",
+            "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
+                "north": 346,
                 "south": 386,
-                "east": 367
-            },
-            "monster": 81,
-            "item": 0,
-            "weapon": 0,
-            "food": 51,
-            "desc": "The plain is rather green here, there is a muddy watering hole frequented by the plains animals."
-        },
-        {
-            "number": 367,
-            "name": "Dried Plain",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "south": 387,
-                "west": 366
+                "east": 367,
+                "west": 365
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 68,
-            "desc": "The plains seem to end here against some rocky cliffs.."
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 367,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 347,
+                "south": 387,
+                "east": 368,
+                "west": 366
+            },
+            "monster": 77,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
         },
         {
             "number": 368,
@@ -6374,11 +6009,11 @@
             "room_alignment": "neutral",
             "flags": [
                 "no_error_exit_north",
-                "no_error_exit_west"
+                "no_error_exit_east"
             ],
             "exits": {
                 "south": 388,
-                "east": 369
+                "west": 367
             },
             "monster": 0,
             "item": 0,
@@ -6388,31 +6023,81 @@
         },
         {
             "number": 369,
-            "name": "The Desert",
+            "name": "Long Corridor",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_flee"
+            ],
             "exits": {
-                "north": 349,
-                "south": 389,
-                "east": 370,
-                "west": 368
+                "east": 370
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You travel in a dusty desert."
+            "desc": "This is a long corridor, full of darkness."
         },
         {
             "number": 370,
+            "name": "Grand Entry Way",
+            "room_alignment": "neutral",
+            "flags": [
+                "no_flee"
+            ],
+            "exits": {
+                "north": 350
+            },
+            "monster": 92,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is a very large room in the castle. The entry way, which leads off to the north..."
+        },
+        {
+            "number": 371,
+            "name": "The Ocean",
+            "room_alignment": "neutral",
+            "flags": [
+                "water"
+            ],
+            "exits": {
+                "north": 351,
+                "east": 372
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "There is a tremendous current here, judging from the color of the water, it is from a large river flowing into the ocean to the south. The current is too strong to row against. Rocky reefs are to the west.."
+        },
+        {
+            "number": 372,
+            "name": "The Ocean",
+            "room_alignment": "neutral",
+            "flags": [
+                "water_with_rocks"
+            ],
+            "exits": {
+                "north": 352,
+                "west": 371
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Waves crash into coral reefs to the east, and against cliffs to the south.."
+        },
+        {
+            "number": 376,
             "name": "The Desert",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "no_error_exit_west"
+            ],
             "exits": {
-                "north": 350,
-                "south": 390,
-                "east": 371,
-                "west": 369
+                "north": 356,
+                "south": 396,
+                "east": 377
             },
             "monster": 0,
             "item": 0,
@@ -6421,15 +6106,360 @@
             "desc": "You travel in a dusty desert."
         },
         {
-            "number": 371,
+            "number": 377,
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 351,
-                "south": 391,
-                "east": 372,
-                "west": 370
+                "north": 357,
+                "south": 397,
+                "east": 378,
+                "west": 376
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 378,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 358,
+                "south": 398,
+                "east": 379,
+                "west": 377
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 379,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 359,
+                "south": 399,
+                "east": 380,
+                "west": 378
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 380,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [
+                "no_error_exit_south",
+                "no_error_exit_west"
+            ],
+            "exits": {
+                "north": 360,
+                "south": 400,
+                "east": 361,
+                "west": 379
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 381,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 361,
+                "south": 1,
+                "east": 382,
+                "west": 400
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert. There is a tiny town to the south.."
+        },
+        {
+            "number": 382,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [
+                "no_error_exit_west",
+                "no_error_exit_south"
+            ],
+            "exits": {
+                "north": 362,
+                "south": 2,
+                "east": 383,
+                "west": 381
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 383,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 363,
+                "south": 3,
+                "east": 384,
+                "west": 382
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 384,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 364,
+                "south": 4,
+                "east": 385,
+                "west": 383
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 385,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 365,
+                "south": 5,
+                "east": 386,
+                "west": 384
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 386,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 366,
+                "south": 6,
+                "east": 387,
+                "west": 385
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 387,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 367,
+                "south": 7,
+                "east": 388,
+                "west": 386
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 388,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 368,
+                "south": 8,
+                "east": 389,
+                "west": 387
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 389,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [
+                "no_error_exit_north",
+                "no_error_exit_east"
+            ],
+            "exits": {
+                "south": 9,
+                "west": 388
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 390,
+            "name": "The Great Door",
+            "room_alignment": "neutral",
+            "flags": [
+                "snow"
+            ],
+            "exits": {
+                "south": 10,
+                "east": 391
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The path abruptly ends right before a gigantic castle! No one is about, so you try the great door, but discover it is locked. There is a keyhole in the very center of the doorway. A tiny path winds thru the woods to the east..."
+        },
+        {
+            "number": 391,
+            "name": "Icy Head Waters",
+            "room_alignment": "neutral",
+            "flags": [
+                "vehicle_exit_north",
+                "snow"
+            ],
+            "exits": {
+                "north": 371,
+                "west": 390
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Below you to the north is a roaring river. You imagine you could ride the river to the ocean barely visable far below, but you know if you do, you will not be able to come back that way..."
+        },
+        {
+            "number": 392,
+            "name": "Dried Plain",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 12,
+                "east": 393
+            },
+            "monster": 81,
+            "item": 0,
+            "weapon": 0,
+            "food": 51,
+            "desc": "The plain is rather green here, there is a muddy watering hole frequented by the plains animals."
+        },
+        {
+            "number": 393,
+            "name": "Dried Plain",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 13,
+                "west": 392
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 68,
+            "desc": "The plains seem to end here agains some rocky cliffs.."
+        },
+        {
+            "number": 395,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [
+                "no_error_exit_north",
+                "no_error_exit_west"
+            ],
+            "exits": {
+                "south": 15,
+                "east": 396
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 396,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 376,
+                "south": 16,
+                "east": 397,
+                "west": 395
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 397,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 377,
+                "south": 17,
+                "east": 398,
+                "west": 396
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You travel in a dusty desert."
+        },
+        {
+            "number": 398,
+            "name": "The Desert",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 378,
+                "south": 18,
+                "east": 399,
+                "west": 397
             },
             "monster": 78,
             "item": 0,
@@ -6438,15 +6468,15 @@
             "desc": "You travel in a dusty desert."
         },
         {
-            "number": 372,
+            "number": 399,
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 352,
-                "south": 392,
-                "east": 373,
-                "west": 371
+                "north": 379,
+                "south": 19,
+                "east": 400,
+                "west": 398
             },
             "monster": 0,
             "item": 0,
@@ -6455,15 +6485,15 @@
             "desc": "You travel in a dusty desert."
         },
         {
-            "number": 373,
+            "number": 400,
             "name": "The Desert",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 353,
-                "south": 393,
-                "east": 374,
-                "west": 372
+                "north": 380,
+                "south": 20,
+                "east": 381,
+                "west": 399
             },
             "monster": 0,
             "item": 0,

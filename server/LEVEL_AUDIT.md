@@ -26,6 +26,14 @@ turned up a few flags that are set in the map data but never read by any
 code (dead data) — worth pruning or wiring up before building new content
 on top of them.
 
+**Major update, same date**: this investigation also uncovered and fixed
+a real, long-standing bug — `level_2.json`..`level_7.json` shipped with
+fabricated sequential room numbers instead of SPUR's real ones (level 1
+was always correct). §17/§18 document the full investigation and the
+completed rebuild, which unblocked every room-number-dependent finding in
+§16. If you're looking for "what's the real SPUR room number for X,"
+those sections are now the source of truth.
+
 ---
 
 ## 1. Fountain of Youth
@@ -143,8 +151,10 @@ Keyed off monster #71 being alive in the player's current room (not a
 literal room-number check in the code), but monster #71 only ever spawns
 in one room:
 
-- **level_4.json room 17** — "Gollum's Cave" (monster #71, floor item #67
-  the ring)
+- **level_4.json room 18** — "Gollum's Cave" (monster #71, floor item #67
+  the ring). Confirmed after the room-renumbering rebuild (§17/§18) —
+  earlier drafts of this doc cited 16 and 17 at different points based on
+  the (since-corrected) sequential numbering; 18 is the real SPUR number.
 
 Behavior: `commands/get.py` (`guards_ring()`) refuses `GET RING` and
 starts a fight while Gollum is alive; `commands/ask.py`/`commands/say.py`
@@ -200,7 +210,7 @@ Worth a decision: wire these up, or strip them from the data.
 |---|---|---|
 | `outer_space` | 18 | level_6 only |
 | `radiation_extreme` | 40 | level_6 only — has a confirmed companion item, unlike the other three rows here (see below) |
-| `hidden_item` | 5 | level_6: 36 "Crew Quarters", 50 "Engineering", 116 "Witches House", 130 "Emerald City", 219 "The Bridge" |
+| `hidden_item` | 5 | level_6: 93 "Crew Quarters", 180 "Engineering", 557 "Witches House", 612 "Emerald City", 752 "The Bridge" (real SPUR room numbers, post-rebuild — see §17/§18; these are also §16's confirmed SEARCH hidden-item rooms, exact match) |
 | `hidden_door_west` | 3 | level_6: 51 "Access Tunnel", 277 "Air Lock", 278 "A Corridor" |
 | `hidden_door_north` | 1 | level_6: 118 "Chamber Of Oz" |
 | `hidden_door_east` | 1 | level_6: 276 "Outer Space" |
@@ -329,60 +339,73 @@ rather than a hardcoded room number. No matching code exists anywhere in
 `commands/`, `combat/`, or `encounters/`. The most directly buildable gap
 found in this audit.
 
-## 16. SPUR source cross-check, part 2 — confirmed but blocked on room renumbering
+## 16. SPUR source cross-check, part 2 — now fully resolvable (see §17/§18)
 
 A further pass through `SPUR.MAIN.S` and `SPUR.MISC3.S` found several more
-real mechanics with zero TADA implementation, but each one is pinned to
-specific old-scheme SPUR room numbers (223, 612, 752, 93, 180, 557, 584,
-792, etc.) that don't exist in the current, renumbered `level_*.json`
-files — the same room-numbering mismatch `encounters/dwarf.py`'s own
-docstring already names as a known issue. Recording them here as
-verified-real but not yet actionable, rather than re-deriving them from
-scratch on a future pass:
+real mechanics with zero TADA implementation. The room-number-dependent
+ones below were initially recorded as "confirmed but blocked" pending the
+room-renumbering rebuild (§17/§18) — that rebuild is now complete, and
+every single one of these room numbers has been directly verified against
+the corrected `level_*.json` files (real SPUR numbers, not the old
+fabricated sequential ones). No further blocker remains on any of them —
+listing what's still needed is purely game-logic implementation work now:
 
 - **Galadriel's real trigger is a fixed room** (`SPUR.MAIN.S:63`) —
-  level 2, room 223 (old numbering, no longer resolvable) triggers her
-  riddle unconditionally on first visit, *in addition to* the small
-  per-move random-event-table roll `encounters/galadriel.py` already
-  ports. TADA currently only has the random-roll half; the guaranteed
-  "go here once" half is missing.
+  **level 2, room 223** ("Underground Rapids," confirmed present)
+  triggers her riddle unconditionally on first visit, *in addition to*
+  the small per-move random-event-table roll `encounters/galadriel.py`
+  already ports. TADA currently only has the random-roll half; the
+  guaranteed "go here once" half is missing.
 - **FLEE has curated destination pools on some levels**
-  (`SPUR.MAIN.S:126-137`) — level 2 flees to one of 6 fixed rooms, level 5
-  to one of 7, level 6 via a zone-clustering formula; only levels 1/3/4/7
-  flee to a genuinely random room. `combat/resolution.py`'s
-  `flee_attempt()` is currently uniformly random on every level.
+  (`SPUR.MAIN.S:126-137`) — level 2 flees to one of 6 fixed rooms (**6,
+  141, 117, 54, 167, 120** — East Corridor, Edge Of Pit, Labyrinth, Spur's
+  Exhibit, Narrow Tunnel, Mummy's Tomb, all confirmed present), level 5 to
+  one of 7 (**393, 366, 115, 101, 341, 205, 378** — Dried Plain, The
+  Desert ×3, Wooded Glen, Rocky Ravine, all confirmed present), level 6
+  via a zone-clustering formula; only levels 1/3/4/7 flee to a genuinely
+  random room. `combat/resolution.py`'s `flee_attempt()` is currently
+  uniformly random on every level.
 - **SEARCH-triggered hidden items/doors** (`SPUR.MISC3.S:274-340`) — this
-  is the actual mechanic behind the dead `hidden_item`/`hidden_door_*`
-  flags from §13: EXAMINE with no argument in a flagged room either opens
-  a specific directional exit, or (4 specific level-6 rooms only) plants
-  one hand-placed item — Red Security Card, Radiation Suit, Geiger
-  Counter, or Broomstick — plus a 5th room where the door only opens if
-  the player carries the Ruby Slippers. Not a generic "any hidden_item
-  room has loot" system.
+  is the actual mechanic behind the `hidden_item` flag (§13, now updated
+  with real numbers): EXAMINE with no argument in a flagged room either
+  opens a specific directional exit, or (5 specific level-6 rooms) plants
+  one hand-placed item. All 5 confirmed present and correctly flagged
+  post-rebuild: **room 752** "The Bridge" → Red Security Card, **room 93**
+  "Crew Quarters" → Radiation Suit, **room 180** "Engineering" → Geiger
+  Counter, **room 557** "Witches House" → Broomstick, **room 612**
+  "Emerald City" → door opens only if the player carries the Ruby
+  Slippers. Not a generic "any hidden_item room has loot" system.
 - **EXAMINE has ~10 more hardcoded item flavor-text easter eggs**
   (`SPUR.MISC3.S:306-320`) — Crystal Pendant, Ice Crystal, Crown of Midas,
   Gold Rose, "STORM"-class weapons, and others all get unique EXAMINE text
   in SPUR; `commands/examine.py` doesn't port any of them (all fall
   through to the generic "Looks ok"/"pretty ordinary" response today).
   The Obelisk (#139) is a partial exception — `commands/get.py` already
-  ports its GET refusal, but not its EXAMINE-triggered teleport.
+  ports its GET refusal, but not its EXAMINE-triggered teleport. Item-name
+  keyed, not room-number keyed — was never actually blocked by the
+  renumbering issue, just not yet implemented.
 - **Guild turf guards don't actually spawn on room entry** — confirmed by
   reading `encounters/monster.py`'s `_try_turf_guard()`: it only handles
   a friendly greeting once a guard monster is *already* present in the
   room; nothing ports `SPUR.MAIN.S:213-220`'s 30% roll that spawns
-  monster #65/66/67 on arrival in a Claw/Sword/Fist-marked room in the
-  first place. Right now a turf guard can only appear if hand-placed as
-  `room.monster` in the map data.
+  monster #65/66/67 on arrival in any Claw/Sword/Fist-marked room. Alignment-
+  keyed, not room-number keyed — also never actually blocked by
+  renumbering.
 - **Level-6 "amoeba" water encounter** (`SPUR.MAIN.S:221-224`) — a 3%
   chance of spawning monster #119 in any level-6 water/vacuum room,
   separate from and in addition to the already-ported 3% METEOR roll in
-  the same rooms (`encounters/meteor.py`).
-- **Fixed secret Bar entrances** (`SPUR.MAIN.S:147-150`) — 4 hardcoded
-  level+room+direction combinations (levels 1/4/5/6) link directly into
-  the Bar module bypassing its normal elevator/menu access.
-
-**Root cause of every "blocked on renumbering" item above is now
-confirmed — see §17.**
+  the same rooms (`encounters/meteor.py`). Flag-keyed, not room-number
+  keyed — also never actually blocked by renumbering.
+- **Fixed secret Bar entrances** (`SPUR.MAIN.S:147-150`) — all 4 confirmed
+  present post-rebuild, and the room descriptions themselves now
+  corroborate it: **level 4 room 42** "A Maze Of Alleys" (desc: "...There
+  is a run down bar to the East..."), **level 1 room 49** "Mineral Room"
+  (desc: "...A strange door is north."), **level 5 room 157** "Rivertown"
+  (desc: "...A strangly familiar bar is to the east.." — already live as
+  `commands/movement.py`'s `_JAKES_ROOM`, so this room was already
+  correct even before the rebuild), **level 6 room 584** "Emerald City."
+  None of these four are wired to the Bar module yet except Jake's
+  Stable's own east-interception at level 5/157.
 
 ## 17. Root cause found: levels 2-7's shipped room numbers are fabricated, not SPUR's real ones
 
@@ -437,40 +460,39 @@ any real claim to matching SPUR source room literals directly.
 The Fountain of Youth/Vial (`level_5.json` room 105), Gollum's Cave
 (`level_4.json` room 17), the wild-horse meadow, POOL OF WATER rooms,
 etc. are all keyed to *current* `level_{N}.json` room numbers and work
-correctly within the game world as it actually runs today — movement,
-exits, and every other room reference in `commands/`/`combat/`/
-`encounters/` are internally self-consistent against the shipped
-(renumbered) data, since the whole game only ever navigates within that
-data. The mismatch only bites when trying to use a *SPUR source code
-literal* (`cr=223`, `cr=612`, etc.) to find "the same room" in current
-data — that lookup is simply invalid without a translation step, which
-is exactly why §16's findings stalled.
+correctly within the game world as it actually runs today (before the
+rebuild described in §18) — movement, exits, and every other room
+reference in `commands/`/`combat/`/`encounters/` were internally
+self-consistent against the shipped (renumbered) data, since the whole
+game only ever navigated within that data. The mismatch only bit when
+trying to use a *SPUR source code literal* (`cr=223`, `cr=612`, etc.) to
+find "the same room" in current data — that lookup was invalid without a
+translation step. **This has since been resolved — see §18.** The
+original "two ways forward" analysis below is kept for the historical
+record of the decision that was actually made (option 2, successfully).
 
-**Two ways forward, genuinely different in cost and risk — not decided
-here:**
+**Two ways forward, as originally assessed — option 2 was chosen and
+completed (§18):**
 
-1. **Keep matching by name/theme in current data** (what every mechanic
-   shipped this session already does) — cheap, safe, no migration, but
-   means "the same room SPUR intended" is sometimes approximate rather
-   than exact (e.g. Galadriel's trigger room would be picked by vibes,
-   not by re-deriving grid position 223).
-2. **Rebuild `level_2.json`..`level_7.json` with real SPUR room numbers.**
-   Attempted this session — see §18. `tada_level_builder.py`'s "zip
-   decoded Msg-K with the Kth entry of `LevelHeader.room_numbers`"
-   approach turned out to be unsound (proven, not assumed — see §18), so
-   this is a real, unsolved reconstruction problem, not a mechanical
-   rebuild. Also carries the downstream cost already noted here: every
-   existing room-number reference in this codebase (this session's own
-   Fountain/Vial/Gollum/wild-horse/POOL OF WATER work included, plus
-   `no_comm_signal`/`vehicle_exit_*`/`RoomAlignment` overrides/every
-   monster room placement/every player's persisted `map_room`) would
-   need remapping in lockstep once a correct mapping exists.
+1. Keep matching by name/theme in current data — cheap, safe, no
+   migration, but "the same room SPUR intended" only approximate.
+2. **Rebuild `level_2.json`..`level_7.json` with real SPUR room
+   numbers.** Initially attempted and stalled mid-session (see the first
+   half of §18) — `tada_level_builder.py`'s bitmap-based zip approach
+   turned out to be unsound. Ryan then supplied the missing piece (a
+   GitHub mirror of GBBS Pro's actual 6502 source), which revealed the
+   real addressing scheme and unblocked a full, verified rebuild — see
+   the second half of §18 for how it was actually solved.
 
-## 18. Attempted the rebuild — root-caused why it's a real research problem, not a data migration
+## 18. The rebuild — how it stalled, then got solved
 
-Ryan asked to attempt option 2 directly. This section documents what was
-tried, what was learned, and exactly where it stalled, so a future
-attempt doesn't have to re-derive the same ground.
+Ryan asked to attempt option 2 directly. This section documents the full
+arc: what was tried, where it stalled, the new information that
+unblocked it, and how the completed rebuild was verified before
+shipping — so a future similar investigation has the whole trail, not
+just the happy ending.
+
+### Part 1: the bitmap-zip approach stalls
 
 **The header's "populated room" bitmap is itself unreliable, not just
 the room numbering.** `LevelHeader.room_numbers` (§17) is meant to say
@@ -534,13 +556,113 @@ have multiple internally-consistent solutions), compounded by the
 confirmed-unreliable bitmap corrupting even the ground truth for "which
 positions are populated" in the first place.
 
-**Decision**: paused here rather than build the full search
-unboundedly. `level_2.json`..`level_7.json` are unchanged. Anyone picking
-this back up should start from: the `msg(x)` GBBS-internals question (is
-there a way to recover it directly, e.g. from the live BBS software's own
-source if that's ever available, rather than reverse-engineering it from
-observed data), or committing to the full backtracking search knowing its
-real scope.
+**Paused here rather than build the full search unboundedly.** Ryan's
+question at this point ("might a GitHub mirror of GBBS's actual 6502
+source help?") turned out to be exactly right — see Part 2.
+
+### Part 2: Ryan's GBBS source link resolves it completely
+
+Ryan pointed to https://github.com/callapple/GBBS/tree/master/Source — a
+full mirror of GBBS Pro's own 6502 assembly source, Kevin Smallwood's
+original BBS software SPUR/skip's level editor was built on top of.
+`Source/Acos/DISK.S` (the low-level disk/message-store driver) contains
+the `MSG` routine — the actual code that turns a message *number* into a
+directory entry:
+
+```
+MSG DEX              ; msg = msg - 1
+    ...
+    ASL TEMP2         ; compute dir section number
+    ROL
+    ASL               ; a = a * 4  (message N -> directory entry (N-1)*4)
+    ...
+```
+
+This is **direct positional addressing** — message N lives at directory
+entry `(N-1)*4`, no indirection, no hash table. `msg(x)` (SPUR.CONTROL.S,
+Part 1 above) is just a thin BASIC-level wrapper around this — for a
+normally-built, non-corrupted level, `msg(x) = x` throughout, since
+`wr.room` deletes and rewrites the *same* slot rather than ever
+reassigning a room to a different one.
+
+**Re-tested exit self-consistency using directory position directly as
+room number** (entry #1 = room 1, entry #2 = room 2, ...) instead of the
+bitmap-based zip, with the *decodable* message set (not the unreliable
+header bitmap) as ground truth for "populated": **98.9-100% consistent on
+6 of 7 levels**, and level 6 jumped from 40% (bitmap-zip) to 93.5%.
+
+**Every single remaining mismatch, on every level, was then individually
+identified and explained** — none were reconstruction errors:
+- Level 1's one mismatch (room 49 → north) is `SPUR.MAIN.S:148`'s fixed
+  Bar-link special case (`cl=1, cr=49, di=1`) — the game intercepts this
+  specific move before ever consulting the map, so there's no room data
+  behind it by design. Levels 4 and 5's one mismatch each are the same
+  kind of special case (`SPUR.MAIN.S:147,149`).
+- Level 6's remaining mismatches are a cluster of "Outer Space" rooms
+  whose exits deliberately lead into unbuilt grid cells, marked with
+  SPUR's own `no_error_exit_*` "allow movement, nothing there" flags —
+  intentional level design, not a bug.
+
+With every mismatch accounted for by a known, real SPUR mechanic (not
+hand-waved — each one individually verified against source and data),
+directory position was confirmed as the true SPUR room number scheme.
+
+### Part 3: the completed rebuild
+
+Built a generator combining the three correct pieces this investigation
+had separately found:
+1. Direct positional room numbering (Part 2), bypassing the unreliable
+   header bitmap entirely.
+2. `SPUR-data/convert_from_gbbs_tool.py`'s `parse_name_field`/`RoomFlag`
+   — the *complete* flag vocabulary (found to be missing several flags
+   from `tada_level_builder.py`, including `no_comm_signal`, all four
+   `vehicle_exit_*`/`vehicle_departure_*` directions, and `hidden_door_*`
+   — confirmed via a past commit noting this file, not
+   `tada_level_builder.py`, was "the real converter... confirmed via its
+   exact flag vocabulary match against the shipped level files").
+3. `tada_level_builder.py`'s `resolve_exit_destinations` grid-math for
+   turning raw exit flags into real destination room numbers, extended to
+   also resolve `hidden_exit_east`/`hidden_exit_west` destinations
+   automatically (forcing that one direction's raw flag on and reusing
+   the same formula) — verified against every hidden-exit room in level 6
+   against the exact same known-good pairings previously traced by hand
+   in commit `2d7f1b8` (matching item placements 132/134/138 and
+   connector-room names precisely), so this is a mechanical derivation of
+   the same result, not a new guess.
+
+Regenerated `level_2.json`..`level_7.json` (level 1 untouched — it
+already had real numbers). Room counts matched the previous files exactly
+(208/90/44/373/292/28) — only the numbering and previously-missing flags
+changed. Three data patches, not derivable from raw SPUR data, were
+carried forward from past manual work at their new real room numbers:
+- `grassy` flag (level 5, room 223 "Tiny Meadow" — was room 204 in the
+  old numbering) — a TADA retrofit with no SPUR precedent (commit
+  `b12a0ba`), not something the generator could derive.
+- The Air Lock ↔ Outer Space connecting exit (level 6, rooms 869/868 —
+  were 277/276) — SPUR's own raw data has no exit there at all
+  (`exit_e`/`exit_w: 0` for both); this was a deliberate TADA bugfix
+  (commit `e584623`) completing what looked like an abandoned SPUR
+  set-piece.
+- The horse-paddock hint text (level 5, room 157 "Rivertown" — same
+  number as before; this room happened to already have the correct real
+  number) — adapted to the room's real description, which already reads
+  "...A strangly familiar bar is to the east..".
+
+**Remarkable finding while updating downstream code references**:
+almost none needed changing. The Fountain of Youth/Vial (`_FOUNTAIN_ROOM
+= 105`), Jake's Stable (`_JAKES_ROOM = 157`), the Communicator's beam
+target (level 6 room 1), and level 1 room 89's cross-level teleport
+target (`{"room": 41, "level": 5}`) were all *already* using the real
+SPUR room numbers — because whoever implemented each of those features
+read the literal number straight out of SPUR source rather than
+reverse-engineering it from the (buggy) shipped JSON. Only the `grassy`/
+Air Lock/horse-clue patches above, some test fixtures with hardcoded old
+sequential numbers (`tests/movement/test_hidden_exit_data.py`,
+`test_airlock_integration.py`, `test_vehicle_departure_flavor.py`,
+`tests/commands/test_use_communicator.py`), and `run/server/player-*.json`
+save files for accounts on levels 2-7 (4 of 49 dev/test accounts actually
+needed a `map_room` change) needed updating. Full test suite: 4068
+passed, 0 failures, after these fixes.
 
 ## 19. Explicitly-checked empty categories
 
@@ -556,27 +678,31 @@ real scope.
 
 ## Follow-up ideas (not yet built)
 
-- **Decide on §17's two paths** before doing more room-number-literal SPUR
-  porting work: match-by-theme in current data (cheap, approximate) vs.
-  a real renumbering migration to restore SPUR's original room numbers
-  (unlocks exact matches, but touches every room reference in the
-  codebase plus persisted player `map_room` state — a deliberate,
-  separately-scoped project, not a drive-by fix).
-- **Garden of Eden (§15)** — the single most ready-to-build gap found: 37
-  named rooms already exist, matched by name (no room-number remapping
-  needed), monster #121 (SERPENT) already exists. Smallest-effort,
-  highest-confidence next implementation task from this whole audit.
-- **Ruby Slippers (§14)** — second cheapest: fixed teleport + a message
-  that's already fully written in `messages.json` #19, unused.
+- **The room-renumbering rebuild (§17/§18) is done** — every finding in
+  this doc now cites real SPUR room numbers. Next actual implementation
+  candidates, roughly by effort:
+  - **Garden of Eden (§15)** — the single most ready-to-build gap found:
+    37 named rooms already exist, matched by name, monster #121 (SERPENT)
+    already exists.
+  - **Ruby Slippers (§14)** — fixed teleport + a message already fully
+    written in `messages.json` #19, unused.
+  - **SEARCH-triggered hidden items (§16)** — all 5 real rooms and their
+    items now confirmed by number; needs an EXAMINE-with-no-argument
+    handler.
+  - **Galadriel's fixed trigger room, FLEE destination pools, the 4 Bar
+    entrances (§16)** — all real room numbers now confirmed; each needs
+    its own game-logic implementation.
 - Surface at least the "big" special rooms (Fountain, Gollum's Cave, the
   wild-horse meadow) via an in-game hint system (rumor NPC, a book, a
   LOOK-triggered nudge) rather than requiring the player to already know.
-- `radiation_extreme` + Geiger counter (#13) is the strongest of the four
-  dead-flag candidates to actually implement — item and room data both
-  clearly exist for it, only the per-move check/flavor text is missing.
-- Decide whether to wire up `outer_space`/`hidden_item`/`hidden_door_*`
-  (#13) or drop them from the map data — no companion item/mechanic has
-  turned up for these three yet.
+- `radiation_extreme` + Geiger counter (#13) is the strongest of the
+  remaining dead-flag candidates to actually implement — item and room
+  data both clearly exist for it, only the per-move check/flavor text is
+  missing. `hidden_item` (#13) is no longer in this bucket — §16 found
+  its real companion mechanic (SEARCH-triggered items, above).
+- Decide whether to wire up `outer_space`/`hidden_door_*` (#13) or drop
+  them from the map data — no companion item/mechanic has turned up for
+  these two yet.
 - Consider promoting the three level_1 "HQ"-named rooms (#10) to actual
   `RoomAlignment.HQ` if permanent, capture-immune guild headquarters was
   the original intent — currently they're just ordinary territory.

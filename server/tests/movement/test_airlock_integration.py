@@ -1,13 +1,15 @@
 """tests/movement/test_airlock_integration.py
 
 End-to-end coverage of the one real instance of SPUR's boat/vehicle-
-launch mechanic in the converted game: level 6's Air Lock (room 277,
+launch mechanic in the converted game: level 6's Air Lock (room 869,
 VEHICLE_EXIT_WEST -- requires a spacesuit to leave heading back into the
-vacuum) and Outer Space (room 276, VEHICLE_DEPARTURE_EAST -- "you get
-out of your spacesuit" flavor leaving back toward the ship). Both rooms'
-raw exit_e/exit_w flags are 0 in the original SPUR data (see TODO.md's
+vacuum) and Outer Space (room 868, VEHICLE_DEPARTURE_EAST -- "you get
+out of your spacesuit" flavor leaving back toward the ship). Room
+numbers are SPUR's real room numbers (message-directory position -- see
+LEVEL_AUDIT.md's room-renumbering investigation); both rooms' raw
+exit_e/exit_w flags are 0 in the original SPUR data (see TODO.md's
 "SPUR boat/vehicle-launch exit flavor text" entry) -- the east/west
-exits connecting them exist only because this session added them,
+exits connecting them exist only because a past session added them,
 completing what looked like an abandoned SPUR set-piece.
 
 Drives the real MoveCommand (commands/movement.py) against a real
@@ -27,8 +29,8 @@ from items import Item, ItemCategory
 from simple_server import Server
 
 _SPACESUIT_ID = 122
-_AIR_LOCK_ROOM = 277
-_OUTER_SPACE_ROOM = 276
+_AIR_LOCK_ROOM = 869
+_OUTER_SPACE_ROOM = 868
 
 
 def run(coro):

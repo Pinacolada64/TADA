@@ -92,7 +92,7 @@
         },
         {
             "number": 7,
-            "name": "Mummy's Tomb",
+            "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -134,7 +134,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The wild ride would be exhilarating, if you weren't worried about being killed."
+            "desc": "The wild ride would be exilerating, if you weren't worried about being killed."
         },
         {
             "number": 10,
@@ -150,7 +150,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The rapids veer rapidly to the west.."
+            "desc": "The rapids veer rapidily to the west.."
         },
         {
             "number": 11,
@@ -304,14 +304,14 @@
             "desc": "The quietness is creepy. Slimy walls are north and east.."
         },
         {
-            "number": 20,
+            "number": 21,
             "name": "Burial Chamber",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 5,
-                "south": 35,
-                "east": 21
+                "north": 6,
+                "south": 36,
+                "east": 22
             },
             "monster": 0,
             "item": 0,
@@ -320,12 +320,12 @@
             "desc": "You are in a large burial chamber.  The bodies of many unfortunate adventurers are piled throughout the room.  There is a place in the corner with YOUR name carved in the wall!! A faint message, partially rubbed off, warns \"Travel south at your own risk!!\""
         },
         {
-            "number": 21,
+            "number": 22,
             "name": "Burial Entrance",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "west": 20
+                "west": 21
             },
             "monster": 0,
             "item": 0,
@@ -334,12 +334,12 @@
             "desc": "You have reached the entrance to the burial chamber."
         },
         {
-            "number": 22,
+            "number": 23,
             "name": "Ladder Room",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 23,
+                "east": 24,
                 "rc": 1,
                 "rt": 20
             },
@@ -350,12 +350,12 @@
             "desc": "There is a ladder leading UP here!"
         },
         {
-            "number": 23,
+            "number": 24,
             "name": "Ladder Room",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "west": 22,
+                "west": 23,
                 "rc": 2,
                 "rt": 19
             },
@@ -366,39 +366,21 @@
             "desc": "There is a ladder leading DOWN here!"
         },
         {
-            "number": 24,
+            "number": 25,
             "name": "Underground Lake",
             "room_alignment": "neutral",
             "flags": [
                 "water_with_rocks"
             ],
             "exits": {
-                "south": 39,
-                "east": 25
+                "south": 40,
+                "east": 26
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
             "desc": "This is the northeast corner of the cavern, you think..."
-        },
-        {
-            "number": 25,
-            "name": "Underground Lake",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "south": 40,
-                "east": 26,
-                "west": 24
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You follow the face of the cliff to the north.."
         },
         {
             "number": 26,
@@ -415,8 +397,8 @@
             "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 51,
-            "desc": "You have to dodge some stones falling from the roof of the cavern.."
+            "food": 0,
+            "desc": "You follow the face of the cliff to the north.."
         },
         {
             "number": 27,
@@ -427,7 +409,25 @@
             ],
             "exits": {
                 "south": 42,
+                "east": 28,
                 "west": 26
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 51,
+            "desc": "You have to dodge some stones falling from the roof of the cavern.."
+        },
+        {
+            "number": 28,
+            "name": "Underground Lake",
+            "room_alignment": "neutral",
+            "flags": [
+                "water"
+            ],
+            "exits": {
+                "south": 43,
+                "west": 27
             },
             "monster": 0,
             "item": 0,
@@ -436,15 +436,15 @@
             "desc": "You are in some sort of small inlet, but the walls are much too sheer to land the dingy.."
         },
         {
-            "number": 28,
+            "number": 30,
             "name": "Underground Rapids",
             "room_alignment": "neutral",
             "flags": [
                 "water"
             ],
             "exits": {
-                "north": 13,
-                "east": 29
+                "north": 15,
+                "east": 16
             },
             "monster": 0,
             "item": 0,
@@ -453,15 +453,15 @@
             "desc": "The rapids goes shooting downhill to the north. It looks more quiet to the east.."
         },
         {
-            "number": 29,
+            "number": 31,
             "name": "Underground River",
             "room_alignment": "neutral",
             "flags": [
                 "water"
             ],
             "exits": {
-                "east": 30,
-                "west": 28
+                "east": 32,
+                "west": 45
             },
             "monster": 0,
             "item": 0,
@@ -470,15 +470,15 @@
             "desc": "You are in an underground river, the current flows from the east.."
         },
         {
-            "number": 30,
+            "number": 32,
             "name": "Underground River",
             "room_alignment": "neutral",
             "flags": [
                 "water"
             ],
             "exits": {
-                "south": 45,
-                "west": 29
+                "south": 47,
+                "west": 31
             },
             "monster": 0,
             "item": 0,
@@ -487,16 +487,16 @@
             "desc": "The river is rather swift here, with some rocks.."
         },
         {
-            "number": 31,
+            "number": 33,
             "name": "Quiet Pool",
             "room_alignment": "neutral",
             "flags": [
                 "water"
             ],
             "exits": {
-                "north": 16,
-                "south": 46,
-                "east": 32
+                "north": 18,
+                "south": 48,
+                "east": 34
             },
             "monster": 0,
             "item": 0,
@@ -505,31 +505,31 @@
             "desc": "The water quietly slaps against your dingy. There is a granite wall rising sheer, to the west."
         },
         {
-            "number": 32,
+            "number": 34,
             "name": "Underground Pool",
             "room_alignment": "neutral",
             "flags": [
                 "water"
             ],
             "exits": {
-                "north": 17,
-                "south": 47,
-                "west": 31
+                "north": 19,
+                "south": 49,
+                "west": 33
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A slippery granite wall is to the east. All else is darkness.."
+            "desc": "A slippry granite wall is to the east. All else is darkness.."
         },
         {
-            "number": 33,
+            "number": 35,
             "name": "Embalming Room",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 48,
-                "east": 34
+                "south": 50,
+                "east": 36
             },
             "monster": 0,
             "item": 60,
@@ -538,13 +538,13 @@
             "desc": "The Embalming Room, adjacent to the Caretakers quarters, reeks of the smell of formaldehyde and pieces of unfortunate adventurers.  Take care not to disturb him."
         },
         {
-            "number": 34,
-            "name": "Caretaker's Lair",
+            "number": 36,
+            "name": "Caretaker'S Lair",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 19,
-                "west": 33
+                "north": 21,
+                "west": 35
             },
             "monster": 51,
             "item": 0,
@@ -553,12 +553,12 @@
             "desc": "You have entered the lair of the Caretaker.  He does not appreciate being disturbed!"
         },
         {
-            "number": 35,
+            "number": 37,
             "name": "Picasso Exhibit",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 50
+                "south": 52
             },
             "monster": 0,
             "item": 53,
@@ -567,74 +567,18 @@
             "desc": "You have entered Picasso's Exhibit."
         },
         {
-            "number": 36,
+            "number": 38,
             "name": "Rembrandt Exhibit",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 51
+                "south": 53
             },
             "monster": 0,
             "item": 54,
             "weapon": 0,
             "food": 0,
             "desc": "You have entered Rembrandt's exhibit area."
-        },
-        {
-            "number": 37,
-            "name": "Underground Lake",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "north": 22,
-                "south": 52,
-                "east": 38
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The granite walls continue to the west.."
-        },
-        {
-            "number": 38,
-            "name": "Underground Lake",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "north": 23,
-                "south": 53,
-                "east": 39,
-                "west": 37
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You can barely make out a wall to the west, shining in the light of your torch."
-        },
-        {
-            "number": 39,
-            "name": "Underground Lake",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "north": 24,
-                "south": 54,
-                "east": 40,
-                "west": 38
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You think you hear something, but it is only your stomach rumbling.."
         },
         {
             "number": 40,
@@ -646,14 +590,13 @@
             "exits": {
                 "north": 25,
                 "south": 55,
-                "east": 41,
-                "west": 39
+                "east": 41
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You wonder how far this blasted lake goes!"
+            "desc": "The granite walls continue to the west.."
         },
         {
             "number": 41,
@@ -663,15 +606,16 @@
                 "water"
             ],
             "exits": {
+                "north": 26,
                 "south": 56,
                 "east": 42,
                 "west": 40
             },
-            "monster": 85,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The water seems to be moving of it's own accord..."
+            "desc": "You can barely make out a wall to the west, shining in the light of your torch."
         },
         {
             "number": 42,
@@ -690,18 +634,75 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The cavern ends here, but there is an underground river to the east! And a short but steep water fall is north..."
+            "desc": "You think you hear something, but it is only your stomach rumbling.."
         },
         {
             "number": 43,
-            "name": "Small Pond",
+            "name": "Underground Lake",
             "room_alignment": "neutral",
             "flags": [
                 "water"
             ],
             "exits": {
+                "north": 28,
                 "south": 58,
+                "east": 44,
                 "west": 42
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You wonder how far this blasted lake goes!"
+        },
+        {
+            "number": 44,
+            "name": "Underground Lake",
+            "room_alignment": "neutral",
+            "flags": [
+                "water"
+            ],
+            "exits": {
+                "south": 59,
+                "east": 45,
+                "west": 43
+            },
+            "monster": 85,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The water seems to be moving of it's own accord..."
+        },
+        {
+            "number": 45,
+            "name": "Underground Lake",
+            "room_alignment": "neutral",
+            "flags": [
+                "water"
+            ],
+            "exits": {
+                "north": 30,
+                "south": 60,
+                "east": 31,
+                "west": 44
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The cavern ends here, but there is an underground river to the east! And a short but steep water fall is north..."
+        },
+        {
+            "number": 46,
+            "name": "Small Pond",
+            "room_alignment": "neutral",
+            "flags": [
+                "vehicle_departure_south",
+                "water"
+            ],
+            "exits": {
+                "south": 61,
+                "west": 60
             },
             "monster": 90,
             "item": 0,
@@ -710,15 +711,15 @@
             "desc": "You are in the small pond. The roaring is coming from a water falls to the west...."
         },
         {
-            "number": 44,
+            "number": 47,
             "name": "Underground River",
             "room_alignment": "neutral",
             "flags": [
                 "water"
             ],
             "exits": {
-                "north": 29,
-                "south": 59
+                "north": 32,
+                "south": 62
             },
             "monster": 0,
             "item": 0,
@@ -727,15 +728,15 @@
             "desc": "The river is quite rough, making you pick your way carefully by the light of your torch.. It suddenly feels quite cold.."
         },
         {
-            "number": 45,
+            "number": 48,
             "name": "Underground Pool",
             "room_alignment": "neutral",
             "flags": [
                 "water"
             ],
             "exits": {
-                "north": 30,
-                "east": 31
+                "north": 33,
+                "east": 49
             },
             "monster": 94,
             "item": 0,
@@ -744,31 +745,31 @@
             "desc": "This is the southwest corner of the underground pool. Everything is quiet. Except for that strange woman of course.."
         },
         {
-            "number": 46,
+            "number": 49,
             "name": "Underground Pool",
             "room_alignment": "neutral",
             "flags": [
                 "water_with_rocks"
             ],
             "exits": {
-                "north": 31,
-                "west": 60
+                "north": 34,
+                "west": 48
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You imagine you see shadows on the granite walls, but that is silly of course."
+            "desc": "You imagine you see shadows on the granit walls, but that is silly of course."
         },
         {
-            "number": 47,
+            "number": 50,
             "name": "Art Gallery Entrance",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 32,
-                "south": 62,
-                "east": 48
+                "north": 35,
+                "south": 65,
+                "east": 51
             },
             "monster": 0,
             "item": 59,
@@ -777,13 +778,13 @@
             "desc": "You have entered the art gallery.  The guard pays no attention to your presence."
         },
         {
-            "number": 48,
+            "number": 51,
             "name": "Gallery Hallway",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 49,
-                "west": 47
+                "east": 52,
+                "west": 50
             },
             "monster": 0,
             "item": 0,
@@ -792,15 +793,15 @@
             "desc": "You have entered the west end of the Gallery Hallway.  There are art annexes in which many rare paintings are exhibited."
         },
         {
-            "number": 49,
+            "number": 52,
             "name": "Gallery Hallway",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 34,
-                "south": 64,
-                "east": 50,
-                "west": 48
+                "north": 37,
+                "south": 67,
+                "east": 53,
+                "west": 51
             },
             "monster": 0,
             "item": 0,
@@ -809,15 +810,15 @@
             "desc": "You are in the Gallery Hallway.  There is a large chamber far to the east."
         },
         {
-            "number": 50,
+            "number": 53,
             "name": "Gallery Hallway",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 35,
-                "south": 65,
-                "east": 51,
-                "west": 49
+                "north": 38,
+                "south": 68,
+                "east": 54,
+                "west": 52
             },
             "monster": 0,
             "item": 0,
@@ -826,73 +827,18 @@
             "desc": "You are in the Gallery Hallway.  There is a very large room directly to the East."
         },
         {
-            "number": 51,
-            "name": "Spur's Exhibit",
+            "number": 54,
+            "name": "Spur'S Exhibit",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "west": 50
+                "west": 53
             },
             "monster": 0,
             "item": 55,
             "weapon": 0,
             "food": 0,
             "desc": "You have entered SPUR's personal exhibit room.  Here you find many priceless crayon drawings which the Almighty and Omnipotent SPUR has personally donated to the gallery."
-        },
-        {
-            "number": 52,
-            "name": "Underground Lake",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "north": 37,
-                "east": 53
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The walls of the huge cavern are to the west, sheer and wet.."
-        },
-        {
-            "number": 53,
-            "name": "Underground Lake",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "north": 38,
-                "south": 68,
-                "east": 54,
-                "west": 52
-            },
-            "monster": 72,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "A flapping in the air catches your attention.."
-        },
-        {
-            "number": 54,
-            "name": "Underground Lake",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "north": 39,
-                "south": 69,
-                "east": 55,
-                "west": 53
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 51,
-            "desc": "You feel the water, and it is icy cold. \"Maybe nothing lives in here!\" you think hopefully..."
         },
         {
             "number": 55,
@@ -903,15 +849,13 @@
             ],
             "exits": {
                 "north": 40,
-                "south": 70,
-                "east": 56,
-                "west": 54
+                "east": 56
             },
-            "monster": 95,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A deathly silence reins, except for you paddling noise. Wait... Whats that gurgling noise?"
+            "desc": "The walls of the huge cavern are to the west, sheer and wet.."
         },
         {
             "number": 56,
@@ -926,23 +870,80 @@
                 "east": 57,
                 "west": 55
             },
-            "monster": 0,
+            "monster": 72,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "\"I wonder how Jacques Cousteau does stuff like this!\" you snicker to yourself, but you shut up, as your snicker echo across the cavern.."
+            "desc": "A flapping in the air catches your attention.."
         },
         {
             "number": 57,
             "name": "Underground Lake",
             "room_alignment": "neutral",
             "flags": [
-                "water_with_rocks"
+                "water"
             ],
             "exits": {
                 "north": 42,
                 "south": 72,
+                "east": 58,
                 "west": 56
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 51,
+            "desc": "You feel the water, and it is icy cold. \"Maybe nothing lives in here!\" you think hopefully..."
+        },
+        {
+            "number": 58,
+            "name": "Underground Lake",
+            "room_alignment": "neutral",
+            "flags": [
+                "water"
+            ],
+            "exits": {
+                "north": 43,
+                "south": 73,
+                "east": 59,
+                "west": 57
+            },
+            "monster": 95,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A deathly silence reins, except for you paddling noise. Wait... Whats that gurgling noise?"
+        },
+        {
+            "number": 59,
+            "name": "Underground Lake",
+            "room_alignment": "neutral",
+            "flags": [
+                "water"
+            ],
+            "exits": {
+                "north": 44,
+                "south": 74,
+                "east": 60,
+                "west": 58
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "\"I wonder how Jock Custoe does stuff like this!\" you snicker to yourself, but you shut up, as your snicker echo across the cavern.."
+        },
+        {
+            "number": 60,
+            "name": "Underground Lake",
+            "room_alignment": "neutral",
+            "flags": [
+                "water_with_rocks"
+            ],
+            "exits": {
+                "north": 45,
+                "south": 75,
+                "west": 59
             },
             "monster": 0,
             "item": 0,
@@ -951,13 +952,15 @@
             "desc": "The wall of the cavern is to the east, a roaring waterfalls is thundering down there..."
         },
         {
-            "number": 58,
+            "number": 61,
             "name": "Ponds Edge",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "vehicle_exit_north"
+            ],
             "exits": {
-                "north": 43,
-                "south": 73
+                "north": 46,
+                "south": 76
             },
             "monster": 0,
             "item": 0,
@@ -966,64 +969,13 @@
             "desc": "This is the edge of a small pond which seems to bubbling up from a underground stream. The roaring noise is very loud here.."
         },
         {
-            "number": 59,
-            "name": "Underground River",
-            "room_alignment": "neutral",
-            "flags": [
-                "water",
-                "snow"
-            ],
-            "exits": {
-                "north": 44,
-                "east": 60
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The air is bitter cold here, ice hangs from the roof of the underground river."
-        },
-        {
-            "number": 60,
-            "name": "Underground River",
-            "room_alignment": "neutral",
-            "flags": [
-                "water",
-                "snow"
-            ],
-            "exits": {
-                "east": 46,
-                "west": 59
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The cold gets to you, making you wonder if you should turn back, or go just a bit further.."
-        },
-        {
-            "number": 61,
-            "name": "Underground River",
-            "room_alignment": "neutral",
-            "flags": [
-                "water",
-                "snow"
-            ],
-            "exits": {
-                "south": 76,
-                "west": 75
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The river goes thru a narrow crevice to the south. Much too narrow for you to enter. But there is a small shelf of land here, where you may land the dingy."
-        },
-        {
             "number": 62,
-            "name": "Courtyard",
+            "name": "Underground River",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water",
+                "snow"
+            ],
             "exits": {
                 "north": 47,
                 "east": 63
@@ -1032,16 +984,68 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You are between the art gallery and the museum."
+            "desc": "The air is bitter cold here, ice hangs from the roof of the underground river."
         },
         {
             "number": 63,
+            "name": "Underground River",
+            "room_alignment": "neutral",
+            "flags": [
+                "water",
+                "snow"
+            ],
+            "exits": {
+                "east": 64,
+                "west": 62
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The cold gets to you, making you wonder if you should turn back, or go just a bit further.."
+        },
+        {
+            "number": 64,
+            "name": "Underground River",
+            "room_alignment": "neutral",
+            "flags": [
+                "vehicle_departure_south",
+                "water",
+                "snow"
+            ],
+            "exits": {
+                "south": 79,
+                "west": 63
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The river goes thru a narrow crevace to the south. Much too narrow for you to enter. But there is a small shelf of land here, where you may land the dingy."
+        },
+        {
+            "number": 65,
+            "name": "Courtyard",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 50,
+                "east": 66
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are between the art gallery and the museum."
+        },
+        {
+            "number": 66,
             "name": "Courtyard Corner",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 78,
-                "west": 62
+                "south": 81,
+                "west": 65
             },
             "monster": 0,
             "item": 0,
@@ -1050,12 +1054,12 @@
             "desc": "You have entered the corner of the courtyard.  There is a large fountain nearby."
         },
         {
-            "number": 64,
+            "number": 67,
             "name": "De Vinci Room",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 49
+                "north": 52
             },
             "monster": 0,
             "item": 51,
@@ -1064,12 +1068,12 @@
             "desc": "You have entered Leonardo De Vinci's exhibit hall..."
         },
         {
-            "number": 65,
+            "number": 68,
             "name": "Grant Wood Hall",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 50
+                "north": 53
             },
             "monster": 0,
             "item": 52,
@@ -1078,101 +1082,12 @@
             "desc": "You have entered Grant Wood's studio.  There are several partially completed works and fresh paint on a palette lying in the corner."
         },
         {
-            "number": 66,
-            "name": "Underground Lake",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "north": 51,
-                "east": 67
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The sound of your small waves lapping against the granite walls to the southwest is rather noisy to your ears. You wonder if anything else hears it.."
-        },
-        {
-            "number": 67,
-            "name": "Underground Lake",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "north": 52,
-                "east": 68,
-                "west": 66
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 51,
-            "desc": "The edge of the lake is to the south, slimy and cold rock.."
-        },
-        {
-            "number": 68,
-            "name": "Underground Lake",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "north": 53,
-                "south": 83,
-                "east": 69,
-                "west": 67
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 51,
-            "desc": "You imagine you hear a soft slapping, slapping of immense flippers.."
-        },
-        {
-            "number": 69,
-            "name": "Underground Lake",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "north": 54,
-                "south": 84,
-                "east": 70,
-                "west": 68
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You have lost sight of the wall, which you somehow miss..."
-        },
-        {
-            "number": 70,
-            "name": "Underground Lake",
-            "room_alignment": "neutral",
-            "flags": [
-                "water"
-            ],
-            "exits": {
-                "north": 55,
-                "south": 85,
-                "west": 69
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You follow the cliff to the west.."
-        },
-        {
             "number": 71,
-            "name": "Rough Tunnel",
+            "name": "Underground Lake",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "water"
+            ],
             "exits": {
                 "north": 56,
                 "east": 72
@@ -1181,16 +1096,105 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The roaring sound of water is louder here.."
+            "desc": "The sound of your small waves lapping against the granit walls to the southwest is rather noisy to your ears. You wonder if anything else hears it.."
         },
         {
             "number": 72,
+            "name": "Underground Lake",
+            "room_alignment": "neutral",
+            "flags": [
+                "water"
+            ],
+            "exits": {
+                "north": 57,
+                "east": 73,
+                "west": 71
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 51,
+            "desc": "The edge of the lake is to the south, slimy and cold rock.."
+        },
+        {
+            "number": 73,
+            "name": "Underground Lake",
+            "room_alignment": "neutral",
+            "flags": [
+                "water"
+            ],
+            "exits": {
+                "north": 58,
+                "south": 88,
+                "east": 74,
+                "west": 72
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 51,
+            "desc": "You imagine you hear a soft slapping, slapping of immense flippers.."
+        },
+        {
+            "number": 74,
+            "name": "Underground Lake",
+            "room_alignment": "neutral",
+            "flags": [
+                "water"
+            ],
+            "exits": {
+                "north": 59,
+                "south": 89,
+                "east": 75,
+                "west": 73
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You have lost sight of the wall, which you somehow miss..."
+        },
+        {
+            "number": 75,
+            "name": "Underground Lake",
+            "room_alignment": "neutral",
+            "flags": [
+                "water"
+            ],
+            "exits": {
+                "north": 60,
+                "south": 90,
+                "west": 74
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You follow the cliff to the west.."
+        },
+        {
+            "number": 76,
             "name": "Rough Tunnel",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 87,
-                "west": 71
+                "north": 61,
+                "east": 77
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The roaring sound of water is louder here.."
+        },
+        {
+            "number": 77,
+            "name": "Rough Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 92,
+                "west": 76
             },
             "monster": 96,
             "item": 0,
@@ -1199,15 +1203,16 @@
             "desc": "You are no longer in the man made tunnels... A faint sound of roaring water can be heard. The tunnel raises steeply to the west.."
         },
         {
-            "number": 73,
+            "number": 79,
             "name": "Underground Ledge",
             "room_alignment": "neutral",
             "flags": [
+                "vehicle_exit_north",
                 "snow"
             ],
             "exits": {
-                "north": 58,
-                "east": 74
+                "north": 64,
+                "east": 80
             },
             "monster": 0,
             "item": 0,
@@ -1216,12 +1221,12 @@
             "desc": "This is a narrow ledge, covered in bitterly cold ice. It seems to lead to the east. The river is north, of course.."
         },
         {
-            "number": 74,
+            "number": 80,
             "name": "Underground Ledge",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "west": 73
+                "west": 79
             },
             "monster": 76,
             "item": 96,
@@ -1230,13 +1235,13 @@
             "desc": "You are at the end of the narrow ledge. The walls rise sheer all around you. Lying about are the remains of some earlier party. You hope you will have better luck getting out. You search thru the debris."
         },
         {
-            "number": 75,
+            "number": 81,
             "name": "South Courtyard",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 60,
-                "south": 90
+                "north": 66,
+                "south": 96
             },
             "monster": 0,
             "item": 0,
@@ -1245,13 +1250,13 @@
             "desc": "You have entered the south end of the courtyard which connects the museum to the art gallery."
         },
         {
-            "number": 76,
+            "number": 85,
             "name": "Long Passageway",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 91,
-                "east": 77,
+                "south": 100,
+                "east": 86,
                 "rc": 1,
                 "rt": 70
             },
@@ -1262,13 +1267,13 @@
             "desc": "You are in a long passageway, running south and east.."
         },
         {
-            "number": 77,
+            "number": 86,
             "name": "Long Passage Way",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 78,
-                "west": 76
+                "east": 87,
+                "west": 85
             },
             "monster": 0,
             "item": 0,
@@ -1277,13 +1282,15 @@
             "desc": "The passageway continues, on a steep decline.."
         },
         {
-            "number": 78,
+            "number": 87,
             "name": "Underground Shore",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "vehicle_exit_east"
+            ],
             "exits": {
-                "east": 79,
-                "west": 77
+                "east": 88,
+                "west": 86
             },
             "monster": 0,
             "item": 0,
@@ -1292,35 +1299,36 @@
             "desc": "There is an underground lake to the east, a passage winds uphill to the west."
         },
         {
-            "number": 79,
+            "number": 88,
             "name": "Underground Lake",
             "room_alignment": "neutral",
             "flags": [
+                "vehicle_departure_west",
                 "water"
             ],
             "exits": {
-                "north": 64,
-                "east": 80,
-                "west": 78
+                "north": 73,
+                "east": 89,
+                "west": 87
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 51,
-            "desc": "You are in a underground lake, the slapping of water echoes eerily..."
+            "desc": "You are in a underground lake, the slapping of water echos erily..."
         },
         {
-            "number": 80,
+            "number": 89,
             "name": "Underground Lake",
             "room_alignment": "neutral",
             "flags": [
                 "water"
             ],
             "exits": {
-                "north": 65,
-                "south": 95,
-                "east": 81,
-                "west": 79
+                "north": 74,
+                "south": 104,
+                "east": 90,
+                "west": 88
             },
             "monster": 0,
             "item": 0,
@@ -1329,16 +1337,16 @@
             "desc": "The lake is very still... rather spooky.."
         },
         {
-            "number": 81,
+            "number": 90,
             "name": "Underground Lake",
             "room_alignment": "neutral",
             "flags": [
                 "water"
             ],
             "exits": {
-                "north": 66,
-                "south": 96,
-                "west": 80
+                "north": 75,
+                "south": 105,
+                "west": 89
             },
             "monster": 0,
             "item": 0,
@@ -1347,13 +1355,13 @@
             "desc": "You start to wonder if this was such a hot idea.."
         },
         {
-            "number": 82,
+            "number": 92,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 67,
-                "south": 97
+                "north": 77,
+                "south": 107
             },
             "monster": 0,
             "item": 0,
@@ -1362,12 +1370,12 @@
             "desc": "The corridor raises steeply from south to north here..."
         },
         {
-            "number": 83,
+            "number": 93,
             "name": "Labyrinth",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 98,
+                "south": 108,
                 "rc": 1,
                 "rt": 75
             },
@@ -1378,13 +1386,13 @@
             "desc": "You are in a maze..."
         },
         {
-            "number": 84,
+            "number": 94,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 99,
-                "east": 85
+                "south": 109,
+                "east": 95
             },
             "monster": 0,
             "item": 0,
@@ -1393,13 +1401,13 @@
             "desc": "The corridor takes a turn here..."
         },
         {
-            "number": 85,
+            "number": 95,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 100,
-                "west": 84
+                "south": 110,
+                "west": 94
             },
             "monster": 0,
             "item": 0,
@@ -1408,14 +1416,14 @@
             "desc": "The corridor takes yet another turn.."
         },
         {
-            "number": 86,
+            "number": 96,
             "name": "Museum Entrance",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 71,
-                "south": 101,
-                "east": 87,
+                "north": 81,
+                "south": 111,
+                "east": 97,
                 "rc": 1,
                 "rt": 78
             },
@@ -1426,13 +1434,13 @@
             "desc": "You have reached the Museum.  A sign says NO PETS ALLOWED!"
         },
         {
-            "number": 87,
+            "number": 97,
             "name": "Early Spur",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 88,
-                "west": 86
+                "east": 98,
+                "west": 96
             },
             "monster": 0,
             "item": 56,
@@ -1441,13 +1449,13 @@
             "desc": "You have entered the first of several SPUR exhibits.  This room displays the history of the SPUR empire."
         },
         {
-            "number": 88,
+            "number": 98,
             "name": "Spur Trophy Room",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 103,
-                "west": 87
+                "south": 113,
+                "west": 97
             },
             "monster": 0,
             "item": 57,
@@ -1456,13 +1464,13 @@
             "desc": "The SPUR Trophy Room contains many treasures collected by SPUR during the reign over the LAND."
         },
         {
-            "number": 89,
+            "number": 100,
             "name": "Long Passage",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 74,
-                "south": 104
+                "north": 85,
+                "south": 115
             },
             "monster": 0,
             "item": 0,
@@ -1471,77 +1479,77 @@
             "desc": "You are in a long passageway..."
         },
         {
-            "number": 90,
+            "number": 101,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 105,
-                "east": 76
+                "south": 116,
+                "east": 102
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You feel your hair standing on end.. What could be to the south to cause such a stirring of excitement?!?!"
+            "desc": "You feel your hair standing on end.. What could be to the south to cause such a stiring of excitment?!?!"
         },
         {
-            "number": 91,
+            "number": 102,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 92,
-                "west": 105
+                "east": 103,
+                "west": 101
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The sense of excitement is stronger here.."
+            "desc": "The sense of excitment is stronger here.."
         },
         {
-            "number": 92,
+            "number": 103,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 107,
-                "west": 91
+                "south": 118,
+                "west": 102
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A vague sense of excitement is in the air..."
+            "desc": "A vague sense of excitment is in the air..."
         },
         {
-            "number": 93,
+            "number": 104,
             "name": "Underground Lake",
             "room_alignment": "neutral",
             "flags": [
                 "water"
             ],
             "exits": {
-                "north": 78,
-                "east": 94
+                "north": 89,
+                "east": 105
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is the lakes edge. Granite walls rise sheer and foreboding to the south and west..."
+            "desc": "This is the lakes edge. Granite walls rise sheer and forboding to the south and west..."
         },
         {
-            "number": 94,
+            "number": 105,
             "name": "Underground Lake",
             "room_alignment": "neutral",
             "flags": [
                 "water"
             ],
             "exits": {
-                "north": 79,
-                "west": 93
+                "north": 90,
+                "west": 104
             },
             "monster": 0,
             "item": 0,
@@ -1550,14 +1558,14 @@
             "desc": "An icy current seems to want to drag you to the rocks towards the south, but you fight away.."
         },
         {
-            "number": 95,
+            "number": 106,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 110,
-                "east": 96,
-                "west": 94
+                "south": 121,
+                "east": 107,
+                "west": 120
             },
             "monster": 0,
             "item": 0,
@@ -1566,200 +1574,35 @@
             "desc": "The corridor seems to branch off here.."
         },
         {
-            "number": 96,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 81,
-                "south": 111,
-                "west": 95
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The corridor goes is several directions. It raises steeply to the north, and descends to the south.."
-        },
-        {
-            "number": 97,
-            "name": "Labyrinth",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 82,
-                "south": 112
-            },
-            "monster": 25,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You are in a maze..."
-        },
-        {
-            "number": 98,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 83,
-                "south": 113
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "Onwards... ever onwards go these corridors.."
-        },
-        {
-            "number": 99,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 84,
-                "south": 114
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You imagine you hear some strange laughter somewhere ahead.."
-        },
-        {
-            "number": 100,
-            "name": "Museum Courtyard",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 85,
-                "south": 115
-            },
-            "monster": 0,
-            "item": 70,
-            "weapon": 54,
-            "food": 0,
-            "desc": "You have entered the Museum courtyard.  The Museum entrance can be seen off to the north."
-        },
-        {
-            "number": 101,
-            "name": "Spur'S Vault",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 86
-            },
-            "monster": 0,
-            "item": 58,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You have entered SPUR's vault.  His most valued treasures and artifacts are displayed behind several inches of unbreakable glass."
-        },
-        {
-            "number": 102,
-            "name": "Long Passage",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 87,
-                "south": 117
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You are in a long passageway..."
-        },
-        {
-            "number": 103,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 88
-            },
-            "monster": 0,
-            "item": 88,
-            "weapon": 0,
-            "food": 0,
-            "desc": "Humph... Nothing here... A dead end... 'Boy, am I silly!' you muse to yourself..."
-        },
-        {
-            "number": 104,
-            "name": "Labyrinth",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "south": 119,
-                "rc": 1,
-                "rt": 96
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You are in a maze..."
-        },
-        {
-            "number": 105,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 90,
-                "south": 120,
-                "east": 91
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The passage branches, again...."
-        },
-        {
-            "number": 106,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "east": 107,
-                "west": 120
-            },
-            "monster": 98,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The smell is especially strong, here..."
-        },
-        {
             "number": 107,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 108,
+                "north": 92,
+                "south": 122,
                 "west": 106
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Something seems to smell here. Something.... dead..."
+            "desc": "The corridor goes is several directions. It raises steeply to the north, and decends to the south.."
         },
         {
             "number": 108,
-            "name": "Mummy'S Tomb",
+            "name": "Labyrinth",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
                 "north": 93,
                 "south": 123
             },
-            "monster": 96,
+            "monster": 25,
             "item": 0,
             "weapon": 0,
-            "food": 62,
-            "desc": "Nothing much here, except the occasional rat. You wonder what these things live on..."
+            "food": 0,
+            "desc": "You are in a maze..."
         },
         {
             "number": 109,
@@ -1774,15 +1617,180 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is a narrow corridor decending from north to south.."
+            "desc": "Onwards... ever onwards go these corridors.."
         },
         {
             "number": 110,
-            "name": "Labyrinth",
+            "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
                 "north": 95,
+                "south": 125
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You imagine you hear some strange laughter somewhere ahead.."
+        },
+        {
+            "number": 111,
+            "name": "Museum Courtyard",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 96,
+                "south": 126
+            },
+            "monster": 0,
+            "item": 70,
+            "weapon": 54,
+            "food": 0,
+            "desc": "You have entered the Museum courtyard.  The Museum entrance can be seen off to the north."
+        },
+        {
+            "number": 113,
+            "name": "Spur'S Vault",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 98
+            },
+            "monster": 0,
+            "item": 58,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You have entered SPUR's vault.  His most valued treasures and artifacts are displayed behind several inches of unbreakable glass."
+        },
+        {
+            "number": 115,
+            "name": "Long Passage",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 100,
+                "south": 130
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a long passageway..."
+        },
+        {
+            "number": 116,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 101
+            },
+            "monster": 0,
+            "item": 88,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Humph... Nothing here... A dead end... 'Boy, am I silly!' you muse to yourself..."
+        },
+        {
+            "number": 117,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 132,
+                "rc": 1,
+                "rt": 96
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 118,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 103,
+                "south": 133,
+                "east": 119
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The passage branches, again...."
+        },
+        {
+            "number": 119,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 120,
+                "west": 118
+            },
+            "monster": 98,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The smell is especially strong, here..."
+        },
+        {
+            "number": 120,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 106,
+                "west": 119
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Something seems to smell here. Something.... dead..."
+        },
+        {
+            "number": 121,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 106,
+                "south": 136
+            },
+            "monster": 96,
+            "item": 0,
+            "weapon": 0,
+            "food": 62,
+            "desc": "Nothing much here, except the occasional rat. You wonder what these things live on..."
+        },
+        {
+            "number": 122,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 107,
+                "south": 137
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is a narrow corridor decending from north to south.."
+        },
+        {
+            "number": 123,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 108,
                 "rc": 1,
                 "rt": 99
             },
@@ -1793,13 +1801,13 @@
             "desc": "You are in a maze..."
         },
         {
-            "number": 111,
+            "number": 124,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 96,
-                "south": 126
+                "north": 109,
+                "south": 139
             },
             "monster": 0,
             "item": 0,
@@ -1808,12 +1816,12 @@
             "desc": "The corridor continues, decending from south to north.."
         },
         {
-            "number": 112,
+            "number": 125,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 97
+                "north": 110
             },
             "monster": 76,
             "item": 90,
@@ -1822,14 +1830,14 @@
             "desc": "You vaguely wonder what in hell an X-Dragon is doing way down here at the bottom of the tomb. Maybe he was waiting for you or something..."
         },
         {
-            "number": 113,
+            "number": 126,
             "name": "E/W Tunnel",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 98,
-                "south": 128,
-                "east": 114
+                "north": 111,
+                "south": 141,
+                "east": 127
             },
             "monster": 0,
             "item": 0,
@@ -1838,13 +1846,13 @@
             "desc": "You have reached the end of a long east/west tunnel.  The tunnel is much too steep to climb."
         },
         {
-            "number": 114,
+            "number": 127,
             "name": "E/W Tunnel",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 115,
-                "west": 113
+                "east": 128,
+                "west": 126
             },
             "monster": 0,
             "item": 0,
@@ -1853,13 +1861,13 @@
             "desc": "You are in a long east/west tunnel."
         },
         {
-            "number": 115,
+            "number": 128,
             "name": "E/W Tunnel Entrance",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 116,
-                "west": 114
+                "east": 129,
+                "west": 127
             },
             "monster": 0,
             "item": 0,
@@ -1868,14 +1876,14 @@
             "desc": "You have reached the entrance to a long tunnel.  The tunnel appears to be quite steep."
         },
         {
-            "number": 116,
+            "number": 129,
             "name": "Labyrinth",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 131,
-                "east": 117,
-                "west": 115
+                "south": 144,
+                "east": 130,
+                "west": 128
             },
             "monster": 0,
             "item": 0,
@@ -1884,14 +1892,14 @@
             "desc": "You are in a maze..."
         },
         {
-            "number": 117,
+            "number": 130,
             "name": "Long Passage",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 102,
-                "south": 132,
-                "east": 118,
+                "north": 115,
+                "south": 145,
+                "east": 131,
                 "rc": 1,
                 "rt": 106
             },
@@ -1902,215 +1910,19 @@
             "desc": "You are in a long passageway..."
         },
         {
-            "number": 118,
-            "name": "Labyrinth",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "east": 119,
-                "west": 117
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You are in a maze..."
-        },
-        {
-            "number": 119,
-            "name": "Labyrinth",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 104,
-                "south": 134,
-                "west": 118
-            },
-            "monster": 56,
-            "item": 93,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You are in a maze..."
-        },
-        {
-            "number": 120,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 105,
-                "south": 135
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The passage seems rather oppresive for some reason.."
-        },
-        {
-            "number": 121,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "south": 136
-            },
-            "monster": 97,
-            "item": 42,
-            "weapon": 0,
-            "food": 0,
-            "desc": "This is yet another small burial chamber. The place seems honey combed with them. The mummified corps here, seems to be bored..."
-        },
-        {
-            "number": 122,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "south": 137,
-                "west": 121
-            },
-            "monster": 78,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The doorway to the west is rather odd looking.."
-        },
-        {
-            "number": 123,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 108,
-                "south": 138
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "These blasted corridors seem to go on forever!"
-        },
-        {
-            "number": 124,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 109,
-                "east": 125
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The corridor rounds another corner.."
-        },
-        {
-            "number": 125,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "east": 126,
-                "west": 124
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The corridor continues. You hear ghoulish laughter somewhere."
-        },
-        {
-            "number": 126,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 111,
-                "south": 141,
-                "west": 125
-            },
-            "monster": 98,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The corridor goes in several directions here... There is an odd looking fellow sitting in a corner.."
-        },
-        {
-            "number": 127,
-            "name": "Edge Of Pit",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 112,
-                "rc": 2,
-                "rt": 96
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You have reach the edge of a deep pit."
-        },
-        {
-            "number": 128,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "south": 143
-            },
-            "monster": 0,
-            "item": 87,
-            "weapon": 56,
-            "food": 0,
-            "desc": "This is a rear nich of the main burial chamber. There is a tremendous treasure chest here, glittering in your torch light..."
-        },
-        {
-            "number": 129,
-            "name": "Labyrinth",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "east": 130
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You are in a maze..."
-        },
-        {
-            "number": 130,
-            "name": "Labyrinth",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 115,
-                "east": 131,
-                "west": 129
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You are in a maze..."
-        },
-        {
             "number": 131,
-            "name": "Long Passage",
+            "name": "Labyrinth",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 116,
-                "south": 146
+                "east": 132,
+                "west": 130
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You are in a long passageway..."
+            "desc": "You are in a maze..."
         },
         {
             "number": 132,
@@ -2119,11 +1931,11 @@
             "flags": [],
             "exits": {
                 "north": 117,
-                "rc": 1,
-                "rt": 120
+                "south": 147,
+                "west": 131
             },
-            "monster": 0,
-            "item": 0,
+            "monster": 56,
+            "item": 93,
             "weapon": 0,
             "food": 0,
             "desc": "You are in a maze..."
@@ -2135,13 +1947,13 @@
             "flags": [],
             "exits": {
                 "north": 118,
-                "east": 134
+                "south": 148
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The passage rounds a corner... What lays beyound?"
+            "desc": "The passage seems rather oppresive for some reason.."
         },
         {
             "number": 134,
@@ -2149,14 +1961,13 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 119,
-                "west": 133
+                "south": 149
             },
-            "monster": 0,
-            "item": 0,
+            "monster": 97,
+            "item": 42,
             "weapon": 0,
             "food": 0,
-            "desc": "A small candle burns in the darkness to the north.."
+            "desc": "This is yet another small burial chamber. The place seems honey combed with them. The mummified corps here, seems to be bored..."
         },
         {
             "number": 135,
@@ -2164,14 +1975,14 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 120,
-                "south": 150
+                "south": 150,
+                "west": 134
             },
-            "monster": 0,
+            "monster": 78,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The passage raises steeply from south to north.."
+            "desc": "The doorway to the west is rather odd looking.."
         },
         {
             "number": 136,
@@ -2180,8 +1991,205 @@
             "flags": [],
             "exits": {
                 "north": 121,
-                "south": 151,
-                "west": 150
+                "south": 151
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "These blasted corridors seem to go on forever!"
+        },
+        {
+            "number": 137,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 122,
+                "east": 138
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The corridor rounds another corner.."
+        },
+        {
+            "number": 138,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 139,
+                "west": 137
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The corridor continues. You hear goulish laughter somewhere."
+        },
+        {
+            "number": 139,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 124,
+                "south": 154,
+                "west": 138
+            },
+            "monster": 98,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The corridor goes in several directions here... There is an odd looking fellow sitting in a corner.."
+        },
+        {
+            "number": 141,
+            "name": "Edge Of Pit",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 126,
+                "rc": 2,
+                "rt": 96
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You have reach the edge of a deep pit."
+        },
+        {
+            "number": 142,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 157
+            },
+            "monster": 0,
+            "item": 87,
+            "weapon": 56,
+            "food": 0,
+            "desc": "This is a rear nich of the main burial chamber. There is a tremendous treasure chest here, glittering in your torch light..."
+        },
+        {
+            "number": 143,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 144
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 144,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 129,
+                "east": 145,
+                "west": 143
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 145,
+            "name": "Long Passage",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 130,
+                "south": 160
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a long passageway..."
+        },
+        {
+            "number": 147,
+            "name": "Labyrinth",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 132,
+                "rc": 1,
+                "rt": 120
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a maze..."
+        },
+        {
+            "number": 148,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 133,
+                "east": 149
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The passage rounds a corner... What lays beyound?"
+        },
+        {
+            "number": 149,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 134,
+                "west": 148
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "A small candle burns in the darkness to the north.."
+        },
+        {
+            "number": 150,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 135,
+                "south": 165
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The passage raises steeply from south to north.."
+        },
+        {
+            "number": 151,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 136,
+                "south": 166,
+                "west": 165
             },
             "monster": 0,
             "item": 0,
@@ -2190,13 +2198,13 @@
             "desc": "This is a man made corridor, of carved rock. Musty smells abound..."
         },
         {
-            "number": 137,
+            "number": 152,
             "name": "Narrow Tunnel",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 152,
-                "west": 136
+                "south": 167,
+                "west": 151
             },
             "monster": 0,
             "item": 0,
@@ -2205,13 +2213,13 @@
             "desc": "The tunnel is quite narrow here, barely enough room to pass.."
         },
         {
-            "number": 138,
+            "number": 153,
             "name": "Narrow Tunnel",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 153,
-                "east": 139
+                "south": 168,
+                "east": 154
             },
             "monster": 0,
             "item": 0,
@@ -2220,13 +2228,13 @@
             "desc": "Water is slowly dripping from the ceiling. Going 'plop...plop...'"
         },
         {
-            "number": 139,
+            "number": 154,
             "name": "Narrow Tunnel",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 140,
-                "west": 138
+                "east": 155,
+                "west": 153
             },
             "monster": 68,
             "item": 0,
@@ -2235,13 +2243,13 @@
             "desc": "There is a strange mark on the wall to the north. That isn't all...."
         },
         {
-            "number": 140,
+            "number": 155,
             "name": "Narrow Tunnel",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 141,
-                "west": 139
+                "east": 156,
+                "west": 154
             },
             "monster": 0,
             "item": 0,
@@ -2250,13 +2258,13 @@
             "desc": "You imagine you hear SOMETHING shuffling in the shadows..."
         },
         {
-            "number": 141,
+            "number": 156,
             "name": "Narrow Tunnel",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 156,
-                "west": 140
+                "south": 171,
+                "west": 155
             },
             "monster": 96,
             "item": 0,
@@ -2265,13 +2273,13 @@
             "desc": "The tunnel takes yet another turn.."
         },
         {
-            "number": 142,
+            "number": 157,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 127,
-                "south": 157
+                "north": 142,
+                "south": 172
             },
             "monster": 0,
             "item": 43,
@@ -2280,12 +2288,12 @@
             "desc": "This is part of the main burial chamber. Many ancient artifacts lay about in wild disorder. Probably from grave robbers (such as yourself..)."
         },
         {
-            "number": 143,
+            "number": 158,
             "name": "Long Passage",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 144,
+                "east": 159,
                 "rc": 1,
                 "rt": 128
             },
@@ -2296,13 +2304,13 @@
             "desc": "You are at the end of a long passageway..."
         },
         {
-            "number": 144,
+            "number": 159,
             "name": "Long Passage",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 145,
-                "west": 143
+                "east": 160,
+                "west": 158
             },
             "monster": 0,
             "item": 0,
@@ -2311,13 +2319,13 @@
             "desc": "You are in a long passageway..."
         },
         {
-            "number": 145,
+            "number": 160,
             "name": "Long Passage",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 130,
-                "west": 144
+                "north": 145,
+                "west": 159
             },
             "monster": 0,
             "item": 0,
@@ -2326,13 +2334,13 @@
             "desc": "You are in a long passageway..."
         },
         {
-            "number": 146,
+            "number": 161,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 161,
-                "east": 147
+                "south": 176,
+                "east": 162
             },
             "monster": 100,
             "item": 0,
@@ -2341,253 +2349,19 @@
             "desc": "Yuk! What is all this slime that is dripping down?!?!"
         },
         {
-            "number": 147,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "east": 148,
-                "west": 146
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "Something smells vaguely unhealthy..."
-        },
-        {
-            "number": 148,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "east": 149,
-                "west": 147
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The air is quite chilly here. You must be quite far underground.."
-        },
-        {
-            "number": 149,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "south": 164,
-                "west": 148
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The corridor takes yet another turn. It continues to gently slant downwards.."
-        },
-        {
-            "number": 150,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 135,
-                "south": 165,
-                "east": 136
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The walls here are made up of roughly carved stones.."
-        },
-        {
-            "number": 151,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 136,
-                "south": 166
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The man made corridor runs north and south.."
-        },
-        {
-            "number": 152,
-            "name": "Narrow Tunnel",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 137,
-                "east": 153
-            },
-            "monster": 96,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "'My, but this tunnel is crooked,' you think idly as you stumble on..."
-        },
-        {
-            "number": 153,
-            "name": "Narrow Tunnel",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 138,
-                "west": 152
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The tunnel is very crooked here, tiny stalagtites get in your way."
-        },
-        {
-            "number": 154,
-            "name": "Burial Chamber",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "south": 169,
-                "east": 155
-            },
-            "monster": 97,
-            "item": 27,
-            "weapon": 0,
-            "food": 0,
-            "desc": "The room is rather large..."
-        },
-        {
-            "number": 155,
-            "name": "Burial Chamber",
-            "room_alignment": "neutral",
-            "flags": [],
-            "hidden_exit_east": 156,
-            "exits": {
-                "south": 170,
-                "west": 154
-            },
-            "monster": 97,
-            "item": 37,
-            "weapon": 0,
-            "food": 63,
-            "desc": "You begin to wonder if there is any way out of here!"
-        },
-        {
-            "number": 156,
-            "name": "Narrow Tunnel",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 141,
-                "south": 171
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 46,
-            "desc": "A trail of bread crumbs indicate that others have gone before in this blasted maze of tunnels.."
-        },
-        {
-            "number": 157,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [
-                "snow"
-            ],
-            "hidden_exit_east": 158,
-            "hidden_exit_west": 156,
-            "exits": {
-                "north": 142,
-                "south": 172
-            },
-            "monster": 102,
-            "item": 22,
-            "weapon": 0,
-            "food": 63,
-            "desc": "Powerful forces crackle in this chamber! It is apparent that you have at last found the main burial chamber. The fellow here, does not seemed pleased.."
-        },
-        {
-            "number": 158,
-            "name": "Secret Chamber",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "west": 157
-            },
-            "monster": 0,
-            "item": 86,
-            "weapon": 0,
-            "food": 0,
-            "desc": "This is a hidden room in the main burial chamber. A large treasure chest lays in the middle of the room, glowing brightly in your torch light.."
-        },
-        {
-            "number": 159,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [
-                "snow"
-            ],
-            "exits": {
-                "south": 174,
-                "east": 160
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You hear 'crunching' noises to the south.."
-        },
-        {
-            "number": 160,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [
-                "snow"
-            ],
-            "exits": {
-                "east": 161,
-                "west": 159
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "Brr... You wonder why it is so cold down here. It really shouldn't be.."
-        },
-        {
-            "number": 161,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 146,
-                "west": 160
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 64,
-            "desc": "It is very cold here, ice on the floor makes footing treacherous.."
-        },
-        {
             "number": 162,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 177,
-                "east": 163
+                "east": 163,
+                "west": 161
             },
-            "monster": 98,
-            "item": 24,
+            "monster": 0,
+            "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This looks like some sort of ancient guard station. There is even some sort of ancient guard here, somewhat the worse for wear.."
+            "desc": "Something smells vaguly unhealthy..."
         },
         {
             "number": 163,
@@ -2601,8 +2375,8 @@
             "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 62,
-            "desc": "This section doesn't smell too good at all.."
+            "food": 0,
+            "desc": "The air is quite chilly here. You must be quite far underground.."
         },
         {
             "number": 164,
@@ -2610,15 +2384,14 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 149,
-                "east": 165,
+                "south": 179,
                 "west": 163
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Yet another intersection. Now which way to go?!"
+            "desc": "The corridor takes yet another turn. It continues to gently slant downwards.."
         },
         {
             "number": 165,
@@ -2627,13 +2400,14 @@
             "flags": [],
             "exits": {
                 "north": 150,
-                "south": 180
+                "south": 180,
+                "east": 151
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The corridor gently descends to the south.."
+            "desc": "The walls here are made up of roughly carved stones.."
         },
         {
             "number": 166,
@@ -2642,45 +2416,43 @@
             "flags": [],
             "exits": {
                 "north": 151,
-                "east": 167
-            },
-            "monster": 8,
-            "item": 45,
-            "weapon": 0,
-            "food": 0,
-            "desc": "It looks like there was a small battle here, long ago.."
-        },
-        {
-            "number": 167,
-            "name": "Mummy'S Tomb",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "south": 182,
-                "west": 166
+                "south": 181
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The corridor twists and turns, like it is trying to confuse you.."
+            "desc": "The man made corridor runs north and south.."
+        },
+        {
+            "number": 167,
+            "name": "Narrow Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 152,
+                "east": 168
+            },
+            "monster": 96,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "'My, but this tunnel is crooked,' you think idly as you stumble on..."
         },
         {
             "number": 168,
-            "name": "Mummy'S Tomb",
+            "name": "Narrow Tunnel",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
                 "north": 153,
-                "south": 183,
-                "east": 169,
                 "west": 167
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The narrow passage goes off in all directions! Which way to go now?"
+            "desc": "The tunnel is very crooked here, tiny stalagtites get in your way."
         },
         {
             "number": 169,
@@ -2688,14 +2460,14 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 154,
+                "south": 184,
                 "east": 170
             },
             "monster": 97,
-            "item": 26,
+            "item": 27,
             "weapon": 0,
             "food": 0,
-            "desc": "A secret door pounds shut behind you! This looks to be a burial chamber for the Pharoh's servants. You suspect they were none too amused..."
+            "desc": "The room is rather large..."
         },
         {
             "number": 170,
@@ -2703,14 +2475,15 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 155,
+                "south": 185,
                 "west": 169
             },
-            "monster": 98,
-            "item": 29,
+            "monster": 97,
+            "item": 37,
             "weapon": 0,
-            "food": 48,
-            "desc": "There is lots of stuff buried here..."
+            "food": 63,
+            "desc": "You begin to wonder if there is any way out of here!",
+            "hidden_exit_east": 171
         },
         {
             "number": 171,
@@ -2721,46 +2494,44 @@
                 "north": 156,
                 "south": 186
             },
-            "monster": 96,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "A soft shuffling noise alerts you that you are not alone..."
-        },
-        {
-            "number": 172,
-            "name": "Mummy'S Tome",
-            "room_alignment": "neutral",
-            "flags": [
-                "snow"
-            ],
-            "exits": {
-                "north": 157,
-                "east": 173,
-                "west": 171
-            },
             "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 0,
-            "desc": "A sense of forbodding overcomes you, making you wonder if it is wise to continue.."
+            "food": 46,
+            "desc": "A trail of bread crumbs indicate that others have gone before in this blasted maze of tunnels.."
         },
         {
-            "number": 173,
+            "number": 172,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
             "flags": [
                 "snow"
             ],
             "exits": {
-                "east": 174,
+                "north": 157,
+                "south": 187
+            },
+            "monster": 102,
+            "item": 22,
+            "weapon": 0,
+            "food": 63,
+            "desc": "Powerful forces crackle in this chamber! It is apparent that you have at last found the main burial chamber. The fellow here, does not seemed pleased..",
+            "hidden_exit_east": 173,
+            "hidden_exit_west": 171
+        },
+        {
+            "number": 173,
+            "name": "Secret Chamber",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
                 "west": 172
             },
-            "monster": 101,
-            "item": 56,
+            "monster": 0,
+            "item": 86,
             "weapon": 0,
             "food": 0,
-            "desc": "This section of corridor seems littered with remains of former adventurers.."
+            "desc": "This is a hidden room in the main burial chamber. A large treasure chest lays in the middle of the room, glowing brightly in your torch light.."
         },
         {
             "number": 174,
@@ -2770,30 +2541,31 @@
                 "snow"
             ],
             "exits": {
-                "north": 159,
                 "south": 189,
-                "west": 173
+                "east": 175
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The crunching noise is rather loud to the west.."
+            "desc": "You hear 'crunching' noises to the south.."
         },
         {
             "number": 175,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
-                "south": 190,
-                "east": 176
+                "east": 176,
+                "west": 174
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This section of the tomb is a regular maze! You stumble onwards, wondering which direction you are going in.."
+            "desc": "Brr... You wonder why it is so cold down here. It really should'nt be.."
         },
         {
             "number": 176,
@@ -2801,14 +2573,14 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 177,
+                "north": 161,
                 "west": 175
             },
-            "monster": 96,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 0,
-            "desc": "The corridor continues to slant downwards.."
+            "food": 64,
+            "desc": "It is very cold here, ice on the floor makes footing treacherous.."
         },
         {
             "number": 177,
@@ -2816,14 +2588,14 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 162,
-                "west": 176
+                "south": 192,
+                "east": 178
             },
-            "monster": 0,
-            "item": 0,
+            "monster": 98,
+            "item": 24,
             "weapon": 0,
             "food": 0,
-            "desc": "The passage takes a right turn here. You shuffle thru long dead things..."
+            "desc": "This looks like some sort of ancient guard station. There is even some sort of ancient guard here, somewhat the worse for wear.."
         },
         {
             "number": 178,
@@ -2831,14 +2603,14 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 193,
-                "east": 179
+                "east": 179,
+                "west": 177
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 0,
-            "desc": "The corridor turns another corner. Faint noises can be heard from the south."
+            "food": 62,
+            "desc": "This section doesn't smell too good at all.."
         },
         {
             "number": 179,
@@ -2846,6 +2618,7 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
+                "north": 164,
                 "east": 180,
                 "west": 178
             },
@@ -2853,7 +2626,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The corridor continues to gently slop downwards to the west.."
+            "desc": "Yet another intercetion. Now which way to go?!"
         },
         {
             "number": 180,
@@ -2862,13 +2635,13 @@
             "flags": [],
             "exits": {
                 "north": 165,
-                "west": 179
+                "south": 195
             },
-            "monster": 99,
-            "item": 11,
+            "monster": 0,
+            "item": 0,
             "weapon": 0,
-            "food": 17,
-            "desc": "There are the remains of a long dead adventure here..."
+            "food": 0,
+            "desc": "The corridor gently decends to the south.."
         },
         {
             "number": 181,
@@ -2876,14 +2649,14 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 182,
-                "west": 195
+                "north": 166,
+                "east": 182
             },
-            "monster": 40,
-            "item": 0,
+            "monster": 8,
+            "item": 45,
             "weapon": 0,
             "food": 0,
-            "desc": "The corridor is quite narrow here, making it hard to avoid the visitor.."
+            "desc": "It looks like there was a small battle here, long ago.."
         },
         {
             "number": 182,
@@ -2891,7 +2664,6 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 167,
                 "south": 197,
                 "west": 181
             },
@@ -2899,7 +2671,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The corridor splits off here. You imagine you hear ghoulish laughter somewhere."
+            "desc": "The corridor twists and turns, like it is trying to confuse you.."
         },
         {
             "number": 183,
@@ -2908,43 +2680,45 @@
             "flags": [],
             "exits": {
                 "north": 168,
-                "east": 184
+                "south": 198,
+                "east": 184,
+                "west": 182
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The narrow passage turns a corner here. The floor is quite rough.."
+            "desc": "The narrow passage goes off in all directions! Which way to go now?"
         },
         {
             "number": 184,
-            "name": "Mummy'S Tomb",
+            "name": "Burial Chamber",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 185,
-                "west": 183
+                "north": 169,
+                "east": 185
             },
-            "monster": 96,
-            "item": 0,
+            "monster": 97,
+            "item": 26,
             "weapon": 0,
             "food": 0,
-            "desc": "The narrow passage continues this way.."
+            "desc": "A secret door pounds shut behind you! This looks to be a burial chamber for the Pharoh's servants. You suspect they were none too amused..."
         },
         {
             "number": 185,
-            "name": "Mummy'S Tomb",
+            "name": "Burial Chamber",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 200,
+                "north": 170,
                 "west": 184
             },
-            "monster": 0,
-            "item": 0,
+            "monster": 98,
+            "item": 29,
             "weapon": 0,
-            "food": 0,
-            "desc": "This is a narrow side passage..."
+            "food": 48,
+            "desc": "There is lots of stuff buried here..."
         },
         {
             "number": 186,
@@ -2953,21 +2727,23 @@
             "flags": [],
             "exits": {
                 "north": 171,
-                "east": 187
+                "south": 201
             },
-            "monster": 0,
+            "monster": 96,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The tunnel rounds a corner here. A small pair of eyes look at you from a distance.."
+            "desc": "A soft shuffling noise alerts you that you are not alone..."
         },
         {
             "number": 187,
-            "name": "Narrow Tunnel",
+            "name": "Mummy'S Tome",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
-                "south": 202,
+                "north": 172,
                 "east": 188,
                 "west": 186
             },
@@ -2975,29 +2751,34 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The tunnel branches here.."
+            "desc": "A sense of forbodding overcomes you, making you wonder if it is wise to continue.."
         },
         {
             "number": 188,
-            "name": "Narrow Tunnel",
+            "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
                 "east": 189,
                 "west": 187
             },
-            "monster": 0,
-            "item": 0,
+            "monster": 101,
+            "item": 56,
             "weapon": 0,
             "food": 0,
-            "desc": "Your torch reveals torches stuck in the sides of the tunnel, long since burnt out..."
+            "desc": "This section of corridor seems littered with remains of former adventurers.."
         },
         {
             "number": 189,
-            "name": "Narrow Tunnel",
+            "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "snow"
+            ],
             "exits": {
+                "north": 174,
                 "south": 204,
                 "west": 188
             },
@@ -3005,7 +2786,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You are in a narrow tunnel, raising from south to northwest.."
+            "desc": "The crunching noise is rather loud to the west.."
         },
         {
             "number": 190,
@@ -3013,15 +2794,14 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 175,
-                "east": 191,
-                "west": 189
+                "south": 205,
+                "east": 191
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Yet another corner. It is just a bit cooler here.."
+            "desc": "This section of the tomb is a regular maze! You stumble onwards, wondering which direction you are going in.."
         },
         {
             "number": 191,
@@ -3032,11 +2812,11 @@
                 "east": 192,
                 "west": 190
             },
-            "monster": 0,
+            "monster": 96,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The corridor continues on, and on, and on..."
+            "desc": "The corridor continues to slant downwards.."
         },
         {
             "number": 192,
@@ -3044,14 +2824,14 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 193,
+                "north": 177,
                 "west": 191
             },
-            "monster": 105,
+            "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is a strangly familiar room, like you read about it in a book someplace."
+            "desc": "The passage takes a right turn here. You shuffle thru long dead things..."
         },
         {
             "number": 193,
@@ -3059,14 +2839,14 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 178,
-                "west": 192
+                "south": 208,
+                "east": 194
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Yet another corner. Noises can be heard ahead.."
+            "desc": "The corridor turns another corner. Faint noises can be heard from the south."
         },
         {
             "number": 194,
@@ -3074,13 +2854,14 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 195
+                "east": 195,
+                "west": 193
             },
-            "monster": 97,
-            "item": 89,
+            "monster": 0,
+            "item": 0,
             "weapon": 0,
-            "food": 61,
-            "desc": "The corridor dead ends here. It looks to be a small burial chamber, obviously not the MAIN chamber..."
+            "food": 0,
+            "desc": "The corridor continues to gently slop downwards to the west.."
         },
         {
             "number": 195,
@@ -3088,14 +2869,14 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 181,
+                "north": 180,
                 "west": 194
             },
-            "monster": 0,
-            "item": 0,
+            "monster": 99,
+            "item": 11,
             "weapon": 0,
-            "food": 0,
-            "desc": "The corridor continues east and west..."
+            "food": 17,
+            "desc": "There are the remains of a long dead adventure here..."
         },
         {
             "number": 196,
@@ -3103,14 +2884,14 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 211,
-                "east": 197
+                "east": 197,
+                "west": 210
             },
-            "monster": 97,
+            "monster": 40,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "There is an oddly shaped opening to the south.."
+            "desc": "The corridor is quite narrow here, making it hard to avoid the visitor.."
         },
         {
             "number": 197,
@@ -3119,14 +2900,14 @@
             "flags": [],
             "exits": {
                 "north": 182,
-                "east": 198,
+                "south": 212,
                 "west": 196
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The corridor branches again..."
+            "desc": "The corridor splits off here. You imagine you hear goulish laughter somewhere."
         },
         {
             "number": 198,
@@ -3134,13 +2915,14 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
+                "north": 183,
                 "east": 199
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This a very narrow passage, slanting downwards to the east.."
+            "desc": "The narrow passage turns a corner here. The floor is quite rough.."
         },
         {
             "number": 199,
@@ -3155,7 +2937,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The narrow passage continues.."
+            "desc": "The narrow passage continues this way.."
         },
         {
             "number": 200,
@@ -3163,24 +2945,250 @@
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 185,
-                "east": 201,
+                "south": 215,
                 "west": 199
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
-            "food": 51,
-            "desc": "Water drips slowly from the ceiling..."
+            "food": 0,
+            "desc": "This is a narrow side passage..."
         },
         {
             "number": 201,
+            "name": "Narrow Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 186,
+                "east": 202
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The tunnel rounds a corner here. A small pair of eyes look at you from a distance.."
+        },
+        {
+            "number": 202,
+            "name": "Narrow Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 217,
+                "east": 203,
+                "west": 201
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The tunnel branches here.."
+        },
+        {
+            "number": 203,
+            "name": "Narrow Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 204,
+                "west": 202
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Your torch reveils torches stuck in the sides of the tunnel, long since burnt out..."
+        },
+        {
+            "number": 204,
+            "name": "Narrow Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 219,
+                "west": 203
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You are in a narrow tunnel, raising from south to northwest.."
+        },
+        {
+            "number": 205,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 202,
-                "west": 200
+                "north": 190,
+                "east": 206,
+                "west": 204
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Yet another corner. It is just a bit cooler here.."
+        },
+        {
+            "number": 206,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 207,
+                "west": 205
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The corridor continues on, and on, and on..."
+        },
+        {
+            "number": 207,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 208,
+                "west": 206
+            },
+            "monster": 105,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This is a strangly familiar room, like you read about it in a book someplace."
+        },
+        {
+            "number": 208,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 193,
+                "west": 207
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "Yet another corner. Noises can be heard ahead.."
+        },
+        {
+            "number": 209,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 210
+            },
+            "monster": 97,
+            "item": 89,
+            "weapon": 0,
+            "food": 61,
+            "desc": "The corridor dead ends here. It looks to be a small burial chamber, obviously not the MAIN chamber..."
+        },
+        {
+            "number": 210,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 196,
+                "west": 209
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The corridor continues east and west..."
+        },
+        {
+            "number": 211,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "south": 1,
+                "east": 212
+            },
+            "monster": 97,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "There is an oddly shaped opening to the south.."
+        },
+        {
+            "number": 212,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 197,
+                "east": 213,
+                "west": 211
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The corridor branches again..."
+        },
+        {
+            "number": 213,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 214
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "This a very narrow passage, slanting downwards to the east.."
+        },
+        {
+            "number": 214,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 215,
+                "west": 213
+            },
+            "monster": 96,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "The narrow passage continues.."
+        },
+        {
+            "number": 215,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 200,
+                "east": 216,
+                "west": 214
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 51,
+            "desc": "Water drips slowely from the ceiling..."
+        },
+        {
+            "number": 216,
+            "name": "Mummy'S Tomb",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "east": 217,
+                "west": 215
             },
             "monster": 77,
             "item": 0,
@@ -3189,13 +3197,13 @@
             "desc": "The passage is very steep here.. The insect looks oddly out of place.."
         },
         {
-            "number": 202,
+            "number": 217,
             "name": "Mummy'S Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 187,
-                "south": 217
+                "north": 202,
+                "south": 7
             },
             "monster": 0,
             "item": 0,
@@ -3204,15 +3212,16 @@
             "desc": "The passage raises quite steeply to the north..."
         },
         {
-            "number": 203,
+            "number": 218,
             "name": "Quiet Pool",
             "room_alignment": "neutral",
             "flags": [
+                "vehicle_departure_east",
                 "water"
             ],
             "exits": {
-                "south": 218,
-                "east": 204
+                "south": 8,
+                "east": 219
             },
             "monster": 90,
             "item": 0,
@@ -3221,29 +3230,31 @@
             "desc": "The water seems to end in this quiet pool. There is a narrow bank to the east.. Something moves in the water..."
         },
         {
-            "number": 204,
+            "number": 219,
             "name": "Narrow Bank",
             "room_alignment": "neutral",
-            "flags": [],
+            "flags": [
+                "vehicle_exit_west"
+            ],
             "exits": {
-                "north": 189,
-                "west": 203
+                "north": 204,
+                "west": 218
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is a narrow slippery bank. A quiet pond is west, you see a man-made passage to the north.."
+            "desc": "This is a narrow slippery bank. A quiet pond is west, you see a manmade passage to the north.."
         },
         {
-            "number": 205,
+            "number": 220,
             "name": "Underground Rapids",
             "room_alignment": "neutral",
             "flags": [
                 "water_with_rocks"
             ],
             "exits": {
-                "south": 220
+                "south": 10
             },
             "monster": 0,
             "item": 0,
@@ -3252,15 +3263,15 @@
             "desc": "You go thundering down more rapids!"
         },
         {
-            "number": 206,
+            "number": 221,
             "name": "Underground Stream",
             "room_alignment": "neutral",
             "flags": [
                 "water"
             ],
             "exits": {
-                "south": 221,
-                "west": 205
+                "south": 11,
+                "west": 220
             },
             "monster": 0,
             "item": 0,
@@ -3269,14 +3280,14 @@
             "desc": "There is the sound of more rapids to the west.."
         },
         {
-            "number": 207,
+            "number": 223,
             "name": "Underground Rapids",
             "room_alignment": "neutral",
             "flags": [
                 "water_with_rocks"
             ],
             "exits": {
-                "south": 222
+                "south": 13
             },
             "monster": 0,
             "item": 0,
@@ -3285,14 +3296,14 @@
             "desc": "You begin to worry about the state of your dingy, as it continues to get pounded on the rocks.."
         },
         {
-            "number": 208,
+            "number": 224,
             "name": "Underground Rapids",
             "room_alignment": "neutral",
             "flags": [
                 "water_with_rocks"
             ],
             "exits": {
-                "west": 207
+                "west": 223
             },
             "monster": 0,
             "item": 0,

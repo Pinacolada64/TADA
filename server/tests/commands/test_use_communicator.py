@@ -200,7 +200,7 @@ class TestRealLevel6Data(unittest.TestCase):
     def test_dark_woods_room_has_no_comm_signal_flag(self):
         from simple_server import Server
         server = Server('127.0.0.1', 0)
-        room = server.game_map.get_room(6, 94)
+        room = server.game_map.get_room(6, 494)
         self.assertIsNotNone(room)
         self.assertEqual(room.name, 'Dark Woods')
         self.assertIn('no_comm_signal', room.flags)

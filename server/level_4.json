@@ -139,12 +139,12 @@
             "desc": "Something smells to the west..."
         },
         {
-            "number": 10,
+            "number": 11,
             "name": "The Alley 7-11",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 3
+                "north": 4
             },
             "monster": 0,
             "item": 0,
@@ -153,13 +153,13 @@
             "desc": "You are in the Alley 7-11 store. There are some kids in the corner playing with some sort of strange machine..."
         },
         {
-            "number": 11,
+            "number": 12,
             "name": "Winding Tunnel",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 18,
-                "east": 12
+                "south": 19,
+                "east": 13
             },
             "monster": 72,
             "item": 0,
@@ -168,14 +168,14 @@
             "desc": "There are lots of bat droppings on the floor. Your feet are squishing in it!!"
         },
         {
-            "number": 12,
+            "number": 13,
             "name": "Winding Tunnel",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 19,
-                "east": 13,
-                "west": 11
+                "south": 20,
+                "east": 14,
+                "west": 12
             },
             "monster": 0,
             "item": 0,
@@ -184,12 +184,12 @@
             "desc": "The tunnel continues, getting darker and darker... It seems to split here...."
         },
         {
-            "number": 13,
+            "number": 14,
             "name": "Small Cave",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "west": 12
+                "west": 13
             },
             "monster": 73,
             "item": 68,
@@ -198,13 +198,13 @@
             "desc": "The tunnel ends in this direction. There are lots of bat droppings on the floor...."
         },
         {
-            "number": 14,
+            "number": 15,
             "name": "A Maze Of Alleys",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 21,
-                "east": 8
+                "south": 22,
+                "east": 16
             },
             "monster": 0,
             "item": 0,
@@ -213,27 +213,27 @@
             "desc": "Every thing looks the same here..."
         },
         {
-            "number": 15,
+            "number": 16,
             "name": "The Maze Of Alleys",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 8,
-                "west": 21
+                "north": 9,
+                "west": 15
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Wind whistles down the alleyway..."
+            "desc": "Wind wistles down the alleyway..."
         },
         {
-            "number": 16,
+            "number": 17,
             "name": "Persian Hide-Out",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 23
+                "south": 24
             },
             "monster": 57,
             "item": 0,
@@ -242,33 +242,18 @@
             "desc": "There is a small tent hidden amongst a pile of litter..."
         },
         {
-            "number": 17,
-            "name": "Gollum's Cave",
+            "number": 18,
+            "name": "Gollum'S Cave",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 18
+                "east": 19
             },
             "monster": 71,
             "item": 67,
             "weapon": 0,
             "food": 0,
-            "desc": "There is a dank, awful-smelling pool here. Some dead fish, and other 'things' are lying about, quite dead..."
-        },
-        {
-            "number": 18,
-            "name": "Winding Tunnel",
-            "room_alignment": "neutral",
-            "flags": [],
-            "exits": {
-                "north": 11,
-                "west": 17
-            },
-            "monster": 0,
-            "item": 0,
-            "weapon": 0,
-            "food": 0,
-            "desc": "You imagine you hear noises in the distance... Your skin crawls."
+            "desc": "There is a dank pool smelling awful here. Some dead fish, and other 'things' are lying about, quite dead..."
         },
         {
             "number": 19,
@@ -277,7 +262,22 @@
             "flags": [],
             "exits": {
                 "north": 12,
-                "east": 20
+                "west": 18
+            },
+            "monster": 0,
+            "item": 0,
+            "weapon": 0,
+            "food": 0,
+            "desc": "You imagine you hear noises in the distance... Your skin crawls."
+        },
+        {
+            "number": 20,
+            "name": "Winding Tunnel",
+            "room_alignment": "neutral",
+            "flags": [],
+            "exits": {
+                "north": 13,
+                "east": 21
             },
             "monster": 0,
             "item": 0,
@@ -286,13 +286,13 @@
             "desc": "This is the opening of a small tunnel. Light shines thru a small hole to the east. The tunnel winds northwards.."
         },
         {
-            "number": 20,
+            "number": 21,
             "name": "The Alley Tavern",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 27,
-                "west": 19
+                "south": 28,
+                "west": 20
             },
             "monster": 61,
             "item": 63,
@@ -301,15 +301,15 @@
             "desc": "This is a VERY disgusting little hole in the wall bar.... People stare at you oddly. (There is a little hole in the wall to the West!)"
         },
         {
-            "number": 21,
+            "number": 22,
             "name": "Maze Of Alleyways",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 14,
-                "south": 28,
-                "east": 15,
-                "west": 20
+                "north": 15,
+                "south": 29,
+                "east": 23,
+                "west": 28
             },
             "monster": 0,
             "item": 0,
@@ -318,13 +318,13 @@
             "desc": "The alleys seem to go on forever."
         },
         {
-            "number": 22,
+            "number": 23,
             "name": "A Maze Of Alleys",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 23,
-                "west": 28
+                "east": 24,
+                "west": 22
             },
             "monster": 0,
             "item": 0,
@@ -333,13 +333,13 @@
             "desc": "A small rat scurries out of your way."
         },
         {
-            "number": 23,
+            "number": 24,
             "name": "A Maze Of Alleys",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 16,
-                "west": 22
+                "north": 17,
+                "west": 23
             },
             "monster": 0,
             "item": 0,
@@ -348,28 +348,28 @@
             "desc": "You sense something out of place.."
         },
         {
-            "number": 24,
-            "name": "It's Lair",
+            "number": 25,
+            "name": "It'S Lair",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 25,
-                "west": 23
+                "east": 26,
+                "west": 24
             },
             "monster": 59,
             "item": 64,
             "weapon": 0,
             "food": 0,
-            "desc": "You hear ghoulish laughter from somewhere among a pile of bones...."
+            "desc": "You hear goulish laughter from somwhere among a pile of bones...."
         },
         {
-            "number": 25,
+            "number": 26,
             "name": "A Smelly Place",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 32,
-                "west": 24
+                "south": 33,
+                "west": 25
             },
             "monster": 0,
             "item": 0,
@@ -378,13 +378,13 @@
             "desc": "You notice more and more bones..."
         },
         {
-            "number": 26,
+            "number": 27,
             "name": "Dingy Alley",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 33,
-                "east": 27
+                "south": 34,
+                "east": 28
             },
             "monster": 58,
             "item": 0,
@@ -393,14 +393,14 @@
             "desc": "You see several bones scattered about."
         },
         {
-            "number": 27,
+            "number": 28,
             "name": "A Maze Of Alleys",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 20,
-                "east": 28,
-                "west": 26
+                "north": 21,
+                "east": 22,
+                "west": 27
             },
             "monster": 0,
             "item": 0,
@@ -409,13 +409,13 @@
             "desc": "Not much of interest here.."
         },
         {
-            "number": 28,
+            "number": 29,
             "name": "The Barn",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 21,
-                "east": 22
+                "north": 22,
+                "east": 30
             },
             "monster": 63,
             "item": 0,
@@ -424,13 +424,13 @@
             "desc": "You are in a run down old barn. A couple of head of cattle look at you."
         },
         {
-            "number": 29,
+            "number": 30,
             "name": "A Lush Garden",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 36,
-                "west": 35
+                "south": 37,
+                "west": 29
             },
             "monster": 0,
             "item": 0,
@@ -439,12 +439,12 @@
             "desc": "There is a very lush garden here. The owner is apparently fond of tomatoes."
         },
         {
-            "number": 30,
+            "number": 32,
             "name": "Moldy Graveyard",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 31
+                "east": 33
             },
             "monster": 40,
             "item": 0,
@@ -453,14 +453,14 @@
             "desc": "What a foul, sad place. You see many old gravestones, and hear weird noises."
         },
         {
-            "number": 31,
+            "number": 33,
             "name": "A Maze Of Alleys",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 24,
-                "east": 32,
-                "west": 30
+                "north": 26,
+                "east": 34,
+                "west": 32
             },
             "monster": 64,
             "item": 0,
@@ -469,13 +469,13 @@
             "desc": "There seem to be more and more bones here. A distinctly cold feeling comes from the west..."
         },
         {
-            "number": 32,
+            "number": 34,
             "name": "A Maze Of Alleys",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 25,
-                "west": 31
+                "north": 27,
+                "west": 33
             },
             "monster": 0,
             "item": 0,
@@ -484,13 +484,13 @@
             "desc": "Yet more bones are seen here..."
         },
         {
-            "number": 33,
+            "number": 37,
             "name": "A Maze Of Alleys",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 26,
-                "east": 34
+                "north": 30,
+                "east": 38
             },
             "monster": 0,
             "item": 0,
@@ -499,13 +499,13 @@
             "desc": "The moon looks sinister from here..."
         },
         {
-            "number": 34,
+            "number": 38,
             "name": "A Maze Of Alleys",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 41,
-                "west": 33
+                "south": 45,
+                "west": 37
             },
             "monster": 0,
             "item": 0,
@@ -514,13 +514,13 @@
             "desc": "Not much of interest here...."
         },
         {
-            "number": 35,
+            "number": 39,
             "name": "The Bandits Lair",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 42,
-                "east": 29
+                "south": 46,
+                "east": 40
             },
             "monster": 62,
             "item": 18,
@@ -529,29 +529,29 @@
             "desc": "This is a small ramshackle house. There appears to be junk scattered all around."
         },
         {
-            "number": 36,
+            "number": 40,
             "name": "A Maze Of Alleys",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 43,
-                "east": 37,
-                "west": 42
+                "south": 47,
+                "east": 41,
+                "west": 39
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "There is a suspicious looking building to the west."
+            "desc": "There is a suspicous looking building to the west."
         },
         {
-            "number": 37,
+            "number": 41,
             "name": "A Maze Of Alleys",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 38,
-                "west": 36
+                "east": 42,
+                "west": 40
             },
             "monster": 0,
             "item": 0,
@@ -560,14 +560,14 @@
             "desc": "A distant howling chills your blood."
         },
         {
-            "number": 38,
+            "number": 42,
             "name": "A Maze Of Alleys",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "south": 45,
-                "east": 39,
-                "west": 37
+                "south": 49,
+                "east": 36,
+                "west": 41
             },
             "monster": 0,
             "item": 0,
@@ -576,14 +576,14 @@
             "desc": "The great wall of Dura is vaguely visible to the east, but you cant get there from here. There is a run down bar to the East..."
         },
         {
-            "number": 39,
+            "number": 43,
             "name": "In The Desert",
             "room_alignment": "neutral",
             "flags": [
                 "outer_space"
             ],
             "exits": {
-                "west": 38
+                "west": 49
             },
             "monster": 11,
             "item": 0,
@@ -592,13 +592,13 @@
             "desc": "You are outside the fort in the desert. The desert sun is quite warm. The little hidden gate is west..."
         },
         {
-            "number": 40,
+            "number": 45,
             "name": "A Maze Of Alleys",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 33,
-                "east": 41
+                "north": 38,
+                "east": 46
             },
             "monster": 0,
             "item": 0,
@@ -607,44 +607,44 @@
             "desc": "You imagine you hear shuffling noises behind you..."
         },
         {
-            "number": 41,
+            "number": 46,
             "name": "A Maze Of Alleys",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 34,
-                "east": 42,
-                "west": 40
+                "north": 39,
+                "east": 47,
+                "west": 45
             },
             "monster": 0,
             "item": 0,
             "weapon": 0,
             "food": 44,
-            "desc": "Verus is walking so close behind you that he accidentally steps on your heels."
+            "desc": "Verus is walking so close behind you that he accidently steps on your heels."
         },
         {
-            "number": 42,
+            "number": 47,
             "name": "A Maze Of Alleys",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 35,
-                "south": 49,
-                "west": 41
+                "north": 40,
+                "south": 5,
+                "west": 46
             },
             "monster": 0,
             "item": 72,
             "weapon": 0,
             "food": 0,
-            "desc": "This section of alley looks strangely familiar..."
+            "desc": "This section of alley looks strangely familar..."
         },
         {
-            "number": 43,
+            "number": 48,
             "name": "Entrance Of The Sewer",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "east": 44,
+                "east": 49,
                 "rc": 1,
                 "rt": 6
             },
@@ -655,15 +655,15 @@
             "desc": "The old sewer pipe exits here, it goes back into the hillside. You are surrounded by alleyways.."
         },
         {
-            "number": 44,
+            "number": 49,
             "name": "A Maze Of Alleys",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
-                "north": 37,
-                "south": 2,
-                "east": 45,
-                "west": 43
+                "north": 42,
+                "south": 7,
+                "east": 43,
+                "west": 48
             },
             "monster": 0,
             "item": 0,

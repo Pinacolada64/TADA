@@ -34,20 +34,24 @@ def game_map() -> Map:
 
 
 # (level, room, direction, expected_target_level, expected_target_room)
+#
+# Room numbers below are SPUR's real room numbers (message-directory
+# position -- see LEVEL_AUDIT.md's room-renumbering investigation),
+# not the sequential 1..N numbering levels 2-7 shipped with previously.
 _CONFIRMED = [
     (1, 89,  'e', 5, 41),   # Teleport Room -> Land of the Wraiths (cross-level)
-    (2, 155, 'e', 2, 156),  # Burial Chamber -> Narrow Tunnel
-    (2, 157, 'e', 2, 158),  # Mummy's Tomb -> Secret Chamber
-    (2, 157, 'w', 2, 156),  # Mummy's Tomb -> Narrow Tunnel
-    (5, 85,  'e', 5, 86),   # Cold Cave -> Inner Cave
-    (5, 140, 'e', 5, 141),  # Village -> The Chief's Treasure Room
-    (6, 45,  'e', 6, 46),   # Engineering -> Access Tunnel
-    (6, 49,  'w', 6, 48),   # Engineering -> Equipment Locker
-    (6, 79,  'e', 6, 80),   # Access Tunnel -> Vent Duct
-    (6, 99,  'e', 6, 100),  # Main Reactor -> Storage Closet
-    (6, 109, 'w', 6, 108),  # Main Reactor -> Security Bunker
-    (6, 115, 'e', 6, 116),  # Witches Coven -> Witches House
-    (6, 186, 'e', 6, 187),  # A Strange Room -> Garden Of Eden
+    (2, 170, 'e', 2, 171),  # Burial Chamber -> Narrow Tunnel
+    (2, 172, 'e', 2, 173),  # Mummy's Tomb -> Secret Chamber
+    (2, 172, 'w', 2, 171),  # Mummy's Tomb -> Narrow Tunnel
+    (5, 89,  'e', 5, 90),   # Cold Cave -> Inner Cave
+    (5, 154, 'e', 5, 155),  # Village -> The Chief's Treasure Room
+    (6, 150, 'e', 6, 121),  # Engineering -> Dingy Closet
+    (6, 179, 'w', 6, 178),  # Engineering -> Equipment Locker
+    (6, 421, 'e', 6, 422),  # Access Tunnel -> Vent Duct
+    (6, 513, 'e', 6, 514),  # Main Reactor -> Storage Closet
+    (6, 542, 'w', 6, 541),  # Main Reactor -> Security Bunker
+    (6, 556, 'e', 6, 557),  # Witches Coven -> Witches House
+    (6, 703, 'e', 6, 704),  # A Strange Room -> Garden Of Eden
 ]
 
 
