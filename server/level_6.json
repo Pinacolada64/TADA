@@ -590,7 +590,7 @@
             "item": 129,
             "weapon": 0,
             "food": 0,
-            "desc": "The smell of grease preservative is in the air. The rockets, are nice and shiny thanks to the gooey stuff.."
+            "desc": "The smell of grease preservative is in the air. The rockets are nice and shiny thanks to the gooey stuff.."
         },
         {
             "number": 91,
@@ -1517,7 +1517,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The air is noticeably warmer here. That distant thumping noise, is louder too."
+            "desc": "The air is noticeably warmer here. That distant thumping noise is louder too."
         },
         {
             "number": 456,
@@ -1853,7 +1853,7 @@
             "item": 138,
             "weapon": 0,
             "food": 0,
-            "desc": "This is some sort of hidy-hole, looks like it was a place to hide when the contraptions in the cavern outside blew up or something....."
+            "desc": "This is some sort of hidy-hole, it looks like it was a place to hide when the contraptions in the cavern outside blew up or something....."
         },
         {
             "number": 542,
@@ -2330,7 +2330,7 @@
             "item": 0,
             "weapon": 0,
             "food": 78,
-            "desc": "These trees here, are down right spooky.."
+            "desc": "These trees here are down right spooky.."
         },
         {
             "number": 617,
@@ -3895,7 +3895,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The only thing here, is one gigantic screen covering the bulkhead. On the screen, there is a large blue globe hanging against a black backdrop. Swirling white patterns cover most of the globe. For some reason, you feel homesick.."
+            "desc": "The only thing here is one gigantic screen covering the bulkhead. On the screen, there is a large blue globe hanging against a black backdrop. Swirling white patterns cover most of the globe. For some reason, you feel homesick.."
         },
         {
             "number": 752,
@@ -4020,7 +4020,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Even the flies buzzing around your head, seem innocent and friendly.."
+            "desc": "Even the flies buzzing around your head seem innocent and friendly.."
         },
         {
             "number": 766,
@@ -4196,7 +4196,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You are near the extreme bow of the spacecraft. It stretches out to the south for a mile or more. To the 'north' is sheer blackness, punctuated by thousands of points of light. For some reason, you think of a bush. 'East', is the forward section of the ship's bridge, portholes aglow with light.."
+            "desc": "You are near the extreme bow of the spacecraft. It stretches out to the south for a mile or more. To the 'north' is sheer blackness, punctuated by thousands of points of light. For some reason, you think of a bush. 'East' is the forward section of the ship's bridge, portholes aglow with light.."
         },
         {
             "number": 780,
@@ -5245,7 +5245,7 @@
             "item": 0,
             "weapon": 0,
             "food": 29,
-            "desc": "Dirty dishes, and long rotted food lay about. Some though, still in vacu-wrap, seems ok..."
+            "desc": "Dirty dishes, and long rotted food lay about. Some, though, still in vacu-wrap, seems ok..."
         },
         {
             "number": 900,
