@@ -199,7 +199,7 @@ Worth a decision: wire these up, or strip them from the data.
 | flag | rooms | where |
 |---|---|---|
 | `outer_space` | 18 | level_6 only |
-| `radiation_extreme` | 40 | level_6 only — `guild_hq/main.py` comments a radiation-suit/Geiger-counter item set (#122-124) that was apparently meant to check this and never got wired up |
+| `radiation_extreme` | 40 | level_6 only — has a confirmed companion item, unlike the other three rows here (see below) |
 | `hidden_item` | 5 | level_6: 36 "Crew Quarters", 50 "Engineering", 116 "Witches House", 130 "Emerald City", 219 "The Bridge" |
 | `hidden_door_west` | 3 | level_6: 51 "Access Tunnel", 277 "Air Lock", 278 "A Corridor" |
 | `hidden_door_north` | 1 | level_6: 118 "Chamber Of Oz" |
@@ -209,6 +209,21 @@ Worth a decision: wire these up, or strip them from the data.
 ARE live/read — these `hidden_door_*` entries are plain flag strings that
 happen to sit in the same rooms in a few cases but are never consumed by
 any code path.)
+
+**`radiation_extreme` has a confirmed intended pairing, unlike the other
+three rows above.** `objects.json` #122/#123/#124 are "spacesuit"/"Geiger
+counter"/"radiation suit" (`guild_hq/main.py:29`'s comment lists all
+three by number), and #123 the Geiger counter is otherwise a fully inert
+item — grepped `commands/`, `combat/`, `encounters/`, `spells/`, `bar/`,
+`shoppe/` and `messages.json` for any reference to it, "geiger", or
+"radiation": nothing. The shape strongly suggests a per-move check
+modeled on `encounters/desert.py`'s or `wild_horse_events.py`'s pattern
+(check room flag, check readied/carried item, print a flavor line —
+counter readied → "tick... tick..."-style warning; no counter → some
+"you feel funny" consequence) that was ported as data but never got its
+logic written. `hidden_item`/`hidden_door_*`/`outer_space` still have no
+discovered companion item or intended mechanic — worth confirming against
+SPUR master/skip source specifically for those three.
 
 ## 14. Explicitly-checked empty categories
 
@@ -227,8 +242,12 @@ any code path.)
 - Surface at least the "big" special rooms (Fountain, Gollum's Cave, the
   wild-horse meadow) via an in-game hint system (rumor NPC, a book, a
   LOOK-triggered nudge) rather than requiring the player to already know.
-- Decide whether to wire up `outer_space`/`radiation_extreme`/
-  `hidden_item`/`hidden_door_*` (#13) or drop them from the map data.
+- `radiation_extreme` + Geiger counter (#13) is the strongest of the four
+  dead-flag candidates to actually implement — item and room data both
+  clearly exist for it, only the per-move check/flavor text is missing.
+- Decide whether to wire up `outer_space`/`hidden_item`/`hidden_door_*`
+  (#13) or drop them from the map data — no companion item/mechanic has
+  turned up for these three yet.
 - Consider promoting the three level_1 "HQ"-named rooms (#10) to actual
   `RoomAlignment.HQ` if permanent, capture-immune guild headquarters was
   the original intent — currently they're just ordinary territory.
