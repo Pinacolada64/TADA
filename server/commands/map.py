@@ -521,8 +521,8 @@ class MapCommand(Command):
             ('map', 'Show nearby rooms.'),
             ('map grid', 'Show nearby rooms as a colored grid of boxes.'),
             ('map #grid', 'Same as "map grid".'),
-            ('map #overview [[<level>]]', 'Debug Mode: full-level birds-eye grid.'),
-            ('map #visited [[<level>]]', "Birds-eye grid of rooms you've actually been to."),
+            ('map #overview [<level>]', 'Debug Mode: full-level birds-eye grid.'),
+            ('map #visited [<level>]', "Birds-eye grid of rooms you've actually been to."),
         ],
         notes = [
             'Only available to the Ranger class, and only from character '

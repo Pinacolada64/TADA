@@ -1,5 +1,5 @@
 """tests/commands/test_map_overview.py — Unit tests for commands/map.py's
-`map #overview [[<level>]]` subcommand: a Debug-Mode-gated, compressed
+`map #overview [<level>]` subcommand: a Debug-Mode-gated, compressed
 birds-eye grid of an entire level -- one reverse-video square per room,
 with arrow glyphs marking which of north/east/south/west have an exit.
 No monster/item/weapon/food markers and no up/down exits (see
@@ -219,7 +219,7 @@ class TestRenderOverview(unittest.TestCase):
 
 
 class TestVisitedSubcommand(unittest.TestCase):
-    """`map #visited [[<level>]]` -- unlike #overview, available to every
+    """`map #visited [<level>]` -- unlike #overview, available to every
     player regardless of Debug Mode, and only ever shows rooms actually
     marked visited (visited_rooms.py)."""
 

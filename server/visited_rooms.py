@@ -10,7 +10,7 @@ explored: level 6 (the biggest grid, 900 rooms) costs 113 bytes / 226 hex
 characters; a fully-explored small level costs the same as a
 barely-touched one.
 
-Used by commands/map.py's `map #visited [[<level>]]` (only rooms the
+Used by commands/map.py's `map #visited [<level>]` (only rooms the
 player has actually been to, unlike `map #overview`'s full level dump)
 and by the mark_visited() calls wired into every place a player's
 map_room actually changes (movement, teleport, elevator, vehicle launch,
