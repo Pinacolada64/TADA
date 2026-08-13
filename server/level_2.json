@@ -92,7 +92,7 @@
         },
         {
             "number": 7,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -134,7 +134,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The wild ride would be exilerating, if you weren't worried about being killed."
+            "desc": "The wild ride would be exhilarating, if you weren't worried about being killed."
         },
         {
             "number": 10,
@@ -150,7 +150,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The rapids veer rapidily to the west.."
+            "desc": "The rapids veer rapidly to the west.."
         },
         {
             "number": 11,
@@ -520,7 +520,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A slippry granite wall is to the east. All else is darkness.."
+            "desc": "A slippery granite wall is to the east. All else is darkness.."
         },
         {
             "number": 35,
@@ -539,7 +539,7 @@
         },
         {
             "number": 36,
-            "name": "Caretaker'S Lair",
+            "name": "Caretaker's Lair",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -759,7 +759,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You imagine you see shadows on the granit walls, but that is silly of course."
+            "desc": "You imagine you see shadows on the granite walls, but that is silly of course."
         },
         {
             "number": 50,
@@ -828,7 +828,7 @@
         },
         {
             "number": 54,
-            "name": "Spur'S Exhibit",
+            "name": "Spur's Exhibit",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -912,7 +912,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A deathly silence reins, except for you paddling noise. Wait... Whats that gurgling noise?"
+            "desc": "A deathly silence reins, except for you paddling noise. Wait... What's that gurgling noise?"
         },
         {
             "number": 59,
@@ -931,7 +931,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "\"I wonder how Jock Custoe does stuff like this!\" you snicker to yourself, but you shut up, as your snicker echo across the cavern.."
+            "desc": "\"I wonder how Jacques Cousteau does stuff like this!\" you snicker to yourself, but you shut up, as your snicker echo across the cavern.."
         },
         {
             "number": 60,
@@ -1021,7 +1021,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The river goes thru a narrow crevace to the south. Much too narrow for you to enter. But there is a small shelf of land here, where you may land the dingy."
+            "desc": "The river goes thru a narrow crevice to the south. Much too narrow for you to enter. But there is a small shelf of land here, where you may land the dingy."
         },
         {
             "number": 65,
@@ -1096,7 +1096,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The sound of your small waves lapping against the granit walls to the southwest is rather noisy to your ears. You wonder if anything else hears it.."
+            "desc": "The sound of your small waves lapping against the granite walls to the southwest is rather noisy to your ears. You wonder if anything else hears it.."
         },
         {
             "number": 72,
@@ -1315,7 +1315,7 @@
             "item": 0,
             "weapon": 0,
             "food": 51,
-            "desc": "You are in a underground lake, the slapping of water echos erily..."
+            "desc": "You are in a underground lake, the slapping of water echoes eerily..."
         },
         {
             "number": 89,
@@ -1356,7 +1356,7 @@
         },
         {
             "number": 92,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1387,7 +1387,7 @@
         },
         {
             "number": 94,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1402,7 +1402,7 @@
         },
         {
             "number": 95,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1480,7 +1480,7 @@
         },
         {
             "number": 101,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1491,11 +1491,11 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "You feel your hair standing on end.. What could be to the south to cause such a stiring of excitment?!?!"
+            "desc": "You feel your hair standing on end.. What could be to the south to cause such a stirring of excitement?!?!"
         },
         {
             "number": 102,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1506,11 +1506,11 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The sense of excitment is stronger here.."
+            "desc": "The sense of excitement is stronger here.."
         },
         {
             "number": 103,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1521,7 +1521,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A vague sense of excitment is in the air..."
+            "desc": "A vague sense of excitement is in the air..."
         },
         {
             "number": 104,
@@ -1538,7 +1538,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is the lakes edge. Granite walls rise sheer and forboding to the south and west..."
+            "desc": "This is the lakes edge. Granite walls rise sheer and foreboding to the south and west..."
         },
         {
             "number": 105,
@@ -1559,7 +1559,7 @@
         },
         {
             "number": 106,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1575,7 +1575,7 @@
         },
         {
             "number": 107,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1587,7 +1587,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The corridor goes is several directions. It raises steeply to the north, and decends to the south.."
+            "desc": "The corridor goes is several directions. It raises steeply to the north, and descends to the south.."
         },
         {
             "number": 108,
@@ -1606,7 +1606,7 @@
         },
         {
             "number": 109,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1621,7 +1621,7 @@
         },
         {
             "number": 110,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1651,7 +1651,7 @@
         },
         {
             "number": 113,
-            "name": "Spur'S Vault",
+            "name": "Spur's Vault",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1680,7 +1680,7 @@
         },
         {
             "number": 116,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1710,7 +1710,7 @@
         },
         {
             "number": 118,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1726,7 +1726,7 @@
         },
         {
             "number": 119,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1741,7 +1741,7 @@
         },
         {
             "number": 120,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1756,7 +1756,7 @@
         },
         {
             "number": 121,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1771,7 +1771,7 @@
         },
         {
             "number": 122,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1782,7 +1782,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is a narrow corridor decending from north to south.."
+            "desc": "This is a narrow corridor descending from north to south.."
         },
         {
             "number": 123,
@@ -1802,7 +1802,7 @@
         },
         {
             "number": 124,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1813,11 +1813,11 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The corridor continues, decending from south to north.."
+            "desc": "The corridor continues, descending from south to north.."
         },
         {
             "number": 125,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1942,7 +1942,7 @@
         },
         {
             "number": 133,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1957,7 +1957,7 @@
         },
         {
             "number": 134,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1971,7 +1971,7 @@
         },
         {
             "number": 135,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -1986,7 +1986,7 @@
         },
         {
             "number": 136,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2001,7 +2001,7 @@
         },
         {
             "number": 137,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2016,7 +2016,7 @@
         },
         {
             "number": 138,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2027,11 +2027,11 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The corridor continues. You hear goulish laughter somewhere."
+            "desc": "The corridor continues. You hear ghoulish laughter somewhere."
         },
         {
             "number": 139,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2063,7 +2063,7 @@
         },
         {
             "number": 142,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2138,7 +2138,7 @@
         },
         {
             "number": 148,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2149,11 +2149,11 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The passage rounds a corner... What lays beyound?"
+            "desc": "The passage rounds a corner... What lays beyond?"
         },
         {
             "number": 149,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2168,7 +2168,7 @@
         },
         {
             "number": 150,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2183,7 +2183,7 @@
         },
         {
             "number": 151,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2274,7 +2274,7 @@
         },
         {
             "number": 157,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2335,7 +2335,7 @@
         },
         {
             "number": 161,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2350,7 +2350,7 @@
         },
         {
             "number": 162,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2361,11 +2361,11 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Something smells vaguly unhealthy..."
+            "desc": "Something smells vaguely unhealthy..."
         },
         {
             "number": 163,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2380,7 +2380,7 @@
         },
         {
             "number": 164,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2395,7 +2395,7 @@
         },
         {
             "number": 165,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2411,7 +2411,7 @@
         },
         {
             "number": 166,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2502,7 +2502,7 @@
         },
         {
             "number": 172,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [
                 "snow"
@@ -2535,7 +2535,7 @@
         },
         {
             "number": 174,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [
                 "snow"
@@ -2552,7 +2552,7 @@
         },
         {
             "number": 175,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [
                 "snow"
@@ -2565,11 +2565,11 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Brr... You wonder why it is so cold down here. It really should'nt be.."
+            "desc": "Brr... You wonder why it is so cold down here. It really shouldn't be.."
         },
         {
             "number": 176,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2584,7 +2584,7 @@
         },
         {
             "number": 177,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2599,7 +2599,7 @@
         },
         {
             "number": 178,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2614,7 +2614,7 @@
         },
         {
             "number": 179,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2626,11 +2626,11 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Yet another intercetion. Now which way to go?!"
+            "desc": "Yet another intersection. Now which way to go?!"
         },
         {
             "number": 180,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2641,11 +2641,11 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The corridor gently decends to the south.."
+            "desc": "The corridor gently descends to the south.."
         },
         {
             "number": 181,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2660,7 +2660,7 @@
         },
         {
             "number": 182,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2675,7 +2675,7 @@
         },
         {
             "number": 183,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2737,7 +2737,7 @@
         },
         {
             "number": 187,
-            "name": "Mummy'S Tome",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [
                 "snow"
@@ -2751,11 +2751,11 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "A sense of forbodding overcomes you, making you wonder if it is wise to continue.."
+            "desc": "A sense of foreboding overcomes you, making you wonder if it is wise to continue.."
         },
         {
             "number": 188,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [
                 "snow"
@@ -2772,7 +2772,7 @@
         },
         {
             "number": 189,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [
                 "snow"
@@ -2790,7 +2790,7 @@
         },
         {
             "number": 190,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2805,7 +2805,7 @@
         },
         {
             "number": 191,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2820,7 +2820,7 @@
         },
         {
             "number": 192,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2835,7 +2835,7 @@
         },
         {
             "number": 193,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2850,7 +2850,7 @@
         },
         {
             "number": 194,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2865,7 +2865,7 @@
         },
         {
             "number": 195,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2880,7 +2880,7 @@
         },
         {
             "number": 196,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2895,7 +2895,7 @@
         },
         {
             "number": 197,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2907,11 +2907,11 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The corridor splits off here. You imagine you hear goulish laughter somewhere."
+            "desc": "The corridor splits off here. You imagine you hear ghoulish laughter somewhere."
         },
         {
             "number": 198,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2926,7 +2926,7 @@
         },
         {
             "number": 199,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2941,7 +2941,7 @@
         },
         {
             "number": 200,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -2998,7 +2998,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "Your torch reveils torches stuck in the sides of the tunnel, long since burnt out..."
+            "desc": "Your torch reveals torches stuck in the sides of the tunnel, long since burnt out..."
         },
         {
             "number": 204,
@@ -3017,7 +3017,7 @@
         },
         {
             "number": 205,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -3033,7 +3033,7 @@
         },
         {
             "number": 206,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -3048,7 +3048,7 @@
         },
         {
             "number": 207,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -3059,11 +3059,11 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is a strangly familiar room, like you read about it in a book someplace."
+            "desc": "This is a strangely familiar room, like you read about it in a book someplace."
         },
         {
             "number": 208,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -3078,7 +3078,7 @@
         },
         {
             "number": 209,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -3092,7 +3092,7 @@
         },
         {
             "number": 210,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -3107,7 +3107,7 @@
         },
         {
             "number": 211,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -3122,7 +3122,7 @@
         },
         {
             "number": 212,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -3138,7 +3138,7 @@
         },
         {
             "number": 213,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -3152,7 +3152,7 @@
         },
         {
             "number": 214,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -3167,7 +3167,7 @@
         },
         {
             "number": 215,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -3179,11 +3179,11 @@
             "item": 0,
             "weapon": 0,
             "food": 51,
-            "desc": "Water drips slowely from the ceiling..."
+            "desc": "Water drips slowly from the ceiling..."
         },
         {
             "number": 216,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -3198,7 +3198,7 @@
         },
         {
             "number": 217,
-            "name": "Mummy'S Tomb",
+            "name": "Mummy's Tomb",
             "room_alignment": "neutral",
             "flags": [],
             "exits": {
@@ -3244,7 +3244,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "This is a narrow slippery bank. A quiet pond is west, you see a manmade passage to the north.."
+            "desc": "This is a narrow slippery bank. A quiet pond is west, you see a man-made passage to the north.."
         },
         {
             "number": 220,
