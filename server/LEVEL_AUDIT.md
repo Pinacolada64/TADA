@@ -112,7 +112,7 @@ the player to a hardcoded destination, gated by an escalating malfunction
 roll (~10% first use, ~40% after) that instead breaks the item and sends
 the player to a uniformly random level/room.
 
-- Destination on success: **level_6 room 1** — "The Infirmary"
+- Destination on success: **level_6 room 1** — "A Corridor"
 - Blocked entirely (no roll, just static) in any `no_comm_signal` room —
   99 rooms, all on **level 6** (0 elsewhere)
 
@@ -308,7 +308,92 @@ Box-style special items, elevator/combo/house-entry logic, guild
 stockpile/chalkboard mechanics) are likely to hold more of the same
 shape and are a natural next pass.
 
-## 15. Explicitly-checked empty categories
+## 15. Garden of Eden — confirmed real, room-name-triggered, ready to build
+
+`SPUR-code/SPUR.MAIN.S:212,538-546` (`g.o.e.` subroutine, called from the
+per-move world-event dispatcher on `instr("GARDEN OF EDEN",ww$)`) — every
+move into a room named "Garden Of Eden": independent ~10% rolls each for
++1 HP/Strength/Energy (each capped at 25); a separate 6% roll for "You are
+tempted to just stay here.." with -1 Intelligence and -1 Wisdom (each only
+if currently > 5); a separate 6% roll to spawn monster #121.
+
+- **level_6.json**: **37 rooms** named "Garden Of Eden" — 149-153, 167-172,
+  187-192, 205-212, 223-228, 240-245
+- Monster #121 confirmed in `monsters.json` — **SERPENT**, matching the
+  Eden theme exactly
+
+**Unlike nearly every other level-6 finding in §16 below, this one needs
+no old→new room-number remapping** — `"GARDEN OF EDEN" in room.name`
+works identically against the current data, since it's matched by name
+rather than a hardcoded room number. No matching code exists anywhere in
+`commands/`, `combat/`, or `encounters/`. The most directly buildable gap
+found in this audit.
+
+## 16. SPUR source cross-check, part 2 — confirmed but blocked on room renumbering
+
+A further pass through `SPUR.MAIN.S` and `SPUR.MISC3.S` found several more
+real mechanics with zero TADA implementation, but each one is pinned to
+specific old-scheme SPUR room numbers (223, 612, 752, 93, 180, 557, 584,
+792, etc.) that don't exist in the current, renumbered `level_*.json`
+files — the same room-numbering mismatch `encounters/dwarf.py`'s own
+docstring already names as a known issue. Recording them here as
+verified-real but not yet actionable, rather than re-deriving them from
+scratch on a future pass:
+
+- **Galadriel's real trigger is a fixed room** (`SPUR.MAIN.S:63`) —
+  level 2, room 223 (old numbering, no longer resolvable) triggers her
+  riddle unconditionally on first visit, *in addition to* the small
+  per-move random-event-table roll `encounters/galadriel.py` already
+  ports. TADA currently only has the random-roll half; the guaranteed
+  "go here once" half is missing.
+- **FLEE has curated destination pools on some levels**
+  (`SPUR.MAIN.S:126-137`) — level 2 flees to one of 6 fixed rooms, level 5
+  to one of 7, level 6 via a zone-clustering formula; only levels 1/3/4/7
+  flee to a genuinely random room. `combat/resolution.py`'s
+  `flee_attempt()` is currently uniformly random on every level.
+- **SEARCH-triggered hidden items/doors** (`SPUR.MISC3.S:274-340`) — this
+  is the actual mechanic behind the dead `hidden_item`/`hidden_door_*`
+  flags from §13: EXAMINE with no argument in a flagged room either opens
+  a specific directional exit, or (4 specific level-6 rooms only) plants
+  one hand-placed item — Red Security Card, Radiation Suit, Geiger
+  Counter, or Broomstick — plus a 5th room where the door only opens if
+  the player carries the Ruby Slippers. Not a generic "any hidden_item
+  room has loot" system.
+- **EXAMINE has ~10 more hardcoded item flavor-text easter eggs**
+  (`SPUR.MISC3.S:306-320`) — Crystal Pendant, Ice Crystal, Crown of Midas,
+  Gold Rose, "STORM"-class weapons, and others all get unique EXAMINE text
+  in SPUR; `commands/examine.py` doesn't port any of them (all fall
+  through to the generic "Looks ok"/"pretty ordinary" response today).
+  The Obelisk (#139) is a partial exception — `commands/get.py` already
+  ports its GET refusal, but not its EXAMINE-triggered teleport.
+- **Guild turf guards don't actually spawn on room entry** — confirmed by
+  reading `encounters/monster.py`'s `_try_turf_guard()`: it only handles
+  a friendly greeting once a guard monster is *already* present in the
+  room; nothing ports `SPUR.MAIN.S:213-220`'s 30% roll that spawns
+  monster #65/66/67 on arrival in a Claw/Sword/Fist-marked room in the
+  first place. Right now a turf guard can only appear if hand-placed as
+  `room.monster` in the map data.
+- **Level-6 "amoeba" water encounter** (`SPUR.MAIN.S:221-224`) — a 3%
+  chance of spawning monster #119 in any level-6 water/vacuum room,
+  separate from and in addition to the already-ported 3% METEOR roll in
+  the same rooms (`encounters/meteor.py`).
+- **Fixed secret Bar entrances** (`SPUR.MAIN.S:147-150`) — 4 hardcoded
+  level+room+direction combinations (levels 1/4/5/6) link directly into
+  the Bar module bypassing its normal elevator/menu access. Level 5's
+  room 157 is flagged as the one most likely to still map correctly
+  given how cleanly that level's other room numbers (Fountain of Youth
+  105, Desert Oasis 322) have checked out — worth checking directly as a
+  scoped follow-up before the others.
+
+**Suggested next step, if pursuing these**: rather than chasing more
+hardcoded old-scheme room numbers one at a time, it's worth first
+checking whether `SPUR-data/convert_from_gbbs_tool.py` or
+`SPUR-data/analyse-binary-level-data.py` can reconstruct an old→new
+room-number mapping for level 6 (and level 2, for Galadriel's room 223) —
+one piece of tooling work that would likely unlock most of the findings
+above at once, rather than resolving them individually.
+
+## 17. Explicitly-checked empty categories
 
 - No mechanic in the codebase gates on a bare hardcoded room-number
   literal (`room == N`) besides the Fountain/Vial (#1/#2) — everything
@@ -322,6 +407,12 @@ shape and are a natural next pass.
 
 ## Follow-up ideas (not yet built)
 
+- **Garden of Eden (§15)** — the single most ready-to-build gap found: 37
+  named rooms already exist, matched by name (no room-number remapping
+  needed), monster #121 (SERPENT) already exists. Smallest-effort,
+  highest-confidence next implementation task from this whole audit.
+- **Ruby Slippers (§14)** — second cheapest: fixed teleport + a message
+  that's already fully written in `messages.json` #19, unused.
 - Surface at least the "big" special rooms (Fountain, Gollum's Cave, the
   wild-horse meadow) via an in-game hint system (rumor NPC, a book, a
   LOOK-triggered nudge) rather than requiring the player to already know.
