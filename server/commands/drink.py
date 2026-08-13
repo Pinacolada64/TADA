@@ -4,7 +4,17 @@ import random
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from network_context import GameContext
-from survival import apply_poison, cure_poison, ration_restore, restore_drink
+from survival import apply_poison, cure_poison, full_restore, ration_restore, restore_drink
+
+# Fountain of Youth (SPUR.SUB.S 'fountain' label): level 5, room 105 -- same
+# room commands/use.py's Galadriel's Vial fill logic already keys off (see
+# _VIAL_FOUNTAIN_LEVEL/_VIAL_FOUNTAIN_ROOM there).
+_FOUNTAIN_LEVEL = 5
+_FOUNTAIN_ROOM  = 105
+
+# Generic "POOL OF WATER" floor-drink (SPUR.SUB.S 'pool' label): any room
+# whose food slot references rations.json #51, not tied to one room.
+_POOL_OF_WATER_ID = 51
 
 
 def _drink_entries(player):
@@ -31,6 +41,26 @@ class DrinkCommand(Command):
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
         args, _ = self.parse_args(*args)
         player  = ctx.player
+
+        # ---- Fountain of Youth: room feature, unconditional on args/thirst
+        # (SPUR.SUB.S: checked before any drink-item handling at all). -----
+        room_no  = getattr(ctx.client, 'room', None)
+        level    = int(getattr(player, 'map_level', 1) or 1)
+        game_map = getattr(ctx.server, 'game_map', None)
+
+        if level == _FOUNTAIN_LEVEL and int(room_no or 0) == _FOUNTAIN_ROOM:
+            await self._drink_fountain(ctx, player)
+            return CommandResult.ok()
+
+        # ---- Generic "POOL OF WATER" floor object: auto-quenches thirst
+        # only, no full restore (SPUR.SUB.S 'pool' label). -----------------
+        room = game_map.get_room(level, int(room_no)) if game_map and room_no else None
+        if room is not None and getattr(room, 'food', 0) == _POOL_OF_WATER_ID:
+            from config import config
+            restore_drink(player, config.survival_max)
+            await ctx.send('You kneel and drink your fill..')
+            return CommandResult.ok()
+
         entries = _drink_entries(player)
 
         if not entries:
@@ -128,3 +158,23 @@ class DrinkCommand(Command):
             await ctx.send('...burp...')
 
         return CommandResult.ok()
+
+    async def _drink_fountain(self, ctx: GameContext, player) -> None:
+        """SPUR.SUB.S 'fountain' label: free full restore (HP, poison,
+        disease, and any Ring of Invisibility stat drain -- see
+        survival.full_restore()) plus charging the Amulet of Life (#76)
+        if carried and not already energized."""
+        from items import ItemCategory
+
+        await ctx.send([
+            'You kneel at the sparkling fountain and drink deeply.',
+            'A wave of vigor washes over you!',
+        ])
+        full_restore(player)
+
+        from flags import PlayerFlags
+        if (player.has_item(category=ItemCategory.ITEM, name='Amulet of Life')
+                and not player.query_flag(PlayerFlags.AMULET_OF_LIFE_ENERGIZED)):
+            player.set_flag(PlayerFlags.AMULET_OF_LIFE_ENERGIZED)
+            player.unsaved_changes = True
+            await ctx.send('The Amulet of Life glows brightly -- it is now ENERGIZED!')

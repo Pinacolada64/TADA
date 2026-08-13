@@ -18,12 +18,16 @@ Mirrors SPUR.USE.S. Supported item types:
                risk breaks it back into a broken communicator and
                teleports somewhere random instead (SPUR.USE.S 'comm')
   book       — redirect to READ
+  Galadriel's vial — fill (empty) at the Fountain of Youth room (level 5,
+               room 105), then drink (full) anywhere for the same
+               full-restore effect as commands/drink.py's Fountain of
+               Youth handling (SPUR.USE.S 'fl.vial'/'vial' labels)
   (other)    — "You play with the <name>.."
 
 Not yet implemented (deferred — level 6 or requires unbuilt systems):
   rocket — single-use ranged explosive; needs rocket item type
   security cards — level-6 items
-  ruby slippers / crystal vial / palintar — special room items
+  ruby slippers / palintar — special room items
 
 The ring of invisibility (#67) is handled by commands/wear.py instead --
 SPUR toggles it via USE (SPUR.USE.S use4), but Ryan's call was that WEAR
@@ -42,6 +46,12 @@ from network_context import GameContext
 from tada_utilities import is_or_are
 
 _GRENADE_ID     = 16    # hand grenade (objects.json)
+_VIAL_EMPTY_ID  = 142   # Galadriel's vial (empty) (objects.json)
+_VIAL_FULL_ID   = 143   # Galadriel's vial (full) (objects.json)
+# Fountain of Youth room (level 5, room 105) -- SPUR.USE.S 'fl.vial' label;
+# same room commands/drink.py's Fountain of Youth handling keys off.
+_VIAL_FOUNTAIN_LEVEL = 5
+_VIAL_FOUNTAIN_ROOM  = 105
 _SADDLE_ID      = 162   # saddle (objects.json) -- Jake's Stable
 _HORSE_ARMOR_ID = 163   # horse armour (objects.json) -- Jake's Stable
 _SADDLEBAGS_ID  = 165   # saddlebags (objects.json) -- New in TADA, gives a
@@ -526,6 +536,43 @@ class UseCommand(Command):
             if inv:
                 inv.remove(item)
             await ctx.send(f'You {verb.format(label=label)} the horse..')
+            return CommandResult.ok()
+
+        # ---- Galadriel's Vial (#142 empty / #143 full): fill at the
+        # Fountain of Youth room, then USE the full vial anywhere later for
+        # the same full-restore effect as drinking straight from the
+        # fountain (SPUR.USE.S 'fl.vial'/'vial' labels). ------------------
+        if item_cat == ItemCategory.ITEM and item_no == _VIAL_EMPTY_ID:
+            room_no = getattr(ctx.client, 'room', None)
+            level   = int(getattr(player, 'map_level', 1) or 1)
+            if level == _VIAL_FOUNTAIN_LEVEL and int(room_no or 0) == _VIAL_FOUNTAIN_ROOM:
+                inv = getattr(player, 'inventory', None)
+                if inv:
+                    _consume_one(inv, _VIAL_EMPTY_ID)
+                    _craft_item(ctx, inv, _VIAL_FULL_ID)
+                    player.unsaved_changes = True
+                await ctx.send('You kneel and fill the vial with precious water from the pool.')
+            else:
+                await ctx.send('The vial is empty. You could fill it at the fountain.')
+            return CommandResult.ok()
+
+        if item_cat == ItemCategory.ITEM and item_no == _VIAL_FULL_ID:
+            room_no = getattr(ctx.client, 'room', None)
+            level   = int(getattr(player, 'map_level', 1) or 1)
+            if level == _VIAL_FOUNTAIN_LEVEL and int(room_no or 0) == _VIAL_FOUNTAIN_ROOM:
+                await ctx.send('The vial is already full.')
+                return CommandResult.ok()
+            from survival import full_restore
+            await ctx.send([
+                'You drink from the vial.',
+                'A wave of vigor washes over you!',
+            ])
+            full_restore(player)
+            inv = getattr(player, 'inventory', None)
+            if inv:
+                _consume_one(inv, _VIAL_FULL_ID)
+                _craft_item(ctx, inv, _VIAL_EMPTY_ID)
+                player.unsaved_changes = True
             return CommandResult.ok()
 
         for line in _apply_item(item, player):

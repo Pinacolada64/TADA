@@ -200,6 +200,13 @@ class Player:
         # creates a new stats dict for each Player, creates random stats:
         # TODO: set with Player.set_stat_absolute(PlayerStat.xyz, value)
         self.stats = kwargs.get("stats", set_up_stats())
+        # Cumulative points drained from stats by the Ring of Invisibility
+        # curse (survival.py's RING_WORN tick), keyed by PlayerStat name.
+        # The Fountain of Youth / Galadriel's Vial (survival.py's
+        # full_restore()) undoes this debt -- SPUR has no separate
+        # base-stat concept to restore toward, so this tracks the delta
+        # instead.
+        self.ring_drain = kwargs.get('ring_drain') or {}
         # flags:
         self.flags = kwargs.get('flags', set_up_flags())
         # dict of CombinationTypes -> Combination (ELEVATOR is added later, on-demand,

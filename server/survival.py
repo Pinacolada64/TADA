@@ -75,14 +75,19 @@ def survival_tick(player) -> list[str]:
     # Intelligence instead of HP (SPUR.COMBAT.S:14; toggled by commands/wear.py).
     if player.query_flag(PlayerFlags.RING_WORN) and random.randint(1, 10) == 5:
         stats = getattr(player, 'stats', None) or {}
+        drain = getattr(player, 'ring_drain', None) or {}
         if int(stats.get('Constitution', 10)) > 5:
             stats['Constitution'] -= 2
+            drain['Constitution'] = drain.get('Constitution', 0) + 2
             msgs.append('THE RING WEAKENS YOU!')
         if int(stats.get('Wisdom', 10)) > 5:
             stats['Wisdom'] -= 1
+            drain['Wisdom'] = drain.get('Wisdom', 0) + 1
         if int(stats.get('Intelligence', 10)) > 5:
             stats['Intelligence'] -= 1
+            drain['Intelligence'] = drain.get('Intelligence', 0) + 1
         player.stats = stats
+        player.ring_drain = drain
         player.unsaved_changes = True
 
     # Poison: 30% chance per tick, -2 HP (SPUR.COMBAT.S:15).
@@ -157,6 +162,53 @@ def cure_poison(player) -> None:
     player.poisoned = False
     player.clear_flag(PlayerFlags.POISON)
     player.unsaved_changes = True
+
+
+def full_restore(player) -> bool:
+    """Full HP heal, cure poison/disease, and undo Ring of Invisibility
+    stat drain -- the Fountain of Youth / Galadriel's Vial effect
+    (SPUR.SUB.S 'fountain'/'vial' labels: zz=26+xp, if hp<zz hp=zz;
+    ps/pt/pi/pe/pw/pd floored to 26; gosub cure.p:gosub cure.d).
+
+    This port has no separate base-stat value to restore drained stats
+    toward (SPUR's fixed floor of 26 doesn't map onto this port's ~3-18
+    stat scale), so instead of a fixed floor this undoes whatever the
+    Ring of Invisibility curse (this module's RING_WORN tick, above) has
+    drained -- the only stat-drain mechanic that currently exists. The HP
+    target matches commands/read.py's Scroll of Endurance (30 + xp_level)
+    for consistency with this port's other full-heal mechanic.
+
+    Returns True if anything was actually restored (for flavor-text gating).
+    """
+    from flags import PlayerFlags
+
+    changed = False
+
+    xp_level = int(getattr(player, 'xp_level', 1) or 1)
+    target_hp = 30 + xp_level
+    if getattr(player, 'hit_points', 0) < target_hp:
+        player.hit_points = target_hp
+        changed = True
+
+    if getattr(player, 'poisoned', False):
+        cure_poison(player)
+        changed = True
+    if getattr(player, 'diseased', False):
+        cure_disease(player)
+        changed = True
+
+    drain = getattr(player, 'ring_drain', None) or {}
+    if any(drain.values()):
+        stats = getattr(player, 'stats', None) or {}
+        for stat, amount in drain.items():
+            if amount:
+                stats[stat] = stats.get(stat, 0) + amount
+        player.stats = stats
+        player.ring_drain = {}
+        changed = True
+
+    player.unsaved_changes = True
+    return changed
 
 
 def apply_disease(player) -> None:
