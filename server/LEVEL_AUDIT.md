@@ -454,21 +454,95 @@ here:**
    means "the same room SPUR intended" is sometimes approximate rather
    than exact (e.g. Galadriel's trigger room would be picked by vibes,
    not by re-deriving grid position 223).
-2. **Rebuild `level_2.json`..`level_7.json` with real SPUR room numbers**,
-   using the same "zip decoded Msg-K with the Kth entry of
-   `LevelHeader.room_numbers`" approach `tada_level_builder.py` already
-   implements for level 2 (per its own Step 3 docstring) — this would
-   make every SPUR source room literal directly resolvable, unlocking
-   §16's findings exactly rather than approximately. Substantially
-   higher cost/risk: every existing room-number reference in this
-   codebase (this session's own Fountain/Vial/Gollum/wild-horse/POOL OF
-   WATER work included, plus `no_comm_signal`/`vehicle_exit_*`/
-   `RoomAlignment` overrides/every monster room placement/every player's
-   persisted `map_room`) would need remapping in lockstep, or the live
-   game world silently scrambles. Not something to undertake casually or
-   without a deliberate migration plan.
+2. **Rebuild `level_2.json`..`level_7.json` with real SPUR room numbers.**
+   Attempted this session — see §18. `tada_level_builder.py`'s "zip
+   decoded Msg-K with the Kth entry of `LevelHeader.room_numbers`"
+   approach turned out to be unsound (proven, not assumed — see §18), so
+   this is a real, unsolved reconstruction problem, not a mechanical
+   rebuild. Also carries the downstream cost already noted here: every
+   existing room-number reference in this codebase (this session's own
+   Fountain/Vial/Gollum/wild-horse/POOL OF WATER work included, plus
+   `no_comm_signal`/`vehicle_exit_*`/`RoomAlignment` overrides/every
+   monster room placement/every player's persisted `map_room`) would
+   need remapping in lockstep once a correct mapping exists.
 
-## 18. Explicitly-checked empty categories
+## 18. Attempted the rebuild — root-caused why it's a real research problem, not a data migration
+
+Ryan asked to attempt option 2 directly. This section documents what was
+tried, what was learned, and exactly where it stalled, so a future
+attempt doesn't have to re-derive the same ground.
+
+**The header's "populated room" bitmap is itself unreliable, not just
+the room numbering.** `LevelHeader.room_numbers` (§17) is meant to say
+which of a level's `nr` grid slots have real room content. Direct proof
+it's wrong for level 6: message #0 (the very first decoded message,
+content `"A CORRIDOR"`) is almost certainly real grid room #1 — its raw
+exit flags, resolved via the grid formula *assuming* room number 1,
+compute to exits `north=871`/`south=31`, which match the currently-shipped
+`level_6.json` room 1 exactly (same name, same exits). Yet the header
+bitmap does **not** mark room 1 as populated — `sorted(hdr.room_numbers)`
+starts at `[4, 5, 6, 7, 13, ...]`, skipping 1/2/3 entirely. So the
+bitmap undercounts real rooms, confirmed concretely, not just via the
+aggregate count mismatch already known from §17.
+
+**The real mechanism, found in SPUR source, explains why.**
+`SPUR-code/SPUR.CONTROL.S`'s `wr.room` (the level editor's room-save
+routine):
+```
+wr.room
+ a=msg(x):kill #msg(x)
+ print #msg(x),lo$,m,i,wp,fd,n,s,e,w,rc,rt
+ copy #8,#6
+ msg(x)=a:update
+ flag(x)=1
+ return
+```
+`msg(x)` is a **separate lookup array** mapping room number `x` to its
+message-directory slot — `print #msg(x),...` writes to *that* message
+slot, not slot `x`. This is direct proof directory-scan order was never
+meant to equal ascending room number at all; it depends on GBBS Pro's
+own internal message-numbering/addressing, which isn't reconstructable
+from the BASIC source alone (it's proprietary message-store internals,
+not level-specific logic). `rd.lvl`/`wr.lvl` (the header file read/write)
+confirm `D.LEVEL{N}.TXT` only ever stores the level name, `nr`, `ri`, and
+one 255-byte flag array — there's no second stored table recording
+`msg(x)`, so it isn't sitting in a file we have access to; it would have
+to be re-derived by understanding GBBS Pro's message-store internals, or
+reconstructed by other means.
+
+**Attempted reconstruction via exit-connectivity constraint propagation,
+confirmed it doesn't work with one seed.** Idea: since room 1's true
+message is known with high confidence, and the grid math (§17) lets you
+compute what any room's exits *must* resolve to, you can work outward —
+find whichever unassigned message has a "back-edge" flag (e.g. room 1's
+`south` exit requires its neighbor to have a `north` exit flag pointing
+back). Implemented and ran this against level 6: a single back-edge
+constraint matched **194 of 292** messages (south-exit-flag) and **195 of
+292** (north-exit-flag) — meaning roughly two-thirds of all rooms in the
+level share that one bit of information, so it carries almost no
+disambiguating power from a single seed. The algorithm converged after
+assigning exactly 1 room (the seed itself) before stalling completely.
+
+**What would actually be needed**: a real backtracking/constraint-
+satisfaction search — propose a candidate for an unresolved room,
+tentatively assign it, propagate 2+ hops outward checking for
+contradictions, backtrack when one appears — closer to solving a jigsaw
+puzzle or graph-isomorphism problem than a data conversion. Substantially
+more implementation than attempted here, with no guarantee of a unique
+solution even if built correctly (symmetric/repetitive grid regions could
+have multiple internally-consistent solutions), compounded by the
+confirmed-unreliable bitmap corrupting even the ground truth for "which
+positions are populated" in the first place.
+
+**Decision**: paused here rather than build the full search
+unboundedly. `level_2.json`..`level_7.json` are unchanged. Anyone picking
+this back up should start from: the `msg(x)` GBBS-internals question (is
+there a way to recover it directly, e.g. from the live BBS software's own
+source if that's ever available, rather than reverse-engineering it from
+observed data), or committing to the full backtracking search knowing its
+real scope.
+
+## 19. Explicitly-checked empty categories
 
 - No mechanic in the codebase gates on a bare hardcoded room-number
   literal (`room == N`) besides the Fountain/Vial (#1/#2) — everything
