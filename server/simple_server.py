@@ -1140,6 +1140,8 @@ class Server:
         ctx.client.room = int(dest)
         ctx.player.map_room = int(dest)
         ctx.player.unsaved_changes = True
+        from visited_rooms import mark_visited
+        mark_visited(ctx.player, level, int(dest))
         logging.debug('EXIT moved to room=%r', dest)
         await self._show_room_then_encounter(ctx, level=level, room_no=int(dest))
         from encounters.desert import try_desert_sweat
@@ -1250,6 +1252,8 @@ class Server:
         ctx.client.room = target_room
         ctx.player.map_room = target_room
         ctx.player.unsaved_changes = True
+        from visited_rooms import mark_visited
+        mark_visited(ctx.player, target_level, target_room)
         from shoppe.elevator import level_name
         name = level_name(target_level)
         if name:
@@ -1359,6 +1363,8 @@ class Server:
         player.map_room   = 1
         ctx.client.room   = 1
         player.unsaved_changes = True
+        from visited_rooms import mark_visited
+        mark_visited(player, player.map_level, 1)
 
         await ctx.send('You wake up at the entrance, confused but alive.')
         logging.debug('EXIT (respawned at room 1)')
@@ -1379,6 +1385,8 @@ class Server:
                 current_room = getattr(ctx.client, 'room', None)
                 if current_room is not None:
                     player.map_room = int(current_room)
+                    from visited_rooms import mark_visited
+                    mark_visited(player, player.map_level, player.map_room)
                 player.unsaved_changes = True
                 player.save(force=True)
                 logging.info('player saved on quit')

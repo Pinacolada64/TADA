@@ -262,6 +262,8 @@ async def _fist_birthday_party(ctx, player, hn: str, dl: str) -> list[str]:
             client.map_level = _TEA_ROOM_LEVEL
         except Exception:
             pass
+    from visited_rooms import mark_visited
+    mark_visited(player, _TEA_ROOM_LEVEL, _TEA_ROOM_NUMBER)
 
     lines += [
         "",
@@ -314,6 +316,8 @@ async def _fist_birthday_party(ctx, player, hn: str, dl: str) -> list[str]:
             client.map_level = old_level
         except Exception:
             pass
+    if old_room is not None:
+        mark_visited(player, old_level, old_room)
 
     try:
         await ctx.send_room(

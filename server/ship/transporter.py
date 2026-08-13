@@ -92,6 +92,8 @@ async def main(ctx: GameContext) -> bool:
     ctx.client.room = 1
     ctx.player.map_room = 1
     player.unsaved_changes = True
+    from visited_rooms import mark_visited
+    mark_visited(player, target, 1)
 
     from shoppe.elevator import level_name
     name = level_name(target)

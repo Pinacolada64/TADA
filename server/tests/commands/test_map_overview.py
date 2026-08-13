@@ -30,6 +30,7 @@ def make_player(*, debug=True, map_level=4, map_room=1, translation=Translation.
     p.map_level = map_level
     p.map_room = map_room
     p.query_flag.side_effect = lambda flag: debug
+    p.visited_rooms = {}  # real dict -- mark_visited() needs this, not a MagicMock
     cs = ClientSettings()
     cs.translation = translation
     p.client_settings = cs
@@ -189,6 +190,95 @@ class TestRenderOverview(unittest.TestCase):
         ctx.player = player
         lines = render_overview(ctx, MagicMock(levels={}), 4, player)
         self.assertIsNone(lines)
+
+    def test_allowed_filter_excludes_unlisted_rooms(self):
+        rooms = {
+            1: _FakeRoom(1, exits={'east': 2}),
+            2: _FakeRoom(2, exits={'west': 1}),
+        }
+        player = make_player(debug=True, map_level=4, map_room=1)
+        ctx = MagicMock()
+        ctx.player = player
+        lines = render_overview(ctx, MagicMock(levels={4: rooms}), 4, player,
+                                 allowed={1})
+        # Room 2 excluded -- only a one-way arrow toward it (room 1's own
+        # east exit exists), never the mutual double-headed one, since a
+        # room outside `allowed` can't tell us it has an exit back.
+        self.assertIn('@', lines[0])
+        self.assertIn('→', lines[0])
+        self.assertNotIn('↔', lines[0])
+
+    def test_allowed_filter_empty_returns_none(self):
+        rooms = {1: _FakeRoom(1)}
+        player = make_player(debug=True, map_level=4, map_room=1)
+        ctx = MagicMock()
+        ctx.player = player
+        lines = render_overview(ctx, MagicMock(levels={4: rooms}), 4, player,
+                                 allowed=set())
+        self.assertIsNone(lines)
+
+
+class TestVisitedSubcommand(unittest.TestCase):
+    """`map #visited [<level>]` -- unlike #overview, available to every
+    player regardless of Debug Mode, and only ever shows rooms actually
+    marked visited (visited_rooms.py)."""
+
+    def test_available_without_debug_mode(self):
+        player = make_player(debug=False, map_level=4, map_room=1)
+        ctx = make_ctx(player, {4: {1: _FakeRoom(1)}})
+        from visited_rooms import mark_visited
+        mark_visited(player, 4, 1)
+        result = run(MapCommand().execute(ctx, '#visited'))
+        self.assertTrue(result.success)
+
+    def test_nothing_visited_yet(self):
+        player = make_player(debug=False, map_level=4, map_room=1)
+        player.visited_rooms = {}
+        ctx = make_ctx(player, {4: {1: _FakeRoom(1)}})
+        result = run(MapCommand().execute(ctx, '#visited'))
+        self.assertFalse(result.success)
+        self.assertIn("haven't explored", sent_text(ctx))
+
+    def test_defaults_to_players_own_level(self):
+        player = make_player(debug=False, map_level=4, map_room=1)
+        ctx = make_ctx(player, {4: {1: _FakeRoom(1)}})
+        from visited_rooms import mark_visited
+        mark_visited(player, 4, 1)
+        result = run(MapCommand().execute(ctx, '#visited'))
+        self.assertTrue(result.success)
+        self.assertIn('Level 4', sent_text(ctx))
+
+    def test_explicit_level_argument(self):
+        player = make_player(debug=False, map_level=4, map_room=1)
+        ctx = make_ctx(player, {3: {1: _FakeRoom(1)}})
+        from visited_rooms import mark_visited
+        mark_visited(player, 3, 1)
+        result = run(MapCommand().execute(ctx, '#visited', '3'))
+        self.assertTrue(result.success)
+        self.assertIn('Level 3', sent_text(ctx))
+
+    def test_non_numeric_level_rejected(self):
+        player = make_player(debug=False)
+        ctx = make_ctx(player, {4: {1: _FakeRoom(1)}})
+        result = run(MapCommand().execute(ctx, '#visited', 'banana'))
+        self.assertFalse(result.success)
+
+    def test_only_visited_rooms_render(self):
+        rooms = {
+            1: _FakeRoom(1, exits={'east': 2}),
+            2: _FakeRoom(2, exits={'west': 1}),
+        }
+        player = make_player(debug=False, map_level=4, map_room=1)
+        ctx = make_ctx(player, {4: rooms})
+        from visited_rooms import mark_visited
+        mark_visited(player, 4, 1)  # room 2 deliberately left unvisited
+        result = run(MapCommand().execute(ctx, '#visited'))
+        self.assertTrue(result.success)
+        # Grid content is the line right after the header/blank -- the
+        # legend below always mentions both glyph kinds as a key.
+        grid_line = ctx._sent[2]
+        self.assertIn('→', grid_line)     # room 1's own exit still shown
+        self.assertNotIn('↔', grid_line)  # but not the mutual, unverifiable one
 
 
 if __name__ == '__main__':

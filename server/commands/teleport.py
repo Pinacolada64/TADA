@@ -407,6 +407,8 @@ class TeleportCommand(Command):
             except Exception:
                 pass
         ctx.player.unsaved_changes = True
+        from visited_rooms import mark_visited
+        mark_visited(ctx.player, ctx.player.map_level, dest)
         log.info('%s teleported from level %s room %s to level %s room %s',
                   name, old_level, old_room, level if level is not None else old_level, dest)
         await ctx.send('You appear in a flash of light.')

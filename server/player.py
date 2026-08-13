@@ -252,7 +252,16 @@ class Player:
         """
         self.map_level = kwargs.get('map_level', 1)  # cl (current dungeon level, 1-7)
         self.xp_level = kwargs.get('xp_level', 1)  # SPUR's xp/yn (character level, from experience)
+        # Per-level "have you been here" bitfield (visited_rooms.py), keyed
+        # by str(level), one bit per room number, hex-encoded -- same
+        # MSB-first-per-byte packing GBBS's own message-store header uses
+        # (Ryan's idea; see LEVEL_AUDIT.md's room-renumbering investigation
+        # for that precedent). Must exist before map_room below, since
+        # mark_visited() marks the player's starting/loaded room.
+        self.visited_rooms: dict = kwargs.get('visited_rooms') or {}
         self.map_room = kwargs.get('map_room', 1)  # cr (current room)
+        from visited_rooms import mark_visited
+        mark_visited(self, self.map_level, self.map_room)
         self.moves_made = kwargs.get('moves_made')
         # tracks how many moves made during the game session to calculate experience points awarded at quit:
         self.moves_today = kwargs.get('moves_today', 0)
@@ -1464,6 +1473,11 @@ class Player:
             if 'weapon_experience' in data and isinstance(data['weapon_experience'], dict):
                 try:
                     self.weapon_experience = {str(k): int(v) for k, v in data['weapon_experience'].items()}
+                except Exception:
+                    pass
+            if 'visited_rooms' in data and isinstance(data['visited_rooms'], dict):
+                try:
+                    self.visited_rooms = {str(k): str(v) for k, v in data['visited_rooms'].items()}
                 except Exception:
                     pass
             if 'shield_proficiency' in data and isinstance(data['shield_proficiency'], dict):

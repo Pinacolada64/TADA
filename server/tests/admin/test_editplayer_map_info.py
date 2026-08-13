@@ -48,10 +48,12 @@ def _make_ctx(player, server, responses):
     return ctx
 
 
-def _make_player(map_level=1, map_room=1):
+def _make_player(map_level=1, map_room=1, visited_rooms=None):
     player = MagicMock()
     player.map_level = map_level
     player.map_room = map_room
+    player.name = 'Testy'
+    player.visited_rooms = visited_rooms if visited_rooms is not None else {}
     return player
 
 
@@ -142,6 +144,80 @@ class TestRoomNumberEdit(unittest.IsolatedAsyncioTestCase):
         await _action_for(menu, 'rn').action(ctx)
 
         self.assertEqual(player.map_room, 2)
+
+
+class TestDisplayVisitedRooms(unittest.IsolatedAsyncioTestCase):
+
+    async def test_prompts_for_level_then_shows_grid(self):
+        from visited_rooms import mark_visited
+        player = _make_player(map_level=1, map_room=1)
+        mark_visited(player, 1, 1)
+        server = _make_server_with_rooms()
+        ctx = _make_ctx(player, server, ['1'])
+        menu = _map_info_menu(ctx)
+
+        await _action_for(menu, 'vr').action(ctx)
+
+        flat = '\n'.join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn('Level 1', flat)
+        self.assertIn('rooms visited', flat)
+
+    async def test_cancelling_the_level_prompt_sends_nothing(self):
+        player = _make_player(map_level=1, map_room=1)
+        server = _make_server_with_rooms()
+        ctx = _make_ctx(player, server, [''])
+        menu = _map_info_menu(ctx)
+
+        await _action_for(menu, 'vr').action(ctx)
+
+        ctx.send.assert_not_awaited()
+
+    async def test_nothing_visited_reports_that(self):
+        player = _make_player(map_level=1, map_room=1)
+        server = _make_server_with_rooms()
+        ctx = _make_ctx(player, server, ['1'])
+        menu = _map_info_menu(ctx)
+
+        await _action_for(menu, 'vr').action(ctx)
+
+        flat = '\n'.join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("hasn't explored", flat)
+
+
+class TestResetVisitedRooms(unittest.IsolatedAsyncioTestCase):
+
+    async def test_confirmed_reset_clears_the_field(self):
+        player = _make_player(visited_rooms={'1': 'ff'})
+        server = _make_server_with_rooms()
+        ctx = _make_ctx(player, server, ['y'])
+        menu = _map_info_menu(ctx)
+
+        await _action_for(menu, 'rv').action(ctx)
+
+        self.assertEqual(player.visited_rooms, {})
+        self.assertTrue(player.unsaved_changes)
+
+    async def test_declined_reset_leaves_data_intact(self):
+        player = _make_player(visited_rooms={'1': 'ff'})
+        server = _make_server_with_rooms()
+        ctx = _make_ctx(player, server, ['n'])
+        menu = _map_info_menu(ctx)
+
+        await _action_for(menu, 'rv').action(ctx)
+
+        self.assertEqual(player.visited_rooms, {'1': 'ff'})
+
+    async def test_nothing_to_reset_reports_that_without_prompting(self):
+        player = _make_player(visited_rooms={})
+        server = _make_server_with_rooms()
+        ctx = _make_ctx(player, server, [])
+        menu = _map_info_menu(ctx)
+
+        await _action_for(menu, 'rv').action(ctx)
+
+        ctx.prompt.assert_not_awaited()
+        flat = '\n'.join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn('no visited-rooms data', flat)
 
 
 if __name__ == '__main__':

@@ -34,6 +34,7 @@ from network_context import GameContext
 from formatting import COLOR_NAME_TO_TOKEN
 from terminal import ANSIGraphicsChars as _Box, ColorName
 from terminal import Translation
+from visited_rooms import GRID_WIDTH as _OVERVIEW_GRID_WIDTH, visited_room_numbers
 
 # cbmcodecs2's petscii_c64en_lc codec has no mapping for the double-line
 # glyphs _Box (ANSIGraphicsChars) uses -- '╔' etc encode()-error and
@@ -108,14 +109,15 @@ def _is_debug(player) -> bool:
     return bool(player.query_flag(PlayerFlags.DEBUG_MODE))
 
 
-# Grid width (SPUR's `ri`, "Room Incr.") per level -- not tracked anywhere
-# on the runtime Map/Room objects (see this module's own docstring), so
-# it's hardcoded here from D.LEVEL{N}.TXT's own header, same source
-# LEVEL_AUDIT.md's room-renumbering investigation (§17) used. Room number
-# -> (row, col) is divmod(number - 1, ri), matching
+# Grid width (_OVERVIEW_GRID_WIDTH, imported above) -- not tracked
+# anywhere on the runtime Map/Room objects (see this module's own
+# docstring), so it's hardcoded in visited_rooms.py (from
+# D.LEVEL{N}.TXT's own header, same source LEVEL_AUDIT.md's room-
+# renumbering investigation (§17) used), shared with `map #visited`'s
+# bitfield sizing rather than kept as a second copy here. Room number ->
+# (row, col) is divmod(number - 1, ri), matching
 # SPUR-data/level-2/tada_level_builder.py's resolve_exit_destinations()
 # row-major convention (north decreases row, east increases col).
-_OVERVIEW_GRID_WIDTH = {1: 12, 2: 15, 3: 10, 4: 7, 5: 20, 6: 30, 7: 10}
 
 _OVERVIEW_ROOM_COLOR = 'light_gray'
 _OVERVIEW_PLAYER_ROOM_COLOR = 'cyan'
@@ -132,9 +134,10 @@ _OVERVIEW_PLAYER_ROOM_COLOR = 'cyan'
 _ANSI_BOTH_WAYS = {'vertical': '↕', 'horizontal': '↔'}
 
 
-def render_overview(ctx: GameContext, game_map, level: int, player) -> list[str] | None:
-    """Compressed birds-eye view of an entire level's grid: one reverse-
-    video square per room (no monster/item/weapon/food markers -- see
+def render_overview(ctx: GameContext, game_map, level: int, player,
+                     allowed: set[int] | None = None) -> list[str] | None:
+    """Compressed birds-eye view of a level's grid: one reverse-video
+    square per room (no monster/item/weapon/food markers -- see
     render_ansi_grid() for that), with arrow glyphs in the gap between
     each pair of grid-adjoining rooms showing whether north/east/south/
     west exits connect them -- a double-headed arrow (ANSI clients only)
@@ -142,12 +145,23 @@ def render_overview(ctx: GameContext, game_map, level: int, player) -> list[str]
     only one does. Up/down (rc/rt) exits aren't spatial neighbors on this
     flat grid, so they're not shown -- same reasoning _nearby_rooms()
     already documents. Returns None if this level has no known grid
-    width or no rooms are loaded for it."""
+    width or no (allowed) rooms are loaded for it.
+
+    *allowed*, if given, restricts rendering to that set of room numbers
+    -- used by `map #visited` to show only rooms the player has actually
+    been to. A room excluded this way simply isn't in `rooms`/`by_pos`
+    below, so its neighbors' gap-arrow logic naturally treats it as
+    unknown: an exit *toward* it from a rendered room still shows a
+    one-way arrow (you know there's a door), but never a double-headed
+    one, since a room you haven't visited can't tell you whether it has
+    an exit back."""
     ri = _OVERVIEW_GRID_WIDTH.get(level)
     if not ri:
         return None
 
-    rooms = getattr(game_map, 'levels', {}).get(level) or {}
+    all_rooms = getattr(game_map, 'levels', {}).get(level) or {}
+    rooms = ({rn: room for rn, room in all_rooms.items() if rn in allowed}
+             if allowed is not None else all_rooms)
     if not rooms:
         return None
 
@@ -155,8 +169,14 @@ def render_overview(ctx: GameContext, game_map, level: int, player) -> list[str]
     is_ansi = arrows is not _PETSCII_ONE_WAY_ARROW
     positions = {rn: divmod(rn - 1, ri) for rn in rooms}
     by_pos = {pos: rooms[rn] for rn, pos in positions.items()}
-    max_row = max(row for row, _ in positions.values())
-    max_col = max(col for _, col in positions.values())
+    # Bounding box spans every room on the level, not just the rendered
+    # (possibly filtered) ones -- otherwise an `allowed` filter would
+    # shrink the canvas to exactly the visited rooms' own footprint,
+    # leaving no cell for a hint-arrow pointing at an unvisited neighbor
+    # one step outside it.
+    all_positions = {rn: divmod(rn - 1, ri) for rn in all_rooms} or positions
+    max_row = max(row for row, _ in all_positions.values())
+    max_col = max(col for _, col in all_positions.values())
 
     height = 2 * max_row + 1
     width  = 2 * max_col + 1
@@ -502,6 +522,7 @@ class MapCommand(Command):
             ('map grid', 'Show nearby rooms as a colored grid of boxes.'),
             ('map #grid', 'Same as "map grid".'),
             ('map #overview [<level>]', 'Debug Mode: full-level birds-eye grid.'),
+            ('map #visited [<level>]', "Birds-eye grid of rooms you've actually been to."),
         ],
         notes = [
             'Only available to the Ranger class, and only from character '
@@ -512,6 +533,15 @@ class MapCommand(Command):
             'line underneath. Your own room is always marked with @. '
             'Box-drawing glyphs adapt to your client: double-line for '
             'ANSI, single-line for a real Commodore/PETSCII client.',
+            '"map #visited [<level>]" (any character, not gated by class/'
+            'level like the rest of this command) draws the same '
+            'compressed birds-eye grid as "map #overview", but only for '
+            'rooms you have personally set foot in on the given level '
+            '(your own level if omitted) -- never spoils unexplored '
+            'territory. An exit toward a room you have not yet visited '
+            'still shows a one-way arrow (you know there is a door), '
+            'never a double-headed one, since an unvisited room cannot '
+            'tell you whether it leads back.',
         ],
         admin_notes = [
             "Admins/DMs additionally see each nearby room's number -- "
@@ -554,6 +584,33 @@ class MapCommand(Command):
                 return CommandResult.fail('No overview data.', error='no_overview')
             await ctx.send([f'|yellow|Level {level} overview|reset|', ''] + lines)
             return CommandResult.ok('Showed level overview.')
+
+        if args and args[0].lower().lstrip('#') == 'visited':
+            game_map = getattr(ctx.server, 'game_map', None)
+            if not game_map:
+                await ctx.send('You lose your bearings -- no map data here.')
+                return CommandResult.fail('No map data.', error='no_map')
+
+            if len(args) > 1:
+                try:
+                    level = int(args[1])
+                except ValueError:
+                    await ctx.send(f'"{args[1]}" is not a level number.')
+                    return CommandResult.fail('Bad level.', error='bad_level')
+            else:
+                level = player.map_level
+
+            seen = visited_room_numbers(player, level)
+            if not seen:
+                await ctx.send(f"You haven't explored any of level {level} yet.")
+                return CommandResult.fail('Nothing visited.', error='no_visited')
+
+            lines = render_overview(ctx, game_map, level, player, allowed=seen)
+            if lines is None:
+                await ctx.send(f"No overview data for level {level}.")
+                return CommandResult.fail('No overview data.', error='no_overview')
+            await ctx.send([f'|yellow|Level {level} -- rooms visited|reset|', ''] + lines)
+            return CommandResult.ok('Showed visited rooms.')
 
         if player.char_class != PlayerClass.RANGER:
             await ctx.send('Only a Ranger has the wilderness sense for this.')

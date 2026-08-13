@@ -15,7 +15,8 @@ Menu layout mirrors the original C64 TADA Player Editor (tep v2.07):
   ├─  8. Hit Points        current HP for player, allies, and horse
   ├─  9. Inventory         give weapons/armor/rations/objects; transfer
   │                        items between characters
-  ├─ 10. Map Information   dungeon level, room number
+  ├─ 10. Map Information   dungeon level, room number; display/reset the
+  │                        per-level visited-rooms bitfield (visited_rooms.py)
   ├─ 11. Money             in hand / in bank / in bar / Vinny Loan status
   ├─ 12. Statistics        age, birthday, class, experience, gender, guild,
   │                        honor, race, moves to date, monsters killed
@@ -615,6 +616,8 @@ def _map_info_menu(ctx) -> Menu:
                 continue
             p.map_room = val
             p.unsaved_changes = True
+            from visited_rooms import mark_visited
+            mark_visited(p, level, val)
             await ctx.send(f'Room Number set to {_room_label(ctx, level, val)}.')
             return
 
@@ -628,6 +631,45 @@ def _map_info_menu(ctx) -> Menu:
         dot_leader_handler=lambda ctx: _room_label(
             ctx, int(getattr(p, 'map_level', 1) or 1), int(getattr(p, 'map_room', 1) or 1)),
         action=edit_room,
+    ))
+
+    async def show_visited(ctx) -> None:
+        cur = int(getattr(p, 'map_level', 1) or 1)
+        level = await _prompt_int(ctx, 'Which Level', cur, 1, 7)
+        if level is None:
+            return
+        from visited_rooms import visited_room_numbers
+        seen = visited_room_numbers(p, level)
+        if not seen:
+            await ctx.send(f"{p.name} hasn't explored any of level {level} yet.")
+            return
+        from commands.map import render_overview
+        game_map = getattr(getattr(ctx, 'server', None), 'game_map', None)
+        lines = render_overview(ctx, game_map, level, p, allowed=seen) if game_map else None
+        if lines is None:
+            await ctx.send(f'No overview data for level {level}.')
+            return
+        await ctx.send([f'|yellow|{p.name} -- Level {level} rooms visited|reset|', ''] + lines)
+
+    async def reset_visited(ctx) -> None:
+        if not getattr(p, 'visited_rooms', None):
+            await ctx.send(f'{p.name} has no visited-rooms data to reset.')
+            return
+        confirm = await ctx.prompt(f"Clear {p.name}'s visited-rooms history on all levels? (y/N)")
+        if not confirm or confirm.strip().lower() != 'y':
+            await ctx.send('Cancelled.')
+            return
+        p.visited_rooms = {}
+        p.unsaved_changes = True
+        await ctx.send(f"{p.name}'s visited-rooms history has been reset.")
+
+    menu.add_item(MenuItem(
+        'Display Visited Rooms', shortcuts='vr',
+        action=show_visited,
+    ))
+    menu.add_item(MenuItem(
+        'Reset Visited Rooms', shortcuts='rv',
+        action=reset_visited,
     ))
     return menu
 
