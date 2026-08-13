@@ -6,8 +6,8 @@ unsound: SPUR's own D.LEVEL{N}.TXT "populated room" bitmap is unreliable
 (confirmed missing real, populated grid positions), and zipping decoded
 messages against it in ascending order silently misaligns room numbers
 for every level except level 2, where the counts happened to match by
-luck. See ../server/LEVEL_AUDIT.md §17/§18 for the full investigation
-that found and fixed this.
+luck. See ../LEVEL_AUDIT.md §17/§18 for the full investigation that
+found and fixed this.
 
 Combines the three correct pieces that investigation turned up:
 
@@ -42,7 +42,7 @@ Combines the three correct pieces that investigation turned up:
 
 Usage:
     python3 build_level_correct.py <level_number>          # prints JSON to stdout
-    python3 build_level_correct.py <level_number> --write   # writes ../server/level_{N}.json
+    python3 build_level_correct.py <level_number> --write   # writes ../level_{N}.json
 
 Level 1 is deliberately excluded -- it was already built with real SPUR
 room numbers by a separate, correct pipeline (convert_map_data.py) and
@@ -64,8 +64,13 @@ import struct
 import json
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
-sys.path.insert(0, str(Path(__file__).parent / 'level-2'))
+# SPUR-data/ lives as a sibling of server/'s parent directory
+# (.../TADA/TADA/{server,SPUR-data}) -- this script lives in server/tools/.
+_SPUR_DATA = Path(__file__).parent.parent.parent / 'SPUR-data'
+_SERVER_DIR = Path(__file__).parent.parent
+
+sys.path.insert(0, str(_SPUR_DATA))
+sys.path.insert(0, str(_SPUR_DATA / 'level-2'))
 from tada_level_builder import LevelHeader, _follow_chain, resolve_exit_destinations
 from convert_from_gbbs_tool import parse_name_field
 
@@ -166,11 +171,10 @@ if __name__ == '__main__':
         print("Level 1 already has real SPUR room numbers -- do not regenerate it.", file=sys.stderr)
         sys.exit(1)
 
-    spur_data = Path(__file__).parent
-    header_file = spur_data / f'D.LEVEL{n}.TXT'
+    header_file = _SPUR_DATA / f'D.LEVEL{n}.TXT'
     room_file = None
     for pattern in (f'ROOM_LEVEL{n}.TXT', f'ROOM.LEVEL{n}.TXT'):
-        candidate = spur_data / pattern
+        candidate = _SPUR_DATA / pattern
         if candidate.exists():
             room_file = candidate
             break
@@ -184,7 +188,7 @@ if __name__ == '__main__':
 
     output = json.dumps({"rooms": rooms}, indent=4)
     if '--write' in sys.argv:
-        out_path = spur_data.parent / 'server' / f'level_{n}.json'
+        out_path = _SERVER_DIR / f'level_{n}.json'
         out_path.write_text(output)
         print(f'  wrote {out_path}', file=sys.stderr)
     else:
