@@ -949,7 +949,7 @@
             "item": 0,
             "weapon": 0,
             "food": 51,
-            "desc": "The wall of the cavern is to the east, a roaring waterfalls is thundering down there..."
+            "desc": "The wall of the cavern is to the east, a roaring waterfall is thundering down there..."
         },
         {
             "number": 61,
@@ -1587,7 +1587,7 @@
             "item": 0,
             "weapon": 0,
             "food": 0,
-            "desc": "The corridor goes is several directions. It raises steeply to the north, and descends to the south.."
+            "desc": "The corridor goes in several directions. It raises steeply to the north, and descends to the south.."
         },
         {
             "number": 108,
