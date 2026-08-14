@@ -20,14 +20,8 @@ Coverage:
 """
 from __future__ import annotations
 
-import sys
-import types
 import unittest
 from unittest.mock import AsyncMock, MagicMock
-
-nc_stub = types.ModuleType('network_context')
-nc_stub.GameContext = object
-sys.modules.setdefault('network_context', nc_stub)
 
 from commands.use import UseCommand
 from inventory import Inventory

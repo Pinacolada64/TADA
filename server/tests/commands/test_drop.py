@@ -16,11 +16,6 @@ import asyncio
 import unittest
 from unittest.mock import patch
 
-import sys, types
-nc_stub = types.ModuleType('network_context')
-nc_stub.GameContext = object
-sys.modules.setdefault('network_context', nc_stub)
-
 from commands.drop import (
     DropCommand,
     _is_water_room,

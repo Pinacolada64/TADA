@@ -9,11 +9,6 @@ from __future__ import annotations
 
 import unittest
 
-import sys, types
-nc_stub = types.ModuleType('network_context')
-nc_stub.GameContext = object
-sys.modules.setdefault('network_context', nc_stub)
-
 from commands.unready import UnreadyCommand
 
 

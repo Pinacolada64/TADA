@@ -16,12 +16,6 @@ import asyncio
 import unittest
 from unittest.mock import MagicMock
 
-import sys, types
-
-nc_stub = types.ModuleType('network_context')
-nc_stub.GameContext = object
-sys.modules.setdefault('network_context', nc_stub)
-
 from bar.ally_data import Ally, AllyPosition, AllyStatus
 from commands.order import OrderCommand
 from party import Party

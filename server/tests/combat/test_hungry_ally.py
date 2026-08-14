@@ -37,12 +37,6 @@ import asyncio
 import unittest
 from unittest.mock import MagicMock
 
-import sys, types
-
-nc_stub = types.ModuleType('network_context')
-nc_stub.GameContext = object
-sys.modules.setdefault('network_context', nc_stub)
-
 from ally_events import try_hungry_ally
 from bar.ally_data import Ally, AllyFlags, AllyStatus
 from inventory import Inventory

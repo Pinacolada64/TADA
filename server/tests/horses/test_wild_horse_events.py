@@ -15,11 +15,6 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-import sys, types
-nc_stub = types.ModuleType('network_context')
-nc_stub.GameContext = object
-sys.modules.setdefault('network_context', nc_stub)
-
 from base_classes import PlayerClass
 from wild_horse_events import try_wandering_horse_encounter
 

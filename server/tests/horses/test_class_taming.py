@@ -22,12 +22,6 @@ import asyncio
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import sys, types
-
-nc_stub = types.ModuleType('network_context')
-nc_stub.GameContext = object
-sys.modules.setdefault('network_context', nc_stub)
-
 from base_classes import Gender, PlayerClass
 from combat.engine import CombatSession
 from party import Party

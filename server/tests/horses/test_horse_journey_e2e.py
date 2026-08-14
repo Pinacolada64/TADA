@@ -35,16 +35,8 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import sys
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
-
-nc_stub_needed = 'network_context' not in sys.modules
-if nc_stub_needed:
-    import types
-    nc_stub = types.ModuleType('network_context')
-    nc_stub.GameContext = object
-    sys.modules.setdefault('network_context', nc_stub)
 
 from simple_server import Server, _WILD_HORSE_ROOMS, _WILD_HORSE_MONSTER_NUMBER
 from base_classes import Gender, PlayerClass

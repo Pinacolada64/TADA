@@ -47,16 +47,6 @@ import asyncio
 import unittest
 from unittest.mock import AsyncMock, MagicMock
 
-# ---------------------------------------------------------------------------
-# Minimal stubs so tests run without the full networking stack
-# ---------------------------------------------------------------------------
-
-import sys, types
-
-nc_stub = types.ModuleType('network_context')
-nc_stub.GameContext = object
-sys.modules.setdefault('network_context', nc_stub)
-
 from bar.ally_data import Ally, AllyStatus
 from commands.give import GiveCommand, _monster_give_response
 from commands.take import TakeCommand

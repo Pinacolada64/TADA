@@ -20,14 +20,8 @@ Run with:
 """
 from __future__ import annotations
 
-import sys
-import types
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
-
-nc_stub = types.ModuleType('network_context')
-nc_stub.GameContext = object
-sys.modules.setdefault('network_context', nc_stub)
 
 from combat.engine import CombatSession
 from flags import PlayerFlags

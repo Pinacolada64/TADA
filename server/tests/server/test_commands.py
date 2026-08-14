@@ -20,17 +20,6 @@ import unittest
 from typing import List
 from unittest.mock import AsyncMock, MagicMock, patch
 
-# ---------------------------------------------------------------------------
-# Minimal stubs so the tests run without the full TADA server installed
-# ---------------------------------------------------------------------------
-
-import sys, types
-
-# Stub out network_context so base_command / command_processor don't need it
-nc_stub = types.ModuleType("network_context")
-nc_stub.GameContext = object
-sys.modules.setdefault("network_context", nc_stub)
-
 from commands.base_command import Command, CommandResult, Mode
 from commands.command_processor import CommandProcessor
 

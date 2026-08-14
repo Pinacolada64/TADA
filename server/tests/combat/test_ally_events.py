@@ -30,13 +30,6 @@ import asyncio
 import unittest
 from unittest.mock import patch, MagicMock
 
-import sys, types
-
-# Minimal stubs so imports resolve without the full networking stack
-nc_stub = types.ModuleType('network_context')
-nc_stub.GameContext = object
-sys.modules.setdefault('network_context', nc_stub)
-
 from bar.ally_data import Ally, AllyStatus
 from ally_events import try_ally_find_gold, _OPD_ALLY_GOLD
 from base_classes import PlayerMoneyTypes
