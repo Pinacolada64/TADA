@@ -378,6 +378,20 @@ def _record_kill(player, monster: dict) -> None:
             player.unsaved_changes = True
 
 
+def _record_flee(player, monster: dict) -> None:
+    """Mark a monster scared off by a loud weapon as tracks-only for this
+    player -- SPUR's md==2 state (SPUR.COMBAT.S scare subroutine). Per-player,
+    same shape as _record_kill's dead_monsters (room.monster itself is left
+    untouched so other players still find the monster there)."""
+    mid = monster.get('number') or monster.get('id_number') or monster.get('id')
+    if mid is None:
+        return
+    fm = getattr(player, 'fled_monsters', None)
+    if isinstance(fm, list) and mid not in fm:
+        fm.append(mid)
+        player.unsaved_changes = True
+
+
 def _give_silver(player, amount: int) -> None:
     from base_classes import PlayerMoneyTypes
     try:
@@ -1024,6 +1038,14 @@ class CombatSession:
                             f'{monster_display_name(self.monster, capitalize=True)} flees in terror from the noise!',
                             exclude_self=True,
                         )
+                        # Leave tracks (SPUR md=2) for everyone who was in on
+                        # this fight, same "credited" shape _monster_dies uses
+                        # for dead_monsters.
+                        witnesses = list(self.attackers)
+                        if ctx not in witnesses:
+                            witnesses.append(ctx)
+                        for w_ctx in witnesses:
+                            _record_flee(w_ctx.player, self.monster)
                         self._done.set()
                         self._remove_attacker(ctx)
                         return

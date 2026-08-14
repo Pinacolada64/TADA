@@ -329,15 +329,12 @@ def check_special_weapon(
     # armor-penetration bonus computed below.
     result.is_storm = 'STORM' in weapon_name
 
-    # Scare-eligible: loud hit sound can frighten a monster away early in the fight.
-    # SPUR.COMBAT.S scare subroutine (lines 423-430) checks vr∈{31,37,55} which
-    # correspond to sound groups BLAM!!, FIZZLE, and BRRRT! in the SPUR sound table.
-    hit_sound = ''
-    if weapon:
-        sf = getattr(weapon, 'sound_effect', None) or ('', '')
-        hit_sound = (sf[1] if len(sf) > 1 else '').upper()
-    _LOUD = ('BLAM', 'BRRRT', 'BOOM', 'FIZZL', 'KA-PW', 'CRACK')
-    result.scare_eligible = any(kw in hit_sound for kw in _LOUD)
+    # Scare-eligible: SPUR.COMBAT.S scare subroutine (lines 423-430) checks
+    # vr∈{31,37,55} — THUNDERBOLT, SMALL CANNON, and STORM CROSSBOW by weapon
+    # number — not a sound-based heuristic.
+    _SCARE_WEAPON_NUMBERS = (31, 37, 55)
+    weapon_number = getattr(weapon, 'number', 0) if weapon else 0
+    result.scare_eligible = weapon_number in _SCARE_WEAPON_NUMBERS
 
     # Armor-penetration bonus (SPUR.COMBAT.S line 158):
     #   if (instr("STORM",wr$)) or (instr("CANNON",wr$)) or (wa=2) then b=b+xp
@@ -633,19 +630,19 @@ def _scare_check(sw: SpecialWeaponResult, monster: dict,
     """
     SPUR.COMBAT.S scare subroutine (lines 423-430).
 
-    A loud weapon (BLAM/BRRRT/BOOM/FIZZLE) has a 10% chance of frightening
-    a non-armored monster away during the first two exchanges of combat.
+    THUNDERBOLT, SMALL CANNON, or STORM CROSSBOW has a 10% chance of
+    frightening a monster away during the first exchange of combat.
 
       if (random(10)<>5) or (vu>1) return     ← 10% chance, vu<=1 only
-      if (vr<>31) and (vr<>55) and (vr<>37)  ← must be a loud-sound weapon
-      if (instr(":",wy$) or instr(".",wy$))   ← armored monsters immune
+      if (vr<>31) and (vr<>55) and (vr<>37)   ← must be one of the 3 weapons
+      if (instr(":",wy$) or instr(".",wy$))   ← mechanical/tough monsters immune
     """
     if not sw.scare_eligible:
         return False
     if monster_attack_count > 1:              # SPUR: vu>1 → return
         return False
     flags = monster.get('flags', {}) or {}
-    if flags.get('heavy_armor') or flags.get('light_armor'):
+    if flags.get('mechanical') or flags.get('tough'):
         return False
     triggered = (random.randint(1, 10) == 5)  # SPUR: random(10)<>5 → skip (10% fire)
     if triggered:
