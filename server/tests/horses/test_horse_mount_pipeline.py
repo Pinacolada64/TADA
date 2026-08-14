@@ -12,7 +12,8 @@ each piece of the pipeline in isolation.
 Coverage:
   - non-horse monster -> "You practice with the lasso", not captured
   - horse monster -> captured: new MOUNT ally added to party, strength =
-    monster strength + 5, hit_points 0 (SPUR: h1=0, unlike purchased allies)
+    monster strength + 5, hit_points seeded from strength (same formula
+    as a purchased ally, bar/fat_olaf.py's _HP_PER_STRENGTH)
   - full party (3 allies) blocks capture
   - already having a mount blocks capture
   - horse name validation: length and forbidden characters
@@ -32,12 +33,6 @@ from __future__ import annotations
 import asyncio
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
-
-import sys, types
-
-nc_stub = types.ModuleType('network_context')
-nc_stub.GameContext = object
-sys.modules.setdefault('network_context', nc_stub)
 
 from bar.ally_data import Ally, AllyFlags, AllyStatus
 from combat.engine import CombatSession
@@ -152,7 +147,7 @@ class TestLassoCapture(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(mount.name, 'STARDUST')
         self.assertIn(AllyFlags.MOUNT, mount.flags)
         self.assertEqual(mount.strength, 20)   # 15 + 5
-        self.assertEqual(mount.hit_points, 0)
+        self.assertEqual(mount.hit_points, 40)  # 20 x _HP_PER_STRENGTH (2)
         self.assertTrue(session._done.is_set())
 
     async def test_gender_rolled_male_announced_and_set_on_mount(self, _mock_log):

@@ -44,6 +44,12 @@ _FEMALE_HORSE_NAMES = (
 
 _FORBIDDEN_NAME_CHARS = set('!@#$%^&*()_-+=[{]}\\|:;<,>.?/')
 
+# hit_points seeded as strength x this on capture (TADA extension) --
+# same formula/constant as bar/fat_olaf.py's _HP_PER_STRENGTH, so a
+# lassoed mount and a purchased ally get comparable HP for comparable
+# strength.
+_HP_PER_STRENGTH = 2
+
 
 def _random_horse_name(gender: str) -> str:
     names = _FEMALE_HORSE_NAMES if gender == 'f' else _MALE_HORSE_NAMES
@@ -142,8 +148,7 @@ async def capture_mount(ctx: 'GameContext', monster: dict) -> Optional['Ally']:
     if name is None:
         return None
 
-    # SPUR lasso.b: ms (monster strength) + 5, h1=0 -- unlike a purchased
-    # ally, a freshly-lassoed mount starts with unseeded hit_points.
+    # SPUR lasso.b: ms (monster strength) + 5, h1=0.
     strength = _monster_hp(monster) + 5
     mount = Ally(name=name, gender=gender, strength=strength, to_hit=0,
                  flags=[AllyFlags.MOUNT])
@@ -151,7 +156,10 @@ async def capture_mount(ctx: 'GameContext', monster: dict) -> Optional['Ally']:
     mount.color       = color
     mount.status      = AllyStatus.SERVANT
     mount.owner       = player.name
-    mount.hit_points   = 0
+    # Seed HP from strength like a purchased ally (bar/fat_olaf.py's
+    # _HP_PER_STRENGTH) -- SPUR's h1=0 left a lassoed mount's hit_points
+    # unseeded, same gap purchased allies had before fat_olaf.py's fix.
+    mount.hit_points  = strength * _HP_PER_STRENGTH
     # Party has no .append() -- it's not a plain list (see party.py's
     # add_member()/add()). Discovered live: unit tests fake player.party
     # as a bare list, which masked this raising AttributeError against a

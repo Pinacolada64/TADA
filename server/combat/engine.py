@@ -1464,12 +1464,13 @@ class CombatSession:
         take a monster's hit instead of the player. Roll d10 vs monster
         agility; success redirects.
 
-        Narrative-only: this port doesn't yet track meaningful mount HP
-        (a freshly-lassoed mount's hit_points is seeded to 0 -- see
-        CombatSession.lasso -- and Horse Constitution/HP display is still
-        unported, per MECHANICS.md "Horses"), so the redirect simply means
-        the player takes no damage from this hit rather than applying
-        damage to the mount.
+        Still narrative-only: a captured mount's hit_points is now seeded
+        on capture (ally_events/capture_horse.py's capture_mount(), same
+        strength x _HP_PER_STRENGTH formula as a purchased ally), but
+        this redirect doesn't yet decrement it -- Horse Constitution/HP
+        display is still unported, per MECHANICS.md "Horses" -- so the
+        redirect simply means the player takes no damage from this hit
+        rather than applying damage to the mount.
         """
         player = ctx.player
         if not player.query_flag(PlayerFlags.MOUNTED):

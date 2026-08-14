@@ -1310,10 +1310,13 @@ register_topic(
             "ally_events/horse_bolt.py's _bolt_denominator() (TADA-only, "
             "no SPUR precedent) -- AllyFlags.COMBAT_TRAINED doubles the "
             "bolt denominator (half the odds), AllyFlags.ELITE returns "
-            "None (immune). Known gap: horse HP isn't "
-            "meaningfully tracked yet (a lassoed mount's hit_points "
-            "seeds to 0), so a 'mount redirects a hit' save is "
-            "narrative-only, not real mount damage.",
+            "None (immune). HP seeding: ally_events/capture_horse.py's "
+            "capture_mount() now seeds a lassoed mount's hit_points as "
+            "strength x _HP_PER_STRENGTH (2), same formula as a "
+            "purchased ally (bar/fat_olaf.py). Known gap: that HP still "
+            "isn't consumed anywhere -- combat/engine.py's "
+            "_try_redirect_to_mount() 'mount redirects a hit' save "
+            "remains narrative-only, not real mount damage/death.",
         ],
     ),
 )
