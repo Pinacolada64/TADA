@@ -1313,10 +1313,16 @@ register_topic(
             "None (immune). HP seeding: ally_events/capture_horse.py's "
             "capture_mount() now seeds a lassoed mount's hit_points as "
             "strength x _HP_PER_STRENGTH (2), same formula as a "
-            "purchased ally (bar/fat_olaf.py). Known gap: that HP still "
-            "isn't consumed anywhere -- combat/engine.py's "
-            "_try_redirect_to_mount() 'mount redirects a hit' save "
-            "remains narrative-only, not real mount damage/death.",
+            "purchased ally (bar/fat_olaf.py). Mount redirect damage: "
+            "combat/engine.py's _try_redirect_to_mount() now deducts "
+            "real hit_points from the mount (same raw-damage roll as a "
+            "normal monster swing, combat/resolution.py's "
+            "(r1+r2+r3)/3 + (8-ma), no armor/shield reduction) and shows "
+            "'(-N HP)' unless the player is_expert. At 0 HP the mount "
+            "dies (status -> AllyStatus.DEAD) and the player is "
+            "unmounted; a Saddle changes the death flavor text (player "
+            "goes down with the mount) but doesn't prevent the death. "
+            "TADA-only, no SPUR precedent for a mount actually dying.",
         ],
     ),
 )

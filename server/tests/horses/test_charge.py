@@ -18,8 +18,10 @@ Coverage:
     mount; low roll + no saddle throws the player and deals fall damage
     (can kill); a Saddle gives a second save roll
   - CombatSession._try_redirect_to_mount(): agile monster can redirect a
-    hit from the player onto the mount ally (narrative-only, no mount HP
-    is deducted -- see docstring in engine.py)
+    hit from the player onto the mount ally, deducting real hit_points;
+    a non-expert sees "(-N HP)", an expert doesn't; dropping the mount
+    to 0 HP unmounts the player and prints a death message (a distinct
+    one, taking the player down too, if the mount is Saddled)
 
 Run with:
     python -m pytest tests/test_charge.py -v
@@ -29,12 +31,6 @@ from __future__ import annotations
 import asyncio
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
-
-import sys, types
-
-nc_stub = types.ModuleType('network_context')
-nc_stub.GameContext = object
-sys.modules.setdefault('network_context', nc_stub)
 
 from bar.ally_data import Ally, AllyFlags, AllyStatus
 from base_classes import PlayerClass, PlayerRace, PlayerStat
@@ -55,18 +51,19 @@ class _FakeWeapon:
         self.sound_effect = None
 
 
-def _make_mount(name='SILVER', saddled=False) -> Ally:
+def _make_mount(name='SILVER', saddled=False, hit_points=40) -> Ally:
     flags = [AllyFlags.MOUNT]
     if saddled:
         flags.append(AllyFlags.SADDLED)
     a = Ally(name=name, gender='m', strength=20, to_hit=0, flags=flags)
     a.status = AllyStatus.SERVANT
+    a.hit_points = hit_points
     return a
 
 
 class _FakePlayer:
     def __init__(self, *, mounted=False, allies=None, hit_points=30, stats=None,
-                 char_class=None, char_race=None, xp_level=1):
+                 char_class=None, char_race=None, xp_level=1, is_expert=False):
         self.name = 'Rulan'
         self.party = list(allies or [])
         self.unsaved_changes = False
@@ -77,6 +74,7 @@ class _FakePlayer:
         self.char_race = char_race
         self.xp_level = xp_level
         self.readied_weapon = None
+        self.is_expert = is_expert
         self._flags = {PlayerFlags.MOUNTED: mounted}
 
     def query_flag(self, flag):
@@ -370,6 +368,52 @@ class TestRedirectToMount(unittest.IsolatedAsyncioTestCase):
         with patch('combat.engine.random.randint', return_value=1):
             redirected = await session._try_redirect_to_mount(ctx)
         self.assertFalse(redirected)
+
+    async def test_redirect_deducts_mount_hit_points(self):
+        mount = _make_mount(name='SILVER', hit_points=40)
+        player = _FakePlayer(mounted=True, allies=[mount])
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN', 'to_hit': 9}, room_no=1)
+        # redirect roll (1, succeeds vs ma=9), then r1/r2/r3 all 10 ->
+        # dmg = (10+10+10)/3 + (8-9) = 9.
+        with patch('combat.engine.random.randint', side_effect=[1, 10, 10, 10]):
+            redirected = await session._try_redirect_to_mount(ctx)
+        self.assertTrue(redirected)
+        self.assertEqual(mount.hit_points, 31)
+        self.assertIn('(-9 HP)', ctx.sent())
+
+    async def test_non_expert_sees_hp_suffix_expert_does_not(self):
+        mount = _make_mount(name='SILVER', hit_points=40)
+        player = _FakePlayer(mounted=True, allies=[mount], is_expert=True)
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN', 'to_hit': 9}, room_no=1)
+        with patch('combat.engine.random.randint', side_effect=[1, 10, 10, 10]):
+            await session._try_redirect_to_mount(ctx)
+        self.assertNotIn('HP)', ctx.sent())
+
+    async def test_mount_dies_unsaddled_unmounts_player(self):
+        mount = _make_mount(name='SILVER', hit_points=5)
+        player = _FakePlayer(mounted=True, allies=[mount])
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN', 'to_hit': 9}, room_no=1)
+        with patch('combat.engine.random.randint', side_effect=[1, 10, 10, 10]):
+            await session._try_redirect_to_mount(ctx)
+        self.assertEqual(mount.hit_points, 0)
+        self.assertEqual(mount.status, AllyStatus.DEAD)
+        self.assertFalse(player.query_flag(PlayerFlags.MOUNTED))
+        self.assertIn('SILVER stumbles and falls, not moving.', ctx.sent())
+        self.assertNotIn('taking you with', ctx.sent())
+
+    async def test_mount_dies_saddled_takes_player_down_too(self):
+        mount = _make_mount(name='SILVER', saddled=True, hit_points=5)
+        player = _FakePlayer(mounted=True, allies=[mount])
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN', 'to_hit': 9}, room_no=1)
+        with patch('combat.engine.random.randint', side_effect=[1, 10, 10, 10]):
+            await session._try_redirect_to_mount(ctx)
+        self.assertEqual(mount.status, AllyStatus.DEAD)
+        self.assertFalse(player.query_flag(PlayerFlags.MOUNTED))
+        self.assertIn('taking you with him, and falls, not moving.', ctx.sent())
 
 
 if __name__ == '__main__':

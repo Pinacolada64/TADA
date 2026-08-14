@@ -1464,13 +1464,15 @@ class CombatSession:
         take a monster's hit instead of the player. Roll d10 vs monster
         agility; success redirects.
 
-        Still narrative-only: a captured mount's hit_points is now seeded
-        on capture (ally_events/capture_horse.py's capture_mount(), same
-        strength x _HP_PER_STRENGTH formula as a purchased ally), but
-        this redirect doesn't yet decrement it -- Horse Constitution/HP
-        display is still unported, per MECHANICS.md "Horses" -- so the
-        redirect simply means the player takes no damage from this hit
-        rather than applying damage to the mount.
+        The mount actually takes the damage now (hit_points seeded on
+        capture -- see ally_events/capture_horse.py's capture_mount()),
+        rolled the same way a normal monster swing's damage is (see
+        combat/resolution.py's raw = ((r1+r2+r3)/3) + (8-ma), just without
+        the armor/shield reductions a mount doesn't have. If that drops
+        the mount to 0 HP, it collapses and the player is unmounted --
+        with a Saddle on, the player goes down with it instead of just
+        watching. Both TADA-only, no SPUR precedent for a mount actually
+        dying from this.
         """
         player = ctx.player
         if not player.query_flag(PlayerFlags.MOUNTED):
@@ -1491,6 +1493,28 @@ class CombatSession:
             f'{mname} attacks {_player_name(ctx)}, but strikes {mount.name} instead!',
             exclude_self=True,
         )
+
+        r1, r2, r3 = random.randint(1, 10), random.randint(1, 10), random.randint(1, 10)
+        dmg = max(0, int((r1 + r2 + r3) / 3 + (8 - ma)))
+        mount.hit_points = max(0, (mount.hit_points or 0) - dmg)
+        player.unsaved_changes = True
+        if not player.is_expert:
+            await ctx.send(f'(-{dmg} HP)')
+
+        if mount.hit_points <= 0:
+            from bar.ally_data import AllyFlags, AllyStatus
+
+            mount.status = AllyStatus.DEAD
+            player.clear_flag(PlayerFlags.MOUNTED)
+            if AllyFlags.SADDLED in (mount.flags or []):
+                from tada_utilities import PronounType, get_pronoun
+                pronoun = get_pronoun(mount, PronounType.OBJECTIVE)
+                await ctx.send(
+                    f'...{mount.name} stumbles, taking you with {pronoun}, and falls, not moving.'
+                )
+            else:
+                await ctx.send(f'...{mount.name} stumbles and falls, not moving.')
+
         return True
 
     async def _charge_unseat_check(self, ctx: 'GameContext') -> bool:
