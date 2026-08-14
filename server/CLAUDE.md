@@ -49,10 +49,11 @@
   so pushes/PRs still cover them.
 - To run everything locally (same as CI), use `pytest -q -m ""`. To run
   only the e2e tests, use `pytest -q -m e2e`.
-- As of 7/16/26, the full suite (`pytest -q -m ""`) has exactly 20
-  pre-existing baseline failures unrelated to any in-session work —
-  confirm a change hasn't introduced new failures by diffing against
-  that count/list, not by expecting a clean run.
+- As of 8/13/26, the full suite (`pytest -q -m ""`) passes clean: 4149
+  passed, 2 skipped, 0 failures (the 20 pre-existing failures noted as
+  of 7/16/26 are gone — confirm against a fresh run rather than trusting
+  this count going stale again). A clean run is now the expectation; a
+  failure means investigate, not "matches baseline."
 
 ## SPUR source data
 
