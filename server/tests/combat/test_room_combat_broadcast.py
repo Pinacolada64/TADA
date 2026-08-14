@@ -28,6 +28,7 @@ def _client(name, room_no=1):
     c.room = room_no
     c.virtual_location = None
     c.ctx.player.name = name
+    c.ctx.player.query_flag.return_value = False
     return c
 
 
@@ -105,3 +106,11 @@ class TestRoomCombatBroadcast:
         lines = server._describe_room(_viewer_client())
         assert any('Railbender is here' in line for line in lines)
         assert not any('fighting' in line for line in lines)
+
+    def test_unconscious_bystander_tagged_in_room_listing(self, server):
+        unconscious = _client('Loser')
+        unconscious.ctx.player.query_flag.return_value = True
+        server.clients = {'a': unconscious}
+        server.active_combats = {}
+        lines = server._describe_room(_viewer_client())
+        assert any('Loser (Unconscious) is here' in line for line in lines)

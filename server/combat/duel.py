@@ -834,6 +834,13 @@ class DuelSession:
 
         winner, loser = winner_side.player, loser_side.player
         loser.hit_points = _MIN_HP_AFTER_LOSS
+        # SPUR.DUEL2.S's "uncon" subroutine: a duel loser is left
+        # unconscious (can't be re-challenged, shows "(Unconscious)" in
+        # room listings, wakes up at next login -- see
+        # logon_events/unconscious_wake.py) rather than just docked HP.
+        from flags import PlayerFlags
+        loser.set_flag(PlayerFlags.UNCONSCIOUS)
+        loser.defeated_by = winner.name
         loser.unsaved_changes = True
         if disconnected:
             self._terse_notes.append(f'{loser.name} disconnects, forfeiting a duel to {winner.name}!')
@@ -958,6 +965,12 @@ import net_common
 async def _send_challenge(ctx: GameContext, target_ctx) -> CommandResult:
     challenger = ctx.player
     target = target_ctx.player
+
+    # SPUR.DUEL2.S chlng2: "You can't duel unconcious people!"
+    from flags import PlayerFlags
+    if target.query_flag(PlayerFlags.UNCONSCIOUS):
+        await ctx.send(f"You can't duel {target.name} -- they're unconscious!")
+        return CommandResult.fail('Target is unconscious.')
 
     if getattr(target, 'pending_duel_challenge', None):
         await ctx.send(f'{target.name} already has a pending challenge to answer.')

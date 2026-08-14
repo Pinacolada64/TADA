@@ -1196,6 +1196,37 @@ class TestStatisticsDuelRecord(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(_find_item(menu, 'Duel wins').dot_leader_handler(ctx), '5')
         self.assertEqual(_find_item(menu, 'Duel losses').dot_leader_handler(ctx), '2')
 
+    async def test_set_defeated_by(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(responses=['Belwin'], player=player)
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Defeated by').action(ctx)
+        self.assertEqual(player.defeated_by, 'Belwin')
+
+    async def test_clear_defeated_by(self):
+        player = _FakePlayer()
+        player.defeated_by = 'Belwin'
+        ctx = _FakeCtx(responses=['clear'], player=player)
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Defeated by').action(ctx)
+        self.assertIsNone(player.defeated_by)
+
+    async def test_blank_leaves_defeated_by_unchanged(self):
+        player = _FakePlayer()
+        player.defeated_by = 'Belwin'
+        ctx = _FakeCtx(responses=[''], player=player)
+        menu = _statistics_menu(ctx)
+        await _find_item(menu, 'Defeated by').action(ctx)
+        self.assertEqual(player.defeated_by, 'Belwin')
+
+    async def test_defeated_by_dot_leader_reflects_current_value(self):
+        player = _FakePlayer()
+        ctx = _FakeCtx(player=player)
+        menu = _statistics_menu(ctx)
+        self.assertEqual(_find_item(menu, 'Defeated by').dot_leader_handler(ctx), '(not set)')
+        player.defeated_by = 'Belwin'
+        self.assertEqual(_find_item(menu, 'Defeated by').dot_leader_handler(ctx), 'Belwin')
+
 
 class TestStatisticsMonstersKilled(unittest.IsolatedAsyncioTestCase):
 

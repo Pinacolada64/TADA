@@ -375,6 +375,13 @@ class Player:
         # per player rather than removed from the room, or other players
         # would lose the monster too.
         self.charmed_monsters: list[int] = kwargs.get('charmed_monsters', [])
+        # Monster numbers scared off by a loud weapon (SPUR.COMBAT.S scare
+        # subroutine) that this player has personally frightened away --
+        # SPUR's md==2 "tracks" state. Same per-player shape as
+        # dead_monsters/charmed_monsters above: room.monster stays put for
+        # other players, so "has fled for me" has to live here rather than
+        # on the room.
+        self.fled_monsters: list[int] = kwargs.get('fled_monsters', [])
         # Session history of rations/items already taken so they don't
         # respawn in a room description -- SPUR's xo/xo$ (rations, 20-entry
         # ring buffer) and xt/xt$ (items/weapons, 60-entry ring buffer).
@@ -410,6 +417,11 @@ class Player:
         # DuelSession._end() on every decisive SPORT DUEL.
         self.duel_wins: int = kwargs.get('duel_wins', 0)
         self.duel_losses: int = kwargs.get('duel_losses', 0)
+        # Who knocked this player unconscious (SPUR.DUEL2.S's "uncon"
+        # subroutine) -- read by logon_events/unconscious_wake.py to name
+        # the opponent in the wake-up line, then cleared alongside
+        # PlayerFlags.UNCONSCIOUS. None when not unconscious.
+        self.defeated_by: Optional[str] = kwargs.get('defeated_by', None)
         # Session-only: the shared combat.duel.DuelSession this player is
         # currently fighting in, if any (set on both duelists by
         # combat/duel.py's _resolve_challenge(), cleared by
@@ -1177,7 +1189,7 @@ class Player:
             simple_keys = ('map_room', 'map_level', 'xp_level', 'times_played', 'moves_today', 'hit_points', 'quote',
                            'shield', 'armor', 'active_shield_id', 'active_armor_id', 'loan_amount', 'loan_days', 'food', 'drink',
                            '_survival_counter', 'experience', 'honor', 'moves_made', 'wizard_glow',
-                           'duel_wins', 'duel_losses', 'ammo_rounds', 'ammo_max', 'ammo_damage')
+                           'duel_wins', 'duel_losses', 'ammo_rounds', 'ammo_max', 'ammo_damage', 'defeated_by')
             for k in simple_keys:
                 if k in data:
                     try:
@@ -1360,6 +1372,11 @@ class Player:
             # Per-player charmed-and-recruited list (each entry is a monster number)
             if 'charmed_monsters' in data and isinstance(data['charmed_monsters'], list):
                 self.charmed_monsters = [int(i) for i in data['charmed_monsters'] if isinstance(i, (int, float))]
+
+            # Per-player scared-off list (each entry is a monster number) --
+            # SPUR's md==2 "tracks" state, see __init__'s comment.
+            if 'fled_monsters' in data and isinstance(data['fled_monsters'], list):
+                self.fled_monsters = [int(i) for i in data['fled_monsters'] if isinstance(i, (int, float))]
 
             # Combinations — accepts both the current dict shape ({name: {...}})
             # and the older list-of-dicts shape ([{'name': ..., 'combination': [...]}])

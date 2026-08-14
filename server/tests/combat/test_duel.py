@@ -207,6 +207,24 @@ class TestPersonalDuelRecordAndBattleLog(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(winner.duel_losses, 0)
         self.assertEqual(loser.duel_wins, 0)
 
+    async def test_loser_left_unconscious_naming_the_winner(self):
+        from flags import PlayerFlags
+
+        session, a, b = _make_session()
+        a.hit_points = 100
+        b.hit_points = 1
+        with patch('combat.duel.net_common.append_battle_log'):
+            for _ in range(50):
+                if session.done:
+                    break
+                await session.submit(a, DuelTactic.ATTACK)
+                await session.submit(b, DuelTactic.PARRY)
+        self.assertTrue(session.done)
+        winner, loser = (a, b) if b.hit_points == 15 else (b, a)
+        self.assertTrue(loser.query_flag(PlayerFlags.UNCONSCIOUS))
+        self.assertEqual(loser.defeated_by, winner.name)
+        self.assertFalse(winner.query_flag(PlayerFlags.UNCONSCIOUS))
+
     async def test_repeated_wins_accumulate(self):
         session, a, b = _make_session()
         a.duel_wins = 4
@@ -247,6 +265,42 @@ class TestPersonalDuelRecordAndBattleLog(unittest.IsolatedAsyncioTestCase):
         self.assertIn('FLED', entry)
         self.assertIn(a.name, entry)
         self.assertIn(b.name, entry)
+
+
+class TestChallengeBlockedWhenUnconscious(unittest.IsolatedAsyncioTestCase):
+    """SPUR.DUEL2.S chlng2: "You can't duel unconcious people!" --
+    combat/duel.py's _send_challenge()."""
+
+    async def test_cannot_challenge_an_unconscious_player(self):
+        from combat.duel import _send_challenge
+        from flags import PlayerFlags
+
+        challenger = _make_duelist('Ardent')
+        target = _make_duelist('Belwin')
+        target.set_flag(PlayerFlags.UNCONSCIOUS)
+        ctx = _FakeCtx()
+        ctx.player = challenger
+        target_ctx = _FakeCtx()
+        target_ctx.player = target
+
+        result = await _send_challenge(ctx, target_ctx)
+        self.assertFalse(result.success)
+        self.assertIn("unconscious", _flat(ctx).lower())
+        self.assertIsNone(getattr(target, 'pending_duel_challenge', None))
+
+    async def test_can_challenge_a_conscious_player(self):
+        from combat.duel import _send_challenge
+
+        challenger = _make_duelist('Ardent')
+        target = _make_duelist('Belwin')
+        ctx = _FakeCtx()
+        ctx.player = challenger
+        target_ctx = _FakeCtx()
+        target_ctx.player = target
+
+        result = await _send_challenge(ctx, target_ctx)
+        self.assertTrue(result.success)
+        self.assertEqual(target.pending_duel_challenge, challenger.name)
 
 
 class TestBystanderBroadcast(unittest.IsolatedAsyncioTestCase):

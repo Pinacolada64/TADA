@@ -1856,6 +1856,33 @@ def _statistics_menu(ctx) -> Menu:
             p.unsaved_changes = True
             await ctx.send(f'Duel losses set to {val}.')
 
+    async def edit_defeated_by(ctx) -> None:
+        # Pairs with PlayerFlags.UNCONSCIOUS (Flags/Counters menu) -- set
+        # together by combat/duel.py's DuelSession._end() on a duel loss,
+        # cleared together by logon_events/unconscious_wake.py at the
+        # player's next login. Free text since it just names whoever most
+        # recently knocked them out, not a cross-reference to a live
+        # Player object.
+        cur = getattr(p, 'defeated_by', None)
+        raw = await ctx.prompt(
+            'Defeated by',
+            preamble_lines=[
+                f'Current: {cur or "(not set)"}',
+                "Type 'clear' to unset, blank to cancel:",
+            ],
+        )
+        if not raw or not raw.strip():
+            await ctx.send('Defeated by unchanged.')
+            return
+        if raw.strip().lower() == 'clear':
+            p.defeated_by = None
+            p.unsaved_changes = True
+            await ctx.send('Defeated by cleared.')
+            return
+        p.defeated_by = raw.strip()
+        p.unsaved_changes = True
+        await ctx.send(f'Defeated by set to {p.defeated_by}.')
+
     async def edit_monsters_killed(ctx) -> None:
         monsters = getattr(ctx.server, 'monsters', []) or []
         killed = getattr(p, 'dead_monsters', None)
@@ -1982,6 +2009,11 @@ def _statistics_menu(ctx) -> Menu:
         'Duel losses', shortcuts='dl',
         dot_leader_handler=lambda ctx: str(getattr(p, 'duel_losses', '?')),
         action=edit_duel_losses,
+    ))
+    menu.add_item(MenuItem(
+        'Defeated by', shortcuts='db',
+        dot_leader_handler=lambda ctx: str(getattr(p, 'defeated_by', None) or '(not set)'),
+        action=edit_defeated_by,
     ))
     return menu
 

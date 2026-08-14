@@ -902,6 +902,7 @@ class Server:
                 player  = getattr(getattr(client, 'ctx', None), 'player', None)
                 mk      = getattr(player, 'dead_monsters', []) if player else []
                 cm      = getattr(player, 'charmed_monsters', []) if player else []
+                fm      = getattr(player, 'fled_monsters', []) if player else []
                 from spells.charm import charm_greeting_line
                 greeting = (charm_greeting_line(player, int(room_no), level)
                             if player else None)
@@ -927,13 +928,16 @@ class Server:
                     monster_and_seen += ['', f'The {name} {verb} around nostalgically..']
                 elif greeting is not None:
                     monster_and_seen += ['', greeting]
+                elif mon_num is not None and mon_num in fm:
+                    # Monster fled this player's fight (loud weapon scared it
+                    # off) -- SPUR's md==2 "tracks" state.
+                    monster_and_seen += ['', f'You see {name} tracks here.']
                 elif mon_num is not None and mon_num in mk:
                     # Monster is dead for this player
                     if flags.get('mechanical'):
                         monster_and_seen += ['', f'The wrecked remains of {name} lie here.']
                     else:
                         monster_and_seen += ['', f'You see a dead {name} here.']
-                    # TODO: fled (md=2) case — show tracks when monster-flee is implemented
                 elif mon_num == _DWARF_MONSTER_NUMBER:
                     # SPUR.MAIN.S: "A short bearded person is here, with a
                     # pile of gold!" -- own flavor line instead of the
@@ -1017,7 +1021,15 @@ class Server:
 
             bystanders = [(n, p) for n, p in others if n not in fighting]
             if bystanders:
-                tail += ['', list_players_in_room([n for n, _ in bystanders])]
+                # SPUR.DUEL2.S ply.loc: a duel loser's name gets an
+                # "(Unconscious)" tag in room listings until they wake up
+                # at next login (logon_events/unconscious_wake.py).
+                from flags import PlayerFlags
+                display_names = [
+                    f'{n} (Unconscious)' if p is not None and p.query_flag(PlayerFlags.UNCONSCIOUS) else n
+                    for n, p in bystanders
+                ]
+                tail += ['', list_players_in_room(display_names)]
                 # Each bystander's personal quote (SPUR.MAIN.S:398's
                 # gosub ply.loc7, shown right under "X is here" there);
                 # "$" in it becomes the *viewer's* name, not the author's.

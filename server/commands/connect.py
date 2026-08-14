@@ -512,6 +512,15 @@ class ConnectCommand(Command):
             if birthday_lines:
                 login_lines += birthday_lines
 
+        # Waking from a duel-loss Unconscious state -- see
+        # logon_events/unconscious_wake.py and combat/duel.py's
+        # DuelSession._end().
+        from logon_events.unconscious_wake import wake_lines
+        unconscious_lines = wake_lines(player)
+        if unconscious_lines:
+            login_lines += unconscious_lines
+            login_lines.append("")
+
         # Recovered editor session (SHUTDOWN caught them mid-edit last
         # time) -- see text_editor.save_recovery_file()/commands/edit.py.
         recovery_lines = _login_recovery_lines(player)

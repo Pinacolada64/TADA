@@ -453,11 +453,11 @@ class GetCommand(Command):
             pname = getattr(other, 'name', 'Someone')
             if target == '*' or target in pname.lower():
                 matched = True
-                hp = int(getattr(other, 'hit_points', 1) or 1)
-                if hp > 0:
-                    await ctx.send(f'{pname} SKUTTLES OUT OF REACH!')
+                from flags import PlayerFlags
+                if other.query_flag(PlayerFlags.UNCONSCIOUS):
+                    await ctx.send(f"{pname} won't fit in your sack..")
                 else:
-                    await ctx.send(f'{pname} WON\'T FIT IN YOUR SACK..')
+                    await ctx.send(f'{pname} skuttles out of reach!')
 
         if not matched and target != '*':
             await ctx.send(f'You do not see any "{target}" here.')

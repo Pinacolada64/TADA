@@ -492,6 +492,36 @@ class TestDuelRecordPersistence(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# defeated_by / PlayerFlags.UNCONSCIOUS
+# ---------------------------------------------------------------------------
+
+class TestUnconsciousStatePersistence(unittest.TestCase):
+    """player.defeated_by (combat/duel.py's DuelSession._end(), read by
+    logon_events/unconscious_wake.py) -- same simple_keys pattern as
+    duel_wins/duel_losses above; must survive a relogin so the wake-up
+    line can still name the opponent even across a disconnect.
+    PlayerFlags.UNCONSCIOUS itself round-trips via the generic flags
+    serialization, not simple_keys."""
+
+    def test_defeated_by_and_unconscious_flag_survive_save_and_load(self):
+        import net_common
+        from flags import PlayerFlags
+
+        with tempfile.TemporaryDirectory() as tmp:
+            net_common.run_server_dir = tmp
+            player = Player(id='unconscioustest', name='Unconscioustest')
+            player.set_flag(PlayerFlags.UNCONSCIOUS)
+            player.defeated_by = 'Belwin'
+            player.unsaved_changes = True
+            self.assertTrue(player.save(force=True))
+
+            reloaded = Player(id='unconscioustest', name='Unconscioustest')
+            self.assertTrue(reloaded._load())
+            self.assertEqual(reloaded.defeated_by, 'Belwin')
+            self.assertTrue(reloaded.query_flag(PlayerFlags.UNCONSCIOUS))
+
+
+# ---------------------------------------------------------------------------
 # dead_monsters / monsters_killed
 # ---------------------------------------------------------------------------
 
