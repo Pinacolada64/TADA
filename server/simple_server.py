@@ -908,10 +908,23 @@ class Server:
                 if mon_num is not None and mon_num in cm:
                     # Charmed and recruited by this player -- room.monster
                     # is shared/global state (see charm.py's docstring), so
-                    # this is a per-viewer "gone" check, same idea as the
-                    # dead_monsters branch below but with no line at all
-                    # (the monster left with this player, not died).
-                    pass
+                    # this is a per-viewer check. SPUR.MISC4.S:64 (the
+                    # rd.mons/claw subroutine, right after the d1$/d2$/d3$
+                    # "is this ally's name" match): revisiting the room
+                    # where an ally used to be the monster prints
+                    # `zw$" LOOK"i$"AROUND NOSTALGICALLY.."` (i$="S " unless
+                    # the name already ends in S) instead of the normal
+                    # presence line -- ms=0 there also suppresses the
+                    # encounter roll, this port's equivalent being
+                    # encounters/monster.py's try_monster_encounter()
+                    # already skipping charmed_monsters. Sentence-cased and
+                    # the ".." kept literal per this port's convention
+                    # (SPUR's own ALL-CAPS is a display-hardware artifact,
+                    # not a style to preserve, but its ".." isn't -- see
+                    # e.g. commands/drink.py's 'You kneel and drink your
+                    # fill..').
+                    verb = 'look' if is_or_are(name) == 'are' else 'looks'
+                    monster_and_seen += ['', f'The {name} {verb} around nostalgically..']
                 elif greeting is not None:
                     monster_and_seen += ['', greeting]
                 elif mon_num is not None and mon_num in mk:

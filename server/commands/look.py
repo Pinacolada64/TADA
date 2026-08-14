@@ -78,13 +78,33 @@ class LookCommand(Command):
                 await self._describe_ally(ctx, ally)
                 return CommandResult.ok()
 
-        # A monster the player is (or could join) fighting in this room.
+        # A monster mid-fight in this room (checked first so a live
+        # CombatSession's own per-fight copy -- e.g. after damage/flag
+        # changes -- wins over the static room.monster template below).
         active_combats = getattr(ctx.server, 'active_combats', {}) or {}
         session = active_combats.get(getattr(ctx.client, 'room', None))
         if session is not None and not session._done.is_set():
             mname = (session.monster.get('name') or '').lower()
             if mname and target in mname:
                 await self._describe_monster(ctx, session.monster)
+                return CommandResult.ok()
+
+        # The room's own monster -- shown by the "There is X here" line
+        # (simple_server.py's _describe_room_parts()) as soon as the room
+        # is entered, well before anyone ATTACKs it and starts a
+        # CombatSession above. Ryan's request: LOOK should work on a
+        # monster any time it's in the room, not just mid-fight -- a
+        # killed-by-this-player monster still resolves here (room.monster
+        # isn't cleared per-player, dead_monsters is the actual gate) and
+        # _describe_monster() below reports it as dead rather than using
+        # the alive-flavored description. Only skipped when the monster
+        # has actually left the room (charmed and recruited into the
+        # party -- see _room_monster()'s charmed_monsters check).
+        monster = self._room_monster(ctx)
+        if monster is not None:
+            mname = (monster.get('name') or '').lower()
+            if mname and target in mname:
+                await self._describe_monster(ctx, monster)
                 return CommandResult.ok()
 
         # Search inventory for a matching item.
@@ -114,7 +134,56 @@ class LookCommand(Command):
     async def _describe_ally(self, ctx: GameContext, ally) -> None:
         await describe_ally(ctx, ally)
 
+    def _room_monster(self, ctx: GameContext) -> dict | None:
+        """The static monster.json entry room.monster points at, or None
+        if there isn't one or it's actually left the room (charmed and
+        recruited into the party). Deliberately does NOT gate on
+        dead_monsters -- a monster this player already killed should
+        still resolve here so _describe_monster() can report it as dead,
+        rather than LOOK falling through to "you don't see any"."""
+        server = ctx.server
+        game_map = getattr(server, 'game_map', None)
+        if game_map is None:
+            return None
+        room_no = getattr(ctx.client, 'room', None)
+        if not room_no:
+            return None
+        level = int(getattr(ctx.player, 'map_level', 1) or 1)
+        room = game_map.get_room(level, int(room_no))
+        if room is None:
+            return None
+        mon_number = int(getattr(room, 'monster', 0) or 0)
+        if not mon_number:
+            return None
+        from monsters import get_monster
+        monster = get_monster(getattr(server, 'monsters', []) or [], mon_number)
+        if monster is None:
+            return None
+        # A charmed-and-recruited monster has actually left the room (it
+        # joined the party as an ally, found via owned_allies() above) --
+        # unlike a plain kill, LOOKing its old room slot should find
+        # nothing there rather than a "dead" line. A merely *pending*
+        # charm (charm_greeting_line) is still physically in the room, so
+        # that case falls through to a normal describe below.
+        charmed_monsters = getattr(ctx.player, 'charmed_monsters', []) or []
+        if mon_number in charmed_monsters:
+            return None
+        return monster
+
     async def _describe_monster(self, ctx: GameContext, monster: dict) -> None:
+        from monsters import monster_is_alive
+        if not monster_is_alive(monster, ctx.player):
+            # Most flavor text in monsters.json assumes the monster is
+            # still up and fighting ("rears back", "snarls") -- Ryan's
+            # request: a killed monster should say so instead, matching
+            # simple_server.py's own room-description wording for a dead
+            # monster (_describe_room_parts()'s dead_monsters branch).
+            name = monster.get('name') or 'monster'
+            if (monster.get('flags') or {}).get('mechanical'):
+                await ctx.send(f'The wrecked remains of {name} lie here.')
+            else:
+                await ctx.send(f'You see a dead {name} here.')
+            return
         description = (monster.get('description') or '').strip()
         if description:
             await ctx.send(description)
