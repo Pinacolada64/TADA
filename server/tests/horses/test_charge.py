@@ -409,11 +409,43 @@ class TestRedirectToMount(unittest.IsolatedAsyncioTestCase):
         player = _FakePlayer(mounted=True, allies=[mount])
         ctx = _FakeCtx(player)
         session = CombatSession({'name': 'GOBLIN', 'to_hit': 9}, room_no=1)
+        session.attackers.append(ctx)
         with patch('combat.engine.random.randint', side_effect=[1, 10, 10, 10]):
-            await session._try_redirect_to_mount(ctx)
+            redirected = await session._try_redirect_to_mount(ctx)
         self.assertEqual(mount.status, AllyStatus.DEAD)
         self.assertFalse(player.query_flag(PlayerFlags.MOUNTED))
         self.assertIn('taking you with him, and falls, not moving.', ctx.sent())
+        # "Not moving" takes the player out of the fight -- solo attacker,
+        # so the whole session ends.
+        self.assertTrue(redirected)
+        self.assertNotIn(ctx, session.attackers)
+        self.assertTrue(session._done.is_set())
+
+    async def test_mount_dies_saddled_with_other_attackers_only_ends_for_this_player(self):
+        mount = _make_mount(name='SILVER', saddled=True, hit_points=5)
+        player = _FakePlayer(mounted=True, allies=[mount])
+        ctx = _FakeCtx(player)
+        other_ctx = _FakeCtx(_FakePlayer())
+        session = CombatSession({'name': 'GOBLIN', 'to_hit': 9}, room_no=1)
+        session.attackers.extend([ctx, other_ctx])
+        with patch('combat.engine.random.randint', side_effect=[1, 10, 10, 10]):
+            await session._try_redirect_to_mount(ctx)
+        self.assertNotIn(ctx, session.attackers)
+        self.assertIn(other_ctx, session.attackers)
+        self.assertFalse(session._done.is_set())
+
+    async def test_resolve_monster_hit_stops_loop_when_saddled_mount_death_ends_fight(self):
+        from combat.resolution import MonsterAttackResult
+
+        mount = _make_mount(name='SILVER', saddled=True, hit_points=5)
+        player = _FakePlayer(mounted=True, allies=[mount])
+        ctx = _FakeCtx(player)
+        session = CombatSession({'name': 'GOBLIN', 'to_hit': 9}, room_no=1)
+        session.attackers.append(ctx)
+        result = MonsterAttackResult(hit=True, damage=1)
+        with patch('combat.engine.random.randint', side_effect=[1, 10, 10, 10]):
+            stop = await session._resolve_monster_hit(ctx, result)
+        self.assertTrue(stop)
 
 
 if __name__ == '__main__':

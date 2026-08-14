@@ -1401,8 +1401,10 @@ class CombatSession:
         """Narrate and apply one monster swing, giving allies a death-save chance first.
 
         Returns True if the fight is over (a GOD/GODDESS ally whisked the
-        player to safety) and the caller should stop the combat loop
-        immediately; False if the hit was narrated/applied as normal.
+        player to safety, or a Saddled mount's death took the player down
+        with it -- see _try_redirect_to_mount) and the caller should stop
+        the combat loop immediately; False if the hit was narrated/applied
+        as normal.
 
         SPUR.COMBAT.S "dragon" label: sac.ally is only tried when the
         incoming blow would drop HP to 0 or below (`if a>hp-1`).
@@ -1420,7 +1422,12 @@ class CombatSession:
             if self._is_lurking_this_round and await lurk.try_redirect_to_ally(self, ctx, result):
                 return False
             if await self._try_redirect_to_mount(ctx):
-                return False
+                # Usually the round just continues (the player took no
+                # damage, nothing else changed) -- but a Saddled mount's
+                # death already called self._remove_attacker(ctx)/
+                # self._done.set() to take the fallen player out of the
+                # fight, and the caller needs to stop swinging at them.
+                return self._done.is_set()
 
         hp = int(getattr(player, 'hit_points', 1) or 1)
         if result.hit and not result.spell_cast and (result.damage + result.fire_damage) >= hp:
@@ -1471,8 +1478,13 @@ class CombatSession:
         the armor/shield reductions a mount doesn't have. If that drops
         the mount to 0 HP, it collapses and the player is unmounted --
         with a Saddle on, the player goes down with it instead of just
-        watching. Both TADA-only, no SPUR precedent for a mount actually
-        dying from this.
+        watching, which pulls them out of the fight entirely (removed
+        from self.attackers, self._done set if no one else is still
+        fighting -- see _resolve_monster_hit's caller-side check). Room
+        stays the same either way -- nothing in this port relocates the
+        player as a combat consequence, only a bolting mount's own
+        bolt_room_no (see ally_events/horse_bolt.py). Both TADA-only, no
+        SPUR precedent for a mount actually dying from this.
         """
         player = ctx.player
         if not player.query_flag(PlayerFlags.MOUNTED):
@@ -1512,6 +1524,16 @@ class CombatSession:
                 await ctx.send(
                     f'...{mount.name} stumbles, taking you with {pronoun}, and falls, not moving.'
                 )
+                # "Not moving" means out of the fight, not just unmounted --
+                # same exit idiom as flee() above: drop this ctx from
+                # self.attackers, and end the session if no one else is
+                # still fighting. No player-unconscious mechanic exists in
+                # this port to hook into instead (HP 0 goes straight to
+                # death, see _player_dies) -- this is the closest existing
+                # "player is out of this fight, room unchanged" primitive.
+                self._remove_attacker(ctx)
+                if not self.attackers:
+                    self._done.set()
             else:
                 await ctx.send(f'...{mount.name} stumbles and falls, not moving.')
 

@@ -186,6 +186,15 @@ Shared infrastructure (not itself a feature demo):
   it, a CHARGE-thrown rider triggers a third bolt, and a real
   `EditPlayerCommand` run does the `[C] Recall Horse` admin fix. Fed the
   "Horse Bolt Session" artifact.
+- **`bot_mount_redirect_death_demo.py`** — the mount-redirect-death
+  mechanic (`combat/engine.py`'s `_try_redirect_to_mount`/
+  `_resolve_monster_hit`), same real-engine-no-socket approach: a
+  Saddled mount takes a killing blow meant for its rider, dies, and
+  drags the player down with it. Confirms concretely (not just by
+  inspection) that the player's room never changes, no party/other-
+  player "follow" happens (no such mechanic exists in this port), and
+  the player is properly pulled out of `CombatSession.attackers` with
+  the round loop told to stop swinging at them.
 - **`bot_meteor.py`** — triggers and observes a meteor room event via
   movement.
 - **`bot_stats_check.py`** / **`bot_stats_test.py`** — bare `stats`
