@@ -43,6 +43,7 @@ class _FakeServer:
         self.monsters   = monsters or []
         self.game_map   = game_map
         self.room_items = {}
+        self.clients    = {}
 
 
 class _FakeRoom:
@@ -636,6 +637,53 @@ class _FakeOtherClient:
     def __init__(self, room, ctx):
         self.room = room
         self.ctx = ctx
+
+
+class TestExamineAllRoomPlayers(unittest.IsolatedAsyncioTestCase):
+    """EXAMINE with no target also lists other players sharing the room
+    (SPUR.MISC3.S:539-559 ply.locD/ply.loc3, called with ch=2 from
+    EXAMINE -- ch=0 is LOOT's own call, see commands/loot.py), tagged
+    "watches you.." or "lies unconscious.", sentence-cased."""
+
+    def _room_setup(self, examiner_player, other_player, room=1):
+        server = _FakeServer()
+        other_ctx = _FakeCtx(other_player, server)
+        other_ctx.client = _FakeOtherClient(room=room, ctx=None)
+        other_ctx.client.ctx = other_ctx
+        server.clients['other'] = other_ctx.client
+
+        examiner_ctx = _FakeCtx(examiner_player, server)
+        examiner_ctx.client = _FakeOtherClient(room=room, ctx=None)
+        examiner_ctx.client.ctx = examiner_ctx
+        server.clients['examiner'] = examiner_ctx.client
+        return examiner_ctx
+
+    async def test_conscious_room_mate_watches_you(self):
+        examiner = _player()
+        other = _player()
+        other.name = 'Gareth'
+        ctx = self._room_setup(examiner, other)
+        await ExamineCommand().execute(ctx)
+        self.assertIn('Gareth watches you..', ctx.sent)
+
+    async def test_unconscious_room_mate_lies_unconscious(self):
+        from flags import PlayerFlags
+
+        examiner = _player()
+        other = _player()
+        other.name = 'Gareth'
+        other.set_flag(PlayerFlags.UNCONSCIOUS)
+        ctx = self._room_setup(examiner, other)
+        await ExamineCommand().execute(ctx)
+        self.assertIn('Gareth lies unconscious.', ctx.sent)
+
+    async def test_alone_in_room_says_area_empty(self):
+        examiner = _player()
+        server = _FakeServer()
+        ctx = _FakeCtx(examiner, server)
+        ctx.client.room = 1
+        await ExamineCommand().execute(ctx)
+        self.assertIn('This area is empty..', ctx.sent)
 
 
 class TestExaminePlayer(unittest.IsolatedAsyncioTestCase):

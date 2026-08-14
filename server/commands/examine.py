@@ -18,6 +18,7 @@ import random
 from base_classes import PlayerMoneyTypes, PlayerRace
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
+from flags import PlayerFlags
 from items import Item, ItemCategory, Rations, Weapon
 from network_context import GameContext
 from quests.tuts_treasure import examine as tuts_treasure_examine, is_tuts_treasure
@@ -553,6 +554,19 @@ class ExamineCommand(Command):
             if monster is not None:
                 await ctx.send(f"{monster['name']}:")
                 await ctx.send(_examine_monster(ctx, monster))
+                examined_any = True
+            # SPUR.MISC3.S:539-559 ply.locD/ply.loc3, called with ch=2
+            # from EXAMINE (ch=0 is LOOT's own call, already ported --
+            # see commands/loot.py): every other player sharing the room
+            # gets listed as "watches you.." or, if unconscious, "lies
+            # unconscious.", sentence-cased per this port's convention.
+            for other_ctx in _room_players(ctx, exclude=ctx):
+                other_name = (getattr(other_ctx.player, 'name', '') or '').strip()
+                if not other_name:
+                    continue
+                status = ('lies unconscious.' if other_ctx.player.query_flag(PlayerFlags.UNCONSCIOUS)
+                          else 'watches you..')
+                await ctx.send(f'{other_name} {status}')
                 examined_any = True
             if not examined_any:
                 await ctx.send('This area is empty..')
