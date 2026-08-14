@@ -78,6 +78,15 @@ class LookCommand(Command):
                 await self._describe_ally(ctx, ally)
                 return CommandResult.ok()
 
+        # A monster the player is (or could join) fighting in this room.
+        active_combats = getattr(ctx.server, 'active_combats', {}) or {}
+        session = active_combats.get(getattr(ctx.client, 'room', None))
+        if session is not None and not session._done.is_set():
+            mname = (session.monster.get('name') or '').lower()
+            if mname and target in mname:
+                await self._describe_monster(ctx, session.monster)
+                return CommandResult.ok()
+
         # Search inventory for a matching item.
         inv = getattr(ctx.player, 'inventory', None)
         if inv is not None:
@@ -104,6 +113,14 @@ class LookCommand(Command):
 
     async def _describe_ally(self, ctx: GameContext, ally) -> None:
         await describe_ally(ctx, ally)
+
+    async def _describe_monster(self, ctx: GameContext, monster: dict) -> None:
+        description = (monster.get('description') or '').strip()
+        if description:
+            await ctx.send(description)
+            return
+        from monsters import monster_display_name
+        await ctx.send(f'You see {monster_display_name(monster)}.')
 
 
 async def describe_ally(ctx: GameContext, ally) -> None:

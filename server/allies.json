@@ -435,6 +435,7 @@
     "strength": 10,
     "to_hit": 5,
     "flags": [],
+    "description": "%n, the pop diva with the five-octave range, hits a note that shatters %p doubts and joins %y side.",
     "comment": "singer"
   },
   {
@@ -445,6 +446,7 @@
     "flags": [
       "ELITE"
     ],
+    "description": "%n, King Arthur's court wizard, is ready to lend %p magic to %y side.",
     "comment": "King Arthur's court wizard"
   },
   {
@@ -454,7 +456,8 @@
     "to_hit": 6,
     "flags": [
       "ELITE"
-    ]
+    ],
+    "description": "%n is ready to fight at %y side."
   },
   {
     "name": "MISTER ROGERS",
@@ -462,6 +465,7 @@
     "strength": 10,
     "to_hit": 5,
     "flags": [],
+    "description": "%n, in a cardigan and sneakers, is ready to fight at %y side -- and %s is glad you're %p neighbor.",
     "comment": "early childhood educator"
   },
   {
@@ -470,6 +474,7 @@
     "strength": 15,
     "to_hit": 7,
     "flags": [],
+    "description": "%n drops in from Ork with a \"Nanu nanu,\" ready to fight at %y side.",
     "comment": "alien from \"Mork & Mindy\" played by Robin Williams"
   },
   {
@@ -478,6 +483,7 @@
     "strength": 16,
     "to_hit": 6,
     "flags": [],
+    "description": "%n, the Vulcan science officer of the Enterprise, is ready to fight at %y side -- logically, %s gives you good odds.",
     "comment": "Vulcan science officer aboard the Enterprise in Star Trek"
   },
   {
@@ -485,7 +491,8 @@
     "gender": "f",
     "strength": 6,
     "to_hit": 4,
-    "flags": []
+    "flags": [],
+    "description": "%n is ready to fight at %y side."
   },
   {
     "name": "NINJA TURTLE",
@@ -493,6 +500,7 @@
     "strength": 12,
     "to_hit": 5,
     "flags": [],
+    "description": "%n, still chewing a slice of pizza, is ready to fight at %y side.",
     "comment": "pizza-loving mutant turtles who live in the sewers"
   },
   {
@@ -501,6 +509,7 @@
     "strength": 13,
     "to_hit": 6,
     "flags": [],
+    "description": "%n, the Greek god of the wild, shepherds, and flocks, is ready to lend %p power to your cause.",
     "comment": "Greek god of the wild, shepherds and flocks"
   },
   {
@@ -509,6 +518,7 @@
     "strength": 10,
     "to_hit": 5,
     "flags": [],
+    "description": "%n, the Mexican revolutionary, rides in ready to fight at %y side.",
     "comment": "Francisco \"Pancho\" Villa, Mexican revolutionary, later president"
   },
   {
@@ -517,6 +527,7 @@
     "strength": 9,
     "to_hit": 8,
     "flags": [],
+    "description": "%n is ready to fight at %y side.",
     "comment": "singer"
   },
   {
@@ -527,6 +538,7 @@
     "flags": [
       "GODDESS"
     ],
+    "description": "%n, queen of the underworld and goddess of spring, is ready to lend %p divine power to your cause.",
     "comment": "Greek goddess of spring, queen of the underworld after Hades abducted her"
   },
   {
@@ -535,6 +547,7 @@
     "strength": 13,
     "to_hit": 6,
     "flags": [],
+    "description": "%n is ready to fight at %y side.",
     "comment": "American news reporter"
   },
   {
@@ -545,6 +558,7 @@
     "flags": [
       "ELITE"
     ],
+    "description": "%n, warrior queen of the Iceni, is ready to fight at %y side.",
     "comment": "Queen of the British Iceni tribe"
   },
   {
@@ -555,6 +569,7 @@
     "flags": [
       "MECHANICAL"
     ],
+    "description": "%n beeps and whistles, ready to fight at %y side.",
     "comment": "astromech droid from \"Star Wars\""
   },
   {
@@ -565,6 +580,7 @@
     "flags": [
       "ELITE"
     ],
+    "description": "%n, muscles oiled and headband tied, is ready to fight at %y side.",
     "comment": "action movie hero"
   },
   {
@@ -575,6 +591,7 @@
     "flags": [
       "ELITE"
     ],
+    "description": "%n, sword drawn and clad in chainmail, is ready to fight at %y side.",
     "comment": "partner of Conan the Barbarian"
   },
   {
@@ -582,7 +599,8 @@
     "gender": "m",
     "strength": 12,
     "to_hit": 7,
-    "flags": []
+    "flags": [],
+    "description": "%n is ready to fight at %y side."
   },
   {
     "name": "RIPLEY",
@@ -590,6 +608,7 @@
     "strength": 18,
     "to_hit": 9,
     "flags": [],
+    "description": "%n, flamethrower in hand and no patience for xenomorphs, is ready to fight at %y side.",
     "comment": "character from the movie \"Aliens\""
   },
   {
@@ -599,14 +618,16 @@
     "to_hit": 8,
     "flags": [
       "ELITE"
-    ]
+    ],
+    "description": "%n, bow in hand, is ready to fight at %y side."
   },
   {
     "name": "SAMWISE",
     "gender": "m",
     "strength": 14,
     "to_hit": 6,
-    "flags": []
+    "flags": [],
+    "description": "%n is ready to fight at %y side."
   },
   {
     "name": "SARAH CONNOR",
@@ -614,6 +635,7 @@
     "strength": 16,
     "to_hit": 5,
     "flags": [],
+    "description": "%n, hardened by the war against the machines, is ready to fight at %y side.",
     "comment": "character in \"Terminator\" movie"
   },
   {
@@ -622,6 +644,7 @@
     "strength": 20,
     "to_hit": 9,
     "flags": [],
+    "description": "%n, the wizard corrupted by Sauron, is ready to lend %p dark magic to %y side.",
     "comment": "evil wizard in \"Lord of the Rings\""
   },
   {
@@ -630,6 +653,7 @@
     "strength": 6,
     "to_hit": 4,
     "flags": [],
+    "description": "%n, engineer of the Enterprise, is ready to fight at %y side -- %s just needs a wee bit more power.",
     "comment": "engineer aboard the Enterprise in \"Star Trek\""
   },
   {
@@ -638,6 +662,7 @@
     "strength": 15,
     "to_hit": 4,
     "flags": [],
+    "description": "%n, one of the Knights of the Round Table, is ready to fight at %y side.",
     "comment": "one of the Knights of King Arthur's Round Table"
   },
   {
@@ -645,14 +670,16 @@
     "gender": "m",
     "strength": 20,
     "to_hit": 1,
-    "flags": []
+    "flags": [],
+    "description": "%n is ready to fight at %y side."
   },
   {
     "name": "STEELY DAN",
     "gender": "m",
     "strength": 15,
     "to_hit": 7,
-    "flags": []
+    "flags": [],
+    "description": "%n is ready to fight at %y side."
   },
   {
     "name": "STORMIN' NORMAN",
@@ -660,6 +687,7 @@
     "strength": 20,
     "to_hit": 9,
     "flags": [],
+    "description": "%n, the general who commanded the Gulf War coalition, is ready to fight at %y side.",
     "comment": "General in the Gulf War"
   },
   {
@@ -668,6 +696,7 @@
     "strength": 12,
     "to_hit": 5,
     "flags": [],
+    "description": "%n is ready to fight at %y side.",
     "comment": "FIXME: Typo? can't find \"TAARNA\" Tarana Burke is an activist, started the \"MeToo\" movement"
   },
   {
@@ -676,6 +705,7 @@
     "strength": 6,
     "to_hit": 3,
     "flags": [],
+    "description": "%n is ready to fight at %y side.",
     "comment": "American singer"
   },
   {
@@ -683,21 +713,24 @@
     "gender": "m",
     "strength": 10,
     "to_hit": 7,
-    "flags": []
+    "flags": [],
+    "description": "%n is ready to fight at %y side."
   },
   {
     "name": "THE BOGIEMAN",
     "gender": "m",
     "strength": 15,
     "to_hit": 5,
-    "flags": []
+    "flags": [],
+    "description": "%n lurks in from the shadows, ready to fight at %y side."
   },
   {
     "name": "THE IRON LADY",
     "gender": "f",
     "strength": 18,
     "to_hit": 9,
-    "flags": []
+    "flags": [],
+    "description": "%n is ready to fight at %y side."
   },
   {
     "name": "THE TERMINATOR",
@@ -705,6 +738,7 @@
     "strength": 20,
     "to_hit": 5,
     "flags": [],
+    "description": "%n scans the room, sizes up the threat, and is ready to fight at %y side.",
     "comment": "Character in, well, the movie of the same name"
   },
   {
@@ -712,7 +746,8 @@
     "gender": "m",
     "strength": 7,
     "to_hit": 6,
-    "flags": []
+    "flags": [],
+    "description": "%n is ready to fight at %y side."
   },
   {
     "name": "TINY TIM",
@@ -720,6 +755,7 @@
     "strength": 6,
     "to_hit": 5,
     "flags": [],
+    "description": "%n, small but determined, is ready to fight at %y side.",
     "comment": "Bob Cratchit's son from \"A Christmas Carol\""
   },
   {
@@ -728,6 +764,7 @@
     "strength": 15,
     "to_hit": 8,
     "flags": [],
+    "description": "%n, warrior of the fortress city of Dura, is ready to fight at %y side.",
     "comment": "\"Dura\" is Dura-Europos, the real ancient fortress city on the Euphrates (present-day Syria) that level_4.json/level_6.json's \"great wall of Dura\" room descriptions and messages.json's intro banner reference. \"Trajan\" likely nods to the historical Roman emperor active in the region during the Parthian campaigns. See RESEARCH.md."
   },
   {
@@ -736,6 +773,7 @@
     "strength": 4,
     "to_hit": 5,
     "flags": [],
+    "description": "%n is ready to fight at %y side.",
     "comment": "character from \"Hitchhiker's Guide to the Galaxy\""
   },
   {
@@ -744,6 +782,7 @@
     "strength": 7,
     "to_hit": 4,
     "flags": [],
+    "description": "%n, communications officer of the Enterprise, is ready to fight at %y side.",
     "comment": "communications officer aboard the Enterprise in \"Star Trek\""
   },
   {
@@ -751,7 +790,8 @@
     "gender": "m",
     "strength": 15,
     "to_hit": 6,
-    "flags": []
+    "flags": [],
+    "description": "%n is ready to fight at %y side."
   },
   {
     "name": "WARREN ZEVON",
@@ -759,6 +799,7 @@
     "strength": 15,
     "to_hit": 6,
     "flags": [],
+    "description": "%n, guitar slung over %p shoulder, howls in ready to fight at %y side.",
     "comment": "American songwriter and rock star, wrote \"Werewolves in London\""
   },
   {
@@ -766,7 +807,8 @@
     "gender": "m",
     "strength": 10,
     "to_hit": 5,
-    "flags": []
+    "flags": [],
+    "description": "%n prowls in under a full moon, ready to fight at %y side."
   },
   {
     "name": "WONDER WOMAN",
@@ -776,6 +818,7 @@
     "flags": [
       "ELITE"
     ],
+    "description": "%n, lasso of truth in hand, is ready to fight at %y side.",
     "comment": "superheroine"
   },
   {
@@ -783,7 +826,8 @@
     "gender": "m",
     "strength": 12,
     "to_hit": 4,
-    "flags": []
+    "flags": [],
+    "description": "%n is ready to fight at %y side."
   },
   {
     "name": "YODA",
@@ -791,6 +835,7 @@
     "strength": 15,
     "to_hit": 8,
     "flags": [],
+    "description": "%n, small in stature but strong with the Force, is ready to fight at %y side.",
     "comment": "wise critter from Star Wars"
   },
   {
@@ -799,6 +844,7 @@
     "strength": 5,
     "to_hit": 5,
     "flags": [],
+    "description": "%n, President of the Galaxy, saunters in with both heads grinning, ready to fight at %y side.",
     "comment": "President of the Galaxy in \"Hitchhiker's Guide to the Galaxy\""
   },
   {
@@ -806,6 +852,7 @@
     "gender": "m",
     "strength": 14,
     "to_hit": 6,
-    "flags": []
+    "flags": [],
+    "description": "%n is ready to fight at %y side."
   }
 ]

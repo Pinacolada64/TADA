@@ -34,7 +34,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A sand crab skitters sideways, claws raised and clicking."
     },
     {
         "number": 2,
@@ -71,7 +71,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A rattlesnake coils in the dust, tail buzzing a warning."
     },
     {
         "number": 3,
@@ -108,7 +108,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A troll looms overhead, warty green hide crisscrossed with old scars that never quite healed shut."
     },
     {
         "number": 4,
@@ -145,7 +145,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A were-bat hangs upside down for a moment, then drops and unfurls leathery wings."
     },
     {
         "number": 5,
@@ -182,7 +182,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A sloth hangs from an overhead beam, moving with deceptive, lazy calm."
     },
     {
         "number": 6,
@@ -219,7 +219,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A giant claw scuttles out of the shadows, snapping at the air ahead of it."
     },
     {
         "number": 7,
@@ -256,7 +256,7 @@
             "has_quote": true
         },
         "quote_number": 20,
-        "description": null
+        "description": "A dragon rears back, smoke curling from its nostrils."
     },
     {
         "number": 8,
@@ -293,7 +293,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A skeleton rattles upright, empty sockets somehow finding you anyway."
     },
     {
         "number": 9,
@@ -330,7 +330,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A slick eel coils and uncoils, glistening and hard to get a grip on."
     },
     {
         "number": 10,
@@ -367,7 +367,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A slime devil oozes forward, its surface bubbling with something that smells like sulfur."
     },
     {
         "number": 11,
@@ -404,7 +404,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A gila monster waddles closer, jaws working slowly -- once it bites down, it does not let go easily."
     },
     {
         "number": 12,
@@ -441,7 +441,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A werewolf drops to all fours, fur bristling, and howls."
     },
     {
         "number": 13,
@@ -478,7 +478,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "Dracula sweeps his cape aside with a thin, hungry smile."
     },
     {
         "number": 14,
@@ -515,7 +515,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A trantella skitters on too many legs, mandibles clicking."
     },
     {
         "number": 15,
@@ -552,7 +552,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A gargoyle peels itself off the wall, stone grinding on stone."
     },
     {
         "number": 16,
@@ -589,7 +589,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A spitting cobra rears up, hood flared, already aiming."
     },
     {
         "number": 17,
@@ -626,7 +626,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A minotaur snorts and paws the ground, horns lowered."
     },
     {
         "number": 18,
@@ -663,7 +663,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A red orc grunts and hefts its weapon, tusks bared."
     },
     {
         "number": 19,
@@ -700,7 +700,7 @@
             "has_quote": true
         },
         "quote_number": 41,
-        "description": null
+        "description": "Medusa turns her head slowly, and you look away just in time."
     },
     {
         "number": 20,
@@ -737,7 +737,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A triffid sways on its stalk, leaves rustling with no wind to explain it."
     },
     {
         "number": 21,
@@ -774,7 +774,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A pixie hovers just out of reach, wings a blur, grinning like this is all a game."
     },
     {
         "number": 22,
@@ -811,7 +811,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A gorn hisses and shifts its weight, scaled hide catching what little light there is."
     },
     {
         "number": 23,
@@ -848,7 +848,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A golem lumbers forward, cracks of runic light showing through its stone joints."
     },
     {
         "number": 24,
@@ -885,7 +885,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A hydra rears up on several necks at once, each head watching you separately."
     },
     {
         "number": 25,
@@ -922,7 +922,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A cyclops ducks under the ceiling, its single eye fixed unblinking on you."
     },
     {
         "number": 26,
@@ -959,7 +959,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A gorgon paws the ground, and where its gaze lingers the stone floor seems to dull and harden."
     },
     {
         "number": 27,
@@ -996,7 +996,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A serpent slides closer, tongue flicking to taste the air."
     },
     {
         "number": 28,
@@ -1033,7 +1033,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A brontosaurus shakes the ground with every plodding step, tail sweeping wide."
     },
     {
         "number": 29,
@@ -1070,7 +1070,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A witch cackles low in her throat, fingers already tracing something in the air."
     },
     {
         "number": 30,
@@ -1107,7 +1107,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A banshee drifts closer, and the air goes cold around her."
     },
     {
         "number": 31,
@@ -1144,7 +1144,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A spider drops from above on a thin strand of silk, eight eyes catching the light."
     },
     {
         "number": 32,
@@ -1181,7 +1181,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A crocodile surges forward in a burst of speed that seems impossible for something so heavy."
     },
     {
         "number": 33,
@@ -1218,7 +1218,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A blob quivers and reshapes itself, absorbing whatever debris is in its path."
     },
     {
         "number": 34,
@@ -1255,7 +1255,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A vampire's eyes flash red, fangs bared in a cold smile."
     },
     {
         "number": 35,
@@ -1292,7 +1292,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A stirge darts erratically on buzzing wings, its needle-like proboscis already extended."
     },
     {
         "number": 36,
@@ -1329,7 +1329,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A thoul shambles forward, its flesh sloughing slightly with every step."
     },
     {
         "number": 37,
@@ -1366,7 +1366,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A troglodyte hisses, its scaled hide shifting color to blend with the rock behind it."
     },
     {
         "number": 38,
@@ -1403,7 +1403,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A wight reaches out with a hand that drains warmth from the air around it."
     },
     {
         "number": 39,
@@ -1440,7 +1440,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "Yellow mold spreads across the ground in a slow, spore-releasing bloom."
     },
     {
         "number": 40,
@@ -1477,7 +1477,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A zombie shuffles forward, arms outstretched, dead eyes fixed on you."
     },
     {
         "number": 41,
@@ -1514,7 +1514,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A giant shrew snuffles and darts forward, whiskers twitching."
     },
     {
         "number": 42,
@@ -1551,7 +1551,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A wereboar snorts and stamps a hoofed foot, tusks glinting."
     },
     {
         "number": 43,
@@ -1588,7 +1588,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A magician sweeps a hand through the air, muttering the first syllables of a spell."
     },
     {
         "number": 44,
@@ -1625,7 +1625,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A lycanthrope shudders mid-transformation, caught between two shapes and dangerous in both."
     },
     {
         "number": 45,
@@ -1662,7 +1662,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A ghoul crouches low, claws twitching, drawn by the smell of fresh meat."
     },
     {
         "number": 46,
@@ -1699,7 +1699,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "Gray ooze creeps across the floor, silently eating through anything it touches."
     },
     {
         "number": 47,
@@ -1736,7 +1736,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A harpy shrieks and beats her wings, talons flexing."
     },
     {
         "number": 48,
@@ -1773,7 +1773,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A hobgoblin barks an order at nobody in particular and squares up to fight."
     },
     {
         "number": 49,
@@ -1810,7 +1810,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A goblin bares crooked teeth and hefts a crude, notched blade."
     },
     {
         "number": 50,
@@ -1847,7 +1847,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A gnoll snarls, hyena-like laughter bubbling under its growl."
     },
     {
         "number": 51,
@@ -1884,7 +1884,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A caretaker eyes you warily, more startled than hostile."
     },
     {
         "number": 52,
@@ -1921,7 +1921,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A river rat bares yellow teeth, whiskers twitching with hunger."
     },
     {
         "number": 53,
@@ -1958,7 +1958,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A grizzly bear rises up on its hind legs, filling the space in front of you."
     },
     {
         "number": 54,
@@ -1995,7 +1995,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A wraith drifts forward, its edges never quite in focus."
     },
     {
         "number": 55,
@@ -2032,7 +2032,7 @@
             "has_quote": true
         },
         "quote_number": 33,
-        "description": null
+        "description": "A giant plants its feet and hefts a club the size of a tree trunk."
     },
     {
         "number": 56,
@@ -2069,7 +2069,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "An ogre grunts and drags its club off the ground, ready to swing."
     },
     {
         "number": 57,
@@ -2106,7 +2106,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A Persian deserter grips his sword with the tired, wild-eyed look of a man with nothing left to lose."
     },
     {
         "number": 58,
@@ -2143,7 +2143,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "The Itlets huddle together, chittering, before surging forward as one."
     },
     {
         "number": 59,
@@ -2180,7 +2180,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "It watches you from the shadows, shape hard to make out and harder to like."
     },
     {
         "number": 60,
@@ -2217,7 +2217,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A thug cracks his knuckles and grins like this won't take long."
     },
     {
         "number": 61,
@@ -2254,7 +2254,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A drunken old man sways on his feet, swinging wildly at nothing and everything."
     },
     {
         "number": 62,
@@ -2291,7 +2291,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A bandit draws his blade, eyes flicking to your purse before your face."
     },
     {
         "number": 63,
@@ -2328,7 +2328,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A black Angus bull snorts, pawing the ground before it charges."
     },
     {
         "number": 64,
@@ -2365,7 +2365,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "An itlet chitters and bares needle-thin teeth."
     },
     {
         "number": 65,
@@ -2402,7 +2402,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A guard steps forward, insignia catching the light, weapon already drawn."
     },
     {
         "number": 66,
@@ -2439,7 +2439,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A guard steps forward, insignia catching the light, weapon already drawn."
     },
     {
         "number": 67,
@@ -2476,7 +2476,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A guard steps forward, insignia catching the light, weapon already drawn."
     },
     {
         "number": 68,
@@ -2513,7 +2513,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "Something -- you're not sure what to call it -- writhes into a shape roughly like a threat."
     },
     {
         "number": 69,
@@ -2550,7 +2550,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A wood dragon creaks and groans like old timber, bark-armored and breathing smoke."
     },
     {
         "number": 70,
@@ -2587,7 +2587,7 @@
             "has_quote": true
         },
         "quote_number": 51,
-        "description": null
+        "description": "A Ringwraith turns toward you, and where its face should be there is only a deeper dark under the hood."
     },
     {
         "number": 71,
@@ -2624,7 +2624,7 @@
             "has_quote": true
         },
         "quote_number": 52,
-        "description": null
+        "description": "Gollum crouches low, muttering to himself, eyes darting between you and something only he can see."
     },
     {
         "number": 72,
@@ -2661,7 +2661,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A cloud of bats bursts from the darkness, wings beating in a chaotic, deafening rush."
     },
     {
         "number": 73,
@@ -2698,7 +2698,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A vampire's eyes flash red, fangs bared in a cold smile."
     },
     {
         "number": 74,
@@ -2735,7 +2735,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A blue djinn coalesces out of smoke, arms crossed, clearly unimpressed."
     },
     {
         "number": 75,
@@ -2772,7 +2772,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A rattlesnake coils in the dust, tail buzzing a warning."
     },
     {
         "number": 76,
@@ -2809,7 +2809,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A dragon rears back, smoke curling from its nostrils."
     },
     {
         "number": 77,
@@ -2846,7 +2846,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A scorpion raises its tail, stinger glistening and poised."
     },
     {
         "number": 78,
@@ -2883,7 +2883,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A scorpion raises its tail, stinger glistening and poised."
     },
     {
         "number": 79,
@@ -2920,7 +2920,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A swarthy nomad squints at you across the sand, curved blade already drawn."
     },
     {
         "number": 80,
@@ -2957,7 +2957,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A lion crouches low, tail lashing, muscles coiled to spring."
     },
     {
         "number": 81,
@@ -2994,7 +2994,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A rhinoceros paws the ground, lowering its horn."
     },
     {
         "number": 82,
@@ -3031,7 +3031,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A troll looms overhead, warty green hide crisscrossed with old scars that never quite healed shut."
     },
     {
         "number": 83,
@@ -3068,7 +3068,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A headhunter grins, fingering a necklace of trophies you'd rather not examine too closely."
     },
     {
         "number": 84,
@@ -3105,7 +3105,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A big chief folds his arms, sizing you up before giving the signal to attack."
     },
     {
         "number": 85,
@@ -3142,7 +3142,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A giant squid uncoils tentacle after tentacle, far more of them than seems fair."
     },
     {
         "number": 86,
@@ -3179,7 +3179,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A sea monster rises from the water, dripping and enormous."
     },
     {
         "number": 87,
@@ -3216,7 +3216,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A great white circles once, dorsal fin cutting the surface, before it turns toward you."
     },
     {
         "number": 88,
@@ -3253,7 +3253,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A seagull wheels overhead, shrieking, and dives."
     },
     {
         "number": 89,
@@ -3290,7 +3290,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A pirate draws a cutlass and spits to one side, grinning through gold teeth."
     },
     {
         "number": 90,
@@ -3327,7 +3327,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A giant piranha thrashes at the surface, rows of teeth bared."
     },
     {
         "number": 91,
@@ -3364,7 +3364,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A stone giant grinds to its feet, cracks of lichen and moss shedding from its shoulders."
     },
     {
         "number": 92,
@@ -3401,7 +3401,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A wraith-guard drifts into position, colder and more disciplined than the wraiths that spawned it."
     },
     {
         "number": 93,
@@ -3438,7 +3438,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "Ronney squares up with a lopsided, unsettling grin."
     },
     {
         "number": 94,
@@ -3475,7 +3475,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A mermaid surfaces, hair drifting in the current, voice already rising into a song."
     },
     {
         "number": 95,
@@ -3512,7 +3512,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "Something long and dark breaks the surface, then vanishes again before you can be sure what you saw."
     },
     {
         "number": 96,
@@ -3549,7 +3549,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A tunnel rat darts between your feet, more nuisance than threat -- until there are more of them."
     },
     {
         "number": 97,
@@ -3586,7 +3586,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A mummy shambles forward, trailing ancient, brittle wrappings."
     },
     {
         "number": 98,
@@ -3623,7 +3623,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A rotten zombie shuffles forward, flesh sloughing off with every step."
     },
     {
         "number": 99,
@@ -3660,7 +3660,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A skeleton rattles upright, empty sockets somehow finding you anyway."
     },
     {
         "number": 100,
@@ -3697,7 +3697,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A slimy thing oozes toward you, leaving a glistening trail behind it."
     },
     {
         "number": 101,
@@ -3734,7 +3734,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "An ice lizard hisses, breath fogging in the cold air around it."
     },
     {
         "number": 102,
@@ -3771,7 +3771,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "King Tut regards you from behind a gold funeral mask, entirely unbothered by being disturbed."
     },
     {
         "number": 103,
@@ -3808,7 +3808,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A guardian steps into your path, standing at rigid attention until you get too close."
     },
     {
         "number": 104,
@@ -3845,7 +3845,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A keeper watches you with cold, appraising patience, as if deciding whether you're worth the trouble."
     },
     {
         "number": 105,
@@ -3882,7 +3882,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "Saruman regards you with icy contempt, staff already glowing at its tip."
     },
     {
         "number": 106,
@@ -3919,7 +3919,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "Evilynn laughs, low and delighted, like your arrival is the best part of her day."
     },
     {
         "number": 107,
@@ -3956,7 +3956,7 @@
             "has_quote": true
         },
         "quote_number": 42,
-        "description": null
+        "description": "A guard droid pivots toward you, servos whirring, weapon systems cycling online."
     },
     {
         "number": 108,
@@ -3993,7 +3993,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A rad zombie shuffles forward, faintly glowing and reeking of something that shouldn't be that color."
     },
     {
         "number": 109,
@@ -4030,7 +4030,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A light tank rotates its turret with a mechanical whine, tracking you."
     },
     {
         "number": 110,
@@ -4067,7 +4067,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "An ogre tank grinds forward on heavy treads, brute and armored in equal measure."
     },
     {
         "number": 111,
@@ -4104,7 +4104,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A rabid tribble chitters and trembles, somehow both adorable and deeply concerning."
     },
     {
         "number": 112,
@@ -4141,7 +4141,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A black droid swivels toward you, red sensor light narrowing to a point."
     },
     {
         "number": 113,
@@ -4178,7 +4178,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "C-3PO wrings his hands and mutters about the odds, then squares up anyway."
     },
     {
         "number": 114,
@@ -4215,7 +4215,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A recon tank pings and whirs, sensors sweeping the room before it locks onto you."
     },
     {
         "number": 115,
@@ -4252,7 +4252,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A xenomorph unfolds from the shadows, inner jaw clicking."
     },
     {
         "number": 116,
@@ -4289,7 +4289,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A tommyknocker taps twice against the nearest wall, then grins in the dark."
     },
     {
         "number": 117,
@@ -4326,7 +4326,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "An experimental bio-unit twitches, stitched-together parts moving slightly out of sync with each other."
     },
     {
         "number": 118,
@@ -4363,7 +4363,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A berserker roars and charges before you've even finished sizing them up."
     },
     {
         "number": 119,
@@ -4400,7 +4400,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A space amoeba pulses and flexes, translucent and hungry."
     },
     {
         "number": 120,
@@ -4437,7 +4437,7 @@
             "has_quote": true
         },
         "quote_number": 53,
-        "description": null
+        "description": "An old man squints at you, then sighs and raises his fists like he's done this before."
     },
     {
         "number": 121,
@@ -4474,7 +4474,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A serpent slides closer, tongue flicking to taste the air."
     },
     {
         "number": 122,
@@ -4511,7 +4511,7 @@
             "has_quote": true
         },
         "quote_number": 55,
-        "description": null
+        "description": "The Tin Man raises his axe, joints creaking, in need of a little oil but plenty of nerve."
     },
     {
         "number": 123,
@@ -4548,7 +4548,7 @@
             "has_quote": true
         },
         "quote_number": 54,
-        "description": null
+        "description": "The Scarecrow flops and staggers into a fighting stance, straw poking out at the seams."
     },
     {
         "number": 124,
@@ -4585,7 +4585,7 @@
             "has_quote": true
         },
         "quote_number": 59,
-        "description": null
+        "description": "The Lion paces back and forth, working up his courage before he'll actually attack."
     },
     {
         "number": 125,
@@ -4622,7 +4622,7 @@
             "has_quote": true
         },
         "quote_number": 56,
-        "description": null
+        "description": "Oz's voice booms from everywhere at once, and for a moment the room fills with smoke and fire."
     },
     {
         "number": 126,
@@ -4659,7 +4659,7 @@
             "has_quote": true
         },
         "quote_number": 31,
-        "description": null
+        "description": "The Wicked Witch cackles and raises her broom, green skin twisted into a sneer."
     },
     {
         "number": 127,
@@ -4696,7 +4696,7 @@
             "has_quote": true
         },
         "quote_number": 58,
-        "description": null
+        "description": "A little dog yips and bares its teeth, more bark than bite -- probably."
     },
     {
         "number": 128,
@@ -4733,7 +4733,7 @@
             "has_quote": true
         },
         "quote_number": 57,
-        "description": null
+        "description": "Adam and Eve stand together, sizing you up with matching, unreadable expressions."
     },
     {
         "number": 129,
@@ -4770,7 +4770,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A bee buzzes lazily, then locks onto you and speeds up considerably."
     },
     {
         "number": 130,
@@ -4807,7 +4807,7 @@
             "has_quote": true
         },
         "quote_number": 60,
-        "description": null
+        "description": "The Munchkins cluster together and start chanting, working themselves up to something."
     },
     {
         "number": 131,
@@ -4844,7 +4844,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "An apple tree creaks and twists, branches curling toward you like reaching arms."
     },
     {
         "number": 132,
@@ -4881,7 +4881,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "The orcs fan out, tusks bared, weapons already drawn."
     },
     {
         "number": 133,
@@ -4918,7 +4918,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "The Watcher unfolds itself from the darkness, silent and unreadable."
     },
     {
         "number": 134,
@@ -4955,7 +4955,7 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A hellhound snarls, and where its breath touches the air it curls and smokes."
     },
     {
         "number": 136,
@@ -5029,6 +5029,6 @@
             "has_quote": false
         },
         "quote_number": null,
-        "description": null
+        "description": "A dwarf squares his shoulders and grips his axe with both hands, beard bristling."
     }
 ]
