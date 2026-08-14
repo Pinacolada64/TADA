@@ -27,7 +27,9 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from ally_events.horse_bolt import (
+    _bolt_denominator,
     _walk_random_rooms,
+    bolt_thrown_mount,
     has_bolted_mount,
     maybe_bolt_mount,
     try_catch_bolted_mount,
@@ -155,6 +157,71 @@ class TestMaybeBoltMount(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(mount.bolt_room_no)
         self.assertNotEqual(mount.bolt_room_no, 1)  # actually moved
         self.assertIn('gallops off', _sent(ctx).lower())
+
+
+class TestBoltDenominator(unittest.TestCase):
+    def test_untrained_mount_uses_base_denominator(self):
+        mount = _make_mount()
+        self.assertEqual(_bolt_denominator(mount, 10), 10)
+
+    def test_combat_trained_mount_halves_the_odds(self):
+        mount = _make_mount()
+        mount.flags.append(AllyFlags.COMBAT_TRAINED)
+        self.assertEqual(_bolt_denominator(mount, 10), 20)
+
+    def test_elite_mount_is_immune(self):
+        mount = _make_mount()
+        mount.flags.append(AllyFlags.ELITE)
+        self.assertIsNone(_bolt_denominator(mount, 10))
+
+    def test_elite_and_combat_trained_stays_immune(self):
+        mount = _make_mount()
+        mount.flags.extend([AllyFlags.COMBAT_TRAINED, AllyFlags.ELITE])
+        self.assertIsNone(_bolt_denominator(mount, 10))
+
+
+class TestMaybeBoltMountTraining(unittest.IsolatedAsyncioTestCase):
+    async def test_combat_trained_mount_rolls_against_the_doubled_denominator(self):
+        player = make_player()
+        player.set_flag(PlayerFlags.MOUNTED)
+        player.party[0].flags.append(AllyFlags.COMBAT_TRAINED)
+        ctx = make_ctx(player)
+        with patch('random.randint') as mock_randint:
+            mock_randint.return_value = 5
+            await maybe_bolt_mount(ctx)
+        mock_randint.assert_called_once_with(1, 20)  # base 10, doubled
+
+    async def test_elite_mount_never_bolts(self):
+        player = make_player()
+        player.set_flag(PlayerFlags.MOUNTED)
+        player.party[0].flags.append(AllyFlags.ELITE)
+        ctx = make_ctx(player)
+        with patch('random.randint', return_value=5):
+            bolted = await maybe_bolt_mount(ctx)
+        self.assertFalse(bolted)
+        self.assertTrue(player.query_flag(PlayerFlags.MOUNTED))
+
+
+class TestBoltThrownMountTraining(unittest.IsolatedAsyncioTestCase):
+    async def test_elite_mount_does_not_bolt_after_being_thrown(self):
+        player = make_player()
+        mount = player.party[0]
+        mount.flags.append(AllyFlags.ELITE)
+        ctx = make_ctx(player)
+        with patch('random.randint', return_value=1):
+            bolted = await bolt_thrown_mount(ctx, mount)
+        self.assertFalse(bolted)
+        self.assertEqual(mount.status, AllyStatus.SERVANT)
+
+    async def test_combat_trained_mount_rolls_against_the_doubled_denominator(self):
+        player = make_player()
+        mount = player.party[0]
+        mount.flags.append(AllyFlags.COMBAT_TRAINED)
+        ctx = make_ctx(player)
+        with patch('random.randint') as mock_randint:
+            mock_randint.return_value = 1
+            await bolt_thrown_mount(ctx, mount)
+        mock_randint.assert_called_once_with(1, 4)  # base 2, doubled
 
 
 class TestTryCatchBoltedMount(unittest.IsolatedAsyncioTestCase):

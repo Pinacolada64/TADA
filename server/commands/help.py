@@ -1281,7 +1281,10 @@ register_topic(
             "A Saddle and Horse Armor, bought at Jake's Stable and then "
             "USEd on your horse, equip it for that fight -- and enough "
             "gold buys Train Horse, which upgrades an equipped horse to "
-            "Elite.\n\n"
+            "Elite. A skittish horse can also bolt a few rooms away if "
+            "startled -- MOUNT re-catches it once you track it down -- "
+            "but Combat training halves that risk and Elite training "
+            "removes it entirely.\n\n"
             "Pixies are too small to mount a horse at all."
         ),
         category=HelpCategory.CONCEPT,
@@ -1303,7 +1306,11 @@ register_topic(
             "combat/resolution.py's AttackResult.miss_over_top (mounted "
             "+ melee weapon class < 5, rolled against the monster's "
             "to-hit stat), ported from SPUR.COMBAT.S:156 on the 'skip' "
-            "git branch. Known gap: horse HP isn't "
+            "git branch. Bolt-chance training reduction: "
+            "ally_events/horse_bolt.py's _bolt_denominator() (TADA-only, "
+            "no SPUR precedent) -- AllyFlags.COMBAT_TRAINED doubles the "
+            "bolt denominator (half the odds), AllyFlags.ELITE returns "
+            "None (immune). Known gap: horse HP isn't "
             "meaningfully tracked yet (a lassoed mount's hit_points "
             "seeds to 0), so a 'mount redirects a hit' save is "
             "narrative-only, not real mount damage.",

@@ -89,6 +89,27 @@ async def _bolt_mount_now(ctx: 'GameContext', mount: 'Ally') -> None:
     await ctx.send(f'{mount.name} rears in fright and gallops off into the distance!')
 
 
+def _bolt_denominator(mount: 'Ally', base: int) -> Optional[int]:
+    """Training makes a mount steadier under fright. Returns None if the
+    mount is immune to bolting outright, otherwise the (possibly widened)
+    denominator to roll against -- a bigger denominator means lower odds.
+
+    TADA-only enhancement, no SPUR precedent (see module docstring): an
+    Elite mount (AllyFlags.ELITE -- Jake's Stable "Train Horse" or the
+    Allies' Guild's discipline training, either one) never bolts at all;
+    a Combat Trained mount (AllyFlags.COMBAT_TRAINED, Allies' Guild "Combat
+    training") that isn't also Elite is half as likely to.
+    """
+    from bar.ally_data import AllyFlags
+
+    flags = mount.flags or []
+    if AllyFlags.ELITE in flags:
+        return None
+    if AllyFlags.COMBAT_TRAINED in flags:
+        return base * 2
+    return base
+
+
 async def maybe_bolt_mount(ctx: 'GameContext', *, chance_denominator: int = 10) -> bool:
     """If the player is mounted, roll a 1-in-*chance_denominator* chance for
     their horse to bolt a few rooms away. Returns True (and sends flavor
@@ -97,6 +118,8 @@ async def maybe_bolt_mount(ctx: 'GameContext', *, chance_denominator: int = 10) 
     Same odds as the ordinary ally desert roll (SPUR.MISC4.S "desert":
     rnd.10z, z==5) so a mount and a regular servant face comparable risk
     from the same ambush -- just a different, non-permanent consequence.
+    Combat/Elite training narrows or removes that risk; see
+    _bolt_denominator().
     """
     from bar.allies import find_mount
     from flags import PlayerFlags
@@ -107,7 +130,10 @@ async def maybe_bolt_mount(ctx: 'GameContext', *, chance_denominator: int = 10) 
     mount = find_mount(player)
     if mount is None:
         return False
-    if random.randint(1, chance_denominator) != 5:
+    denominator = _bolt_denominator(mount, chance_denominator)
+    if denominator is None:
+        return False
+    if random.randint(1, denominator) != 5:
         return False
 
     player.clear_flag(PlayerFlags.MOUNTED)
@@ -123,9 +149,13 @@ async def bolt_thrown_mount(ctx: 'GameContext', mount: 'Ally', *, chance_denomin
 
     Higher default odds than the ambush roll (1-in-2 vs. 1-in-10) --
     a horse that just threw its rider is already panicking, not merely
-    caught off guard.
+    caught off guard. Combat/Elite training narrows or removes that risk
+    too; see _bolt_denominator().
     """
-    if random.randint(1, chance_denominator) != 1:
+    denominator = _bolt_denominator(mount, chance_denominator)
+    if denominator is None:
+        return False
+    if random.randint(1, denominator) != 1:
         return False
     await _bolt_mount_now(ctx, mount)
     return True
