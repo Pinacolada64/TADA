@@ -59,6 +59,19 @@ class TestAddMessage(_TempMailDir):
         self.assertEqual([m['body'] for m in inbox], ['first', 'second'])
 
 
+class TestAddSystemMessage(_TempMailDir):
+    """mail.add_system_message() -- game-generated notices (e.g.
+    commands/loot.py's "while you were unconscious..." notice), sent
+    from mail.SYSTEM_SENDER rather than a real player's name."""
+
+    def test_sends_from_system_sender(self):
+        mail.add_system_message('Bob', 'A wizard did it.')
+        inbox = mail.load_mailbox('Bob')
+        self.assertEqual(len(inbox), 1)
+        self.assertEqual(inbox[0]['from'], mail.SYSTEM_SENDER)
+        self.assertEqual(inbox[0]['body'], 'A wizard did it.')
+
+
 class TestUnreadCount(_TempMailDir):
 
     def test_zero_for_empty_mailbox(self):

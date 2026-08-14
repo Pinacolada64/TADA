@@ -203,6 +203,78 @@ class TestTargetSelection(_IsolatedBattleLog):
         self.assertIn("Gareth doesn't carry that!", ctx._flat())
 
 
+class TestRoomListingUnconsciousStatus(_IsolatedBattleLog):
+    """SPUR.MISC3.S:539-559 ply.locD/ply.loc3: each listed player gets
+    "watches you.." or, if unconscious, "lies unconscious." appended."""
+
+    async def test_conscious_player_watches_you(self):
+        thief = _player('Rulan')
+        victim = _player('Gareth')
+        c1, c2 = _client(thief), _client(victim)
+        ctx = _FakeCtx(c1, _server(c1, c2), responses=[''])
+        await LootCommand().execute(ctx)
+        self.assertIn('Gareth watches you..', ctx._flat())
+
+    async def test_unconscious_player_lies_unconscious(self):
+        from flags import PlayerFlags
+
+        thief = _player('Rulan')
+        victim = _player('Gareth')
+        victim.set_flag(PlayerFlags.UNCONSCIOUS)
+        c1, c2 = _client(thief), _client(victim)
+        ctx = _FakeCtx(c1, _server(c1, c2), responses=[''])
+        await LootCommand().execute(ctx)
+        self.assertIn('Gareth lies unconscious.', ctx._flat())
+
+
+class TestUnconsciousVictimMailNotice(_IsolatedBattleLog):
+    """SPUR.MISC3.S:485-493: looting an unconscious victim also sends
+    them a "while you were unconscious..." mail notice."""
+
+    def setUp(self):
+        super().setUp()
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        self._mail_tmp = tempfile.TemporaryDirectory()
+        self._mail_patcher = patch('mail.MAIL_DIR', Path(self._mail_tmp.name))
+        self._mail_patcher.start()
+
+    def tearDown(self):
+        self._mail_patcher.stop()
+        self._mail_tmp.cleanup()
+        super().tearDown()
+
+    async def test_unconscious_victim_gets_mail_notice(self):
+        from flags import PlayerFlags
+        import mail
+
+        thief = _player('Rulan')
+        victim = _player('Gareth')
+        victim.set_flag(PlayerFlags.UNCONSCIOUS)
+        victim.inventory.add(Item(id_number=1, name='dagger', category=ItemCategory.ITEM))
+        c1, c2 = _client(thief), _client(victim)
+        ctx = _FakeCtx(c1, _server(c1, c2), responses=['1', '1'])
+        await LootCommand().execute(ctx)
+
+        inbox = mail.load_mailbox('Gareth')
+        self.assertEqual(len(inbox), 1)
+        self.assertEqual(inbox[0]['from'], mail.SYSTEM_SENDER)
+        self.assertIn('robbed of your dagger', inbox[0]['body'])
+
+    async def test_conscious_victim_gets_no_mail_notice(self):
+        import mail
+
+        thief = _player('Rulan')
+        victim = _player('Gareth')
+        victim.inventory.add(Item(id_number=1, name='dagger', category=ItemCategory.ITEM))
+        c1, c2 = _client(thief), _client(victim)
+        ctx = _FakeCtx(c1, _server(c1, c2), responses=['1', '1'])
+        await LootCommand().execute(ctx)
+
+        self.assertEqual(mail.load_mailbox('Gareth'), [])
+
+
 class TestSuccessfulSteal(_IsolatedBattleLog):
     async def test_item_moves_to_thief_inventory(self):
         thief = _player('Rulan')

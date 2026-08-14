@@ -24,16 +24,20 @@ mechanics ported:
     character creation) and SPUR.MISC6.S:584 ("You feel less
     honorable"): vk is always the CURRENT player's own honor, never
     another player's.
-  - No offline mail system exists in this codebase yet, so the "mail
-    the victim" step (SPUR.MISC3.S:484-487) is skipped; battle.log is
-    the audit trail instead (PILLAGE! on success, COMRADES! when a
-    guardian blocks it), matching SPUR's own logging for both cases.
+  - battle.log is the audit trail for every loot attempt (PILLAGE! on
+    success, COMRADES! when a guardian blocks it), matching SPUR's own
+    logging for both cases. On top of that, looting an unconscious
+    victim (PlayerFlags.UNCONSCIOUS -- see combat/duel.py) also sends
+    them a "while you were unconscious..." mail notice (SPUR.MISC3.S:
+    485-493's direct dm$+"mail" file write, routed through this port's
+    real mail system instead -- see mail.add_system_message()).
 """
 import logging
 
 from base_classes import Guild, PlayerClass
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
+from flags import PlayerFlags
 from network_context import GameContext, GuestPlayer
 
 log = logging.getLogger(__name__)
@@ -148,9 +152,14 @@ class LootCommand(Command):
             await ctx.send('No adventurers here!')
             return CommandResult.ok()
 
+        # SPUR.MISC3.S:539-559 ply.locD/ply.loc3 (called with ch=0 from
+        # LOOT): each listed player gets " WATCHES YOU.." or, if
+        # unconscious, " LIES UNCONSCIOUS." appended -- sentence-cased
+        # here per this port's convention, not SPUR's screaming caps.
         lines = ['People in the area:', '']
         for i, (_client, p) in enumerate(mates, 1):
-            lines.append(f'  {i:>2}. {p.name}')
+            status = 'lies unconscious.' if p.query_flag(PlayerFlags.UNCONSCIOUS) else 'watches you..'
+            lines.append(f'  {i:>2}. {p.name} {status}')
         lines.append('')
         await ctx.send(lines)
 
@@ -230,5 +239,17 @@ class LootCommand(Command):
 
         import net_common
         net_common.append_battle_log(f'{player.name} STOLE {item_name} FROM {target.name}.')
+
+        # SPUR.MISC3.S:485-493: looting an unconscious victim also writes
+        # them a "while you were unconscious..." mail notice (SPUR just
+        # appended straight to their dm$+"mail" file; this port routes it
+        # through the real mail system with a system sender instead, see
+        # mail.SYSTEM_SENDER).
+        if target.query_flag(PlayerFlags.UNCONSCIOUS):
+            import mail
+            mail.add_system_message(
+                target.name,
+                f'While you were unconscious, you were robbed of your {item_name}!',
+            )
 
         return CommandResult.ok()
