@@ -10,13 +10,19 @@ implemented in the Python port yet — this is a research/planning doc to work f
 from an abandoned, incompatible C64 porting attempt — flavor-text hints only, never
 a mechanic source.
 
-**A recurring blocker**: several quests hardcode room numbers (`cr=`) against
-SPUR's *original* room-numbering scheme, which doesn't line up 1:1 with the already
--converted `server/level_N.json` files (see the room-1 gap investigation in git
-history, and the confirmed case below where quest room 582 doesn't exist at all in
-the current `level_6.json`). Anyone implementing these will likely need to re-derive
-room numbering from the original `SPUR-data/level-N` binaries rather than trust the
-`cr=` literals verbatim.
+**Formerly a recurring blocker, now resolved (2026-08-13, commit `03ee8e4`,
+`LEVEL_AUDIT.md` §17–18)**: `level_2.json`..`level_7.json` used to ship with
+fabricated sequential room numbers (1, 2, 3, ...) instead of SPUR's real ones —
+this doc was originally written against that buggy data, so several quest entries
+below cited room numbers (e.g. quest room 582, previously reported as not existing
+in `level_6.json` at all) that were artifacts of the bug rather than real
+locations. The rebuild fixed this: `level_2.json`..`level_7.json` now use SPUR's
+actual positional room numbers directly (level 1 was always correct). **A source
+`cr=` literal now maps directly to the same room number in the current
+`server/level_N.json` files** — no translation step needed. Every room citation
+below has been re-verified against the corrected data as part of this pass; where
+the old (pre-fix) number differed from the real one, it's been corrected and the
+old number is called out for context.
 
 **Another gotcha, relevant to quests #2 and #6 below**: the `@@` room-condition
 flag (our port's `RoomFlag.WATER`/`water_with_rocks`) is reused by SPUR to mean two
@@ -41,18 +47,18 @@ level-aware label wherever it reaches the player or game logic (e.g.
 | 1 | Headhunter's Island | Defeat "BIG CHIEF" (monster #84) | #40 Black Diamond, #78 Great Coat, weapon #57 Wraith Dagger | master | Confirmed (map/combat gauntlet, not a scripted fetch quest) |
 | 2 | Spacesuit Repair | #133 Tool Kit + #134 Broken Spacesuit + #135 Spacesuit Parts | #122 Spacesuit (needed to survive `@@`-flagged vacuum rooms on level 6+ — see the flag-naming gotcha above) | master + skip | Confirmed |
 | 3 | Communicator Repair | #133 Tool Kit + #141 Broken Communicator | #66 Communicator (USE to beam up to level 6, room 1) | master + skip | Confirmed |
-| 4 | Security Cards | Search (`~*`) qualifying level-6 rooms | #131 Red Card (opens east doors) / #132 Green Card (opens west doors) | master | Confirmed mechanic; room placement is a loose end |
+| 4 | Security Cards | Search (`~*`) qualifying level-6 rooms | #131 Red Card (opens east doors) / #132 Green Card (opens west doors) | master | Confirmed, including exact discovery rooms |
 | 5 | Radiation Suit + Geiger Counter | — | #124 Radiation Suit (damage protection), #123 Geiger Counter (early warning) | master | Confirmed |
 | 6 | Space Tracker | #138 Space Tracker | Shows galactic coordinates while traveling space rooms on level 6 | master | Confirmed |
-| 7 | Ruby Slippers (Wizard of Oz) | #145 Broomstick, dropped in front of an NPC at level 6 room 582 | #144 Ruby Slippers (USE to teleport home to level 1, room 1) | master | Confirmed mechanic; broomstick acquisition and NPC identity untraced; room 582 doesn't exist in current `level_6.json` |
+| 7 | Ruby Slippers (Wizard of Oz) | #145 Broomstick, dropped in front of an NPC at level 6 room 582 "Chamber Of Oz" | #144 Ruby Slippers (USE to teleport home to level 1, room 1) | master | Confirmed mechanic; broomstick acquisition-trigger and NPC identity still untraced; room 582 now confirmed to exist (fixed room numbering, was previously reported missing) |
 | 8 | Test of Galadriel | None (random encounter; riddle) | #143 Galadriel's Vial (full) | master | Confirmed |
 | 9 | Fountain of Youth / Galadriel's Vial | #142 Empty Vial (to fill); #76 Amulet of Life (to arm) | Full stat restore + cures poison/disease; vial is a portable one-shot charge | master | Confirmed |
 | 10 | Excalibur / Sword in the Stone | Class = Knight (`pc=9`) AND Honor ≥ 1200 | Weapon #17 Excalibur | master | Confirmed |
 | 11 | Palintar (Enlightenment) | #96 Palantir; Enlightenment score `(INT+WIS)×level` ≥ 240 | Reveals room/level layout (monsters, items, exits) | **skip only** | Confirmed in skip; master is a stub |
 | 12 | Lasso/Saddle/Armor a Horse | #161 Lasso (on a HORSE monster), then #162 Saddle / #163 Horse Armor | Named mount ally (already ported — see MECHANICS.md "Horses") | **skip only** | Confirmed — already implemented in this port |
 | 13 | Power Armor / Shield Recharge | #112 Armor Power Pak / #117 Shield Power Pak | Recharges shield/armor to full (120%) effectiveness | **skip only** | Confirmed in skip; master's shield system is simpler (flat % add, no recharge) |
-| 14 | Copper Key / Wraith Master | #80 Copper Key, `USE`d in a specific level-5 room | Grants Wraith Master status (`PlayerFlags.WRAITH_MASTER`) | master | Confirmed mechanic; room placement and flavor text untraced (see below) |
-| 15 | Wraith King / RONNEY | Defeat monster #93 "RONNEY" (disguised King of the Wraiths) at level 5 room 262 "Kings Chamber" | +1 level, Honor (`vk`) +100 (capped 1900), advances the same `zu$[7]` status tier as quest #14, teleport to level 5 room 390 (the same ruins location quest #14's Copper Key checks) | master | Confirmed trigger and full effects; not yet implemented; room 390's actual content is a gap (see below) |
+| 14 | Copper Key / Wraith Master | #80 Copper Key, `USE`d at level 5 room 390 "The Great Door" | Grants Wraith Master status (`PlayerFlags.WRAITH_MASTER`) | master | Confirmed mechanic and room; flavor text untraced (see below) |
+| 15 | Wraith King / RONNEY | Defeat monster #93 "RONNEY" (disguised King of the Wraiths) at level 5 room 285 "Kings Chamber" | +1 level, Honor (`vk`) +100 (capped 1900), advances the same `zu$[7]` status tier as quest #14, teleport to level 5 room 390 "The Great Door" (the same ruins location quest #14's Copper Key checks) | master | Confirmed trigger, room, and full effects; not yet implemented |
 | 16 | Tut's Treasure | Item #86 "Tut's Treasure" — level 2, room 158 "Secret Chamber"; monster #102 "KING TUT" guards the adjacent room 157 "Mummy's Tomb" | `EXAMINE` it first — disarms a trap, +2 INT (only while under 25), marks `zu$[9]="1"` (examined). `GET` afterward — awards a huge gold bonus (`iv×1000`) and marks `zu$[9]="2"` (looted); this is the exact flag `commands/stats.py`'s "Tut's Treasure: Looted../Somewhere.." line already displays, and the same flag SPUR's original win check reads for its gold-riches gate (`SPUR.MISC7.S`'s `win2`, generalized away by this port's `config.py` into a flat `victory_gold_amount` — see `MECHANICS.md`'s "Win/escape detection"). `GET` it *without* examining first — "Ain't you heard of the Mummy's curse?!?!", jumps to the same `pandora` punishment used for other cursed items (-XP capped to 100, -CON capped to 5, -INT -5 with "You feel dumber!", -HP to 5 if higher) | master | Confirmed — full mechanic traced (`SPUR.MISC.S:245-252,294-297`, `SPUR.MISC3.S:416-422`, `SPUR.MISC5.S:230`); nothing in this port sets the flag — `player.tuts_treasure_looted` / `flags.py`'s `TutTreasure` dataclass are unwired stubs, and neither `commands/get.py` nor `commands/examine.py` special-case item #86 |
 
 Quest #12 is already implemented (LASSO, Saddle/Horse Armor, MOUNT/DISMOUNT/CHARGE —
@@ -64,11 +70,13 @@ see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
 
 ### 1. Headhunter's Island
 - **Source**: no scripted `.S` logic — purely map data. `server/level_5.json` rooms
-  139–141 (`Isle Of Headhunters` → `Village` → `The Chief's Treasure Room`).
-- **Trigger**: sail to room 139; monster #83 HEADHUNTER present.
-- **Mechanic**: defeating monster #84 BIG CHIEF in the Village room reveals a hidden
-  east exit (`Room.hidden_exit_east = 141`, MECHANICS.md's Hidden exits entry) into
-  the treasure room.
+  153–155 (`Isle Of Headhunters` → `Village` → `The Chief's Treasure Room`; cited
+  as 139–141 in an earlier version of this doc, before the room-numbering fix —
+  see the note at the top of this file).
+- **Trigger**: sail to room 153; monster #83 HEADHUNTER present.
+- **Mechanic**: defeating monster #84 BIG CHIEF in the Village room (154) reveals a
+  hidden east exit (`Room.hidden_exit_east = 155`, MECHANICS.md's Hidden exits
+  entry) into the treasure room.
 - **Reward**: #40 Black Diamond in the Village; #78 Great Coat + weapon #57 Wraith
   Dagger in the treasure room.
 - **Flavor**: "This is apparently the head hunters village... surround a large fire
@@ -112,9 +120,13 @@ see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
   `cr=752` for the red card discovery.
 - **Penalty**: wrong card in a slot → "Sticking the wrong card in the slot gives you
   an electric shock!" for 4 HP.
-- **Caveat**: hardcoded `cr` values (752, 93, 180, 557) use SPUR's original room
-  numbering, which doesn't map cleanly to `server/level_6.json`'s 292 compacted
-  entries — needs the `SPUR-data/level-6` binary re-decoded to place these correctly.
+- **Discovery rooms confirmed against the corrected `server/level_6.json`**
+  (`SPUR.MISC3.S:333–336`'s `cr=` literals now map directly to real room numbers —
+  see the note at the top of this file): room 752 "The Bridge" (Red Card, #131),
+  room 93 "Crew Quarters" (Radiation Suit, #124 — quest #5), room 180 "Engineering"
+  (Geiger Counter, #123 — quest #5), room 557 "Witches House" (Broomstick, #145 —
+  quest #7). No Green Card (#132) discovery room is scripted in source; it appears
+  as a static item placement at room 514 "Storage Closet" instead.
 
 ### 5. Radiation Suit + Geiger Counter
 - **Source**: `SPUR.MAIN.S:311,314–317`, `SPUR.USE.S:125` (nuke sequence),
@@ -127,13 +139,24 @@ see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
   something..").
 - **Nuke event**: a nuclear rocket triggers a blast; the radiation suit negates the
   "radiation poisoning" outcome, "power armor" negates blast damage outright.
-- **Room example**: `level_6.json` room 93 "Vent Duct" — flagged `radiation_extreme`,
-  monster #107 GUARD DROID present (room `desc` reads "Hey! This fellow looks
-  familiar!" — see Loose Ends).
+- **Discovery room**: room 93 "Crew Quarters" — search (`~*`) location for the
+  Radiation Suit itself (`SPUR.MISC3.S:334`); not a `radiation_extreme` room in
+  its own right. (An earlier version of this doc, written against the pre-fix
+  room numbering, described room 93 as a `radiation_extreme` "Vent Duct" — that
+  was a coincidence of the old fabricated numbering, not real data; see the note
+  at the top of this file.)
+- **`radiation_extreme`-flagged rooms**: a cluster of "Vent Duct"/"Access Tunnel"/
+  "Main Reactor" rooms in `level_6.json` (e.g. 303–306, 332–336, 361–366, 391–396,
+  421–426, 452–456, 482–485, 512–513, 542–543). Monster #107 GUARD DROID (room
+  `desc` reads "Hey! This fellow looks familiar!" — see Loose Ends) appears in two
+  of them (303, 485) plus two rooms outside the radiation cluster (60 "Heavy
+  Weapons Armory", 811 "The Bridge").
 
 ### 6. Space Tracker
 - **Source**: `SPUR.MAIN.S:153–156, 511–514` (`tracker` subroutine).
-- **Item**: #138 Space Tracker — found in "Security Bunker" (level 6, room 108).
+- **Item**: #138 Space Tracker — found in "Security Bunker" (level 6, room 541;
+  cited as room 108 in an earlier version of this doc, before the room-numbering
+  fix — see the note at the top of this file).
 - **Reward**: while traveling a `@@`-flagged (i.e. `water`-flagged — see gotcha
   above) vacuum room at level 6, carrying the tracker
   prints "The SPACE TRACKER powers up! (Giving galactic space coordinates)" and
@@ -143,10 +166,12 @@ see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
 ### 7. Ruby Slippers (Wizard of Oz chain)
 - **Source**: `SPUR.MISC.S:120–158` (`drop.b`/`drp.itm3`/`broom` chain),
   `SPUR.MISC3.S:336` (discovery), `SPUR.USE.S:142–145` (`slippers`); map data
-  `level_6.json` rooms 115/116/118 ("Witches Coven", "Witches House", "Chamber Of
-  Oz"), `monsters.json` #125 OZ, #126 WICKED WITCH.
-- **Item placement**: #145 Broomstick is placed at level 6, room 557
-  (`SPUR-code/SPUR.MISC3.S:336`).
+  `level_6.json` rooms 556/557/582 ("Witches Coven", "Witches House", "Chamber Of
+  Oz" — cited as 115/116/118 in an earlier version of this doc, before the
+  room-numbering fix — see the note at the top of this file), `monsters.json` #125
+  OZ, #126 WICKED WITCH.
+- **Item placement**: #145 Broomstick is search-discoverable (`~*`) at level 6,
+  room 557 "Witches House" (`SPUR-code/SPUR.MISC3.S:336`).
 - **Trigger**: dropping/giving *any* item routes through `drp.itm3`, which checks
   `if a=145 goto broom`. The `broom` subroutine only fires when: a monster/NPC is
   present in the room (`mw` truthy — the NPC's identity isn't named near this label,
@@ -161,10 +186,12 @@ see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
   like home...' Then you start clicking your heels together, for all the world
   like some sort of Gestapo trooper. / The area fades from view..." — not yet
   wired into code.
-- **Known gap**: **room 582 does not exist in the current `server/level_6.json`**
-  (rooms only go up to ~292) — the delivery location isn't reachable in the current
-  port at all. The broomstick's *acquisition* trigger (witch-kill drop vs. static
-  room item) also wasn't fully traced.
+- **Room 582 "Chamber Of Oz" is reachable**: an earlier version of this doc,
+  written against the pre-fix room numbering, reported room 582 as missing from
+  `server/level_6.json` entirely — that was the room-numbering bug (see the note
+  at the top of this file), not a real gap; the delivery location exists in the
+  corrected data. The broomstick's *acquisition* trigger (witch-kill drop vs.
+  static room item) still hasn't been fully traced.
 
 ### 8. Test of Galadriel
 - **Source**: `SPUR.MISC6.S:504–534` (`galad` subroutine), triggered from a random
@@ -291,11 +318,12 @@ see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
 - **Already implemented, separately**: `PlayerFlags.WRAITH_MASTER` and its login
   title ("`, Wraith Master of Spur!`") are fully ported (`flags.py`,
   `commands/connect.py`) — only the *acquisition* path (this key) is missing.
-- **Known gap**: `cr=390` — see quest #15 below; this is the *same* room quest #15's
-  Wraith King fight teleports the player to. Room 390 doesn't exist in the current
-  `level_5.json` at all (see quest #15's gap note) — this isn't a renumbering issue
-  like the security-card rooms or Jake's Stable, the room data for it is simply
-  missing from this level's conversion.
+- **Room 390 confirmed**: `cr=390` is "The Great Door" in the corrected
+  `server/level_5.json` — see quest #15 below; this is the *same* room quest #15's
+  Wraith King fight teleports the player to. (An earlier version of this doc,
+  written against the pre-fix room numbering, reported room 390 as missing from
+  `level_5.json` entirely; that was the room-numbering bug — see the note at the
+  top of this file — not a real data gap.)
 - **Same status field as quest #15**: `zu$[7]` is shared between this key and the
   Wraith King kill — `"0"` (never done either) → `"1"` (done one of them) → `"2"`
   (done both/killed him after already doing this). This port's
@@ -308,8 +336,10 @@ see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
 - **Trigger**: killing monster #93, named plainly **"RONNEY"** in `monsters.json` —
   a disguised identity for the King of the Wraiths, revealed only by the death
   flavor text (same pattern as monster #120's "old man" → young man reveal, see
-  MECHANICS.md). Placed at level 5 ("Land of the Wraiths"), room 262 "Kings
-  Chamber" (`no_flee` flagged) — description: "This is a very richly decorated
+  MECHANICS.md). Placed at level 5 ("Land of the Wraiths"), room 285 "Kings
+  Chamber" (`no_flee` flagged; cited as room 262 in an earlier version of this
+  doc, before the room-numbering fix — see the note at the top of this file) —
+  description: "This is a very richly decorated
   chamber indeed. There is a rather handsome fellow glaring at you from his
   throne..."
 - **On death**:
@@ -338,17 +368,15 @@ see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
   - Honor (`vk`) +100, capped at 1900 — `vk` is very likely this port's Honor stat
     (same variable gates the Excalibur quest's Honor≥1200 check).
   - An actual character level: `xp=xp+1`.
-  - Teleports the player to level 5, room 390 (`i$="travel1"`) — same level, no
-    level change — which is the exact same `cl=5, cr=390` quest #14's Copper Key
-    subroutine checks. The two quests converge on the same location and the same
-    status field; they're not independent.
-- **Known gap**: level 5's own header (`D.LEVEL5.TXT`) declares `nr=400` rooms,
-  but the current `level_5.json` only has rooms 1–373 — room 390 falls in the
-  missing 374–400 range and doesn't exist in this port's data at all. Its actual
-  content (presumably the ruins/castle-aftermath room both quests point to) can't
-  be verified from the source alone; would need re-extraction from the original
-  level 5 export data (or, if unavailable, invented as a reasonable "ruins of the
-  castle" room and cross-linked from both quests).
+  - Teleports the player to level 5, room 390 "The Great Door" (`i$="travel1"`) —
+    same level, no level change — which is the exact same `cl=5, cr=390` quest
+    #14's Copper Key subroutine checks. The two quests converge on the same
+    location and the same status field; they're not independent.
+- **Room 390 confirmed**: the corrected `server/level_5.json` (see the note at the
+  top of this file) has room 390 as "The Great Door" — a fitting ruins/castle-door
+  aftermath room for both quests to point to. (An earlier version of this doc
+  reported room 390 as missing from `level_5.json`'s 1–373 range entirely, based
+  on the pre-fix data; that was the room-numbering bug, not a real gap.)
 - **Not yet implemented**: no code currently hooks monster #93's death to any of
   the above — `PlayerFlags.WRAITH_KING_ALIVE` (`flags.py`) exists as an
   EditPlayer-toggleable stats-display flag only (`commands/stats.py`), nothing
@@ -363,9 +391,11 @@ see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
   `SPUR.MISC3.S:416-422` (`exam3`'s "TUT'S TREASURE" name match + `treasure`
   subroutine), `SPUR.MISC5.S:230` (`status`'s "Tut's Treasure:" display line,
   the exact source `commands/stats.py`'s line already ports).
-- **Placement**: item #86 "Tut's Treasure" sits in level 2, room 158 "Secret
-  Chamber"; monster #102 "KING TUT" guards the adjacent room 157 "Mummy's
-  Tomb" (which also holds item #22).
+- **Placement**: item #86 "Tut's Treasure" sits in level 2, room 173 "Secret
+  Chamber"; monster #102 "KING TUT" guards the adjacent room 172 "Mummy's
+  Tomb" (which also holds item #22). (Cited as rooms 158/157 in an earlier
+  version of this doc, before the room-numbering fix — see the note at the top
+  of this file.)
 - **The mechanic** (tracked in `zu$[9]`, this port's equivalent of a per
   -player flag: 0=untouched, 1=examined, 2=looted):
   - `EXAMINE TUT'S TREASURE` while `zu$[9]="0"` — "AHAA! Whats this?!?! Your
@@ -410,11 +440,11 @@ the named quests above:
 | 146 | Salvage Parts | Sell-only; redeemable for gold (×40 multiplier) at the Ship's Salvage Bay (level-6 alt-shoppe) | `SPUR.SHIP.S:460–500` |
 | 151 | Shovel | Speeds up DIG (60 min vs. 180 min bare-handed) | `SPUR.MISC7.S:161–189` |
 | 44/45/65/68 | Red Serum, Blue Pill, Potion of Skill, Charm Potion (rations.json) | Excluded from the "you should eat/drink something" hunger nag during PRAY — treated as non-nutritive magic consumables | `SPUR.MISC2.S:194–211` |
-| 57 | Wraith Dagger (weapon) | Only found in the Headhunter's Chief's Treasure Room; no other reference found — likely just a strong reward weapon | `level_5.json` room 141 |
+| 57 | Wraith Dagger (weapon) | Only found in the Headhunter's Chief's Treasure Room; no other reference found — likely just a strong reward weapon | `level_5.json` room 155 (cited as room 141 in an earlier version of this doc, before the room-numbering fix) |
 | 30 | Sun Blade (weapon) | Committed `level_1.json` room 63 ("Labyrinth", price 4999) has this weapon, but a fresh raw-source extraction shows 0 there — every other monster/weapon/food value across all 28 "Labyrinth"-named rooms lines up exactly between the two, so this is the one unexplained discrepancy. Ruled out a hex/ASCII mixup (`0x30` is decimal 48, not 30) — #30 is a real, legitimately expensive weapon, not garbage, so it's just as likely the committed value is correct (a valuable weapon deliberately hidden in an unremarkable maze room) as it is a stray leftover value. Left as-is, not resolved either way. | `level_1.json` room 63; `weapons.json` #30 |
 | — | Monster #107 GUARD DROID | Room `desc` ("Hey! This fellow looks familiar!") reads like a recurring/storyline encounter — not traced further | `level_6.json` room 93 |
 | — | Monster #103 ("guardian") | Repeat-encounter monster that "remembers" a previous player loss and returns stronger (`ms=ms+xp*6`) | `SPUR.MISC4.S:198–199` |
-| — | Monsters #125/#126 (OZ, Wicked Witch) | Tied to the Ruby Slippers chain (quest #7) but the broomstick's first-acquisition trigger wasn't fully traced (witch-kill drop vs. static item) | `level_6.json` rooms 115/118 |
+| — | Monsters #125/#126 (OZ, Wicked Witch) | Tied to the Ruby Slippers chain (quest #7) but the broomstick's first-acquisition trigger wasn't fully traced (witch-kill drop vs. static item) | `level_6.json` room 582 (OZ) / room 556 (Wicked Witch) — cited as rooms 115/118 in an earlier version of this doc, before the room-numbering fix |
 | — | School / re-training | Pay gold + lose 1 level to re-pick character class; flavor recovered as messages #8 (camp intro) and #6 (result) | `SPUR.MISC2.S:418,434` |
 | — | Shield training (Odin the Shield Master) | Pay gold for permanent shield bonus (20% less chance of a monster getting past your shield, +1 protection); flavor recovered as message #13 | `SPUR.MISC2.S:460` |
 | — | Duel help text | Full `H`elp screen for the duel (PvP) system recovered as message #16 — not yet ported into `commands/` duel help | `SPUR.DUEL.S:26,43` |
