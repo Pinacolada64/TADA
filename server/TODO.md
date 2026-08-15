@@ -1,3 +1,16 @@
+8/15/26:
+- **Server config option: spoils-splitting mode.** Monster kill silver
+  currently always splits evenly across every credited attacker
+  (`combat/engine.py`'s `_monster_dies()`, see the "Silver loot" block --
+  shipped 8/15/26 alongside the SPUR gold-standard -> silver-standard
+  rename, see CLAUDE.md's "Monetary standard" section). Ryan wants this
+  configurable server-wide via `config.py`/`server_config.json`
+  (`commands/config.py` is the in-game admin surface for settings like
+  this) -- a toggle between "split evenly among all attackers" (current
+  behavior) and "killing blow takes all" (SPUR's original solo-payout
+  behavior, which this port moved away from without a way back). Not
+  yet scoped/implemented -- just the option idea captured here.
+
 8/13/26:
 - Room 732 in level_6.json ("Garden Of Eden") has a sign reading
   "Help Dura! Post post!" -- "Dura" is Dura Europos, the BBS this game
