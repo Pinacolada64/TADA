@@ -86,6 +86,19 @@ class EditPlayerCommand(Command):
         live_player, is_online = found
 
         from player import Player
+        if is_online:
+            # Flush the live session's actual current state to disk before
+            # building the edit buffer below -- without this, the edit
+            # buffer loads whatever was last saved (e.g. at their last
+            # login), missing anything picked up/changed since. Saving
+            # target (with the admin's edits) back over that stale file
+            # and then live_player._load()-ing it into the live session
+            # further down would silently revert the connected player's
+            # actual progress (inventory, HP, position, ...) to that old
+            # snapshot. Found live: Gadget lost inventory items she'd
+            # picked up mid-session the first time an admin ran editplayer
+            # on her while she was online.
+            live_player.save(force=True)
         # A fresh Player() with an id loads from disk in __init__ (see
         # Player._load()) -- an edit buffer fully decoupled from any live
         # session, even if *target_name* is online right now. Deliberately
