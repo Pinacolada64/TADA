@@ -57,6 +57,7 @@ class _FakeServer:
     weapons = []
     rations = []
     room_items: dict = {}
+    clients: dict = {}
 
     def __init__(self, session=None, room=1, monsters=None, room_monster=None):
         self.active_combats = {room: session} if session else {}

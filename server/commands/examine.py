@@ -438,8 +438,9 @@ def _armor_descriptor(armor: int) -> str:
 
 def _examine_player(target_ctx: 'GameContext') -> list[str]:
     """SPUR.MISC3.S rd.plyr/rd.plyr2: EXAMINE another player -- experience
-    tier, race, class, health, purse (silver in hand), shield, armor, and
-    a list of carried weapons. SPUR reads the target's raw player record
+    tier, gender, race, class, health, purse (silver in hand), shield,
+    armor, and a list of carried weapons. SPUR reads the target's raw
+    player record
     straight off disk; this port already holds a live Player object for
     an online target, so it reads the equivalent fields directly instead
     of reverse-engineering SPUR's byte-offset record layout (undocumented
@@ -450,6 +451,10 @@ def _examine_player(target_ctx: 'GameContext') -> list[str]:
 
     xp_level = int(getattr(player, 'xp_level', 1) or 1)
     tier = _experience_tier(xp_level)
+
+    from base_classes import Gender
+    gender = getattr(player, 'gender', None)
+    gender_word = 'female' if gender == Gender.FEMALE else 'male'
 
     race = getattr(player, 'char_race', None)
     race_name = str(race).split('.')[-1].title() if race else 'Unknown'
@@ -466,7 +471,7 @@ def _examine_player(target_ctx: 'GameContext') -> list[str]:
     armor = _armor_descriptor(int(getattr(player, 'armor', 0) or 0))
 
     lines = [
-        f'{name} looks like {tier} {race_name} {class_name} in {health} health,',
+        f'{name} looks like {tier} {gender_word} {race_name} {class_name} in {health} health,',
         f'carrying a {purse} gold pouch, {shield} shield and {armor} armor.',
     ]
 

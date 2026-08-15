@@ -107,6 +107,17 @@ class LookCommand(Command):
                 await self._describe_monster(ctx, monster)
                 return CommandResult.ok()
 
+        # Another player sharing the room -- mirrors EXAMINE's own player
+        # lookup (commands/examine.py's _examine_player/_room_players) so
+        # "look <player>" and "x <player>" report the same thing. Ryan's
+        # request: LOOK didn't handle other players at all before this.
+        from commands.examine import _examine_player, _room_players
+        for other_ctx in _room_players(ctx, exclude=ctx):
+            other_name = (getattr(other_ctx.player, 'name', '') or '').strip()
+            if other_name and target in other_name.lower():
+                await ctx.send(_examine_player(other_ctx))
+                return CommandResult.ok()
+
         # Search inventory for a matching item.
         inv = getattr(ctx.player, 'inventory', None)
         if inv is not None:

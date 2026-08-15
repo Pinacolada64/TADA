@@ -731,7 +731,19 @@ class TestExaminePlayer(unittest.IsolatedAsyncioTestCase):
         await ExamineCommand().execute(ctx, 'Legolas')
 
         joined = '\n'.join(ctx.sent)
-        self.assertIn('Legolas looks like an elite Elf Ranger in excellent health,', joined)
+        self.assertIn('Legolas looks like an elite male Elf Ranger in excellent health,', joined)
+
+    async def test_examine_player_shows_female_gender(self):
+        from base_classes import Gender
+
+        target = self._make_target(name='Arwen', xp_level=5, hit_points=40)
+        target.gender = Gender.FEMALE
+        ctx = self._room_setup(_player(), target)
+
+        await ExamineCommand().execute(ctx, 'Arwen')
+
+        joined = '\n'.join(ctx.sent)
+        self.assertIn('Arwen looks like an elite female Elf Ranger in excellent health,', joined)
 
     async def test_examine_player_purse_and_shield_armor(self):
         target = self._make_target(name='Legolas', silver=800, shield=90, armor=80)
