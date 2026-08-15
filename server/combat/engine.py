@@ -1878,12 +1878,26 @@ class CombatSession:
         if 'STORM' in wname:
             await ctx.send(f'THE {wname} SCREAMS IN GLEE!!')
 
-        # Gold loot (probability + amount from rewards.py / SPUR.MISC.S p.a4)
+        # Silver loot (probability + amount from rewards.py / SPUR.MISC.S p.a4,
+        # gold_from_monster() there still named for SPUR's gold standard --
+        # this port has since moved to a silver standard, see CLAUDE.md).
+        # SPUR only ever paid the killer; this port splits it evenly across
+        # every credited attacker (Ryan's request), same crediting set used
+        # for skill/kill-log above -- any remainder from the integer
+        # division goes to the killing-blow player (ctx).
         player = ctx.player
-        gold = gold_from_monster(self.monster)
-        if gold:
-            _give_silver(player, gold)
-            await ctx.send(f'You find {gold} gold pieces on {mname}!')
+        silver = gold_from_monster(self.monster)
+        if silver:
+            n = len(credited)
+            share = silver // n
+            remainder = silver - share * n
+            for b_ctx in credited:
+                amount = share + (remainder if b_ctx is ctx else 0)
+                if amount <= 0:
+                    continue
+                _give_silver(b_ctx.player, amount)
+                split_note = f' (split {n} ways)' if n > 1 else ''
+                await b_ctx.send(f'You find {amount} silver pieces on {mname}!{split_note}')
 
         # Droid/robot salvage: parts drop + energy-weapon power pak
         # recharge (SPUR.MISC.S:406-415, "no.gold"/"no.salvg" labels --

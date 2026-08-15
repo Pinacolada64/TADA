@@ -19,6 +19,23 @@
   but converting one *is* fine when it's actually asked for; just ask
   Ryan first rather than doing a drive-by sweep.
 
+## Monetary standard
+
+- **This port is moving off SPUR's gold standard onto a silver standard** —
+  player-facing currency language (and, going forward, new/rewritten code)
+  should say "silver" rather than "gold". Other period-accurate complementary
+  denominations (copper, etc.) may be introduced later, so don't assume
+  silver is the only unit forever — but for now, treat "gold" as the term
+  being phased out.
+- **Whenever "gold" is encountered going forward, change it to "silver"** —
+  in new player-facing strings, in code you're touching anyway (variable
+  names, messages, comments), and in fresh porting work from the SPUR BASIC
+  source. This is a live, in-progress rename, not a one-time sweep: don't go
+  do a drive-by pass converting every untouched "gold" reference across the
+  codebase in one shot — ask Ryan before a repo-wide sweep — but any file you
+  are already editing for other reasons should get its "gold" references
+  updated to "silver" as part of that edit.
+
 ## Player data
 
 - **New player log/stat field → chat with Ryan about an editplayer entry.**
