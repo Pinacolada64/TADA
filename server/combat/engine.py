@@ -742,7 +742,10 @@ class CombatSession:
         Skipped if the player has killed this monster number before (SPUR's
         xm$ check -- a rolling last-15-killed-this-session list there;
         this port already tracks every monster ever killed in
-        player.dead_monsters, so that's the equivalent gate here).
+        player.dead_monsters, so that's the equivalent gate here). Also
+        skipped if the player already scared this monster off once
+        (player.fled_monsters, SPUR's md==2 state) -- same "already dealt
+        with this one" gate.
         """
         from bar.ally_data import AllyFlags, AllyPosition, AllyStatus
         from bar.allies import owned_allies
@@ -751,7 +754,8 @@ class CombatSession:
             return
 
         mid = self.monster.get('number') or self.monster.get('id_number') or self.monster.get('id')
-        if mid is not None and mid in (getattr(ctx.player, 'dead_monsters', None) or []):
+        if mid is not None and (mid in (getattr(ctx.player, 'dead_monsters', None) or [])
+                                 or mid in (getattr(ctx.player, 'fled_monsters', None) or [])):
             return
 
         # A mounted player's horse rolls its own, separate bolt chance on

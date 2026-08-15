@@ -179,7 +179,8 @@ async def try_monster_encounter(ctx: 'GameContext', *, level: int, room_no: int)
     if not monster_no:
         return
     if (monster_no in getattr(player, 'dead_monsters', [])
-            or monster_no in getattr(player, 'charmed_monsters', [])):
+            or monster_no in getattr(player, 'charmed_monsters', [])
+            or monster_no in getattr(player, 'fled_monsters', [])):
         return
 
     active = getattr(ctx.server, 'active_combats', {}) or {}

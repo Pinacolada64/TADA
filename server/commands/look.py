@@ -183,6 +183,14 @@ class LookCommand(Command):
 
     async def _describe_monster(self, ctx: GameContext, monster: dict) -> None:
         from monsters import monster_is_alive
+        mon_number = monster.get('number')
+        fled_monsters = getattr(ctx.player, 'fled_monsters', None) or []
+        if mon_number is not None and mon_number in fled_monsters:
+            # Scared off by a loud weapon (SPUR's md==2 "tracks" state) --
+            # matches simple_server.py's room-description wording.
+            name = monster.get('name') or 'monster'
+            await ctx.send(f'You see {name} tracks here.')
+            return
         if not monster_is_alive(monster, ctx.player):
             # Most flavor text in monsters.json assumes the monster is
             # still up and fighting ("rears back", "snarls") -- Ryan's

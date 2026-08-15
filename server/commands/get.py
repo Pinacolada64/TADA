@@ -428,7 +428,13 @@ class GetCommand(Command):
                 matched = True
                 from monsters import monster_display_name, monster_is_alive
                 mdisp = monster_display_name(monster).upper()
-                if monster_is_alive(monster, ctx.player):
+                mon_num = monster.get('number')
+                fled_monsters = getattr(ctx.player, 'fled_monsters', None) or []
+                if mon_num is not None and mon_num in fled_monsters:
+                    # Scared off by a loud weapon (SPUR's md==2 "tracks"
+                    # state) -- nothing there to get, SPUR.MISC.S:227/233.
+                    await ctx.send(f'YOU HEAR LAUGHTER AS YOU TRY TO GET THE {mname.upper()}')
+                elif monster_is_alive(monster, ctx.player):
                     await ctx.send(f'{mdisp} WON\'T LET YOU!')
                 else:
                     await ctx.send(f'YOU HACK UP {mdisp} INTO {mname.upper()} STEAKS..')

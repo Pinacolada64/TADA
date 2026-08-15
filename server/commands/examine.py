@@ -296,12 +296,17 @@ def _examine_monster(ctx, monster: dict) -> list[str]:
     for treasure or food, with a small chance of catching a disease.
     Only reaches the search rolls once the monster is in
     player.dead_monsters -- a still-live one just refuses to be examined
-    (SPUR's md==0 case; TADA has no equivalent of SPUR's md==2 "tracks
-    only" state, so that branch isn't ported)."""
+    (SPUR's md==0 case). A monster scared off by a loud weapon
+    (player.fled_monsters, SPUR's md==2 "tracks" state) short-circuits
+    before either of those -- tracks aren't lootable, so no search roll."""
     from monsters import monster_display_name
     player = ctx.player
     name   = monster_display_name(monster)
     monster_no = monster.get('number')
+
+    is_fled = monster_no in (getattr(player, 'fled_monsters', None) or [])
+    if is_fled:
+        return [f'Yep, they are {monster.get("name", "monster")} tracks awright.']
 
     is_dead = monster_no in (getattr(player, 'dead_monsters', None) or [])
     if not is_dead:
