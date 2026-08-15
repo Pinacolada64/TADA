@@ -459,6 +459,16 @@ class ServerConfig:
         self.set('petscii_port', int(value))
 
     @property
+    def host(self) -> str:
+        """Server listen host/interface, shared by both ports. Changing this
+        has no effect until the server restarts."""
+        return str(self.get('host', 'localhost'))
+
+    @host.setter
+    def host(self, value: str) -> None:
+        self.set('host', str(value))
+
+    @property
     def server_timezone(self) -> str:
         """IANA zone name the server's own naive timestamps are considered
         to be in, or '' for "whatever the OS is set to" (see

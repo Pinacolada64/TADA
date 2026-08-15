@@ -1551,12 +1551,12 @@ if __name__ == '__main__':
     from config import config as server_config
 
     parser = argparse.ArgumentParser(description='TADA server')
-    parser.add_argument('--host',         default='127.0.0.1')
     # Defaults come from server_config.json (config.py's ServerConfig,
     # editable via the in-game CONFIG command or setup/server_setup.py)
     # rather than the DEFAULT_PORT/PETSCII_PORT module constants directly,
-    # so a sysop's saved ansi_port/petscii_port actually takes effect on
-    # the next restart; --port/--petscii-port still override for one run.
+    # so a sysop's saved ansi_port/petscii_port/host actually takes effect on
+    # the next restart; --host/--port/--petscii-port still override for one run.
+    parser.add_argument('--host',         default=server_config.host)
     parser.add_argument('--port',         type=int, default=server_config.ansi_port)
     parser.add_argument('--petscii-port', type=int, default=server_config.petscii_port,
                         dest='petscii_port')
