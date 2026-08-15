@@ -184,7 +184,10 @@ class Player:
         logging.info(f'Player.__init__: Connections: {len(connection_ids)}, {connection_ids}')
         self.connection_id = connection_id  # 'id' shadows built-in name
         """
-        self.connection_id = kwargs.get('connection_id', make_random_id())
+        # Deferred like stats/combinations/silver below -- only rolled for
+        # a genuinely new character, not burned on every load of an
+        # existing one.
+        self.connection_id = kwargs.get('connection_id')
         # keep this until I figure out where it is in net_server.py:
         self.name = kwargs.get('name', "Generic Name")
 
@@ -197,9 +200,14 @@ class Player:
 
         self.gender = kwargs.get('gender', Gender.MALE)
 
-        # creates a new stats dict for each Player, creates random stats:
-        # TODO: set with Player.set_stat_absolute(PlayerStat.xyz, value)
-        self.stats = kwargs.get("stats", set_up_stats())
+        # Real stat rolling happens in commands/new_player.py's _roll_stats()
+        # for brand-new characters, or is restored from disk by _load()
+        # below for existing ones -- either way this starting {} gets
+        # replaced before it's ever read. Deferred (not set_up_stats() here)
+        # so constructing a Player() for an existing account (login,
+        # editplayer's edit buffer) doesn't burn a throwaway random roll on
+        # every single load.
+        self.stats = kwargs.get("stats") or {}
         # Cumulative points drained from stats by the Ring of Invisibility
         # curse (survival.py's RING_WORN tick), keyed by PlayerStat name.
         # The Fountain of Youth / Galadriel's Vial (survival.py's
@@ -210,8 +218,12 @@ class Player:
         # flags:
         self.flags = kwargs.get('flags', set_up_flags())
         # dict of CombinationTypes -> Combination (ELEVATOR is added later, on-demand,
-        # by reading the scrap of paper -- see set_up_combinations()):
-        self.combinations = kwargs.get('combinations') or set_up_combinations()
+        # by reading the scrap of paper -- see set_up_combinations()). Left
+        # empty here and only randomized below (after _load()) for a
+        # genuinely new character -- an existing account's real castle
+        # combination is restored from disk instead of being rolled and
+        # thrown away on every load.
+        self.combinations = kwargs.get('combinations') or {}
         # client settings - set up some defaults
         self.client_settings = kwargs.get('client_settings', set_up_client_settings())
         # per-player command preferences (whereat visibility, etc.)
@@ -226,14 +238,9 @@ class Player:
         # creates a new silver dict for each Player:
         # IN_BANK may be cleared on character death (TODO: look in TLOS source)
         # IN_BAR should be preserved after character's death (TODO: same)
-        self.silver = kwargs.get('silver', set_up_silver())
-        if self.silver:
-            """
-            >>> print(f"{PlayerMoneyTypes.IN_HAND}: {silver_types[PlayerMoneyTypes.IN_HAND]:,}")
-            In hand: 1,000
-            """
-            silver_in_hand = self.get_silver(PlayerMoneyTypes.IN_HAND)
-            logging.info("Silver in hand: %i" % silver_in_hand)
+        # Left empty here for the same reason as stats/combinations above --
+        # only rolled below (after _load()) for a genuinely new character.
+        self.silver = kwargs.get('silver') or {}
 
         self.times_played = kwargs.get('times_played', None)
         # last_connection helps determine whether once_per_day events should be reset, but we just care about the day
@@ -547,11 +554,34 @@ class Player:
         self.unsaved_changes: bool = False
 
         # If an id was provided, attempt to load persisted player state from disk
+        loaded = False
         try:
             if self.id:
-                self._load()
+                loaded = self._load()
         except Exception:
             logging.debug('No saved player data loaded for %s' % (self.id or self.name))
+
+        # A genuinely new character (no save file to load, e.g.
+        # commands/new_player.py's skeleton Player()) needs real starting
+        # values here -- stats get re-rolled by _roll_stats() anyway, but
+        # connection_id/combinations/silver aren't set anywhere else, so
+        # they're rolled here rather than by the (now-removed) eager
+        # defaults above, which used to burn a throwaway random roll on
+        # every single load of an *existing* player too (login,
+        # editplayer's edit buffer, ...).
+        if not loaded:
+            if not self.connection_id:
+                self.connection_id = make_random_id()
+            if not self.stats:
+                self.stats = set_up_stats()
+            if not self.combinations:
+                self.combinations = set_up_combinations()
+            if not self.silver:
+                self.silver = set_up_silver()
+
+        if self.silver:
+            silver_in_hand = self.get_silver(PlayerMoneyTypes.IN_HAND)
+            logging.info("Silver in hand: %i" % silver_in_hand)
 
         # Login-time reset (SPUR.LOGON.S:198 xo=xf:xo$=xf$;
         # SPUR.LOGON.S:208 xt$="":xt=0), run after _load() so self.inventory
