@@ -61,18 +61,19 @@ def _screen_width(ctx) -> int:
 def _menu_options_lines(ctx) -> list[str]:
     """The full end-of-message option list -- shown as ctx.prompt()'s
     preamble to non-expert players every time, and to anyone who types
-    '?' to recall it."""
-    return [
-        '',
-        '[R]eply             -- reply to this message',
-        '[M]ail poster       -- send the author a private mail',
-        '[L]ist              -- list every message in this thread',
-        '<#>                 -- jump straight to reply #',
-        f'{ctx.player.return_key}               -- read the next message',
-        "'pm'                -- toggle Prompt Mode",
-        '[Q]uit               -- back to the board listing',
-        "'?'                 -- show this list again",
-    ]
+    '?' to recall it. Borderless two-column table, same convention as
+    _quote_option_lines()."""
+    from table import Table
+    t = Table(headers=['', ''], show_header=False, border=False)
+    t.add_row(['[R]eply', 'reply to this message'])
+    t.add_row(['[M]ail poster', 'send the author a private mail'])
+    t.add_row(['[L]ist', 'list every message in this thread'])
+    t.add_row(['<#>', 'jump straight to reply #'])
+    t.add_row([ctx.player.return_key, 'read the next message'])
+    t.add_row(["'pm'", 'toggle Prompt Mode'])
+    t.add_row(['[Q]uit', 'back to the board listing'])
+    t.add_row(["'?'", 'show this list again'])
+    return [''] + t.render(width=_screen_width(ctx))
 
 
 def _numbered_lines(lines: list[str]) -> list[str]:
@@ -148,7 +149,7 @@ async def read_thread_interactive(ctx, thread: dict) -> None:
             preamble.append(f'[Reply {idx} of {reply_count}]')
         if not ctx.player.is_expert:
             preamble += _menu_options_lines(ctx)
-        raw = await ctx.prompt('End of bulletin option>', preamble_lines=preamble or None)
+        raw = await ctx.prompt('End of bulletin option', preamble_lines=preamble or None)
         if raw is None:
             return  # disconnected mid-read
         choice = raw.strip()

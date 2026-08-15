@@ -191,7 +191,7 @@ class TestSteppedNavigation(unittest.TestCase):
         ctx = make_ctx(prompts=['', '', ''])
         run(read_thread_interactive(ctx, _thread()))
         prompt_args = [c.args[0] for c in ctx.prompt.await_args_list]
-        self.assertTrue(all(p == 'End of bulletin option>' for p in prompt_args))
+        self.assertTrue(all(p == 'End of bulletin option' for p in prompt_args))
 
     def test_non_expert_sees_option_preamble(self):
         ctx = make_ctx(player=_FakePlayer(expert=False), prompts=['', '', ''])
