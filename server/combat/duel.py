@@ -883,6 +883,22 @@ class DuelSession:
         self.end_lines[id(winner_side)] = win_line
         self.end_lines[id(loser_side)] = lose_line
 
+        # SPUR.DUEL2.S's sendmail: mails the loser a permanent record of
+        # the duel result. In SPUR's BBS door-game model this was how
+        # someone who wasn't present at the time still found out; kept
+        # for the same reason here -- a disconnected loser's ctx is
+        # already dead by the time forfeit() runs (see its docstring),
+        # so mail is the only way they ever learn what happened, and it
+        # doubles as a permanent record for the ordinary live case too.
+        import mail
+        if disconnected:
+            mail_body = f'You disconnected during a duel with {winner.name} in {room_name} and lost by forfeit.'
+        else:
+            mail_body = f'You were defeated by {winner.name} in a duel in {room_name}.'
+        if stolen:
+            mail_body += f' They took {stolen} silver from you.'
+        mail.add_system_message(loser.name, mail_body)
+
         winner_guild = getattr(winner, 'guild', Guild.CIVILIAN)
         loser_guild = getattr(loser, 'guild', Guild.CIVILIAN)
         if winner_guild not in (Guild.CIVILIAN, Guild.OUTLAW) and loser_guild not in (Guild.CIVILIAN, Guild.OUTLAW):

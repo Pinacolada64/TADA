@@ -14,6 +14,11 @@ from combat.duel import DuelSession
 from items import Weapon
 from player import Player
 
+# Note: forfeit() -> _end() sends the loser a mail notice
+# (mail.add_system_message(), see combat/duel.py) -- tests/conftest.py's
+# session-scoped _isolate_mail_dir autouse fixture keeps that out of the
+# real run/server/mail/ directory, no per-file patching needed here.
+
 
 class _FakeCtx:
     def __init__(self):
@@ -54,6 +59,23 @@ def _make_session():
 
 
 class TestDuelForfeit(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        # This class asserts exact mailbox contents (a disconnected
+        # loser's forfeit-notice mail); tests/conftest.py's
+        # _isolate_mail_dir autouse fixture is session-scoped (one dir
+        # shared for the whole run) and 'Ardent'/'Belwin' are reused by
+        # other duel test files too, so give this class its own fresh
+        # mailbox rather than asserting against accumulated messages.
+        import tempfile
+        from pathlib import Path
+        self._tmp = tempfile.TemporaryDirectory()
+        self._patcher = patch('mail.MAIL_DIR', Path(self._tmp.name))
+        self._patcher.start()
+
+    def tearDown(self):
+        self._patcher.stop()
+        self._tmp.cleanup()
+
     async def test_forfeit_marks_duel_done(self):
         session, a, b, _ctx_a, _ctx_b = _make_session()
         with patch('combat.duel.net_common.append_battle_log'):
@@ -100,6 +122,18 @@ class TestDuelForfeit(unittest.IsolatedAsyncioTestCase):
         self.assertIn('disconnected', entry.lower())
         self.assertIn(a.name, entry)
         self.assertIn(b.name, entry)
+
+    async def test_disconnected_loser_gets_a_mail_notice(self):
+        import mail
+
+        session, a, b, _ctx_a, _ctx_b = _make_session()
+        with patch('combat.duel.net_common.append_battle_log'):
+            await session.forfeit(a)
+        inbox = mail.load_mailbox(a.name)
+        self.assertEqual(len(inbox), 1)
+        self.assertEqual(inbox[0]['from'], mail.SYSTEM_SENDER)
+        self.assertIn('disconnected', inbox[0]['body'].lower())
+        self.assertIn(b.name, inbox[0]['body'])
 
     async def test_forfeit_is_a_no_op_if_duel_already_over(self):
         session, a, b, _ctx_a, ctx_b = _make_session()

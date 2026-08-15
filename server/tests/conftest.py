@@ -14,6 +14,35 @@ logging.basicConfig(level=logging.WARNING)
 
 
 # ---------------------------------------------------------------------------
+# Global mail isolation
+# ---------------------------------------------------------------------------
+# combat/duel.py's DuelSession._end() now sends the loser a mail notice on
+# every decisive duel (mail.add_system_message() -- see combat/duel.py,
+# ported from SPUR.DUEL2.S's sendmail). mail.MAIL_DIR defaults to a real
+# run/server/mail/ path, and plenty of duel tests across tests/combat/
+# run a session to a decisive result without knowing anything about mail
+# -- without this, they'd silently write real files into that directory
+# every time the suite runs (caught live: a single `pytest
+# tests/combat/test_duel.py` run created ardent.json/belwin.json there).
+# Session-scoped autouse fixture so no test anywhere needs to opt in; a
+# test that wants to inspect its own mail (tests/social/test_mail.py and
+# friends) just patches mail.MAIL_DIR again on top of this one -- patches
+# nest fine, the more specific one just wins for its own duration.
+import pytest
+
+
+@pytest.fixture(scope='session', autouse=True)
+def _isolate_mail_dir():
+    import tempfile
+    from pathlib import Path
+    from unittest.mock import patch
+
+    with tempfile.TemporaryDirectory() as tmp:
+        with patch('mail.MAIL_DIR', Path(tmp)):
+            yield
+
+
+# ---------------------------------------------------------------------------
 # Network e2e test helpers
 # ---------------------------------------------------------------------------
 # Shared by tests/test_network_e2e_real_login.py, test_network_e2e_reconnect.py,

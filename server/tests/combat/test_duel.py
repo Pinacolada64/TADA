@@ -20,6 +20,11 @@ from combat.duel import (
 from items import Weapon
 from player import Player
 
+# Note: a decisive DuelSession._end() sends the loser a mail notice
+# (mail.add_system_message(), see combat/duel.py) -- tests/conftest.py's
+# session-scoped _isolate_mail_dir autouse fixture keeps that out of the
+# real run/server/mail/ directory, no per-file patching needed here.
+
 
 class _FakeClient:
     def __init__(self, room):
@@ -265,6 +270,84 @@ class TestPersonalDuelRecordAndBattleLog(unittest.IsolatedAsyncioTestCase):
         self.assertIn('FLED', entry)
         self.assertIn(a.name, entry)
         self.assertIn(b.name, entry)
+
+
+class TestDuelResultMailNotice(unittest.IsolatedAsyncioTestCase):
+    """DuelSession._end() mails the loser a result notice (SPUR.DUEL2.S's
+    sendmail label) -- see combat/duel.py. tests/conftest.py's
+    _isolate_mail_dir autouse fixture keeps this out of the real
+    run/server/mail/ directory, but it's session-scoped (one shared dir
+    for the whole run) -- these tests assert exact mailbox contents, so
+    each one needs its own fresh mailbox, not one accumulating messages
+    from every other test that happens to reuse 'Ardent'/'Belwin'."""
+
+    def setUp(self):
+        import tempfile
+        from pathlib import Path
+        self._tmp = tempfile.TemporaryDirectory()
+        self._patcher = patch('mail.MAIL_DIR', Path(self._tmp.name))
+        self._patcher.start()
+
+    def tearDown(self):
+        self._patcher.stop()
+        self._tmp.cleanup()
+
+    async def test_loser_gets_a_mail_notice(self):
+        import mail
+
+        session, a, b = _make_session()
+        a.hit_points = 100
+        b.hit_points = 1
+        with patch('combat.duel.net_common.append_battle_log'):
+            for _ in range(50):
+                if session.done:
+                    break
+                await session.submit(a, DuelTactic.ATTACK)
+                await session.submit(b, DuelTactic.PARRY)
+        self.assertTrue(session.done)
+        winner, loser = (a, b) if b.hit_points == 15 else (b, a)
+
+        inbox = mail.load_mailbox(loser.name)
+        self.assertEqual(len(inbox), 1)
+        self.assertEqual(inbox[0]['from'], mail.SYSTEM_SENDER)
+        self.assertIn(f'defeated by {winner.name}', inbox[0]['body'])
+
+    async def test_winner_gets_no_mail_notice(self):
+        import mail
+
+        session, a, b = _make_session()
+        a.hit_points = 100
+        b.hit_points = 1
+        with patch('combat.duel.net_common.append_battle_log'):
+            for _ in range(50):
+                if session.done:
+                    break
+                await session.submit(a, DuelTactic.ATTACK)
+                await session.submit(b, DuelTactic.PARRY)
+        self.assertTrue(session.done)
+        winner, _loser = (a, b) if b.hit_points == 15 else (b, a)
+
+        self.assertEqual(mail.load_mailbox(winner.name), [])
+
+    async def test_mail_notes_stolen_silver(self):
+        import mail
+        from base_classes import PlayerMoneyTypes
+
+        session, a, b = _make_session()
+        a.hit_points = 100
+        b.hit_points = 1
+        b.set_silver_absolute(PlayerMoneyTypes.IN_HAND, 50)
+        with patch('combat.duel.net_common.append_battle_log'):
+            for _ in range(50):
+                if session.done:
+                    break
+                await session.submit(a, DuelTactic.ATTACK)
+                await session.submit(b, DuelTactic.PARRY)
+        self.assertTrue(session.done)
+        _winner, loser = (a, b) if b.hit_points == 15 else (b, a)
+
+        inbox = mail.load_mailbox(loser.name)
+        self.assertIn('50 silver', inbox[0]['body'])
 
 
 class TestChallengeBlockedWhenUnconscious(unittest.IsolatedAsyncioTestCase):
