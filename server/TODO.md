@@ -10,6 +10,64 @@
   behavior) and "killing blow takes all" (SPUR's original solo-payout
   behavior, which this port moved away from without a way back). Not
   yet scoped/implemented -- just the option idea captured here.
+- **Web-based client for TADA.** Ryan's been mulling this over (idea
+  floated after seeing the interactive "Spoils Ledger" artifact used to
+  test the spoils-splitting config option above) -- a browser client as
+  an alternative to the existing C64/SwiftLink client and whatever
+  terminal/bot clients exist today. No protocol, framework, or scope
+  decided yet; the server's JSON
+  wire protocol (see `tools/bot_client.py` and the "Bot scripts" section
+  of this file's CLAUDE.md) is presumably the natural integration point
+  for a browser client to talk to, same as the existing bots. Just the
+  idea captured here -- not scoped into tasks.
+- **C64 client scrollback via a second virtual screen + pointer swap.**
+  Gadget's proposal: keep two 25-line screens in VIC-visible memory (a
+  "virtual" 50-line buffer split across them) and bind a key combo that
+  toggles which half is currently displayed -- in her words, "just
+  toggling the address of the display :)". That's the classic C64
+  screen-flip trick (changing the screen base nybble in $D018 to point
+  at the other 1K screen, rather than actually redrawing anything) --
+  cheap, instant, and doesn't need a general text-scrollback buffer
+  system. Would give players a lightweight "what did I just miss"
+  scrollback for the TADA C64 client without needing the memory budget
+  for real arbitrary-depth scrollback. Not yet scoped -- would need to
+  check what screen memory is already spoken for (multiple screens cost
+  1K each) before picking where the second screen lives.
+- **Integrate the 3-key-rollover keyboard driver into the C64 client.**
+  Source already exists elsewhere in the repo (not `server/`):
+  `assembly-language/3-key-rollover-source.asm`/`.lbl`/`.prg` -- an
+  install/uninstall-able IRQ-driven keyboard driver that reads the
+  keyboard matrix directly (`CIAPRA`/`CIAPRB`) rather than going through
+  the KERNAL's own scan/decode routine, so it can report more than one
+  simultaneously-held key instead of silently dropping the extra one on
+  accidental multi-key presses -- would let players type faster/more
+  reliably in the C64 client (`assembly-language/client/tada-client.asm`).
+  It hooks `CINV`/`$0314` (the same IRQ vector the client's own
+  `init_irq`/`irq_handler` in `assembly-language/client/tada-client.asm`
+  already chains into for SID playback), so integrating it means adding
+  it as another
+  entry in that dispatch table rather than installing a second competing
+  IRQ hook. Not yet scoped -- would need to check for zero-page/memory
+  overlap the same way the SID work did (KERNAL/BASIC ROM disassembly
+  check, not just "nothing in this file uses it") before wiring it in,
+  given this driver pokes `$c0`/`$c5`/`$cb`/`$cc`-`$cf`/`$d1`/`$d3`/`$f3`/
+  `$f5` directly per its own source comments.
+- **C64 client settings menu, opened with Ctrl+Left-Arrow (the back
+  arrow key).** Docks to the bottom of the screen, just above the input
+  area, as a cursor-key-driven highlight menu (up/down to move the
+  highlight, presumably Return/Enter to pick, Ctrl+Left-Arrow or RUN/STOP
+  to close). First two settings to include: screen colors, and cursor
+  blink speed with 0 meaning non-blinking -- a solid reverse-video block
+  cursor instead. The blink-speed option is specifically for Gadget, who
+  Ryan recalled has a problem with blinking cursors; defeating blink
+  entirely (0) needs to be a real, easy-to-reach option, not just a
+  faster blink rate. Framed as an extensible settings menu -- "whatever
+  other config options we come up with later" -- not just a two-item
+  dialog, so the menu's own data structure should be built for N options
+  from the start. Not yet scoped -- BLNSW (per the 3-key-rollover driver
+  entry above, and the stock KERNAL's own cursor-blink flag at the same
+  address) is the natural hook for the blink-speed/off option once this
+  is implemented.
 
 8/13/26:
 - Room 732 in level_6.json ("Garden Of Eden") has a sign reading
