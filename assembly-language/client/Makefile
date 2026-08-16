@@ -25,13 +25,19 @@ TARGET          = tada-client
 # `-fs8 "."` (or a real 1541/1581) serves as device 8, since the resident
 # program LOADs it by filename at runtime -- this Makefile's own directory
 # already doubles as that build/serve directory.
-MODULES         = petscii_editor
+MODULES         = petscii_editor config_menu
 
 petscii_editor_pp.asm: petscii_editor.asm
 	$(PREPROCESSOR) petscii_editor.asm
 
 petscii_editor.prg: petscii_editor_pp.asm
 	$(C64LIST) petscii_editor_pp.asm -prg:petscii_editor -sym -ovr
+
+config_menu_pp.asm: config_menu.asm
+	$(PREPROCESSOR) config_menu.asm
+
+config_menu.prg: config_menu_pp.asm
+	$(C64LIST) config_menu_pp.asm -prg:config_menu -sym -ovr
 
 # --- ROM paths ---
 VICE_ROMS       = $(HOME)/.local/share/vice/C64
@@ -129,11 +135,12 @@ vice: all $(TARGET).d64
 # client.asm's own petscii_editor_filename now uses the matching raw
 # $d0,$c5,$d4,... byte literals rather than `ascii` for exactly this
 # reason -- keep the two in sync if either changes.
-$(TARGET).d64: $(TARGET).prg petscii_editor.prg
+$(TARGET).d64: $(TARGET).prg petscii_editor.prg config_menu.prg
 	rm -f $(TARGET).d64
 	c1541 -format "tada,00" d64 $(TARGET).d64
 	c1541 $(TARGET).d64 -write $(TARGET).prg "tada-client"
 	c1541 $(TARGET).d64 -write petscii_editor.prg "PETSCII.ED"
+	c1541 $(TARGET).d64 -write config_menu.prg "CONFIG.MNU"
 
 d64: $(TARGET).d64
 

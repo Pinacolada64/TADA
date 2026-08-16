@@ -318,6 +318,16 @@ class ClientSettings:
     # #population summary) -- table.ZebraColors. None means "use table.
     # DEFAULT_ZEBRA_COLORS". Editable via PREFS 'A' (Table Colors).
     table_colors: 'Optional[ZebraColors]' = None
+    # Real Commodore hardware only: how fast the client's own blinking
+    # input cursor toggles (tada-client.asm's update_cursor/cursor_toggle
+    # -- there's no KERNAL-native blink for GETIN-driven input). 1=fast,
+    # 2=normal (the previous hardcoded default), 3=slow, 4=very slow,
+    # 5=solid (no blink at all -- some screen-reader/accessibility
+    # software, e.g. Gadget, doesn't get along with a blinking cursor) --
+    # see commands/c64_display.py's BLINK_SPEED_MASKS for the actual
+    # jiffy-clock bitmask each speed maps to client-side. Editable via
+    # PREFS 'T' -> 'V' (Video Settings (C64)), PETSCII connections only.
+    cursor_blink_speed: int = 2
 
     # New in TADA: Player._load() never restored client_settings at all
     # (only save() dumped it, via a generic __dict__ fallback that also
@@ -348,6 +358,7 @@ class ClientSettings:
                                 if self.menu_colors is not None else None),
             'table_colors':   (asdict(self.table_colors)
                                 if self.table_colors is not None else None),
+            'cursor_blink_speed': self.cursor_blink_speed,
         }
 
     @classmethod
@@ -355,7 +366,8 @@ class ClientSettings:
         instance = cls()
         for key in ('screen_rows', 'screen_columns', 'border_style', 'has_color',
                     'reverse_on', 'reverse_off', 'return_key', 'timezone',
-                    'date_format', 'time_format', 'line_ending', 'has_tab', 'tab_char'):
+                    'date_format', 'time_format', 'line_ending', 'has_tab', 'tab_char',
+                    'cursor_blink_speed'):
             if key in data:
                 setattr(instance, key, data[key])
         # isinstance guard, not just try/except KeyError: a save file from

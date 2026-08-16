@@ -91,9 +91,16 @@
 {const: CANVAS_STREAM_CONFIRM $42}   ; 'B' for "banner" -- distinct from
                                        ; SID_STREAM_CONFIRM ('S')
 
-; KERNAL routines used by load_petscii_editor to LOAD the banner-editor
-; overlay module from disk on demand (see that routine's own comment for
-; why this is a separate on-disk module rather than resident code).
+; Display-settings (config menu) stream marker -- same idea/reasoning as
+; CANVAS_STREAM_CONFIRM above, own distinct confirm byte so
+; handle_recv_byte_confirm can tell this apart from a SID or canvas
+; stream. Matches commands/c64_display.py (server side) exactly.
+{const: DISPLAY_STREAM_CONFIRM $44}   ; 'D' for "display"
+
+; KERNAL routines used by load_petscii_editor/load_config_menu to LOAD an
+; overlay module from disk on demand (see load_petscii_editor's own
+; comment for why this is a separate on-disk module rather than resident
+; code).
 {const: KERNAL_SETNAM $ffbd}
 {const: KERNAL_SETLFS $ffba}
 {const: KERNAL_LOAD    $ffd5}
@@ -124,6 +131,30 @@
 {const: JT_RESUME   $0346}     ; jmp prompt_loop -- hands control back to
                                  ; the resident request/response loop once
                                  ; the overlay is done (saved or cancelled)
+{const: JT_SAVE_SCREEN    $0349}  ; jmp save_screen -- SCREEN_RAM/COLOR_RAM
+                                    ; -> BACKUP_CHARS/BACKUP_COLORS
+{const: JT_RESTORE_SCREEN $034c}  ; jmp restore_screen -- reverse of the above.
+                                    ; Both added so petscii_editor.asm's help
+                                    ; overlay (previously its own private
+                                    ; 2000-byte BACKUP_CHARS/BACKUP_COLORS +
+                                    ; copy_1000) and any future popup-window
+                                    ; module (e.g. a config menu) share one
+                                    ; resident save/restore buffer instead of
+                                    ; each module allocating its own -- Ryan's
+                                    ; ask. Only one module is ever resident at
+                                    ; OVERLAY_BUF at a time, so there's no
+                                    ; concurrent-use concern.
+{const: JT_SET_BLINK_MASK $034f}  ; jmp set_blink_mask -- .a = new
+                                    ; cursor_blink_mask value. A setter
+                                    ; routine, not a raw fixed-address poke,
+                                    ; because cursor_blink_mask is an
+                                    ; ordinary resident variable whose real
+                                    ; address shifts on every resident edit
+                                    ; -- same reason overlay modules can't
+                                    ; just `sta` a resident label directly.
+                                    ; Used by config_menu.asm's Video
+                                    ; Settings popup to apply a blink speed
+                                    ; live as the player picks it.
 
 ; Zero page pointers
         scr_ptr_lo  = $fb       ; screen write pointer low byte
@@ -344,12 +375,12 @@ init_swiftlink:
         rts
 
 ; --- Init jump table ---
-; Copies jump_table_template's 9 bytes up into the fixed JT_BASE page
+; Copies jump_table_template's 18 bytes up into the fixed JT_BASE page
 ; ($0340) -- see JT_BASE's own comment for why this can't just be
 ; assembled directly at $0340 (a PRG only occupies one contiguous block
 ; starting at its own load address, well above this page).
 init_jump_table:
-        ldx #8
+        ldx #17
 init_jump_table_loop:
         lda jump_table_template,x
         sta JT_BASE,x
@@ -357,10 +388,127 @@ init_jump_table_loop:
         bpl init_jump_table_loop
         rts
 
+; --- Shared screen save/restore ---
+; Backs the whole physical screen (SCREEN_RAM/COLOR_RAM, all 1000 cells
+; including the status row) up into BACKUP_CHARS/BACKUP_COLORS and back,
+; called through JT_SAVE_SCREEN/JT_RESTORE_SCREEN so any popup-window
+; overlay module can save what's on screen, paint its own window over it,
+; then restore exactly what was there before -- moved resident (and out
+; of petscii_editor.asm, which used to keep a private copy of this exact
+; mechanism for its own help overlay) so a second popup-style module
+; (e.g. a config menu) doesn't need to duplicate the 2000-byte buffer
+; pair and copy routine. petscii_editor.asm's key_help now calls through
+; the jump table instead of using its own local copy.
+SCREEN_CELLS = 1000
+
+save_screen:
+        lda #<SCREEN_RAM
+        sta copy_src_lo
+        lda #>SCREEN_RAM
+        sta copy_src_hi
+        lda #<BACKUP_CHARS
+        sta copy_dst_lo
+        lda #>BACKUP_CHARS
+        sta copy_dst_hi
+        jsr copy_1000
+        lda #<COLOR_RAM
+        sta copy_src_lo
+        lda #>COLOR_RAM
+        sta copy_src_hi
+        lda #<BACKUP_COLORS
+        sta copy_dst_lo
+        lda #>BACKUP_COLORS
+        sta copy_dst_hi
+        jmp copy_1000
+
+restore_screen:
+        lda #<BACKUP_CHARS
+        sta copy_src_lo
+        lda #>BACKUP_CHARS
+        sta copy_src_hi
+        lda #<SCREEN_RAM
+        sta copy_dst_lo
+        lda #>SCREEN_RAM
+        sta copy_dst_hi
+        jsr copy_1000
+        lda #<BACKUP_COLORS
+        sta copy_src_lo
+        lda #>BACKUP_COLORS
+        sta copy_src_hi
+        lda #<COLOR_RAM
+        sta copy_dst_lo
+        lda #>COLOR_RAM
+        sta copy_dst_hi
+        jmp copy_1000
+
+; Plain untransformed SCREEN_CELLS-byte copy. Input: copy_src_lo/hi =
+; source base address, copy_dst_lo/hi = dest base address. Ported
+; verbatim from petscii_editor.asm's own copy_1000 (self-modified
+; lda/sta operands, incrementing the operand bytes directly rather than
+; X/Y indexed addressing, since the buffer exceeds 256 bytes) -- same
+; "no ds directive, no macro parameters" pattern documented in
+; CLIENT_MECHANICS.md.
+copy_1000:
+        lda copy_src_lo
+        sta copy_src_load+1
+        lda copy_src_hi
+        sta copy_src_load+2
+        lda copy_dst_lo
+        sta copy_dst_store+1
+        lda copy_dst_hi
+        sta copy_dst_store+2
+        lda #<SCREEN_CELLS
+        sta copy_remaining_lo
+        lda #>SCREEN_CELLS
+        sta copy_remaining_hi
+copy_1000_loop:
+copy_src_load:
+        lda $ffff
+copy_dst_store:
+        sta $ffff
+        inc copy_src_load+1
+        bne copy_src_no_carry
+        inc copy_src_load+2
+copy_src_no_carry:
+        inc copy_dst_store+1
+        bne copy_dst_no_carry
+        inc copy_dst_store+2
+copy_dst_no_carry:
+        lda copy_remaining_lo
+        bne copy_dec_lo
+        dec copy_remaining_hi
+copy_dec_lo:
+        dec copy_remaining_lo
+        lda copy_remaining_lo
+        ora copy_remaining_hi
+        bne copy_1000_loop
+        rts
+
+copy_src_lo:
+        byte 0
+copy_src_hi:
+        byte 0
+copy_dst_lo:
+        byte 0
+copy_dst_hi:
+        byte 0
+copy_remaining_lo:
+        byte 0
+copy_remaining_hi:
+        byte 0
+
+; .a = new cursor_blink_mask value -- see JT_SET_BLINK_MASK's own comment.
+set_blink_mask:
+        sta cursor_blink_mask
+        rts
+
 jump_table_template:
         jmp sl_send
         jmp sl_recv
         jmp prompt_loop
+        jmp save_screen
+        jmp restore_screen
+        jmp set_blink_mask
 
 ; --- Load the petscii_editor overlay module and hand control to it ---
 ; Called from handle_recv_byte_canvas_confirm once a real canvas stream
@@ -395,7 +543,7 @@ load_petscii_editor:
         jsr KERNAL_SETLFS
         lda #0                   ; ignored when SA=1, but LOAD still wants A=0
         jsr KERNAL_LOAD
-        bcs load_petscii_editor_error  ; carry set -- .a holds the KERNAL
+        bcs load_overlay_error   ; carry set -- .a holds the KERNAL
                                   ; error number (Ryan caught this: an
                                   ; earlier version jumped to OVERLAY_BUF
                                   ; unconditionally, which on any real LOAD
@@ -406,9 +554,30 @@ load_petscii_editor:
         jmp OVERLAY_BUF           ; hand off -- the module returns control
                                   ; via JT_RESUME when it's done, not rts
 
-; LOAD failed -- report the KERNAL error number and hand control back to
-; the ordinary prompt loop instead of jumping into unloaded memory.
-load_petscii_editor_error:
+; --- Load the config_menu overlay module and hand control to it ---
+; Called from handle_recv_byte_display_confirm once a real display-
+; settings stream is confirmed starting. Same LOAD "...",8,1 (secondary
+; address 1) convention as load_petscii_editor above -- see that
+; routine's own comment for the full reasoning (shared here rather than
+; repeated).
+load_config_menu:
+        lda #10                  ; length of "CONFIG.MNU" below
+        ldx #<config_menu_filename
+        ldy #>config_menu_filename
+        jsr KERNAL_SETNAM
+        lda #1
+        ldx #8
+        ldy #1
+        jsr KERNAL_SETLFS
+        lda #0
+        jsr KERNAL_LOAD
+        bcs load_overlay_error
+        jmp OVERLAY_BUF
+
+; LOAD failed (either overlay module) -- report the KERNAL error number
+; and hand control back to the ordinary prompt loop instead of jumping
+; into unloaded memory.
+load_overlay_error:
         pha
         lda #'?'
         jsr CHROUT
@@ -455,6 +624,8 @@ load_petscii_editor_error:
 {alpha:alt}
 petscii_editor_filename:
         ascii "PETSCII.ED"
+config_menu_filename:
+        ascii "CONFIG.MNU"
 {alpha:normal}
 
 ; --- Init NMI receive handler ---
@@ -612,9 +783,11 @@ sid_service_background_rts:
 
 ; --- Blinking input cursor ---
 ; GETIN-driven input (unlike CHRIN) never engages the KERNAL's own
-; line-editor cursor blink, so read_line draws its own, blinked via bit
-; 4 of $a2 (fastest-changing byte of the KERNAL's free-running jiffy
-; clock, ticks ~60/sec) for a roughly 2-3 Hz blink.
+; line-editor cursor blink, so read_line draws its own, blinked via one
+; bit of $a2 (fastest-changing byte of the KERNAL's free-running jiffy
+; clock, ticks ~60/sec) -- which bit is configurable via cursor_blink_
+; mask (config_menu.asm's Video Settings popup), rather than the fixed
+; bit 4 (~2-3 Hz) this used to hardcode.
 ;
 ; This used to print a literal reverse-video space and step back onto
 ; it, which only worked while the cursor was always parked past the end
@@ -636,6 +809,19 @@ sid_service_background_rts:
 cursor_phase:
         byte 0                   ; 0 = currently erased, 1 = currently drawn
 
+; Which single bit of $a2 update_cursor tests -- one bit set picks a
+; blink speed (higher bit = slower, since it takes longer for a
+; higher/slower-changing bit to flip): $08 fast, $10 normal (the
+; original hardcoded default), $20 slow, $40 very slow. $00 is a
+; reserved sentinel meaning "solid, no blink" (speed 5) -- see
+; update_cursor's own comment. Must match commands/c64_display.py's
+; BLINK_SPEED_MASKS (speed# 1-5 -> mask) and config_menu.asm's own copy
+; of that table exactly. Set by config_menu.asm's Video Settings popup
+; when the player picks a speed and applies it live; stays at the
+; default otherwise.
+cursor_blink_mask:
+        byte $10
+
 rts_state:
         byte 1                   ; 1 = RTS currently asserted (ready), 0 = deasserted
 
@@ -646,9 +832,27 @@ y_save:
 
 ; Call once per read_line poll iteration. Only touches the screen on a
 ; phase transition, so it doesn't flicker while sitting in one state.
+; cursor_blink_mask == $00 is a reserved sentinel meaning "solid, no
+; blink at all" (blink speed 5 -- Ryan's ask: some screen-reader/
+; accessibility software, e.g. Gadget, doesn't get along with a
+; blinking cursor). AND-ing against a real speed's mask (`$08`/`$10`/
+; `$20`/`$40`, each a single bit) is what makes a 0 mask meaningless as
+; "always show" on its own -- `$a2 AND $00` is always 0, which without
+; this special case would read as "always erased", the opposite of
+; solid. So: mask 0 skips the AND/blink logic entirely and just leaves
+; the cursor drawn once it's on, never toggling it back off.
 update_cursor:
+        lda cursor_blink_mask
+        bne update_cursor_blink
+        lda cursor_phase
+        bne update_cursor_done   ; already drawn -- solid, leave it
+        jsr cursor_toggle
+        lda #1
+        sta cursor_phase
+        rts
+update_cursor_blink:
         lda $a2
-        and #$10
+        and cursor_blink_mask
         beq cursor_want_off
         lda cursor_phase
         bne update_cursor_done   ; already on
@@ -1076,6 +1280,8 @@ handle_recv_byte_confirm:
         beq handle_recv_byte_start
         cmp #CANVAS_STREAM_CONFIRM
         beq handle_recv_byte_canvas_confirm
+        cmp #DISPLAY_STREAM_CONFIRM
+        beq handle_recv_byte_display_confirm
         ; False alarm: the earlier $01 wasn't really a stream start.
         ; Display both the swallowed $01 and this byte as ordinary text
         ; instead of silently treating either as SID framing.
@@ -1098,6 +1304,15 @@ handle_recv_byte_canvas_confirm:
         lda #0
         sta sid_mode
         jmp load_petscii_editor
+
+; A real display-settings stream is confirmed -- same reasoning as
+; handle_recv_byte_canvas_confirm just above, hands off to config_menu.asm
+; entirely. That module reads the length prefix + 3-byte body itself once
+; it's loaded and running.
+handle_recv_byte_display_confirm:
+        lda #0
+        sta sid_mode
+        jmp load_config_menu
 
 handle_recv_byte_start:
         inc sid_stream_starts     ; TEMP diagnostic -- see its own comment
@@ -1710,3 +1925,15 @@ rx_buf:
 ; producer here, sid_play (IRQ context) is the consumer.
 SID_BUF:
         area 256, 0
+
+; save_screen/restore_screen's whole-physical-screen backup (see their
+; own comments, near init_jump_table) -- shared by every popup-window
+; overlay module via JT_SAVE_SCREEN/JT_RESTORE_SCREEN, so only one
+; resident copy of these 2000 bytes exists rather than each module
+; (petscii_editor.asm's help screen, a future config menu, ...)
+; allocating its own.
+BACKUP_CHARS:
+        area 1000, 0
+
+BACKUP_COLORS:
+        area 1000, 0

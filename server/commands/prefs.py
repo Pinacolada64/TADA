@@ -231,6 +231,17 @@ _TERMINAL_HELP: dict[str, list[str]] = {
         "on every line sent -- most terminals handle any of the three fine.",
         '',
     ],
+    'v': [
+        '',
+        '|cyan|Video Settings (C64)|reset|',
+        "Opens a native popup window right on your Commodore's own screen "
+        "to pick your screen border color, background color, and how fast "
+        "your blinking input cursor blinks -- or turn the blink off "
+        "entirely (solid cursor), if blinking text doesn't get along with "
+        "your screen reader or other accessibility software. Real "
+        "Commodore connections only.",
+        '',
+    ],
 }
 
 # Detailed per-setting explanations for the Date & Time submenu
@@ -627,8 +638,10 @@ async def _terminal_menu(ctx) -> None:
     from formatting import border_style_for_ctx
     from table import Table
     from terminal import LineEnding
+    from network_context import PETSCIINetworkContext
 
     cs = ctx.player.client_settings
+    is_real_petscii = isinstance(ctx, PETSCIINetworkContext)
 
     while True:
         tab         = getattr(cs, 'tab_settings', None)
@@ -644,8 +657,12 @@ async def _terminal_menu(ctx) -> None:
                    f'{client_label} ({cs.screen_rows} rows x {cs.screen_columns} columns)', 'ht'])
         t.add_row(['K', 'Tab Key', tab_summary, 'hk'])
         t.add_row(['L', 'Line Ending', line_ending_name, 'hl'])
+        if is_real_petscii:
+            t.add_row(['V', 'Video Settings (C64)', '(Native popup)', 'hv'])
 
         valid_keys = ['T', 'K', 'L']
+        if is_real_petscii:
+            valid_keys.append('V')
 
         menu = (
             ['', '|yellow|Terminal Settings|reset|', '']
@@ -669,6 +686,9 @@ async def _terminal_menu(ctx) -> None:
             await _pick_tab_settings(ctx)
         elif ans == 'l':
             await _pick_line_ending(ctx)
+        elif ans == 'v' and is_real_petscii:
+            from commands.c64_display import pick_c64_display
+            await pick_c64_display(ctx)
         else:
             await ctx.send(f'Choose {",".join(valid_keys)}, or Enter to return.')
 

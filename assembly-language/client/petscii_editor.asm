@@ -44,6 +44,8 @@
 {const: JT_SL_SEND $0340}
 {const: JT_SL_RECV $0343}
 {const: JT_RESUME  $0346}
+{const: JT_SAVE_SCREEN    $0349}
+{const: JT_RESTORE_SCREEN $034c}
 
 ; Must match petscii_editor/canvas.py's STREAM_START/STREAM_CONFIRM --
 ; used here only for the upload (save) direction; the download header
@@ -320,28 +322,14 @@ key_delete_done:
 ; help screen over it, waits for HELP_EXIT_KEY, then restores exactly
 ; what was there before and falls back into the ordinary edit loop.
 ; undraw_cursor first so the backup doesn't capture the reverse-video
-; cursor glyph as if it were real canvas content.
+; cursor glyph as if it were real canvas content. Save/restore now goes
+; through JT_SAVE_SCREEN/JT_RESTORE_SCREEN (resident tada-client.asm)
+; instead of this module's own private BACKUP_CHARS/BACKUP_COLORS +
+; copy_1000 -- moved resident so a second popup-style module doesn't
+; need to duplicate the 2000-byte buffer pair.
 key_help:
         jsr undraw_cursor
-
-        lda #<SCREEN_RAM
-        sta copy_src_lo
-        lda #>SCREEN_RAM
-        sta copy_src_hi
-        lda #<BACKUP_CHARS
-        sta copy_dst_lo
-        lda #>BACKUP_CHARS
-        sta copy_dst_hi
-        jsr copy_1000
-        lda #<COLOR_RAM
-        sta copy_src_lo
-        lda #>COLOR_RAM
-        sta copy_src_hi
-        lda #<BACKUP_COLORS
-        sta copy_dst_lo
-        lda #>BACKUP_COLORS
-        sta copy_dst_hi
-        jsr copy_1000
+        jsr JT_SAVE_SCREEN
 
         jsr draw_help_screen
 
@@ -352,24 +340,7 @@ key_help_wait:
         cmp #HELP_EXIT_KEY
         bne key_help_wait
 
-        lda #<BACKUP_CHARS
-        sta copy_src_lo
-        lda #>BACKUP_CHARS
-        sta copy_src_hi
-        lda #<SCREEN_RAM
-        sta copy_dst_lo
-        lda #>SCREEN_RAM
-        sta copy_dst_hi
-        jsr copy_1000
-        lda #<BACKUP_COLORS
-        sta copy_src_lo
-        lda #>BACKUP_COLORS
-        sta copy_src_hi
-        lda #<COLOR_RAM
-        sta copy_dst_lo
-        lda #>COLOR_RAM
-        sta copy_dst_hi
-        jsr copy_1000
+        jsr JT_RESTORE_SCREEN
 
         jsr draw_cursor
         jmp edit_loop
@@ -718,56 +689,6 @@ lcc_found:
         rts
 lcc_not_found:
         clc
-        rts
-
-; --- General-purpose 1000-byte memory copy ---
-; Unlike the bulk-transfer helpers below (each doing a byte-by-byte
-; *transform* -- PETSCII<->screen-code conversion, or a wire read/write
-; -- which is why those are written out individually rather than
-; shared), this is a plain, untransformed copy: one real reusable
-; subroutine, not a macro (c64list has no macro parameters, but an
-; ordinary JSR with input variables works fine here). Used by the help
-; overlay to back up/restore SCREEN_RAM+COLOR_RAM.
-;
-; Input: copy_src_lo/hi = source base address, copy_dst_lo/hi = dest
-; base address. Copies exactly SCREEN_CELLS (1000) bytes -- the whole
-; physical screen including the status row, not just CELLS (960)
-; canvas cells; key_help's backup/restore needs the status line
-; preserved too.
-copy_1000:
-        lda copy_src_lo
-        sta copy_src_load+1
-        lda copy_src_hi
-        sta copy_src_load+2
-        lda copy_dst_lo
-        sta copy_dst_store+1
-        lda copy_dst_hi
-        sta copy_dst_store+2
-        lda #<SCREEN_CELLS
-        sta copy_remaining_lo
-        lda #>SCREEN_CELLS
-        sta copy_remaining_hi
-copy_1000_loop:
-copy_src_load:
-        lda $ffff
-copy_dst_store:
-        sta $ffff
-        inc copy_src_load+1
-        bne copy_src_no_carry
-        inc copy_src_load+2
-copy_src_no_carry:
-        inc copy_dst_store+1
-        bne copy_dst_no_carry
-        inc copy_dst_store+2
-copy_dst_no_carry:
-        lda copy_remaining_lo
-        bne copy_dec_lo
-        dec copy_remaining_hi
-copy_dec_lo:
-        dec copy_remaining_lo
-        lda copy_remaining_lo
-        ora copy_remaining_hi
-        bne copy_1000_loop
         rts
 
 ; --- General-purpose 1000-byte fill ---
@@ -1407,20 +1328,10 @@ progress_col:
 progress_counter:
         byte 0
 
-; copy_1000/fill_1000/poke_line's own input/scratch variables -- see
-; those routines' own comments.
-copy_src_lo:
-        byte 0
-copy_src_hi:
-        byte 0
-copy_dst_lo:
-        byte 0
-copy_dst_hi:
-        byte 0
-copy_remaining_lo:
-        byte 0
-copy_remaining_hi:
-        byte 0
+; fill_1000/poke_line's own input/scratch variables -- see those
+; routines' own comments. (copy_1000's own scratch vars moved resident
+; to tada-client.asm along with the routine itself -- see JT_SAVE_SCREEN/
+; JT_RESTORE_SCREEN.)
 fill_dst_lo:
         byte 0
 fill_dst_hi:
@@ -1488,19 +1399,10 @@ CHAR_BUF:
 COLOR_BUF:
         area 960, 0
 
-; Backs up the real SCREEN_RAM/COLOR_RAM while the help overlay is shown
-; (see key_help) -- unrelated to CHAR_BUF/COLOR_BUF above, which hold
-; the actual canvas being edited and are never touched by the help
-; screen at all.
-BACKUP_CHARS:
-        area 1000, 0
-
-BACKUP_COLORS:
-        area 1000, 0
-
-; edit_cancel_confirm's row-24 backup -- just the one row (40 bytes each),
-; unlike BACKUP_CHARS/COLORS above which back up the whole screen for the
-; help overlay.
+; edit_cancel_confirm's row-24 backup -- just the one row (40 bytes each).
+; The help overlay's whole-screen backup (formerly BACKUP_CHARS/
+; BACKUP_COLORS here) now lives resident in tada-client.asm, reached via
+; JT_SAVE_SCREEN/JT_RESTORE_SCREEN -- see key_help.
 cancel_backup_chars:
         area 40, 0
 cancel_backup_colors:
