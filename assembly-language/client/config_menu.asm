@@ -43,7 +43,7 @@ VIC_BG     = $d021
 ; isn't safe to forward-reference the way this file originally had it --
 ; see this bug's own fix commentary in project memory).
 BOX_TOP_ROW = 6
-BOX_ROWS    = 10
+BOX_ROWS    = 12
 
 ; SCREEN_RAM/COLOR_RAM/CHROUT/GETIN are macro_preprocessor.py built-ins
 ; (C64_CONSTANTS) -- no {const:} needed for those here.
@@ -360,9 +360,13 @@ draw_popup:
         sta poke_dst_hi
         jsr poke_line
 
-        lda #<row_help1
+        ; row+6 is the dynamic per-field help line -- draw_values (via
+        ; poke_help_line) overwrites its interior immediately after this,
+        ; and again on every field/value change, so blank is just its
+        ; initial state before that first happens.
+        lda #<row_blank
         sta poke_src_lo
-        lda #>row_help1
+        lda #>row_blank
         sta poke_src_hi
         lda #<(SCREEN_RAM+(BOX_TOP_ROW+6)*40)
         sta poke_dst_lo
@@ -370,9 +374,9 @@ draw_popup:
         sta poke_dst_hi
         jsr poke_line
 
-        lda #<row_help2
+        lda #<row_blank
         sta poke_src_lo
-        lda #>row_help2
+        lda #>row_blank
         sta poke_src_hi
         lda #<(SCREEN_RAM+(BOX_TOP_ROW+7)*40)
         sta poke_dst_lo
@@ -380,9 +384,9 @@ draw_popup:
         sta poke_dst_hi
         jsr poke_line
 
-        lda #<row_help3
+        lda #<row_help1
         sta poke_src_lo
-        lda #>row_help3
+        lda #>row_help1
         sta poke_src_hi
         lda #<(SCREEN_RAM+(BOX_TOP_ROW+8)*40)
         sta poke_dst_lo
@@ -390,13 +394,33 @@ draw_popup:
         sta poke_dst_hi
         jsr poke_line
 
-        lda #<bottom_border
+        lda #<row_help2
         sta poke_src_lo
-        lda #>bottom_border
+        lda #>row_help2
         sta poke_src_hi
         lda #<(SCREEN_RAM+(BOX_TOP_ROW+9)*40)
         sta poke_dst_lo
         lda #>(SCREEN_RAM+(BOX_TOP_ROW+9)*40)
+        sta poke_dst_hi
+        jsr poke_line
+
+        lda #<row_help3
+        sta poke_src_lo
+        lda #>row_help3
+        sta poke_src_hi
+        lda #<(SCREEN_RAM+(BOX_TOP_ROW+10)*40)
+        sta poke_dst_lo
+        lda #>(SCREEN_RAM+(BOX_TOP_ROW+10)*40)
+        sta poke_dst_hi
+        jsr poke_line
+
+        lda #<bottom_border
+        sta poke_src_lo
+        lda #>bottom_border
+        sta poke_src_hi
+        lda #<(SCREEN_RAM+(BOX_TOP_ROW+11)*40)
+        sta poke_dst_lo
+        lda #>(SCREEN_RAM+(BOX_TOP_ROW+11)*40)
         sta poke_dst_hi
         jmp poke_line
 
@@ -455,6 +479,29 @@ dv_blink_store:
         sta SCREEN_RAM+(BOX_TOP_ROW+4)*40+32
         lda digit_ones
         sta SCREEN_RAM+(BOX_TOP_ROW+4)*40+33
+
+        lda selected_field
+        beq dv_help_border
+        cmp #1
+        beq dv_help_bg
+        lda #<help_blink
+        sta poke_src_lo
+        lda #>help_blink
+        sta poke_src_hi
+        jmp dv_help_go
+dv_help_border:
+        lda #<help_border
+        sta poke_src_lo
+        lda #>help_border
+        sta poke_src_hi
+        jmp dv_help_go
+dv_help_bg:
+        lda #<help_bg
+        sta poke_src_lo
+        lda #>help_bg
+        sta poke_src_hi
+dv_help_go:
+        jsr poke_help_line
         rts
 
 ; .a = value (0-19 is all this module ever needs -- border/bg are 0-15,
@@ -554,6 +601,25 @@ poke_line_store:
         bne poke_line_loop
         rts
 
+; --- Plain untransformed 30-byte copy (dynamic per-field help text) ---
+; Input: poke_src_lo/hi = source (a help_* table, 30 bytes, no box
+; border bytes). Dest is always fixed (row+6's interior, columns 5-34) --
+; only the source varies, picked by draw_values based on selected_field.
+poke_help_line:
+        lda poke_src_lo
+        sta poke_help_load+1
+        lda poke_src_hi
+        sta poke_help_load+2
+        ldx #0
+poke_help_loop:
+poke_help_load:
+        lda $ffff,x
+        sta SCREEN_RAM+(BOX_TOP_ROW+6)*40+5,x
+        inx
+        cpx #30
+        bne poke_help_loop
+        rts
+
 ; --- Bulk-transfer scratch vars ---
 poke_src_lo:
         byte 0
@@ -639,13 +705,16 @@ digit_chars:
 ; poke-mode treated $70 as if it were ASCII 'p' and converted THAT).
 ; `byte`/`area` bypass alpha-mode conversion entirely regardless of
 ; which `{alpha:...}` block they're inside, confirmed the same way.
+
+; pokealt pokes upper/lowercase characters to screen RAM, I think:
+{alpha:pokealt}
 top_border:
         byte $20,$20,$20,$20, $70
         area 30, $40
         byte $6e, $20,$20,$20,$20
 row_title:
         byte $20,$20,$20,$20, $5d
-        ascii "        VIDEO SETTINGS        "
+        ascii "        Video Settings        "
         byte $5d, $20,$20,$20,$20
 row_field1:
         byte $20,$20,$20,$20, $5d
@@ -657,12 +726,25 @@ row_field2:
         byte $5d, $20,$20,$20,$20
 row_field3:
         byte $20,$20,$20,$20, $5d
-        ascii "  Blink speed:             00 "
+        ascii "  Cursor blink speed:      00 "
         byte $5d, $20,$20,$20,$20
 row_blank:
         byte $20,$20,$20,$20, $5d
         ascii "                              "
         byte $5d, $20,$20,$20,$20
+
+; Dynamic per-field help text, 30 bytes each (no leading/trailing box
+; bytes here -- these overwrite just row_blank's interior at runtime via
+; draw_values/poke_help_line, picked by selected_field). Ryan's ask,
+; especially for blink speed since 1-5 isn't self-explanatory from the
+; field row's bare number alone.
+help_border:
+        ascii "Border color, 0-15 (VIC-II)   "
+help_bg:
+        ascii "Background color, 0-15        "
+help_blink:
+        ascii "1=fastest .. 4=slowest, 5=off "
+
 row_help1:
         byte $20,$20,$20,$20, $5d
         ascii " Crsr Up/Down: Select option  "
@@ -673,7 +755,7 @@ row_help2:
         byte $5d, $20,$20,$20,$20
 row_help3:
         byte $20,$20,$20,$20, $5d
-        ascii "   RETURN=SAVE STOP=CANCEL    "
+        ascii " Return: save   Stop: cancel  "
         byte $5d, $20,$20,$20,$20
 bottom_border:
         byte $20,$20,$20,$20, $6d

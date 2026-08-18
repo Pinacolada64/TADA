@@ -16,6 +16,22 @@
 {const: VIC_BORDER     $d020}
 {const: VIC_BACKGROUND $d021}
 
+; Memory control register -- bits 1-3 pick which 2K character-data chunk
+; the VIC-II reads, banked in over the character ROM's two sets at boot
+; ($21 = uppercase+graphics, the KERNAL default; $23 = uppercase+
+; lowercase, same effect as the SHIFT+Commodore-key toggle). Ryan's call:
+; the client now boots straight into upper/lowercase mode so mixed-case
+; text (config_menu.asm's Video Settings popup, PREFS's help copy, etc.)
+; actually displays as real lower/uppercase rather than folding to all
+; caps. Doesn't affect box-drawing glyphs -- config_menu.asm's PETSCII
+; corner/line codes ($70/$6e/$6d/$7d/$40/$5d) render identically in both
+; character sets (confirmed both via cbmcodecs2's screencode_c64_uc/_lc
+; codecs agreeing on the exact same byte for each, and live in VICE:
+; SHIFT+C= still shows the box intact) -- only the actual letter codes
+; differ between the two sets.
+{const: VIC_MEMORY_CONTROL $d018}
+{const: CHARSET_UPPER_LOWER $17}
+
 ; Comment out to strip all {ifdef:debug}...{endif} diagnostic output
 ; (the <XX>/[XX] read_line trace, hex_digits/print_hex_byte helpers, etc).
 {undef: debug}
@@ -297,6 +313,8 @@ wait_for_data_backgrounding:
 ; --- Init screen ---
 ; Clear screen, draw the status line, set up screen pointer
 init_screen:
+        lda #CHARSET_UPPER_LOWER
+        sta VIC_MEMORY_CONTROL
         lda #VIC_BLACK
         sta VIC_BORDER
         sta VIC_BACKGROUND
