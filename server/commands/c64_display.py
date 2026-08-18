@@ -48,8 +48,15 @@ from terminal import ColorName
 log = logging.getLogger(__name__)
 
 STREAM_START           = 0x01
-DISPLAY_STREAM_CONFIRM = 0x44  # 'D'
+DISPLAY_STREAM_CONFIRM = 0x44  # 'D' -- opens the native popup
 DISPLAY_STREAM_CANCEL  = 0x58  # 'X'
+APPLY_STREAM_CONFIRM   = 0x41  # 'A' -- silently applies border/bg/blink
+                                 # client-side (tada-client.asm's
+                                 # handle_recv_byte_apply_confirm), no
+                                 # popup involved -- used at login/
+                                 # reconnect so a real Commodore client's
+                                 # saved settings take effect immediately
+                                 # without the player reopening PREFS.
 HEADER_LEN = 4  # STREAM_START, CONFIRM/CANCEL, len_lo, len_hi
 BODY_LEN   = 3  # border_color, bg_color, blink_speed
 
@@ -69,6 +76,29 @@ UPLOAD_TIMEOUT_SECONDS = 5 * 60
 def _encode_trigger(border_color: int, bg_color: int, blink_speed: int) -> bytes:
     body = bytes([border_color, bg_color, blink_speed])
     return bytes([STREAM_START, DISPLAY_STREAM_CONFIRM, len(body), 0]) + body
+
+
+def encode_apply(border_color: int, bg_color: int, blink_speed: int) -> bytes:
+    """Same framing as _encode_trigger, but with APPLY_STREAM_CONFIRM --
+    tada-client.asm applies the 3 values directly (VIC-II POKEs + blink
+    mask) and keeps going, rather than loading the config_menu.asm
+    overlay."""
+    body = bytes([border_color, bg_color, blink_speed])
+    return bytes([STREAM_START, APPLY_STREAM_CONFIRM, len(body), 0]) + body
+
+
+def encode_apply_for_player(player) -> bytes:
+    """encode_apply()'s 3 values straight from *player*'s saved display
+    prefs -- used at login/reconnect (commands/connect.py) so a real
+    Commodore client's saved border/background color and cursor blink
+    speed take effect immediately, without the player having to reopen
+    the Video Settings popup."""
+    cs     = player.client_settings
+    colors = cs.colors
+    border = list(ColorName).index(colors.border_color)
+    bg     = list(ColorName).index(colors.background_color)
+    blink  = cs.cursor_blink_speed
+    return encode_apply(border, bg, blink)
 
 
 async def pick_c64_display(ctx) -> None:

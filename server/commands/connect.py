@@ -448,6 +448,17 @@ class ConnectCommand(Command):
             processor.current_mode = Mode.GAME
             processor.context.update({"username": username, "is_authenticated": True})
 
+        # Real Commodore connections only: silently apply this player's
+        # saved border/background color and cursor blink speed (raw bytes,
+        # ahead of any of the ordinary login text below) -- see
+        # commands/c64_display.py's encode_apply_for_player(). Without
+        # this, a returning player's Video Settings choices only ever
+        # took effect while the popup itself was open/being saved.
+        from network_context import PETSCIINetworkContext
+        if isinstance(ctx, PETSCIINetworkContext):
+            from commands.c64_display import encode_apply_for_player
+            await ctx.send_raw(encode_apply_for_player(player))
+
         # --- Aggregate all login text into one send so the C64 terminal
         #     doesn't scroll past the welcome block before the player can read it.
         login_lines: list[str] = []

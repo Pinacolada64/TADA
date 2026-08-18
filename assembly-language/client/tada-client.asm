@@ -111,7 +111,14 @@
 ; CANVAS_STREAM_CONFIRM above, own distinct confirm byte so
 ; handle_recv_byte_confirm can tell this apart from a SID or canvas
 ; stream. Matches commands/c64_display.py (server side) exactly.
-{const: DISPLAY_STREAM_CONFIRM $44}   ; 'D' for "display"
+{const: DISPLAY_STREAM_CONFIRM $44}   ; 'D' for "display" -- opens the
+                                        ; config_menu.asm popup
+{const: APPLY_STREAM_CONFIRM   $41}   ; 'A' for "apply" -- silently
+                                        ; applies border/bg/blink (sent
+                                        ; at login/reconnect, see
+                                        ; commands/connect.py's
+                                        ; encode_apply_for_player()),
+                                        ; no popup involved
 
 ; KERNAL routines used by load_petscii_editor/load_config_menu to LOAD an
 ; overlay module from disk on demand (see load_petscii_editor's own
@@ -1300,6 +1307,8 @@ handle_recv_byte_confirm:
         beq handle_recv_byte_canvas_confirm
         cmp #DISPLAY_STREAM_CONFIRM
         beq handle_recv_byte_display_confirm
+        cmp #APPLY_STREAM_CONFIRM
+        beq handle_recv_byte_apply_confirm
         ; False alarm: the earlier $01 wasn't really a stream start.
         ; Display both the swallowed $01 and this byte as ordinary text
         ; instead of silently treating either as SID framing.
@@ -1331,6 +1340,52 @@ handle_recv_byte_display_confirm:
         lda #0
         sta sid_mode
         jmp load_config_menu
+
+; A silent-apply stream is confirmed (sent at login/reconnect -- see
+; commands/connect.py's encode_apply_for_player()). Unlike the canvas/
+; display-popup confirms above, this doesn't hand off to an overlay
+; module at all -- it consumes its own length prefix (discarded, always
+; 3) + 3-byte body (border, bg, blink) right here inline, applies them
+; directly (VIC-II POKEs + cursor_blink_mask), then rts's straight back
+; into the ordinary receive flow. Blocking on sl_recv like this is safe
+; and already-proven (petscii_editor.asm/config_menu.asm do the same for
+; their own short payloads) -- nmi_handler keeps draining SwiftLink into
+; rx_buf regardless of what mainline is doing, so nothing arriving
+; during the short wait is lost.
+handle_recv_byte_apply_confirm:
+        lda #0
+        sta sid_mode
+apply_recv_len_lo:
+        jsr sl_recv
+        bcc apply_recv_len_lo
+apply_recv_len_hi:
+        jsr sl_recv
+        bcc apply_recv_len_hi
+apply_recv_border:
+        jsr sl_recv
+        bcc apply_recv_border
+        sta VIC_BORDER
+apply_recv_bg:
+        jsr sl_recv
+        bcc apply_recv_bg
+        sta VIC_BACKGROUND
+apply_recv_blink:
+        jsr sl_recv
+        bcc apply_recv_blink
+        tax
+        lda apply_blink_masks-1,x  ; .x is 1-5 -- -1 makes it a plain
+                                     ; 0-based index, same convention as
+                                     ; config_menu.asm's own blink_masks
+        sta cursor_blink_mask
+        rts
+
+; Resident copy of config_menu.asm's own blink_masks table -- can't share
+; it directly (overlay modules and resident code don't share plain data
+; labels, only jump-table routines -- see JT_SET_BLINK_MASK's own
+; comment). Must be kept in sync with that table and commands/
+; c64_display.py's BLINK_SPEED_MASKS by hand.
+apply_blink_masks:
+        byte $08, $10, $20, $40, $00
 
 handle_recv_byte_start:
         inc sid_stream_starts     ; TEMP diagnostic -- see its own comment
