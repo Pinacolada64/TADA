@@ -563,7 +563,8 @@ async def _colors_graphics_menu(ctx) -> None:
     from formatting import border_style_for_ctx, codec_for_settings, PETSCIICodec
     from table import Table
 
-    cs = ctx.player.client_settings
+    cs         = ctx.player.client_settings
+    return_key = getattr(cs, 'return_key', 'Enter')
 
     while True:
         codec      = codec_for_settings(cs)
@@ -601,7 +602,7 @@ async def _colors_graphics_menu(ctx) -> None:
             ['', '|yellow|Colors & Graphics|reset|', '']
             + t.render(width=cs.screen_columns)
             + ['', f"{' '.join(valid_keys)} to change, h<key> for details "
-                   f"(e.g. h{valid_keys[0].lower()}), Enter to return", '']
+                   f"(e.g. h{valid_keys[0].lower()}), {return_key} to return", '']
         )
 
         raw = await ctx.prompt('colors & graphics', preamble_lines=menu)
@@ -624,7 +625,7 @@ async def _colors_graphics_menu(ctx) -> None:
         elif ans == 'g':
             await _show_graphics_test(ctx)
         else:
-            await ctx.send(f'Choose {",".join(valid_keys)}, or Enter to return.')
+            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to return.')
 
 
 async def _terminal_menu(ctx) -> None:
@@ -640,7 +641,8 @@ async def _terminal_menu(ctx) -> None:
     from terminal import LineEnding
     from network_context import PETSCIINetworkContext
 
-    cs = ctx.player.client_settings
+    cs              = ctx.player.client_settings
+    return_key      = getattr(cs, 'return_key', 'Enter')
     is_real_petscii = isinstance(ctx, PETSCIINetworkContext)
 
     while True:
@@ -668,7 +670,7 @@ async def _terminal_menu(ctx) -> None:
             ['', '|yellow|Terminal Settings|reset|', '']
             + t.render(width=cs.screen_columns)
             + ['', f"{' '.join(valid_keys)} to change, h<key> for details "
-                   f"(e.g. h{valid_keys[0].lower()}), Enter to return", '']
+                   f"(e.g. h{valid_keys[0].lower()}), {return_key} to return", '']
         )
 
         raw = await ctx.prompt('terminal settings', preamble_lines=menu)
@@ -690,7 +692,7 @@ async def _terminal_menu(ctx) -> None:
             from commands.c64_display import pick_c64_display
             await pick_c64_display(ctx)
         else:
-            await ctx.send(f'Choose {",".join(valid_keys)}, or Enter to return.')
+            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to return.')
 
 
 async def _date_time_menu(ctx) -> None:
@@ -705,7 +707,8 @@ async def _date_time_menu(ctx) -> None:
     from formatting import border_style_for_ctx
     from table import Table
 
-    cs = ctx.player.client_settings
+    cs         = ctx.player.client_settings
+    return_key = getattr(cs, 'return_key', 'Enter')
 
     while True:
         hourglass = ctx.player.query_flag(PlayerFlags.HOURGLASS)
@@ -726,7 +729,7 @@ async def _date_time_menu(ctx) -> None:
             ['', '|yellow|Date & Time|reset|', '']
             + t.render(width=cs.screen_columns)
             + ['', f"{' '.join(valid_keys)} to change, h<key> for details "
-                   f"(e.g. h{valid_keys[0].lower()}), Enter to return", '']
+                   f"(e.g. h{valid_keys[0].lower()}), {return_key} to return", '']
         )
 
         raw = await ctx.prompt('date & time', preamble_lines=menu)
@@ -753,7 +756,7 @@ async def _date_time_menu(ctx) -> None:
                 ctx.player.set_flag(PlayerFlags.HOURGLASS)
                 await ctx.send(f'{option}|green|On|reset|')
         else:
-            await ctx.send(f'Choose {",".join(valid_keys)}, or Enter to return.')
+            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to return.')
 
 
 # ---------------------------------------------------------------------------
