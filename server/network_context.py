@@ -470,9 +470,12 @@ class PETSCIINetworkContext(GameContext):
             # Echo input back so the player sees what they typed.
             # Use petscii_encode so lowercase letters send PETSCII bytes
             # 0x41-0x5A, which display correctly in lowercase charset mode.
-            from formatting import petscii_encode
-            self.writer.write(petscii_encode(text, self.CODEC_NAME) + self.LINE_ENDING)
-            await self.writer.drain()
+            # Disabled: the C64 client already echoes each keystroke locally
+            # as the player types, so re-sending it here just duplicated the
+            # line on screen right after Enter.
+            # from formatting import petscii_encode
+            # self.writer.write(petscii_encode(text, self.CODEC_NAME) + self.LINE_ENDING)
+            # await self.writer.drain()
             return text
         except asyncio.IncompleteReadError:
             return None         # EOF — Commodore client disconnected
