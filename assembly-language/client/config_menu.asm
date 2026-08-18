@@ -90,6 +90,11 @@ recv_blink:
 
 ; --- Main input loop ---
 config_loop:
+        jsr demo_cursor_update    ; blink (or hold solid) the live-preview
+                                    ; cursor next to the blink-speed value
+                                    ; while waiting for a key, same as
+                                    ; tada-client.asm's own update_cursor
+                                    ; does for real keyboard input
         jsr GETIN
         cmp #0
         beq config_loop
@@ -239,6 +244,62 @@ apply_live:
         lda blink_masks-1,x        ; cur_blink is 1-5 -- -1 makes it a
                                     ; plain 0-based index into blink_masks
         jsr JT_SET_BLINK_MASK
+        rts
+
+; --- Live-preview cursor: blinks (or holds solid) at cur_blink's rate ---
+; Ryan's ask: show the actual blink behavior, not just a number, while
+; adjusting it. Column 31 of the blink-speed row (row+4) -- a plain space
+; in row_field3's fixed text, immediately left of the "00" value -- is
+; free real estate for this, untouched by anything else. Same shape as
+; tada-client.asm's own update_cursor/cursor_toggle (jiffy-clock bit test
+; via $a2, EOR #$80 to flip reverse-video in place, $00 mask = solid/
+; never-off sentinel), just local to this popup and driven by cur_blink
+; directly instead of the resident cursor_blink_mask -- this demo must
+; keep working correctly even while the player is actively changing the
+; value, before Save/Cancel ever applies it resident-side. Whatever
+; reverse-video state this cell is left in in doesn't matter on exit --
+; JT_RESTORE_SCREEN overwrites the whole screen from the pre-popup
+; backup regardless, so there's no separate "hide it" step needed.
+demo_cursor_phase:
+        byte 0                    ; 0 = currently erased, 1 = currently drawn
+demo_mask_scratch:
+        byte 0
+
+demo_cursor_update:
+        ldx cur_blink
+        lda blink_masks-1,x
+        bne dcu_blinking
+        ; solid (mask $00): draw once, never toggle back off
+        lda demo_cursor_phase
+        bne dcu_rts
+        jsr demo_cursor_toggle
+        lda #1
+        sta demo_cursor_phase
+dcu_rts:
+        rts
+dcu_blinking:
+        sta demo_mask_scratch
+        lda $a2
+        and demo_mask_scratch
+        beq dcu_want_off
+        lda demo_cursor_phase
+        bne dcu_rts
+        jsr demo_cursor_toggle
+        lda #1
+        sta demo_cursor_phase
+        rts
+dcu_want_off:
+        lda demo_cursor_phase
+        beq dcu_rts
+        jsr demo_cursor_toggle
+        lda #0
+        sta demo_cursor_phase
+        rts
+
+demo_cursor_toggle:
+        lda SCREEN_RAM+(BOX_TOP_ROW+4)*40+31
+        eor #$80
+        sta SCREEN_RAM+(BOX_TOP_ROW+4)*40+31
         rts
 
 ; --- Save: send the new values back, restore the screen, hand back ---
