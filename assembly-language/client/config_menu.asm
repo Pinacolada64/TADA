@@ -248,7 +248,7 @@ apply_live:
 
 ; --- Live-preview cursor: blinks (or holds solid) at cur_blink's rate ---
 ; Ryan's ask: show the actual blink behavior, not just a number, while
-; adjusting it. Column 31 of the blink-speed row (row+4) -- a plain space
+; adjusting it. Column 30 of the blink-speed row (row+4) -- a plain space
 ; in row_field3's fixed text, immediately left of the "00" value -- is
 ; free real estate for this, untouched by anything else. Same shape as
 ; tada-client.asm's own update_cursor/cursor_toggle (jiffy-clock bit test
@@ -297,9 +297,9 @@ dcu_want_off:
         rts
 
 demo_cursor_toggle:
-        lda SCREEN_RAM+(BOX_TOP_ROW+4)*40+31
+        lda SCREEN_RAM+(BOX_TOP_ROW+4)*40+30
         eor #$80
-        sta SCREEN_RAM+(BOX_TOP_ROW+4)*40+31
+        sta SCREEN_RAM+(BOX_TOP_ROW+4)*40+30
         rts
 
 ; --- Save: send the new values back, restore the screen, hand back ---
