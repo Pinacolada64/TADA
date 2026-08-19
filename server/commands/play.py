@@ -147,12 +147,12 @@ class PlayCommand(Command):
             return CommandResult.ok('Streamed the test arpeggio.')
 
         if not positional:
-            await ctx.send('Play what? (try [play #test], or "help play" for the library)')
+            await ctx.send('Play what? (try [play #test], or [play #dir] for the library)')
             return CommandResult.fail('No tune name given.')
 
         name_tokens, subtune = _split_trailing_subtune(positional)
         if not name_tokens:
-            await ctx.send('Play what? (try [play #test], or "help play" for the library)')
+            await ctx.send('Play what? (try [play #test], or [play #dir] for the library)')
             return CommandResult.fail('No tune name given.')
 
         name = ' '.join(name_tokens)
