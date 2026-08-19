@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 from simple_server import Server, _UNKNOWN_COMMAND_HELP_THRESHOLD
 from flags import PlayerFlags
 from player import Player
+from network_context import GuestPlayer
 
 
 class _FakeClient:
@@ -79,6 +80,20 @@ class TestMaybeOfferHelp(unittest.IsolatedAsyncioTestCase):
         for _ in range(_UNKNOWN_COMMAND_HELP_THRESHOLD + 5):
             await self.server._maybe_offer_help(ctx)
         ctx.send.assert_not_called()
+
+    async def test_guest_player_does_not_crash(self):
+        # Regression test: GuestPlayer has no is_expert attribute at all.
+        # Confirmed live 2026-08-19 that the unguarded `ctx.player.is_expert`
+        # check here raised AttributeError -- and since _maybe_offer_help is
+        # called from _game_loop's own 'unknown_command' branch, not through
+        # Command.execute(), that exception wasn't caught by
+        # command_processor.py's try/except at all: it propagated out of
+        # handle_connection() and silently killed the guest's WHOLE
+        # connection just from typing 3 unrecognized commands in a row.
+        ctx = _ctx(GuestPlayer())
+        for _ in range(_UNKNOWN_COMMAND_HELP_THRESHOLD):
+            await self.server._maybe_offer_help(ctx)
+        ctx.send.assert_awaited_once()
 
 
 class TestUnknownCommandStreakReset(unittest.TestCase):

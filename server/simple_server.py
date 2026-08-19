@@ -1407,9 +1407,16 @@ class Server:
         # Respawn at room 1.
         player.map_room   = 1
         ctx.client.room   = 1
-        player.unsaved_changes = True
-        from visited_rooms import mark_visited
-        mark_visited(player, player.map_level, 1)
+        # GuestPlayer has no map_level (or anything else persistence-related)
+        # -- confirmed via audit 2026-08-19 that this crashed the whole
+        # connection for any guest who died in combat, same bug class as
+        # _maybe_offer_help's ctx.player.is_expert (called outside
+        # command_processor.py's try/except, from _game_loop's own direct
+        # call chain). _player_quit uses this same isinstance guard already.
+        if not isinstance(player, GuestPlayer):
+            player.unsaved_changes = True
+            from visited_rooms import mark_visited
+            mark_visited(player, player.map_level, 1)
 
         await ctx.send('You wake up at the entrance, confused but alive.')
         logging.debug('EXIT (respawned at room 1)')
