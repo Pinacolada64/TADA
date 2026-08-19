@@ -131,12 +131,21 @@ class PETSCIICodec:
     Full 16-color palette is available via |token| substitution in
     petscii_encode() — see PETSCII_CONTROL_CODES below.
     """
+    reset_color: str = ''  # set at runtime from player prefs (PREFS 'C' Text
+                            # color) -- the |token| name that |reset| resolves
+                            # to. Falls back to the raw '|reset|' token (CBM
+                            # reverse-off, 146) if the player has no preference
+                            # set. NOTE: reverse-off alone does *not* restore
+                            # the C64's color-RAM text color -- it only clears
+                            # reverse video -- so without a real reset_color,
+                            # text after |red|...|reset| stays red.
 
     def highlight_on(self) -> str: return '|reverse_on|'
 
     def highlight_off(self) -> str: return '|reverse_off|'
 
-    def reset(self) -> str: return '|reset|'
+    def reset(self) -> str:
+        return f'|{self.reset_color}|' if self.reset_color else '|reset|'
 
 
 # ---------------------------------------------------------------------------
@@ -347,7 +356,8 @@ def _encode_petscii_segment(text: str, codec_name: str) -> bytes:
 
 
 def petscii_encode(text: str,
-                   codec_name: str = 'petscii_c64en_lc') -> bytes:
+                   codec_name: str = 'petscii_c64en_lc',
+                   reset_color: str | None = None) -> bytes:
     """
     Encode a string for transmission to a Commodore client.
 
@@ -364,12 +374,23 @@ def petscii_encode(text: str,
                        {glyph} sequences.
     :param codec_name: cbmcodecs2 codec name. Defaults to lowercase C64.
                        Use 'petscii_c64en_uc' for uppercase/graphics mode.
+    :param reset_color: overrides |reset|'s own control code -- pass
+        codec.reset_color (a PETSCIICodec built via codec_for_settings(),
+        a PETSCII_CONTROL_CODES token name like 'white') so |reset| sets
+        this player's chosen default text color (PREFS 'C' Colors -> Text)
+        instead of just clearing reverse video. On real hardware,
+        reverse-off (the plain '|reset|' token, code 146) does NOT touch
+        color RAM, so without this override text after |red|...|reset|
+        stays red. None (the default) keeps that reverse-off behavior,
+        e.g. for callers with no player/settings context.
     :return:           Raw bytes ready to send to the Commodore client.
 
     >>> petscii_encode('|red|Hi|reset|')[0]   # first byte = red color code
     28
     >>> petscii_encode('|red|Hi|reset|')[-1]  # last byte = reverse off
     146
+    >>> petscii_encode('|red|Hi|reset|', reset_color='white')[-1]  # player's default color
+    5
     >>> petscii_encode('!red!Hi!reset!')[0]   # '!' works the same as '|'
     28
     >>> petscii_encode('{$c0}')[0]            # raw hex byte literal
@@ -422,7 +443,10 @@ def petscii_encode(text: str,
 
         token = match.group('token')
         count = int(match.group('count')) if match.group('count') else 1
-        code = PETSCII_CONTROL_CODES.get(token)
+        if token == 'reset' and reset_color:
+            code = PETSCII_CONTROL_CODES.get(reset_color)
+        else:
+            code = PETSCII_CONTROL_CODES.get(token)
         if code is not None:
             result.extend(bytes([code]) * count)  # raw control byte(s), bypasses codec
         else:
@@ -443,7 +467,8 @@ def petscii_encode(text: str,
 def petscii_encode_lines(lines: list[str],
                          codec_name: str = 'petscii_c64en_lc',
                          line_ending: bytes = b'\r',
-                         screen_columns: int = 0) -> bytes:
+                         screen_columns: int = 0,
+                         reset_color: str | None = None) -> bytes:
     """
     Encode a list of formatted strings for a Commodore client.
     Each line is encoded via petscii_encode() and joined with the
@@ -456,6 +481,8 @@ def petscii_encode_lines(lines: list[str],
                            visible length fills the screen — the hardware wrap
                            already advances the cursor, and a CR would cause an
                            extra blank line.
+    :param reset_color:    overrides |reset|'s own control code -- see
+                           petscii_encode()'s reset_color param.
     :return:               Raw bytes for the full block of text.
 
     >>> result = petscii_encode_lines(['Hello', 'World'])
@@ -482,7 +509,7 @@ def petscii_encode_lines(lines: list[str],
     """
     result = bytearray()
     for line in lines:
-        result.extend(petscii_encode(line, codec_name))
+        result.extend(petscii_encode(line, codec_name, reset_color=reset_color))
         # Always CR after each line so consecutive send() calls don't run
         # together — except when the line fills the full screen width, where
         # the C64 hardware-wraps and a CR would produce an extra blank line.
@@ -991,6 +1018,26 @@ def _ansi_color_for(settings, attr: str) -> str:
         return ''
 
 
+# ColorName -> PETSCII_CONTROL_CODES token name. Most just lowercase, but a
+# few CBM color names diverge from ColorName's ANSI-flavored spelling.
+_COLOR_NAME_TO_PETSCII_TOKEN: dict[str, str] = {
+    'DARK_GREEN':  'green',
+    'DARK_BLUE':   'blue',
+    'MEDIUM_GRAY': 'mid_gray',
+}
+
+
+def _petscii_color_for(settings, attr: str) -> str:
+    """Resolve settings.colors.<attr> (a terminal.ColorName) to its
+    PETSCII_CONTROL_CODES |token| name, or '' if unset/unmapped
+    (PETSCIICodec falls back to the raw '|reset|' token in that case)."""
+    color_name = getattr(getattr(settings, 'colors', None), attr, None)
+    if color_name is None:
+        return ''
+    token = _COLOR_NAME_TO_PETSCII_TOKEN.get(color_name.name, color_name.name.lower())
+    return token if token in PETSCII_CONTROL_CODES else ''
+
+
 def codec_for_settings(settings) -> ColorCodec:
     """
     Return the appropriate ColorCodec for a ClientSettings object.
@@ -1008,6 +1055,9 @@ def codec_for_settings(settings) -> ColorCodec:
         |reset|/highlight_off() return to, so text goes back to the
         player's own chosen default color instead of an uncontrolled
         terminal-default reset.
+
+    PETSCII gets the same reset_color treatment -- see PETSCIICodec's
+    reset_color field.
     """
     try:
         from terminal import Translation
@@ -1018,7 +1068,9 @@ def codec_for_settings(settings) -> ColorCodec:
                 reset_color=_ansi_color_for(settings, 'text_color'),
             )
         if t == Translation.PETSCII:
-            return PETSCIICodec()
+            return PETSCIICodec(
+                reset_color=_petscii_color_for(settings, 'text_color'),
+            )
         if t == Translation.ASCII:
             return PlainCodec()
     except ImportError:

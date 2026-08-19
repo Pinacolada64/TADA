@@ -10,30 +10,18 @@
 ; overlay modules" section.
 ;
 ; Talks to the same resident SwiftLink plumbing (sl_send/sl_recv) plus
-; the shared screen-save buffer and the cursor-blink-speed setter via
-; the fixed low-page jump table tada-client.asm's init_jump_table
-; populates at boot -- see the {const:}s below for the exact addresses.
-; Must match tada-client.asm's own JT_BASE-relative constants exactly --
-; there's no shared include for these today, same caveat petscii_
-; editor.asm's own copy of this comment gives.
-{const: JT_SL_SEND        $0340}
-{const: JT_SL_RECV        $0343}
-{const: JT_RESUME         $0346}
-{const: JT_SAVE_SCREEN    $0349}
-{const: JT_RESTORE_SCREEN $034c}
-{const: JT_SET_BLINK_MASK $034f}
-
-; Must match commands/c64_display.py's STREAM_START/DISPLAY_STREAM_
-; CONFIRM/DISPLAY_STREAM_CANCEL exactly.
-{const: DISPLAY_STREAM_START   $01}
-{const: DISPLAY_STREAM_CONFIRM $44}   ; 'D' -- used both for the server's
-                                        ; opening trigger and this
-                                        ; module's own "saved" reply
-{const: DISPLAY_STREAM_CANCEL  $58}   ; 'X' -- this module's "cancelled"
-                                        ; reply; unrelated to petscii_
-                                        ; editor/canvas.py's own (differently
-                                        ; valued) cancel byte -- different
-                                        ; stream, no need to match
+; the shared screen-save buffer and the cursor-blink-speed setter via the
+; fixed jump table tada-client.asm's init_jump_table populates at boot,
+; and reads the framed-stream confirm/cancel bytes via PROTO_TABLE (same
+; mechanism, same reason) -- both are neither a private `{const:}` copy
+; here nor in petscii_editor.asm, just a shared real c64list {include:}
+; (constants.asm, resolved at assembly time, unlike this project's own
+; {const:} macro-preprocessor directive), so neither the addresses nor
+; (via PROTO_TABLE) the confirm-byte values can drift out of sync between
+; the three files that all need them. A stale hand-copied JT_*/PROTO_*
+; block here is exactly what broke Video Settings' save/cancel round trip
+; live on 2026-08-17 -- see constants.asm's own comment for the full story.
+{include:constants.asm}
 
 VIC_BORDER = $d020
 VIC_BG     = $d021
@@ -304,9 +292,9 @@ demo_cursor_toggle:
 
 ; --- Save: send the new values back, restore the screen, hand back ---
 key_save:
-        lda #DISPLAY_STREAM_START
+        lda PROTO_STREAM_START
         jsr JT_SL_SEND
-        lda #DISPLAY_STREAM_CONFIRM
+        lda PROTO_DISPLAY_STREAM_CONFIRM
         jsr JT_SL_SEND
         lda #3                    ; len_lo -- 3-byte body
         jsr JT_SL_SEND
@@ -331,9 +319,9 @@ key_cancel:
         sta cur_blink
         jsr apply_live             ; undo whatever was being live-previewed
 
-        lda #DISPLAY_STREAM_START
+        lda PROTO_STREAM_START
         jsr JT_SL_SEND
-        lda #DISPLAY_STREAM_CANCEL
+        lda PROTO_DISPLAY_STREAM_CANCEL
         jsr JT_SL_SEND
         lda #0                    ; len_lo -- no body
         jsr JT_SL_SEND

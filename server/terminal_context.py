@@ -285,15 +285,17 @@ class PETSCIINetworkContext(GameContext):
         Format and send text as raw PETSCII bytes.
         No JSON envelope — bytes go straight to the Commodore client.
         """
-        from formatting import PETSCIICodec
+        from formatting import codec_for_settings, PETSCIICodec
         from tada_utilities import substitute_tokens
         raw       = [substitute_tokens(line, self.player) for line in flatten_send_args(*lines)]
-        codec     = PETSCIICodec()
+        codec     = codec_for_settings(self.player.client_settings)
         formatted = format_lines(raw, self.player.client_settings, codec)
+        reset_color = codec.reset_color if isinstance(codec, PETSCIICodec) else None
         encoded   = petscii_encode_lines(
             formatted,
             codec_name   = self.CODEC_NAME,
             line_ending  = self.LINE_ENDING,
+            reset_color  = reset_color,
         )
         try:
             self.writer.write(encoded)
@@ -308,14 +310,16 @@ class PETSCIINetworkContext(GameContext):
         Send preamble + prompt as raw PETSCII bytes, then read a CR-terminated
         line of raw bytes from the Commodore client and decode it.
         """
-        from formatting import PETSCIICodec, petscii_encode
+        from formatting import codec_for_settings, PETSCIICodec, petscii_encode
         from tada_utilities import substitute_tokens
         if preamble_lines:
             await self.send(preamble_lines)
 
         prompt_text = substitute_tokens(prompt_text, self.player)
         if prompt_text:
-            encoded = petscii_encode(prompt_text, self.CODEC_NAME)
+            codec = codec_for_settings(self.player.client_settings)
+            reset_color = codec.reset_color if isinstance(codec, PETSCIICodec) else None
+            encoded = petscii_encode(prompt_text, self.CODEC_NAME, reset_color=reset_color)
             self.writer.write(encoded)
             await self.writer.drain()
 

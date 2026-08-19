@@ -407,10 +407,10 @@ class PETSCIINetworkContext(GameContext):
     async def send(self, *lines) -> None:
         """Encode and send as raw PETSCII bytes — no JSON envelope.
         Automatically paginates when output exceeds the player's screen height."""
-        from formatting import PETSCIICodec
+        from formatting import codec_for_settings
         from tada_utilities import substitute_tokens
         raw       = [substitute_tokens(line, self.player) for line in flatten_send_args(*lines)]
-        codec     = PETSCIICodec()
+        codec     = codec_for_settings(self.player.client_settings)
         formatted = format_lines(raw, self.player.client_settings, codec)
 
         page_size = max(1, self.player.client_settings.screen_rows - 1)
@@ -421,10 +421,14 @@ class PETSCIINetworkContext(GameContext):
 
     async def _send_formatted(self, formatted: list[str]) -> None:
         """Send pre-formatted lines as raw PETSCII bytes without pagination."""
+        from formatting import codec_for_settings, PETSCIICodec
+        codec = codec_for_settings(self.player.client_settings)
+        reset_color = codec.reset_color if isinstance(codec, PETSCIICodec) else None
         encoded = petscii_encode_lines(formatted,
                                        codec_name     = self.CODEC_NAME,
                                        line_ending    = self.LINE_ENDING,
-                                       screen_columns = self.player.client_settings.screen_columns)
+                                       screen_columns = self.player.client_settings.screen_columns,
+                                       reset_color    = reset_color)
         try:
             self.writer.write(encoded)
             await self.writer.drain()
@@ -447,7 +451,7 @@ class PETSCIINetworkContext(GameContext):
                      preamble_lines: list[str] | None = None) -> str:
         """Send raw PETSCII prompt, read CR-terminated response."""
         import datetime
-        from formatting import petscii_encode, format_player_time
+        from formatting import petscii_encode, format_player_time, codec_for_settings, PETSCIICodec
         pending = self._pop_pending_pages()
         if pending:
             preamble_lines = pending + list(preamble_lines or [])
@@ -459,10 +463,12 @@ class PETSCIINetworkContext(GameContext):
             clock = format_player_time(datetime.datetime.now(), self.player)
             prompt_text = f"[{clock}] {prompt_text}"
         if prompt_text:
+            codec = codec_for_settings(self.player.client_settings)
+            reset_color = codec.reset_color if isinstance(codec, PETSCIICodec) else None
             # No leading CR needed — petscii_encode_lines() now always
             # terminates each send() with CR, so the cursor is already
             # on a fresh line.
-            self.writer.write(petscii_encode(prompt_text + ' > ', self.CODEC_NAME))
+            self.writer.write(petscii_encode(prompt_text + ' > ', self.CODEC_NAME, reset_color=reset_color))
             await self.writer.drain()
         try:
             raw = await self.reader.readuntil(b'\r')

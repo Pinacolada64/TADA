@@ -10,11 +10,11 @@
 ; Ryan's call to split the client into loadable sub-modules rather than
 ; grow tada-client.asm itself indefinitely.
 ;
-; Talks to the same resident SwiftLink plumbing (sl_send/sl_recv) via
-; the fixed low-page jump table tada-client.asm's init_jump_table
-; populates at boot ($0340 = JT_SL_SEND, $0343 = JT_SL_RECV, $0346 =
-; JT_RESUME) rather than depending on this resident program's own
-; routine addresses, which shift every time tada-client.asm is edited.
+; Talks to the same resident SwiftLink plumbing (sl_send/sl_recv) via the
+; fixed jump table tada-client.asm's init_jump_table populates at boot
+; (JT_SL_SEND/JT_SL_RECV/JT_RESUME/...) rather than depending on this
+; resident program's own routine addresses, which shift every time
+; tada-client.asm is edited.
 ;
 ; Wire format on entry: the caller has already consumed CANVAS_STREAM_
 ; START+CANVAS_STREAM_CONFIRM (that's what triggered this module to
@@ -38,21 +38,14 @@
 ; SCREEN_RAM/COLOR_RAM/CHROUT/GETIN are macro_preprocessor.py built-ins
 ; (C64_CONSTANTS) -- no {const:} needed for those here.
 
-; Must match tada-client.asm's own JT_BASE-relative constants exactly --
-; there's no shared include for these today, so a change to one side's
-; jump table layout has to be mirrored here by hand.
-{const: JT_SL_SEND $0340}
-{const: JT_SL_RECV $0343}
-{const: JT_RESUME  $0346}
-{const: JT_SAVE_SCREEN    $0349}
-{const: JT_RESTORE_SCREEN $034c}
-
-; Must match petscii_editor/canvas.py's STREAM_START/STREAM_CONFIRM --
-; used here only for the upload (save) direction; the download header
-; was already consumed by tada-client.asm before this module loaded.
-{const: CANVAS_STREAM_START   $01}
-{const: CANVAS_STREAM_CONFIRM $42}
-{const: CANVAS_STREAM_CANCEL  $43}
+; JT_*/PROTO_* both come from a shared real c64list {include:}
+; (constants.asm, resolved at assembly time, unlike this project's own
+; {const:} macro-preprocessor directive) instead of a private hand-copied
+; `{const:}` block -- a stale one of those here is exactly what broke
+; the canvas save/cancel round trip live on 2026-08-17 when tada-
+; client.asm's own confirm-byte values changed but this module's private
+; copy didn't. See constants.asm's own comment for the full story.
+{include:constants.asm}
 
 ; GETIN codes for the help overlay -- BEST GUESS, NOT YET VERIFIED LIVE
 ; (this session's own experience with F1 says don't trust a remembered
@@ -490,9 +483,9 @@ ecc_restore_loop:
 ; existing single readexactly(HEADER_LEN) call completes immediately
 ; either way -- see petscii_editor/canvas.py's STREAM_CANCEL comment.
 edit_cancel:
-        lda #CANVAS_STREAM_START
+        lda PROTO_STREAM_START
         jsr JT_SL_SEND
-        lda #CANVAS_STREAM_CANCEL
+        lda PROTO_CANVAS_STREAM_CANCEL
         jsr JT_SL_SEND
         lda #0
         jsr JT_SL_SEND
@@ -1217,9 +1210,9 @@ pl_dec_lo:
 ; --- Save: send a fresh STREAM_START+CONFIRM+length header, then
 ; CHAR_BUF then COLOR_BUF, straight over JT_SL_SEND. ---
 upload_canvas:
-        lda #CANVAS_STREAM_START
+        lda PROTO_STREAM_START
         jsr JT_SL_SEND
-        lda #CANVAS_STREAM_CONFIRM
+        lda PROTO_CANVAS_STREAM_CONFIRM
         jsr JT_SL_SEND
         lda #<(CELLS*2)
         jsr JT_SL_SEND

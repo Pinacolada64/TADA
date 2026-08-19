@@ -10,12 +10,13 @@ collide with any hand-picked sentinel as a SID register value is):
     stream := STREAM_START STREAM_CONFIRM len_lo len_hi body
     body   := chars (WIDTH*HEIGHT bytes) + colors (WIDTH*HEIGHT bytes)
 
-STREAM_CONFIRM (0x42, 'B' for "banner") is deliberately a different byte
-than sid_engine.frames.STREAM_CONFIRM (0x53, 'S') -- both streams share
-the same STREAM_START (0x01) and ride the same connection, so the
-client's handle_recv_byte scanner needs the second byte to tell which
-kind of stream is starting, exactly as sid_engine.frames' own docstring
-describes for why STREAM_CONFIRM exists at all.
+STREAM_CONFIRM (0x04) is deliberately a different byte than
+sid_engine.frames.STREAM_CONFIRM (0x02) -- both streams share the same
+STREAM_START (0x01) and ride the same connection, so the client's
+handle_recv_byte scanner needs the second byte to tell which kind of
+stream is starting, exactly as sid_engine.frames' own docstring
+describes for why STREAM_CONFIRM exists at all (including why it must
+come from the 0x02-0x0f gap rather than a printable letter).
 
 This wire format is distinct from the on-disk `[raw_petscii]` file
 format in store.py, even though both carry the same 2000-byte
@@ -35,7 +36,9 @@ HEIGHT = 24  # not the full 40x25 physical screen -- row 24 is reserved
 CELLS  = WIDTH * HEIGHT
 
 STREAM_START   = 0x01
-STREAM_CONFIRM = 0x42  # 'B' -- distinct from sid_engine.frames.STREAM_CONFIRM ('S')
+STREAM_CONFIRM = 0x04  # unused C64 control code -- distinct from
+                        # sid_engine.frames.STREAM_CONFIRM (0x02); see
+                        # this module's own docstring for why 0x02-0x0f
 
 # RUN/STOP-cancel marker: the client sends STREAM_START+STREAM_CANCEL+00+00
 # (a fixed 4 bytes, the same length as a real STREAM_CONFIRM header) instead

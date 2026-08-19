@@ -19,12 +19,19 @@ Wire format (must match tada-client.asm/config_menu.asm exactly):
 
 STREAM_START (0x01) is shared with every other framed stream on this
 connection (petscii_editor/canvas.py, sid_engine/frames.py) --
-DISPLAY_STREAM_CONFIRM (0x44, 'D' for "display") is what tells the
-client's handle_recv_byte scanner which kind of stream is starting, same
-role as CANVAS_STREAM_CONFIRM ('B')/SID_STREAM_CONFIRM ('S').
+DISPLAY_STREAM_CONFIRM (0x06) is what tells the client's handle_recv_byte
+scanner which kind of stream is starting, same role as
+CANVAS_STREAM_CONFIRM (0x04)/SID_STREAM_CONFIRM (0x02). Like those, it
+must come from the 0x02-0x0f gap rather than a printable letter -- see
+sid_engine/frames.py's docstring for why (APPLY_STREAM_CONFIRM below
+used to be 0x41 'A' and hung a live client on 2026-08-17 for exactly
+this reason).
 DISPLAY_STREAM_CANCEL (0x58, 'X') is unrelated to petscii_editor/
 canvas.py's own STREAM_CANCEL byte -- these are different streams
-entirely, no need for the values to match.
+entirely, no need for the values to match. It's client -> server only
+(sent deliberately when the player cancels the popup), so it isn't
+scanned against ordinary server -> client text and doesn't carry the
+same collision risk as the CONFIRM bytes above.
 
 border_color/bg_color are raw VIC-II color numbers (0-15), the same
 values POKE 53280/53281 expect -- terminal.ColorName's first 16 members
@@ -48,10 +55,13 @@ from terminal import ColorName
 log = logging.getLogger(__name__)
 
 STREAM_START           = 0x01
-DISPLAY_STREAM_CONFIRM = 0x44  # 'D' -- opens the native popup
-DISPLAY_STREAM_CANCEL  = 0x58  # 'X'
-APPLY_STREAM_CONFIRM   = 0x41  # 'A' -- silently applies border/bg/blink
-                                 # client-side (tada-client.asm's
+DISPLAY_STREAM_CONFIRM = 0x06  # unused C64 control code -- opens the
+                                 # native popup; see this module's
+                                 # docstring for why not a letter
+DISPLAY_STREAM_CANCEL  = 0x58  # 'X' -- client -> server only, see docstring
+APPLY_STREAM_CONFIRM   = 0x07  # unused C64 control code -- silently
+                                 # applies border/bg/blink client-side
+                                 # (tada-client.asm's
                                  # handle_recv_byte_apply_confirm), no
                                  # popup involved -- used at login/
                                  # reconnect so a real Commodore client's

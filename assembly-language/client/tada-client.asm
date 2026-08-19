@@ -86,9 +86,20 @@
 ; waits for this specific second byte immediately after before treating
 ; anything as a real stream (see handle_recv_byte_maybe_start/_confirm).
 ; Two specific bytes matching back-to-back by accident is astronomically
-; less likely than one.
+; less likely than one -- PROVIDED the second byte is chosen from a
+; range ordinary PETSCII text never produces. SID_STREAM_CONFIRM used to
+; be $53 ('S'), and the sibling confirms below were $42/$44/$41
+; ('B'/'D'/'A') -- all in the $41-$5a range that cbmcodecs2's
+; petscii_c64en_lc codec maps to ordinary lowercase letters (common in
+; this project's sentence-case text). 'A' hung a live client on
+; 2026-08-17: a stray SID_STREAM_START followed by an in-band lowercase
+; 'a' misfired handle_recv_byte_apply_confirm, which then blocked
+; forever waiting for 5 protocol bytes nobody was sending. All four
+; confirm bytes below now live in the $02-$0f gap instead, which
+; cbmcodecs2 never maps to a printable character and this client never
+; uses as a color/cursor control code.
 {const: SID_STREAM_START   $01}
-{const: SID_STREAM_CONFIRM $53}   ; 'S' -- arbitrary, just distinctive
+{const: SID_STREAM_CONFIRM $02}   ; unused C64 control code -- see above
 {const: SID_STOP           $03}   ; one-byte control signal (not a stream)
                                    ; -- play #stop sends this to silence
                                    ; playback and reset SID state immediately
@@ -104,18 +115,20 @@
 ; canvas.py (server side) for the matching encoder/decoder and the same
 ; reasoning about why a second distinguishing byte is needed at all.
 {const: CANVAS_STREAM_START   $01}
-{const: CANVAS_STREAM_CONFIRM $42}   ; 'B' for "banner" -- distinct from
-                                       ; SID_STREAM_CONFIRM ('S')
+{const: CANVAS_STREAM_CONFIRM $04}   ; unused C64 control code --
+                                       ; distinct from SID_STREAM_CONFIRM
+                                       ; ($02); see its own comment for why
+                                       ; not a printable letter
 
 ; Display-settings (config menu) stream marker -- same idea/reasoning as
 ; CANVAS_STREAM_CONFIRM above, own distinct confirm byte so
 ; handle_recv_byte_confirm can tell this apart from a SID or canvas
 ; stream. Matches commands/c64_display.py (server side) exactly.
-{const: DISPLAY_STREAM_CONFIRM $44}   ; 'D' for "display" -- opens the
-                                        ; config_menu.asm popup
-{const: APPLY_STREAM_CONFIRM   $41}   ; 'A' for "apply" -- silently
-                                        ; applies border/bg/blink (sent
-                                        ; at login/reconnect, see
+{const: DISPLAY_STREAM_CONFIRM $06}   ; unused C64 control code -- opens
+                                        ; the config_menu.asm popup
+{const: APPLY_STREAM_CONFIRM   $07}   ; unused C64 control code --
+                                        ; silently applies border/bg/blink
+                                        ; (sent at login/reconnect, see
                                         ; commands/connect.py's
                                         ; encode_apply_for_player()),
                                         ; no popup involved
@@ -143,41 +156,60 @@
 ; program's own routine addresses staying fixed release to release --
 ; those addresses shift every time resident code is edited, which would
 ; otherwise force every overlay module to be reassembled in lockstep.
-; Lives in the datasette buffer ($033c-$03fb), unused since this client
-; never touches the tape -- populated at boot by init_jump_table (copied
-; up from jump_table_template, since a PRG's own bytes can only occupy
-; one contiguous block starting at its own load address, which is well
-; above this page).
-{const: JT_BASE    $0340}
-{const: JT_SL_SEND  $0340}     ; jmp sl_send
-{const: JT_SL_RECV  $0343}     ; jmp sl_recv
-{const: JT_RESUME   $0346}     ; jmp prompt_loop -- hands control back to
-                                 ; the resident request/response loop once
-                                 ; the overlay is done (saved or cancelled)
-{const: JT_SAVE_SCREEN    $0349}  ; jmp save_screen -- SCREEN_RAM/COLOR_RAM
-                                    ; -> BACKUP_CHARS/BACKUP_COLORS
-{const: JT_RESTORE_SCREEN $034c}  ; jmp restore_screen -- reverse of the above.
-                                    ; Both added so petscii_editor.asm's help
-                                    ; overlay (previously its own private
-                                    ; 2000-byte BACKUP_CHARS/BACKUP_COLORS +
-                                    ; copy_1000) and any future popup-window
-                                    ; module (e.g. a config menu) share one
-                                    ; resident save/restore buffer instead of
-                                    ; each module allocating its own -- Ryan's
-                                    ; ask. Only one module is ever resident at
-                                    ; OVERLAY_BUF at a time, so there's no
-                                    ; concurrent-use concern.
-{const: JT_SET_BLINK_MASK $034f}  ; jmp set_blink_mask -- .a = new
-                                    ; cursor_blink_mask value. A setter
-                                    ; routine, not a raw fixed-address poke,
-                                    ; because cursor_blink_mask is an
-                                    ; ordinary resident variable whose real
-                                    ; address shifts on every resident edit
-                                    ; -- same reason overlay modules can't
-                                    ; just `sta` a resident label directly.
-                                    ; Used by config_menu.asm's Video
-                                    ; Settings popup to apply a blink speed
-                                    ; live as the player picks it.
+; JT_SL_SEND (jmp sl_send), JT_SL_RECV (jmp sl_recv), JT_RESUME (jmp
+; prompt_loop -- hands control back to the resident request/response loop
+; once the overlay is done, saved or cancelled), JT_SAVE_SCREEN/
+; JT_RESTORE_SCREEN (jmp save_screen/restore_screen -- SCREEN_RAM/
+; COLOR_RAM <-> BACKUP_CHARS/BACKUP_COLORS, shared so petscii_editor.asm's
+; help overlay and config_menu.asm's popup don't each need their own
+; private 2000-byte backup buffer -- Ryan's ask; only one module is ever
+; resident at OVERLAY_BUF at a time, so no concurrent-use concern), and
+; JT_SET_BLINK_MASK (jmp set_blink_mask -- .a = new cursor_blink_mask
+; value; a setter routine rather than a raw poke since cursor_blink_mask
+; is an ordinary resident variable whose address shifts on every resident
+; edit, same reason a module can't just `sta` a resident label directly;
+; used by config_menu.asm's Video Settings popup to apply a blink speed
+; live as the player picks it) -- populated at boot by init_jump_table
+; (copied up from jump_table_template, since a PRG's own bytes can only
+; occupy one contiguous block starting at its own load address, which is
+; well above this page).
+;
+; Cancel markers (CANVAS_STREAM_CANCEL/DISPLAY_STREAM_CANCEL) for the two
+; overlay modules' upload/reply direction -- client -> server only (each
+; module sends STREAM_START+this to tell the server the player backed
+; out), so they don't carry the same in-band-text collision risk as the
+; CONFIRM bytes.
+;
+; --- Shared jump table + protocol-byte block ---
+; JT_BASE/PROTO_TABLE are the single point of truth for the routine
+; addresses and framed-stream confirm/cancel bytes tada-client.asm,
+; config_menu.asm, and petscii_editor.asm all rely on (see sid_engine/
+; frames.py's docstring for the full protocol design). Before 2026-08-17
+; each overlay module kept its own private `{const: ... $xx}` copy of
+; these -- harmless as long as every copy stayed in sync by hand, until
+; it didn't: fixing a collision bug (moving the confirm bytes out of
+; printable-letter range, see SID_STREAM_CONFIRM's own comment) updated
+; this file and the server but missed both modules' private copies,
+; breaking Video Settings' save/cancel round trip live. Both blocks are
+; copied up into fixed memory at boot by init_jump_table -- an overlay
+; module's `jsr`/`lda` targets can't be this resident program's own
+; labels, since those shift on every resident edit -- and every module
+; reaches them via a shared `{include:constants.asm}` (a real c64list
+; include, resolved at assembly time, unlike this project's own
+; `{const:}` macro-preprocessor directive -- see constants.asm's own
+; comment) instead of embedding its own literal addresses. Change a value
+; once, here, and every module picks it up automatically on its next
+; build -- no more hand-sync-and-hope.
+;
+; JT_BASE/PROTO_TABLE themselves moved here, to $c000, from $0340 (the
+; KERNAL "datasette buffer") the same evening -- see constants.asm's own
+; comment for why (a live CPU-JAM crash, confirmed via the VICE remote
+; monitor, that reproduced under a JiffyDOS KERNAL but not a stock one,
+; pointing at JiffyDOS's own documented use of part of that buffer).
+{const: CANVAS_STREAM_CANCEL  $43}   ; 'C' -- distinct from CANVAS_STREAM_CONFIRM
+{const: DISPLAY_STREAM_CANCEL $58}   ; 'X' -- unrelated to CANVAS_STREAM_CANCEL,
+                                       ; different stream, no need to match
+{include:constants.asm}
 
 ; Zero page pointers
         scr_ptr_lo  = $fb       ; screen write pointer low byte
@@ -187,6 +219,10 @@
 
         RX_HIGH_WATER = 200     ; rx_buf bytes-buffered count that triggers RTS-off
         RX_LOW_WATER  = 32      ; count that triggers RTS back on (hysteresis)
+
+        APPLY_RECV_TIMEOUT_JIFFIES = 60  ; ~1 second at the jiffy clock's
+                                          ; ~60Hz tick rate -- see
+                                          ; apply_recv_byte's own comment
 
         rx_head     = $f9       ; NMI receive ring buffer: next write index
         rx_tail     = $fa       ; NMI receive ring buffer: next read index
@@ -400,12 +436,16 @@ init_swiftlink:
         rts
 
 ; --- Init jump table ---
-; Copies jump_table_template's 18 bytes up into the fixed JT_BASE page
+; Copies jump_table_template's 25 bytes up into the fixed JT_BASE page
 ; ($0340) -- see JT_BASE's own comment for why this can't just be
 ; assembled directly at $0340 (a PRG only occupies one contiguous block
-; starting at its own load address, well above this page).
+; starting at its own load address, well above this page). The last 7 of
+; those 25 bytes are PROTO_TABLE's raw protocol-byte values (not more
+; jmp instructions) -- JT_BASE and PROTO_TABLE are contiguous ($0340-
+; $0351 and $0352-$0358) precisely so one copy loop populates both; see
+; PROTO_TABLE's own comment.
 init_jump_table:
-        ldx #17
+        ldx #24
 init_jump_table_loop:
         lda jump_table_template,x
         sta JT_BASE,x
@@ -534,6 +574,9 @@ jump_table_template:
         jmp save_screen
         jmp restore_screen
         jmp set_blink_mask
+        byte SID_STREAM_START, SID_STREAM_CONFIRM, CANVAS_STREAM_CONFIRM
+        byte CANVAS_STREAM_CANCEL, DISPLAY_STREAM_CONFIRM
+        byte DISPLAY_STREAM_CANCEL, APPLY_STREAM_CONFIRM
 
 ; --- Load the petscii_editor overlay module and hand control to it ---
 ; Called from handle_recv_byte_canvas_confirm once a real canvas stream
@@ -1352,31 +1395,69 @@ handle_recv_byte_display_confirm:
 ; their own short payloads) -- nmi_handler keeps draining SwiftLink into
 ; rx_buf regardless of what mainline is doing, so nothing arriving
 ; during the short wait is lost.
+;
+; Each of the 5 byte-waits below goes through apply_recv_byte rather than
+; a bare sl_recv/bcc spin, so a misfired confirm (this handler entered
+; when nobody actually sent an apply stream -- the exact 2026-08-17
+; incident that motivated moving all the confirm bytes out of printable-
+; letter range, see APPLY_STREAM_CONFIRM's own comment) times out into
+; garbled text instead of hanging the client forever with no way back to
+; the prompt.
 handle_recv_byte_apply_confirm:
         lda #0
         sta sid_mode
 apply_recv_len_lo:
-        jsr sl_recv
-        bcc apply_recv_len_lo
+        jsr apply_recv_byte
+        bcc handle_recv_byte_apply_timeout
 apply_recv_len_hi:
-        jsr sl_recv
-        bcc apply_recv_len_hi
+        jsr apply_recv_byte
+        bcc handle_recv_byte_apply_timeout
 apply_recv_border:
-        jsr sl_recv
-        bcc apply_recv_border
+        jsr apply_recv_byte
+        bcc handle_recv_byte_apply_timeout
         sta VIC_BORDER
 apply_recv_bg:
-        jsr sl_recv
-        bcc apply_recv_bg
+        jsr apply_recv_byte
+        bcc handle_recv_byte_apply_timeout
         sta VIC_BACKGROUND
 apply_recv_blink:
-        jsr sl_recv
-        bcc apply_recv_blink
+        jsr apply_recv_byte
+        bcc handle_recv_byte_apply_timeout
         tax
         lda apply_blink_masks-1,x  ; .x is 1-5 -- -1 makes it a plain
                                      ; 0-based index, same convention as
                                      ; config_menu.asm's own blink_masks
         sta cursor_blink_mask
+        rts
+
+; Gives up on a timed-out apply-confirm byte wait: sid_mode is already 0
+; (set at handle_recv_byte_apply_confirm's own entry), so this just
+; drops straight back into ordinary text scanning. Whatever bytes were
+; actually in flight get displayed as garbled text -- not ideal, but
+; recoverable, unlike a permanent hang.
+handle_recv_byte_apply_timeout:
+        rts
+
+; Polls sl_recv for one byte, giving up after APPLY_RECV_TIMEOUT_JIFFIES
+; jiffies (~1 second) rather than spinning forever. Returns with carry
+; set and the byte in .a on success, carry clear on timeout. $a2 is the
+; KERNAL jiffy clock's fastest-changing byte (see sid_jiffy_start2's own
+; comment) -- the stock KERNAL IRQ keeps incrementing it regardless of
+; what mainline is doing, so this doesn't depend on anything SID-related
+; still running.
+apply_recv_byte:
+        lda $a2
+        sta apply_recv_timeout_start
+apply_recv_byte_poll:
+        jsr sl_recv
+        bcs apply_recv_byte_rts
+        lda $a2
+        sec
+        sbc apply_recv_timeout_start
+        cmp #APPLY_RECV_TIMEOUT_JIFFIES
+        bcc apply_recv_byte_poll
+        clc
+apply_recv_byte_rts:
         rts
 
 ; Resident copy of config_menu.asm's own blink_masks table -- can't share
@@ -1386,6 +1467,10 @@ apply_recv_blink:
 ; c64_display.py's BLINK_SPEED_MASKS by hand.
 apply_blink_masks:
         byte $08, $10, $20, $40, $00
+
+apply_recv_timeout_start:
+        byte 0                   ; apply_recv_byte's own jiffy-clock ($a2)
+                                  ; snapshot, taken fresh each call
 
 handle_recv_byte_start:
         inc sid_stream_starts     ; TEMP diagnostic -- see its own comment
@@ -1786,11 +1871,35 @@ sid_play:
 sid_play_scan:
         cpx sid_wr
         beq sid_play_rts          ; caught up to writer -- no full frame yet
-        lda SID_BUF,x
+        lda SID_BUF,x             ; a register-index byte -- FRAME_END is only
+        inx                       ; ever meaningful here, never at the paired
+        cmp #SID_FRAME_END        ; value byte that follows (see FRAME_END's
+        beq sid_play_scan_found   ; own comment: a real register *value* of
+                                   ; 255 is completely ordinary and must not
+                                   ; be mistaken for end-of-frame -- confirmed
+                                   ; live 2026-08-17: this scan used to check
+                                   ; FRAME_END on *every* byte, index and
+                                   ; value alike, so a genuine $ff value byte
+                                   ; made it stop scanning one byte early --
+                                   ; not at a real frame boundary. sid_play_
+                                   ; apply then re-walked from sid_rd using
+                                   ; correct index/value pairing, ran past
+                                   ; the incomplete frame scan had validated,
+                                   ; and kept reading unarrived/stale SID_BUF
+                                   ; bytes as bogus (reg,val) pairs forever --
+                                   ; this loop never returns on its own, and
+                                   ; since sid_play runs every IRQ tick, that
+                                   ; hung the entire interrupt chain (KERNAL
+                                   ; IRQ never ran again either), which is
+                                   ; what actually caused every "frozen,
+                                   ; cursor stopped, no prompt" symptom this
+                                   ; session -- not the protocol-byte changes.
+        cpx sid_wr                ; skip the paired value byte -- but only if
+        beq sid_play_rts          ; it's actually arrived yet (incomplete
+                                   ; frame otherwise: bail, try again next tick)
         inx
-        cmp #SID_FRAME_END
-        bne sid_play_scan
-
+        jmp sid_play_scan
+sid_play_scan_found:
         ldx sid_rd
 sid_play_apply:
         lda SID_BUF,x

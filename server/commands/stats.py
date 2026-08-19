@@ -290,7 +290,7 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
     shield_flag       = getattr(PlayerFlags, 'SHIELD_TRAINED', None)
     shield_trained    = ('Yes' if qf(shield_flag) else 'No') if shield_flag else 'No'
     lines += [
-        f"Shield skill: {shield_skill} {tier_label(shield_skill)}, Formal training: {shield_trained}",
+        f"Shield skill: {shield_skill} {tier_label(shield_skill)}|reset|, Formal training: {shield_trained}",
         '',
     ]
 

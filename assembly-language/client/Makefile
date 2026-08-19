@@ -40,14 +40,28 @@ config_menu.prg: config_menu_pp.asm
 	$(C64LIST) config_menu_pp.asm -prg:config_menu -sym -ovr
 
 # --- ROM paths ---
+# Stock KERNAL/BASIC/CHARGEN -- kept around for reference/fallback even
+# though `vice:` now boots JiffyDOS's KERNAL instead (see below); BASIC
+# and CHARGEN are untouched by JiffyDOS, still stock either way.
 VICE_ROMS       = $(HOME)/.local/share/vice/C64
 KERNAL          = $(VICE_ROMS)/kernal-901227-03.bin
 BASIC           = $(VICE_ROMS)/basic-901226-01.bin
 CHARGEN         = $(VICE_ROMS)/chargen-901225-01.bin
 
 # --- JiffyDOS ROMs ---
-JIFFYDOS_C64    = $(HOME)/Documents/c64/JiffyDOS/JiffyC1541.ROM
-JIFFYDOS_1541   = /usr/local/share/vice/DRIVES/dos1541-325302-01+901229-05.bin
+# JIFFYDOS_KERNAL replaces the computer's own KERNAL (-kernal, 8KB
+# $e000-$ffff, same size/slot as stock KERNAL above -- verified via `ls
+# -la` before wiring this in) with JiffyDOS's fast-loader-aware version.
+# JIFFYDOS_1541/_1541II are drive-side JiffyDOS ROMs (16KB $c000-$ffff)
+# for -dos1541/-dos1541II respectively -- both ends (computer + drive)
+# need JiffyDOS installed for the fast-load protocol to actually kick in;
+# one side alone still loads at stock 1541 speed. Ryan's ask 2026-08-17:
+# swap these in for `make vice` since this project's edit-rebuild-reload
+# loop hits LOAD constantly, and stock KERNAL+1541 speed makes that loop
+# painfully slow.
+JIFFYDOS_KERNAL = $(HOME)/Documents/c64/JiffyDOS/Jiffydos-Kernal.rom
+JIFFYDOS_1541   = $(HOME)/Documents/c64/JiffyDOS/JiffyC1541.ROM
+JIFFYDOS_1541II = $(HOME)/Documents/c64/JiffyDOS/Jiffy1541-II.rom
 JIFFYDOS_1581   = $(HOME)/Documents/c64/JiffyDOS/Jiffy1581.rom
 
 # --- SwiftLink / TADA server ---
@@ -71,8 +85,15 @@ $(TARGET)-vice-labels: $(TARGET).prg
 	$(CONVERT_LABELS) $(TARGET)_pp.sym $(TARGET)-vice-labels
 
 # Step 4: generate VICE monitor commands to auto-load labels
+# TEMP (2026-08-17, Ryan+Claude live debugging the play-#test SID-stream
+# hang): also auto-arms watchpoints on sid_mode/sid_remaining_lo/hi so
+# they survive killing and relaunching VICE between attempts -- a fresh
+# remote-monitor connection doesn't carry over watchpoints set on a
+# previous VICE process. Revert to just the `ll` line once that bug's
+# found and fixed.
 monitor-commands: $(TARGET)-vice-labels
 	echo "ll \"$(TARGET)-vice-labels\"" > monitor-commands
+	echo "watch store 0314 0319" >> monitor-commands
 
 # Default target: build everything
 all: $(TARGET).prg $(TARGET)-vice-labels monitor-commands $(addsuffix .prg,$(MODULES))
@@ -87,7 +108,7 @@ all: $(TARGET).prg $(TARGET)-vice-labels monitor-commands $(addsuffix .prg,$(MOD
 # leaves the whole directory genuinely browsable/loadable at runtime.
 vice: all $(TARGET).d64
 	$(LAUNCH_VICE) \
-	-kernal $(KERNAL) \
+	-kernal $(JIFFYDOS_KERNAL) \
 	-basic $(BASIC) \
 	-chargen $(CHARGEN) \
 	-acia1 \
@@ -98,8 +119,8 @@ vice: all $(TARGET).d64
 	-drive8type 1541 \
 	-drive10type 1581 \
 	-drive11type 1581 \
-	-dos1541 $(JIFFYDOS_C64) \
-	-dos1541II $(JIFFYDOS_1541) \
+	-dos1541 $(JIFFYDOS_1541) \
+	-dos1541II $(JIFFYDOS_1541II) \
 	-dos1581 $(JIFFYDOS_1581) \
 	-8 $(TARGET).d64 \
 	-moncommands "monitor-commands" \

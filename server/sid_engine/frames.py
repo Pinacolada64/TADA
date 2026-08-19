@@ -26,8 +26,21 @@ player typed, interleaved with a play response. A single STREAM_START
 byte was confirmed live to collide with ordinary text this way,
 corrupting later text into bogus SID data. Requiring a specific *second*
 byte immediately after, before the client commits to treating anything
-as a stream, makes an accidental collision astronomically less likely
-without needing a longer/costlier marker.
+as a stream, makes an accidental collision astronomically less likely --
+*provided* that second byte is chosen from a range ordinary PETSCII text
+never produces. STREAM_CONFIRM used to be 0x53 ('S'), and the sibling
+confirms in petscii_editor/canvas.py and commands/c64_display.py were
+0x42/0x44/0x41 ('B'/'D'/'A') -- all in the 0x41-0x5A range that
+cbmcodecs2's petscii_c64en_lc codec maps to ordinary lowercase letters,
+which are common in this project's sentence-case player-facing text.
+'A' in particular (commands/c64_display.py's APPLY_STREAM_CONFIRM) hung
+a live client on 2026-08-17: a stray STREAM_START followed by an
+in-band lowercase 'a' misfired the apply-confirm handler, which then
+blocked forever waiting for 5 protocol bytes nobody was sending. All
+four confirm bytes now live in the 0x02-0x0f gap, which cbmcodecs2 never
+maps to a printable character and this codebase never uses as a color/
+cursor control code -- see each sibling module's own STREAM_CONFIRM for
+its assigned value.
 
 STOP ($03) is a separate, instantaneous one-byte control signal (not a
 stream) -- sent by `play #stop` to silence playback and reset the
@@ -42,7 +55,9 @@ from __future__ import annotations
 from typing import Iterable, Mapping
 
 STREAM_START   = 0x01
-STREAM_CONFIRM = 0x53  # 'S' -- arbitrary, just distinctive
+STREAM_CONFIRM = 0x02  # unused C64 control code -- never appears in
+                        # ordinary PETSCII text, unlike a printable
+                        # letter (see this module's docstring)
 STOP           = 0x03
 FRAME_END      = 0xff
 
