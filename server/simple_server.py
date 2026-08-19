@@ -770,7 +770,14 @@ class Server:
         loop -- see that call site's else-branch for where the streak
         gets reset back to 0 on any recognized command.
         """
-        if ctx.player.is_expert:
+        # GuestPlayer has no is_expert attribute -- confirmed live
+        # 2026-08-19 that this crashed a guest's whole connection (an
+        # uncaught AttributeError propagating out of handle_connection's
+        # own try/except) just from typing three unrecognized commands
+        # in a row. Treat a guest as a non-expert -- the help offer is
+        # harmless, arguably more useful for someone who hasn't logged
+        # in yet.
+        if getattr(ctx.player, 'is_expert', False):
             return
 
         count = getattr(ctx.client, 'unknown_command_count', 0) + 1

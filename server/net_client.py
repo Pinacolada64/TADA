@@ -858,7 +858,7 @@ def main():
         password = 'guest'
     else:
         # Prompt for username if not provided
-        user_id = args.user or get_input('Username: ').strip()
+        user_id = args.user or get_input("Username [Enter = 'guest']: ").strip()
         if not user_id:
             user_id = 'guest'
             password = 'guest'

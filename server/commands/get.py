@@ -635,9 +635,23 @@ class GetCommand(Command):
                     player.unsaved_changes = True
                     await ctx.send(f'Yelp!  You burn your fingers!  (-{dmg} HP)')
 
-        if inventory is not None:
-            inventory.add(entry.item,
-                          quantity=getattr(entry, 'quantity', 1))
+        if inventory is None:
+            # By this point every legitimate "never added to inventory"
+            # case (statue, Gollum's ring, Tut's Treasure, fireplace,
+            # obelisk) has already sent its own message and returned
+            # above -- an inventory that's still None here means this
+            # player type simply has none at all (GuestPlayer has no
+            # `inventory` attribute, see network_context.py). Confirmed
+            # live 2026-08-19: without this check, a guest's `get` still
+            # printed "You pick up X." and deleted the item from the
+            # room via remove_fn() below, with nothing kept anywhere --
+            # a real item permanently destroyed for no reason.
+            await ctx.send("Guests can't carry items. Create a character "
+                            "with 'new' to keep what you find.")
+            return CommandResult.ok()
+
+        inventory.add(entry.item,
+                      quantity=getattr(entry, 'quantity', 1))
 
         remove_fn()
         await ctx.send(f'You pick up {name}.')
