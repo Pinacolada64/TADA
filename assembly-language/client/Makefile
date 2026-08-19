@@ -71,9 +71,22 @@ SL_BAUD         = 38400
 
 # --- Build pipeline ---
 
+# Split-out modules pulled into $(TARGET)_pp.asm via {include:...} (a
+# native c64list directive -- see macro_preprocessor.py's
+# C64LIST_DIRECTIVES, passed through unexpanded). c64list resolves
+# labels across the include globally, but it does NOT run this
+# project's own macro_preprocessor.py over included files, so each one
+# needs its own preprocessing pass first, same as $(TARGET) itself --
+# {include:screen-handler_pp.asm} in tada-client.asm names the
+# preprocessed file, not the raw source.
+SPLIT_MODULES   = screen-handler
+
 # Step 1: preprocess macros and constants
-$(TARGET)_pp.asm: $(TARGET).asm
+$(TARGET)_pp.asm: $(TARGET).asm $(addsuffix _pp.asm,$(SPLIT_MODULES))
 	$(PREPROCESSOR) $(TARGET).asm
+
+screen-handler_pp.asm: screen-handler.asm
+	$(PREPROCESSOR) screen-handler.asm
 
 # Step 2: assemble to .prg and .sym in one pass
 $(TARGET).prg: $(TARGET)_pp.asm
@@ -179,6 +192,7 @@ clean:
 	      $(TARGET).prg \
 	      $(TARGET)-vice-labels \
 	      monitor-commands \
+	      $(addsuffix _pp.asm,$(SPLIT_MODULES)) \
 	      $(addsuffix _pp.asm,$(MODULES)) \
 	      $(addsuffix _pp.sym,$(MODULES)) \
 	      $(addsuffix .prg,$(MODULES)) \
