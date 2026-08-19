@@ -137,6 +137,11 @@ def _ally_inventory_lines(player) -> list[str]:
     from commands.give import _MOUNT_CAPACITY_WITH_SADDLEBAGS
 
     lines: list[str] = []
+    if not hasattr(player, 'party'):
+        # GuestPlayer has no party at all -- owned_allies() reads
+        # player.party unguarded, so a guest raises AttributeError here
+        # rather than just having no allies.
+        return lines
     for ally in owned_allies(player):
         flags = ally.flags or []
         items = getattr(ally, 'items', None) or []

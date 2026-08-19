@@ -296,6 +296,12 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
         entry = InventoryEntry(item=item)
 
         def _record(iid=item_id, p=player, is_ration=(attr == 'food')):
+            # GuestPlayer has no record_ration_pickup/record_item_pickup
+            # (those anti-hoarding history ring buffers are Player-only,
+            # see player.py) -- a guest picking up an item shouldn't blow
+            # up just because there's nothing to record it into.
+            if not hasattr(p, 'record_ration_pickup'):
+                return
             if is_ration:
                 p.record_ration_pickup(iid)
             else:

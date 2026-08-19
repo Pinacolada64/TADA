@@ -722,6 +722,19 @@ class Server:
                 await ctx.send(f"Unknown command '{raw.strip().split()[0]}'. "
                                "Type 'help' for a list.")
                 await self._maybe_offer_help(ctx)
+            elif not result.success and result.error == 'command_error':
+                # An uncaught exception in the command itself (see
+                # command_processor.py's dispatch try/except) -- that
+                # branch already logs the full traceback server-side, but
+                # without this the player saw literally nothing at all,
+                # confirmed live 2026-08-19 for a guest hitting an
+                # AttributeError in inv/get: no error, no output, just
+                # silence. Every other failure kind is left alone here
+                # since ordinary business-logic commands already send
+                # their own player-facing failure text before returning
+                # CommandResult.fail(...) -- result.message there is
+                # metadata/logging only, not meant for display.
+                await ctx.send(result.message or 'Something went wrong with that command.')
             else:
                 # Any recognized command (success or a different failure,
                 # e.g. wrong mode) resets the streak -- only *consecutive*
