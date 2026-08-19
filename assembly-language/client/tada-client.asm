@@ -833,16 +833,31 @@ sl_recv_empty:
 ; instead of it stalling until they submit a line -- see
 ; wait_for_data's own comment for why that hand-off happens.
 ;
-; Deliberately only touches rx_buf while mid-stream (sid_mode != 0): if
-; sid_mode is 0, whatever's waiting is ordinary text (or a stray byte
-; before a stream even starts), and calling handle_recv_byte for it here
-; would call display_char and corrupt whatever the player is mid-typing.
-; Left alone, it just sits safely in rx_buf for wait_for_data to display
-; normally on the next round-trip, exactly like today when nothing is
-; playing at all.
+; Always services a byte while mid-stream (sid_mode != 0) -- stream data
+; never reaches display_char, so there's nothing to protect against yet.
+; Once the stream ends (sid_mode back to 0), also keeps servicing
+; -- but only while linelen is still 0, i.e. the player hasn't typed
+; anything into this line yet. That covers the trailing response text
+; every play command has waiting right behind its raw stream (the
+; command loop's own "main > " prompt, queued up on the wire behind the
+; whole transfer -- always the very next thing to arrive once the stream
+; itself finishes): confirmed live 2026-08-18 that without this, that
+; prompt just sat undisplayed in rx_buf -- cursor blinking, nothing
+; visibly wrong, but no prompt text either -- until the player's next
+; Enter (submitting an empty line) drove a fresh wait_for_data call that
+; finally drained and showed it, one round-trip late. Still refuses to
+; touch rx_buf once linelen is nonzero, i.e. once the player has actually
+; started typing -- unsolicited server text (an ambient room/ally
+; message, unrelated to anything just played) arriving at that point
+; must NOT auto-display and corrupt the in-progress input line; it's
+; left alone for wait_for_data to show normally on the next round-trip,
+; same as always.
 sid_service_background:
         lda sid_mode
-        beq sid_service_background_rts
+        bne sid_service_background_recv
+        lda linelen
+        bne sid_service_background_rts
+sid_service_background_recv:
         jsr sl_recv
         bcc sid_service_background_rts
         jsr handle_recv_byte
