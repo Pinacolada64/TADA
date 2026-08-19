@@ -72,6 +72,55 @@ class TestEncodeStream(unittest.TestCase):
         length = encoded[2] | (encoded[3] << 8)
         self.assertEqual(length, len(encoded) - 4)
 
+    def _split_chunks(self, encoded: bytes) -> list[bytes]:
+        """Walk a possibly-multi-chunk transmission and return each
+        chunk's body, asserting every header is well-formed along the
+        way -- shared helper for the chunking tests below."""
+        bodies = []
+        i = 0
+        while i < len(encoded):
+            self.assertEqual(encoded[i], frames.STREAM_START)
+            self.assertEqual(encoded[i + 1], frames.STREAM_CONFIRM)
+            length = encoded[i + 2] | (encoded[i + 3] << 8)
+            i += 4
+            bodies.append(encoded[i:i + length])
+            i += length
+        self.assertEqual(i, len(encoded), 'trailing bytes past the last chunk')
+        return bodies
+
+    def test_a_tune_under_the_cap_is_a_single_chunk(self):
+        tune = [{0: 1}] * 100
+        bodies = self._split_chunks(frames.encode_stream(tune))
+        self.assertEqual(len(bodies), 1)
+
+    def test_a_tune_over_the_cap_splits_into_multiple_chunks_on_frame_boundaries(self):
+        # Each frame is 3 bytes (reg, val, FRAME_END); force a split with
+        # a tiny cap instead of a real ~65535-byte tune, so the test
+        # stays fast and the boundary math stays checkable by hand.
+        frame = {0: 1}
+        frame_bytes = frames.encode_frame(frame)
+        tune = [frame] * 10
+        old_cap, frames.MAX_CHUNK_BODY = frames.MAX_CHUNK_BODY, len(frame_bytes) * 3
+        try:
+            bodies = self._split_chunks(frames.encode_stream(tune))
+        finally:
+            frames.MAX_CHUNK_BODY = old_cap
+        # 10 frames at 3-per-chunk: three full chunks + a one-frame tail.
+        self.assertEqual([len(b) // len(frame_bytes) for b in bodies], [3, 3, 3, 1])
+        self.assertEqual(b''.join(bodies), frame_bytes * 10)
+
+    def test_no_chunk_ever_exceeds_max_chunk_body(self):
+        frame = {0: 1}
+        frame_bytes = frames.encode_frame(frame)
+        tune = [frame] * 10
+        old_cap, frames.MAX_CHUNK_BODY = frames.MAX_CHUNK_BODY, len(frame_bytes) * 3
+        try:
+            bodies = self._split_chunks(frames.encode_stream(tune))
+        finally:
+            frames.MAX_CHUNK_BODY = old_cap
+        for body in bodies:
+            self.assertLessEqual(len(body), len(frame_bytes) * 3)
+
 
 if __name__ == '__main__':
     unittest.main()

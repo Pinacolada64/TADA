@@ -2,9 +2,16 @@
 
 Wire format (consumed by tada-client.asm's sid_play/binary-mode receiver):
 
-    stream  := STREAM_START STREAM_CONFIRM length_lo length_hi body
-    body    := frame*
-    frame   := (reg val)* FRAME_END
+    transmission := stream+
+    stream       := STREAM_START STREAM_CONFIRM length_lo length_hi body
+    body         := frame*
+    frame        := (reg val)* FRAME_END
+
+A transmission is one or more streams back-to-back, not necessarily
+exactly one -- see encode_stream()'s own comment for why (the 16-bit
+length prefix caps a single stream well under most real tunes' full
+length) and how the client handles the boundary between two of them
+with no changes of its own.
 
 `length` (16-bit, little-endian) is the byte length of `body` -- the
 client counts down from it rather than scanning for an end marker.
@@ -105,13 +112,48 @@ def encode_frame(writes: Mapping[int, int]) -> bytes:
     return bytes(out)
 
 
+MAX_CHUNK_BODY = 0xffff  # length prefix is 16 bits -- see encode_stream's own comment
+
+
 def encode_stream(tune: Iterable[Mapping[int, int]]) -> bytes:
-    """Encode a full tune (an iterable of per-tick write dicts) as a
-    complete STREAM_START+STREAM_CONFIRM + length-prefixed byte stream."""
+    """Encode a full tune (an iterable of per-tick write dicts) as one or
+    more STREAM_START+STREAM_CONFIRM length-prefixed chunks, concatenated
+    back-to-back.
+
+    A single chunk's body is capped at MAX_CHUNK_BODY bytes by the 16-bit
+    length prefix -- for a long and/or register-write-dense tune (dense
+    chip music can run ~47 bytes/frame; at 50Hz that's under 30 real
+    seconds per 0xffff-byte chunk) that's nowhere near enough to hold an
+    entire tune, so this splits across as many chunks as needed instead
+    of raising. The split only ever happens on a whole-FRAME boundary --
+    a single encode_frame() output (one tick's (reg,val) pairs +
+    FRAME_END) is never itself split across two chunks -- so no chunk
+    boundary can land mid-frame.
+    Confirmed live (2026-08-19) that the client needs no changes to play
+    a chunked stream seamlessly: handle_recv_byte's sid_mode already
+    resets to 0 -- "watching for a fresh STREAM_START" -- the instant one
+    chunk's length countdown reaches zero, so the next chunk's header
+    just looks like an ordinary new stream starting immediately behind
+    the last one. The few header bytes between chunks cost a handful of
+    ACIA-speed byte-times, not a perceptible playback gap.
+    """
+    out = bytearray()
     body = bytearray()
+
+    def flush_chunk() -> None:
+        header = bytes([STREAM_START, STREAM_CONFIRM, len(body) & 0xff, (len(body) >> 8) & 0xff])
+        out.extend(header)
+        out.extend(body)
+        body.clear()
+
     for frame in tune:
-        body.extend(encode_frame(frame))
-    if len(body) > 0xffff:
-        raise ValueError(f'encoded stream too long ({len(body)} bytes) for a 16-bit length prefix')
-    header = bytes([STREAM_START, STREAM_CONFIRM, len(body) & 0xff, (len(body) >> 8) & 0xff])
-    return header + bytes(body)
+        frame_bytes = encode_frame(frame)
+        if body and len(body) + len(frame_bytes) > MAX_CHUNK_BODY:
+            flush_chunk()
+        body.extend(frame_bytes)
+    # Always emit at least one chunk, even a zero-length one for an empty
+    # tune -- matches encode_stream()'s pre-chunking behavior (an empty
+    # tune still produced one header+zero-length-body stream, not nothing).
+    if not out or body:
+        flush_chunk()
+    return bytes(out)
