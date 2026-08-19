@@ -1304,13 +1304,27 @@ display_char:
 ; .sid-derived tune did not). Counting down a length the server sent up
 ; front has no such ambiguity. See sid_engine/frames.py's module
 ; docstring for the matching server-side encoder.
+; cpy #1/#2's targets (handle_recv_byte_len_lo/_len_hi) sit ~210-220
+; bytes below this dispatcher -- well past a 6502 branch's +/-127 byte
+; range. c64list doesn't validate branch range and assembles an
+; out-of-range beq/bne clean anyway (confirmed live 2026-08-18: it
+; produced offset $FF, so the "branch" landed one byte into its own
+; operand and ran off into garbage, eventually stray-writing into
+; $0314 and JAMing at $ff09 -- a known c64list gotcha, not a bug in
+; the branch logic itself).
+; bne-over-jmp keeps the same dispatch logic with an unconditional jmp,
+; which has no range limit.
 handle_recv_byte:
         ldy sid_mode
         beq handle_recv_byte_text
         cpy #1
-        beq handle_recv_byte_len_lo
+        bne handle_recv_byte_not_len_lo
+        jmp handle_recv_byte_len_lo
+handle_recv_byte_not_len_lo:
         cpy #2
-        beq handle_recv_byte_len_hi
+        bne handle_recv_byte_not_len_hi
+        jmp handle_recv_byte_len_hi
+handle_recv_byte_not_len_hi:
         cpy #4
         beq handle_recv_byte_confirm
         jmp handle_recv_byte_store        ; sid_mode == 3
