@@ -89,6 +89,8 @@ class ClientState:
         self.port            = 0
         self.debug           = debug
         self.prompt_text     = '> '   # updated from each Message's 'prompt' field
+        self.command_history: list[str] = []   # most-recent first -- see
+                                                  # _HISTORY_RECALL_RE / _input_loop
 
     @property
     def status_text(self) -> str:
@@ -446,6 +448,14 @@ async def _login(
 # Main input loop — runs inside app.run_async()
 # ---------------------------------------------------------------------------
 
+# '^N' recalls the Nth-most-recent SENT command (0 = the last one); '^^' is
+# an alias for '^0' (repeat the last command). Ryan's request -- '^' rather
+# than csh's '!' since '!' isn't free for this (used elsewhere in SPUR
+# command syntax). Resolves against state.command_history, most-recent
+# first (see ClientState.__init__ and the insert(0, ...) below).
+_HISTORY_RECALL_RE = re.compile(r'^\^(\d+|\^)$')
+_HISTORY_MAX = 50   # cap growth, same spirit as _SCROLLBACK above
+
 async def _input_loop(
     writer:        asyncio.StreamWriter,
     output_buffer: Buffer,
@@ -459,10 +469,29 @@ async def _input_loop(
             break
         text = text.strip()
 
-        # Echo what the user typed into the output pane
-        if text:
+        history_match = _HISTORY_RECALL_RE.match(text)
+        if history_match:
+            token = history_match.group(1)
+            index = 0 if token == '^' else int(token)
+            if index >= len(state.command_history):
+                _append_output(output_buffer, [f'> {history_match.group(0)}',
+                                                f'[no command #{index} in history]'])
+                app.invalidate()
+                continue
+            # Resolve to the actual command text, not the '^N' trigger --
+            # otherwise recalling twice in a row would recall '^N' itself
+            # rather than the original command it pointed to.
+            text = state.command_history[index]
+            _append_output(output_buffer, [f'> {history_match.group(0)}', f'[repeating: {text}]'])
+            app.invalidate()
+            state.command_history.insert(0, text)
+            del state.command_history[_HISTORY_MAX:]
+        elif text:
+            # Echo what the user typed into the output pane.
             _append_output(output_buffer, [f'> {text}'])
             app.invalidate()
+            state.command_history.insert(0, text)
+            del state.command_history[_HISTORY_MAX:]
 
         # 'quit' is sent through like any other command, not special-cased
         # here -- commands/quit.py's QuitCommand asks a "Leave SPUR
@@ -554,11 +583,16 @@ def main() -> int:
                               "64/128 connects on a separate raw-byte port instead.")
     parser.add_argument('--guest',      action='store_true')
     parser.add_argument('--debug',      action='store_true')
+    parser.add_argument('--log',        action='store_true',
+                         help="Log to a timestamped file (tada_client_<timestamp>.log) "
+                              "instead of always overwriting the shared tada_client.log")
     args = parser.parse_args()
 
+    log_filename = (f'tada_client_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+                     if args.log else 'tada_client.log')
     logging.basicConfig(
         level=logging.DEBUG if args.debug else logging.WARNING,
-        filename='tada_client.log',
+        filename=log_filename,
     )
 
     if args.guest:
