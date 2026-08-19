@@ -1501,8 +1501,31 @@ apply_recv_timeout_start:
         byte 0                   ; apply_recv_byte's own jiffy-clock ($a2)
                                   ; snapshot, taken fresh each call
 
+; sid_active is already 1 throughout a multi-chunk transfer (frames.py's
+; encode_stream() can split one tune into several back-to-back STREAM_
+; START+CONFIRM chunks -- see its own comment), only cleared by sid_stop,
+; so it's already 0 exactly when this is a genuinely fresh play command
+; and already 1 exactly when this is a later chunk of a transfer already
+; in progress. That distinction matters: SID_BUF is small and playback
+; always lags reception, so a still-active transfer's sid_rd/sid_wr
+; almost always have unplayed backlog sitting between them (rd < wr)
+; the instant a new chunk's header arrives. Resetting both to 0
+; unconditionally on every chunk -- what this used to do -- silently
+; discarded that backlog and restarted the ring buffer from scratch,
+; audible as a dropped/skipped beat at every chunk boundary; confirmed
+; live 2026-08-19 (a diagnostic dump mid-transfer showed rd=$45 wr=$d2,
+; i.e. 141 real unplayed bytes, moments before the next chunk's start
+; would have wiped them). Same reasoning for sid_frames_played/
+; sid_byte_count/the jiffy-clock snapshot: resetting those every chunk
+; made #stop's diagnostics only ever reflect the most recent chunk
+; instead of the whole tune. None of that applies to sid_rd/sid_wr in
+; the ordinary path handle_recv_byte_stop is also used for -- because
+; that stop is only ever entered from *text* mode, sid_active would
+; already be 0 by the time it re-triggers via a genuinely new play.
 handle_recv_byte_start:
         inc sid_stream_starts     ; TEMP diagnostic -- see its own comment
+        lda sid_active
+        bne handle_recv_byte_start_mode
         lda #0
         sta sid_rd
         sta sid_wr
@@ -1510,9 +1533,6 @@ handle_recv_byte_start:
         sta sid_byte_count+1
         sta sid_frames_played+0
         sta sid_frames_played+1
-        lda #1
-        sta sid_mode
-        sta sid_active
         ; Snapshot the KERNAL jiffy clock ($a0/$a1/$a2, hi/mid/lo -- $a2
         ; is the fastest-changing byte, same one update_cursor already
         ; reads) so #stop can print real elapsed time alongside
@@ -1523,6 +1543,10 @@ handle_recv_byte_start:
         sta sid_jiffy_start1
         lda $a2
         sta sid_jiffy_start2
+handle_recv_byte_start_mode:
+        lda #1
+        sta sid_mode
+        sta sid_active
         rts
 
 handle_recv_byte_len_lo:
