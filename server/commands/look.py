@@ -140,7 +140,7 @@ class LookCommand(Command):
 
     async def _describe_item(self, ctx: GameContext, name: str, item) -> None:
         description = (getattr(item, 'description', '') or '').strip()
-        await ctx.send(description or f'You see {get_article_and_quantity(name)} {name}.')
+        await ctx.send(description or f'You see {get_article_and_quantity(name)}.')
 
     async def _describe_ally(self, ctx: GameContext, ally) -> None:
         await describe_ally(ctx, ally)
