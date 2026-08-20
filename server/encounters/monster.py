@@ -115,11 +115,14 @@ file sel.ally and this routine both read). Simplifications:
 """
 from __future__ import annotations
 
+import logging
 import random
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from network_context import GameContext
+
+log = logging.getLogger(__name__)
 
 # monsters.json 'size' string -> SPUR's yy (the monster-name leading digit),
 # inverse of monsters.py's own monster_sizes table (1=huge ... 7=swift).
@@ -382,9 +385,19 @@ async def _try_spontaneous_charm(ctx: 'GameContext', monster: dict, monster_no: 
         if evil_aligned_race:
             z += 10
             if honor > 900:
+                log.warning(
+                    "aghast(goodly) player=%r char_race=%r honor=%r "
+                    "evil_aligned_race=%r good_aligned_race=%r monster=%r",
+                    getattr(player, 'name', None), char_race, honor,
+                    evil_aligned_race, good_aligned_race, name)
                 await ctx.send('(Who is aghast at your goodly ways.)')
                 return False  # too virtuous despite an evil-aligned race -- charm fails
         if good_aligned_race and honor > 700:
+            log.warning(
+                "aghast(goodly) player=%r char_race=%r honor=%r "
+                "evil_aligned_race=%r good_aligned_race=%r monster=%r",
+                getattr(player, 'name', None), char_race, honor,
+                evil_aligned_race, good_aligned_race, name)
             await ctx.send('(Who is aghast at your goodly ways.)')
             return False
         if honor < 900:
@@ -395,9 +408,19 @@ async def _try_spontaneous_charm(ctx: 'GameContext', monster: dict, monster_no: 
         if good_aligned_race:
             z += 10
             if honor < 1100:
+                log.warning(
+                    "aghast(evil) player=%r char_race=%r honor=%r "
+                    "evil_aligned_race=%r good_aligned_race=%r monster=%r",
+                    getattr(player, 'name', None), char_race, honor,
+                    evil_aligned_race, good_aligned_race, name)
                 await ctx.send('(Who is aghast at your evil ways.)')
                 return False
         if evil_aligned_race and honor < 1300:
+            log.warning(
+                "aghast(evil) player=%r char_race=%r honor=%r "
+                "evil_aligned_race=%r good_aligned_race=%r monster=%r",
+                getattr(player, 'name', None), char_race, honor,
+                evil_aligned_race, good_aligned_race, name)
             await ctx.send('(Who is aghast at your evil ways.)')
             return False
         if honor > 1100:
