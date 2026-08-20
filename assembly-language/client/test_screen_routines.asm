@@ -47,6 +47,7 @@ STATUS_ROW           = 23
 DIALOGUE_LAST_ROW    = 22
 ROW_BYTES            = 40
 DIALOGUE_SHIFT_BYTES = 880      ; 22 rows worth (rows 1-22 -> rows 0-21)
+STATUS_ROW_OFFSET    = 920      ; STATUS_ROW * ROW_BYTES
 
 STATUS_QUEUE_MAX     = 4
 STATUS_SLOT_LEN      = 40       ; 39 visible chars max + null terminator
@@ -69,6 +70,17 @@ start:
         lda #$93
         jsr CHROUT
         jsr redraw_status_row     ; blank reverse bar at boot, queue empty
+
+        ; --- Step 1b: build-date/time message, its own batch -- shows
+        ; immediately (status_push_buf's own "first message of a fresh
+        ; batch" behavior), same as a real boot would display it until
+        ; the first real event (e.g. a SID stream) pushes its own batch
+        ; and replaces it.
+        jsr status_push_reset
+        ldx #<build_msg
+        ldy #>build_msg
+        jsr status_build_from_table
+        jsr status_push_buf
 
         ; --- Step 2: push a 4-message status batch ---
         jsr status_push_reset
@@ -497,12 +509,6 @@ status_rotate_last_lo:
         byte 0
 status_rotate_last_hi:
         byte 0
-status_col:
-        byte 0
-status_saved_col:
-        byte 0
-status_saved_row:
-        byte 0
 
 ; --- Test-only helper: copy a null-terminated table string into
 ; status_build_buf via status_putc (production code builds these char by
@@ -646,63 +652,67 @@ status_rotate_redraw:
 
 ; --- redraw_status_row: repaint STATUS_ROW with the currently-selected
 ; queued message (or an all-blank bar if the queue is empty), reverse
-; video, padded to 40 columns. Saves/restores the real cursor position
-; around this so it never disturbs wherever dialogue text or the input
-; cursor actually is. ---
+; video, padded to 40 columns. Pure raw SCREEN_RAM pokes -- no CHROUT,
+; no cursor save/restore, no PLOT at all -- since queue content is now
+; pre-encoded real screen codes ({alpha:pokealt}, same convention
+; update_status_line already uses for row 0's banner), not PETSCII/ASCII
+; that would need CHROUT's translation. Destination is plain absolute
+; indexed addressing (STATUS_ROW's offset is a compile-time constant,
+; not a runtime-computed row) rather than set_screen_line, freeing
+; scr_ptr_lo/hi to be used solely for the source (queue slot) pointer --
+; a raw copy-with-OR needs two concurrent pointers, and this project's
+; convention is one shared transient pointer, not a second dedicated
+; zero-page pair for something this narrow.
 redraw_status_row:
-        sec
-        jsr PLOT                    ; read current position -> X=row, Y=col
-        stx status_saved_row
-        sty status_saved_col
-        ldx #STATUS_ROW
-        ldy #0
-        clc
-        jsr PLOT                    ; move to (row 23, col 0)
-        lda #0
-        sta status_col
         lda status_queue_count
-        beq redraw_status_row_pad
+        beq redraw_status_row_blank
         lda status_queue_read
-        jsr status_slot_addr
-redraw_status_row_text:
-        ldy status_col
+        jsr status_slot_addr        ; scr_ptr_lo/hi = &status_queue[read]
+        ldy #0
+redraw_status_row_copy:
         cpy #39
         bcs redraw_status_row_pad
         lda (scr_ptr_lo),y
         beq redraw_status_row_pad
-        jsr CHROUT
-        inc status_col
-        jmp redraw_status_row_text
+        ora #$80                    ; reverse video -- same $80-bit trick
+        sta SCREEN_RAM+STATUS_ROW_OFFSET,y
+        iny
+        jmp redraw_status_row_copy
 redraw_status_row_pad:
-        ldy status_col
+        lda #$a0                    ; reverse-video space
 redraw_status_row_pad_loop:
         cpy #40
-        bcs redraw_status_row_reverse
-        lda #$20
-        jsr CHROUT
+        bcs redraw_status_row_rts
+        sta SCREEN_RAM+STATUS_ROW_OFFSET,y
         iny
-        sty status_col
         jmp redraw_status_row_pad_loop
-redraw_status_row_reverse:
-        lda #STATUS_ROW
-        jsr set_screen_line
+redraw_status_row_rts:
+        rts
+redraw_status_row_blank:
         ldy #0
-redraw_status_row_reverse_loop:
-        lda (scr_ptr_lo),y
-        ora #$80
-        sta (scr_ptr_lo),y
+        lda #$a0
+redraw_status_row_blank_loop:
+        sta SCREEN_RAM+STATUS_ROW_OFFSET,y
         iny
         cpy #40
-        bne redraw_status_row_reverse_loop
-        ldx status_saved_row
-        ldy status_saved_col
-        clc
-        jsr PLOT
+        bne redraw_status_row_blank_loop
         rts
 
-; --- Test fixture messages (ordinary ASCII -- status_putc stores it
-; as-is, CHROUT does the ASCII/PETSCII->screencode conversion when
-; redraw_status_row prints it, same as everywhere else in the client) ---
+; --- Test fixture messages ---
+; {alpha:pokealt} makes these `ascii` literals emit real screen codes at
+; assembly time instead of plain ASCII/PETSCII -- required now that
+; redraw_status_row pokes queue content straight into SCREEN_RAM rather
+; than routing it through CHROUT's own PETSCII->screencode conversion.
+; Reset to {alpha:normal} right after each so this doesn't leak into
+; anything below that uses plain `ascii` (burst_text/wrap_text/slow_text,
+; which still go through term_chrout -> CHROUT and need ordinary PETSCII).
+{alpha:pokealt}
+build_msg:
+        ascii "build "
+        ascii {usedef:__BuildDate}
+        ascii " "
+        ascii {usedef:__BuildTime}
+        byte 0
 msg1:
         ascii "PLAYED $0100 FRAMES"
         byte 0
@@ -715,3 +725,4 @@ msg3:
 msg4:
         ascii "STARTS=$03"
         byte 0
+{alpha:normal}
