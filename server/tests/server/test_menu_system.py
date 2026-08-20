@@ -395,6 +395,52 @@ class TestGetUserChoice:
         self._patch_prompt(ctx, ['???'])
         assert self._run(get_user_choice(ctx, menu)) is INVALID_CHOICE
 
+    def test_help_for_item_sends_help_text(self):
+        ctx  = _make_ctx()
+        menu = Menu(title='Test')
+        menu.add_item(MenuItem(text='Alpha', shortcuts=['a'],
+                               action=lambda ctx: None,
+                               help_text='Alpha does the alpha thing.'))
+        menu.add_item(MenuItem(text='Beta', shortcuts=['b'],
+                               action=lambda ctx: None))
+        # 'h1' shows help, then '2' selects Beta.
+        self._patch_prompt(ctx, ['h1', '2'])
+        chosen = self._run(get_user_choice(ctx, menu))
+        assert chosen is not None and chosen.text == 'Beta'
+        assert any('Alpha does the alpha thing.' in str(s) for s in ctx._sends)
+
+    def test_help_for_item_without_help_text_reports_none(self):
+        ctx  = _make_ctx()
+        menu = _make_menu('Alpha')
+        self._patch_prompt(ctx, ['h1', ''])
+        assert self._run(get_user_choice(ctx, menu)) is None
+        assert any('currently being written' in str(s) for s in ctx._sends)
+
+    def test_help_callable_text_is_invoked(self):
+        ctx  = _make_ctx()
+        menu = Menu(title='Test')
+        menu.add_item(MenuItem(text='Alpha', shortcuts=['a'],
+                               action=lambda ctx: None,
+                               help_text=lambda ctx: 'Dynamic help.'))
+        self._patch_prompt(ctx, ['h1', ''])
+        self._run(get_user_choice(ctx, menu))
+        assert any('Dynamic help.' in str(s) for s in ctx._sends)
+
+    def test_help_out_of_range_reports_invalid_number(self):
+        ctx  = _make_ctx()
+        menu = _make_menu('Only one')
+        self._patch_prompt(ctx, ['h99', ''])
+        self._run(get_user_choice(ctx, menu))
+        assert any('Invalid item number' in str(s) for s in ctx._sends)
+
+    def test_bare_h_shows_hint_and_reprompts(self):
+        ctx  = _make_ctx()
+        menu = _make_menu('Alpha')
+        self._patch_prompt(ctx, ['h', '1'])
+        chosen = self._run(get_user_choice(ctx, menu))
+        assert chosen is not None and chosen.text == 'Alpha'
+        assert any("'h'" in str(s) for s in ctx._sends)
+
 
 # ---------------------------------------------------------------------------
 # run_menu navigation

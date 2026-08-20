@@ -110,12 +110,16 @@ class MenuItem:
         submenu:            A nested Menu opened when this item is chosen.
         action:             Async (or sync) callable executed when chosen.
                             Receives ctx as its only argument.
+        help_text:          Optional help string (or a callable(ctx) returning
+                            one), shown when the player types 'h' followed
+                            by this item's number (e.g. 'h3').
     """
     text:               Union[str, Callable]      = ''
     shortcuts:          Union[str, List[str]]      = field(default_factory=list)
     dot_leader_handler: Optional[Callable]         = None
     submenu:            Optional['Menu']           = None
     action:             Optional[Callable]         = None
+    help_text:          Union[str, Callable, None] = None
 
     def __post_init__(self):
         if not self.shortcuts:
@@ -314,6 +318,8 @@ async def get_user_choice(ctx: 'GameContext',
     Accepts:
       - A number (1-based index into selectable items)
       - A shortcut letter (matched case-insensitively)
+      - 'h' or 'h<number>' (e.g. 'h3') → shows that item's help_text and
+        re-prompts on the same menu, without redrawing it
       - Empty input → returns None (go up / quit)
       - Anything else unrecognized → returns INVALID_CHOICE (stay on this
         menu; navigate_menu() reports 'Invalid choice.' and redisplays it)
@@ -327,7 +333,7 @@ async def get_user_choice(ctx: 'GameContext',
 
     action = 'quit' if stack_depth == 1 else 'go up a level'
     preamble = (f'Enter a number (1-{num_items}), a shortcut letter, '
-                f'or [{return_key}] to {action}.')
+                f"'h<number>' for help on an item, or [{return_key}] to {action}.")
 
     raw = await ctx.prompt(prompt_text='Choice', preamble_lines=[preamble])
     if not raw:
@@ -341,6 +347,23 @@ async def get_user_choice(ctx: 'GameContext',
         if 1 <= idx <= num_items:
             return selectable[idx - 1]
         return INVALID_CHOICE
+
+    # Help: 'h' alone, or 'h<number>' for a specific item's help text.
+    if option == 'h':
+        await ctx.send(f"Type 'h' followed by a number (1-{num_items}) for help on that item.")
+        return await get_user_choice(ctx, menu, stack_depth)
+    if option.startswith('h') and option[1:].isdigit():
+        idx = int(option[1:])
+        if 1 <= idx <= num_items:
+            item = selectable[idx - 1]
+            try:
+                text = item.help_text(ctx) if callable(item.help_text) else item.help_text
+            except AttributeError:
+                text = None
+            await ctx.send(text or 'Sorry, help messages are currently being written for this item.')
+        else:
+            await ctx.send('Invalid item number.')
+        return await get_user_choice(ctx, menu, stack_depth)
 
     # Shortcut matching (case-insensitive)
     for item in menu.menu_items:

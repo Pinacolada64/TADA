@@ -114,6 +114,7 @@ def _build_config_menu() -> Menu:
             info.label,
             dot_leader_handler=lambda ctx, k=key: _display_value(k, server_config.get(k)),
             action=make_action(),
+            help_text=info.description,
         ))
     return menu
 
