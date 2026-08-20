@@ -94,6 +94,7 @@ start:
         lda #1
         sta test_line_num
 test_burst_loop:
+        jsr test_next_color
         jsr print_line_number
         ldy #0
 test_burst_text:
@@ -115,6 +116,7 @@ test_burst_text_done:
         lda #1
         sta test_wrap_num
 test_wrap_loop:
+        jsr test_next_color
         lda #'W'
         jsr term_chrout
         lda #'R'
@@ -156,6 +158,7 @@ test_slow_loop:
         bcc test_slow_loop
         lda $a2
         sta test_slow_last
+        jsr test_next_color
         jsr print_line_number
         ldy #0
 test_slow_text:
@@ -172,6 +175,36 @@ test_slow_text_done:
 
 test_wrap_num:
         byte 0
+
+; --- test_next_color: send the next PETSCII color-change control code
+; from a rotating palette, so each new line gets a visually (and, more
+; importantly, numerically-checkable-via-monitor) distinct COLOR_RAM
+; value. Exercises the half of term_scroll_advance's shift that the
+; earlier all-one-color tests never touched -- a broken/omitted color
+; shift would have been completely invisible before this, since every
+; cell was always the same color regardless of whether it moved
+; correctly. Sent via term_chrout like any other byte (color-change
+; codes don't move $D6, so they never trigger the scroll fixup, but
+; routing them through the same call keeps this consistent with real
+; dialogue text and confirms color codes don't confuse it). ---
+test_colors:
+        byte 5, 28, 30, 159, 156, 158   ; white, red, green, cyan,
+                                          ; purple, yellow
+TEST_COLORS_LEN = 6
+test_color_idx:
+        byte 0
+
+test_next_color:
+        ldx test_color_idx
+        lda test_colors,x
+        jsr term_chrout
+        inx
+        cpx #TEST_COLORS_LEN
+        bne test_next_color_store
+        ldx #0
+test_next_color_store:
+        stx test_color_idx
+        rts
 
 ; --- print_line_number: "LINE " + 2-digit decimal test_line_num ---
 print_line_number:
@@ -370,12 +403,32 @@ term_saved_x:
 term_saved_y:
         byte 0
 
+; --- wait_vblank: busy-wait until the raster beam reaches line 250 ---
+; Comfortably past the visible area on both PAL (312 lines/frame) and
+; NTSC (262 lines/frame) -- moves the START of the scroll's screen-
+; memory writes to an off-screen moment, rather than however mid-frame
+; the triggering character happened to land. Does NOT fully eliminate
+; tearing on its own: the shift itself (two 880-byte copies, screen +
+; color, ~3.5ms of CPU time) runs longer than a single vblank window
+; (well under 1ms) and spills back into active drawing time regardless.
+; A complete fix would chunk the copy across several frames instead of
+; doing it atomically -- deferred; this cheap version is worth trying
+; first and reevaluating visually before adding that complexity. $d012
+; alone (without checking $d011 bit 7) is sufficient for line 250 since
+; that's well under 256.
+wait_vblank:
+        lda $d012
+        cmp #250
+        bne wait_vblank
+        rts
+
 ; Shift the dialogue window up, rows 1-22 -> rows 0-21 (screen + color),
 ; discarding old row 0, then blank the fresh row 22 and reposition the
 ; cursor there -- see term_chrout's own comment for why both of its
 ; triggers (CR, column wrap) reduce to exactly this with nothing further
 ; to preserve from STATUS_ROW.
 term_scroll_advance:
+        jsr wait_vblank
         lda #<(SCREEN_RAM+ROW_BYTES)
         sta copy_src_lo
         lda #>(SCREEN_RAM+ROW_BYTES)
