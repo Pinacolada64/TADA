@@ -1,5 +1,5 @@
 """commands/list_locations.py — Admin/DM tool: list room locations of
-items/weapons across the whole map.
+items/weapons across the whole map. Also aliased as 'find'.
 
     list #w[eapons]   — weapons.json entries, via each room's .weapon field
     list #a[rmor]     — objects.json entries with type == 'armor'
@@ -12,6 +12,10 @@ items/weapons across the whole map.
     list #r[ations]   — rations.json entries (food/drink), via each room's
                          .food field
     list #w #tel      — after listing, prompt to pick one and teleport there
+    list #m <name>    — any category also takes an optional substring (case
+                         -insensitive, matched against the entry's "name")
+                         to narrow the results, e.g. "list #m goblin" or
+                         "find #w rusty sword"
 
 New in TADA -- a debugging/moderation convenience, not a ported
 mechanic. Scans every room on every level (game_map.levels), not just
@@ -123,7 +127,7 @@ class ListLocationsCommand(Command):
     """Admin/DM tool: find every room holding a given item/weapon type."""
 
     name    = 'list'
-    aliases = []
+    aliases = ['find']
     modes   = {Mode.GAME}
 
     help = Help(
@@ -131,7 +135,8 @@ class ListLocationsCommand(Command):
         description = (
             'Scans every room on every level and reports where a given '
             "category of object currently sits -- every weapon, every "
-            'shield, every book, and so on. Admin/Dungeon Master only.'
+            'shield, every book, and so on. Admin/Dungeon Master only. '
+            "Also available as 'find'."
         ),
         category = HelpCategory.ADMINISTRATIVE,
         usage    = [
@@ -142,6 +147,7 @@ class ListLocationsCommand(Command):
             ('list #<type>',    'List by a specific objects.json type (book, treasure, etc.).'),
             ('list #m[onsters]', 'List every monster location.'),
             ('list #r[ations]', 'List every ration (food/drink) location.'),
+            ('list #<cat> <name>', 'Narrow to entries whose name contains <name>.'),
         ],
         examples = [
             ('list #w',       'LIST scans every room on every level and reports where a '
@@ -152,9 +158,14 @@ class ListLocationsCommand(Command):
             ('list #shield',  'Any objects.json "type" works as a switch, not just the '
                                'shorthand ones -- "list #shield" lists every shield the '
                                'same way.'),
+            ('list #m goblin', 'A category also takes an optional substring to search for '
+                               "a specific entry by name -- \"list #m goblin\" lists only "
+                               'monster locations whose name contains "goblin".'),
             ('list #w #tel',  "Adding '#tel' after the listing prompts you to pick one of "
                                "the results and teleport straight to it -- handy for "
                                "actually going to check on a specific copy."),
+            ('find #r ale',   "'find' is an alias for 'list' -- \"find #r ale\" searches "
+                               'ration locations for names containing "ale".'),
         ],
         notes = ['Admin or Dungeon Master only.'],
     )
@@ -165,11 +176,12 @@ class ListLocationsCommand(Command):
             await ctx.send("You don't have permission to use that command.")
             return CommandResult.fail(error='permission_denied')
 
-        _, switches = self.parse_args(*args)
+        positional, switches = self.parse_args(*args)
         switches = [s.lstrip('#') for s in switches]
 
         want_teleport    = 'tel' in switches
         category_tokens  = [s for s in switches if s != 'tel']
+        name_filter      = ' '.join(positional).strip().lower()
 
         if not category_tokens:
             await ctx.send(
@@ -180,7 +192,7 @@ class ListLocationsCommand(Command):
                 # usage fields, needed here by hand since this is a raw
                 # ctx.send(), not a Help(usage=...) entry.
                 'Usage: list #w[[eapons]] | #i[[tems]] | #a[[rmor]] | #s[[hield]] | '
-                '#m[[onsters]] | #r[[ations]] | #<type>  [[#tel]]'
+                '#m[[onsters]] | #r[[ations]] | #<type>  [<name>]  [[#tel]]'
             )
             return CommandResult.fail('No category specified.', error='missing_args')
 
@@ -203,8 +215,14 @@ class ListLocationsCommand(Command):
         else:
             found = _find_items(game_map, server, category)
 
+        if name_filter:
+            found = [m for m in found if name_filter in m[3].get('name', '').lower()]
+
         if not found:
-            await ctx.send(f'No {category} locations found.')
+            if name_filter:
+                await ctx.send(f'No {category} locations found matching "{name_filter}".')
+            else:
+                await ctx.send(f'No {category} locations found.')
             return CommandResult.ok()
 
         found.sort(key=lambda m: (m[0], m[1]))
@@ -212,8 +230,11 @@ class ListLocationsCommand(Command):
         from formatting import border_style_for_ctx
         from table import Table
 
+        title = f'{category.capitalize()} locations ({len(found)})'
+        if name_filter:
+            title += f' matching "{name_filter}"'
         t = Table(headers=['##', 'Name', 'Level', 'Room'],
-                  title=f'{category.capitalize()} locations ({len(found)})',
+                  title=title,
                   border_style=border_style_for_ctx(ctx))
         for i, (level, room_no, room, raw) in enumerate(found, 1):
             name = raw.get('name', '?')

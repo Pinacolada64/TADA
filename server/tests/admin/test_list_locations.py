@@ -319,5 +319,52 @@ class TestTeleportOption(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ctx.client.room, 5)
 
 
+class TestNameFilter(unittest.IsolatedAsyncioTestCase):
+    async def test_substring_narrows_results(self):
+        cmd = ListLocationsCommand()
+        monsters = [{'number': 1, 'name': 'GOBLIN'}, {'number': 2, 'name': 'SAND CRAB'}]
+        rooms = {1: _room('Cave', monster=1), 2: _room('Beach', monster=2)}
+        ctx = make_ctx(admin=True, levels={1: rooms}, monsters=monsters)
+        res = await cmd.execute(ctx, '#m', 'goblin')
+        self.assertTrue(res.success)
+        text = _sent_text(ctx)
+        self.assertIn('GOBLIN', text)
+        self.assertNotIn('SAND CRAB', text)
+
+    async def test_substring_is_case_insensitive_and_multi_word(self):
+        cmd = ListLocationsCommand()
+        weapons = [{'number': 1, 'name': 'RUSTY LONG SWORD'}, {'number': 2, 'name': 'DAGGER'}]
+        rooms = {1: _room('Armory', weapon=1), 2: _room('Study', weapon=2)}
+        ctx = make_ctx(admin=True, levels={1: rooms}, weapons=weapons)
+        await cmd.execute(ctx, '#w', 'Long', 'Sword')
+        text = _sent_text(ctx)
+        self.assertIn('RUSTY LONG SWORD', text)
+        self.assertNotIn('DAGGER', text)
+
+    async def test_no_match_reports_the_filter(self):
+        cmd = ListLocationsCommand()
+        monsters = [{'number': 1, 'name': 'GOBLIN'}]
+        rooms = {1: _room('Cave', monster=1)}
+        ctx = make_ctx(admin=True, levels={1: rooms}, monsters=monsters)
+        res = await cmd.execute(ctx, '#m', 'dragon')
+        self.assertTrue(res.success)
+        self.assertIn('No monster locations found matching "dragon"', _sent_text(ctx))
+
+
+class TestFindAlias(unittest.IsolatedAsyncioTestCase):
+    async def test_find_is_registered_as_an_alias(self):
+        cmd = ListLocationsCommand()
+        self.assertIn('find', cmd.aliases)
+
+    async def test_find_behaves_like_list(self):
+        cmd = ListLocationsCommand()
+        weapons = [{'number': 1, 'name': 'LONG SWORD'}]
+        rooms = {1: _room('Armory', weapon=1)}
+        ctx = make_ctx(admin=True, levels={1: rooms}, weapons=weapons)
+        res = await cmd.execute(ctx, '#w')
+        self.assertTrue(res.success)
+        self.assertIn('LONG SWORD', _sent_text(ctx))
+
+
 if __name__ == '__main__':
     unittest.main()
