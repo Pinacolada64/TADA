@@ -102,6 +102,21 @@ SETTINGS_METADATA: Dict[str, SettingInfo] = {
               'could disable.',
         'Birthday Greeting',
     ),
+    'nightly_recruit_digest_enabled': SettingInfo(
+        bool, "Whether tools/nightly_recruit_digest.py's cron job posts a "
+              "combined 'New Recruits' news item for the previous day's "
+              "battle.log-logged joins. Off skips the run (no news post, "
+              "no state-file write) without needing the crontab entry "
+              "itself removed.",
+        'Nightly Recruit Digest',
+    ),
+    'nightly_guild_maintenance_enabled': SettingInfo(
+        bool, "Whether tools/nightly_guild_maintenance.py's cron job bakes "
+              "the day's duel turf captures into level_<N>.json and "
+              "refreshes guild_control.json. Off skips the run entirely, "
+              "leaving overrides sidecars untouched until re-enabled.",
+        'Nightly Guild Maintenance',
+    ),
 }
 
 
@@ -241,6 +256,11 @@ class ServerConfig:
         # logon_events/birthday.py -- on by default; SETTINGS_METADATA's
         # entry above explains the "modular logon event" context.
         'birthday_greeting_enabled': True,
+
+        # tools/nightly_recruit_digest.py and tools/nightly_guild_maintenance.py
+        # -- both on by default; SETTINGS_METADATA's entries above.
+        'nightly_recruit_digest_enabled': True,
+        'nightly_guild_maintenance_enabled': True,
     }
 
     def __new__(cls):
@@ -493,6 +513,26 @@ class ServerConfig:
     @birthday_greeting_enabled.setter
     def birthday_greeting_enabled(self, value: bool) -> None:
         self.set('birthday_greeting_enabled', bool(value))
+
+    @property
+    def nightly_recruit_digest_enabled(self) -> bool:
+        """Whether tools/nightly_recruit_digest.py's cron job runs at all
+        (see SETTINGS_METADATA's entry)."""
+        return bool(self.get('nightly_recruit_digest_enabled', True))
+
+    @nightly_recruit_digest_enabled.setter
+    def nightly_recruit_digest_enabled(self, value: bool) -> None:
+        self.set('nightly_recruit_digest_enabled', bool(value))
+
+    @property
+    def nightly_guild_maintenance_enabled(self) -> bool:
+        """Whether tools/nightly_guild_maintenance.py's cron job runs at all
+        (see SETTINGS_METADATA's entry)."""
+        return bool(self.get('nightly_guild_maintenance_enabled', True))
+
+    @nightly_guild_maintenance_enabled.setter
+    def nightly_guild_maintenance_enabled(self, value: bool) -> None:
+        self.set('nightly_guild_maintenance_enabled', bool(value))
 
 # Global instance
 config = ServerConfig()

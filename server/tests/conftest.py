@@ -43,6 +43,62 @@ def _isolate_mail_dir():
 
 
 # ---------------------------------------------------------------------------
+# Global news isolation
+# ---------------------------------------------------------------------------
+# commands/new_player.py's _announce_new_recruit() posts a real 'once' news
+# item on every completed character creation, and several tests/new-player/
+# tests (test_new_player_prompts.py, test_new_player_virtual_location.py)
+# run main_flow() to completion for a character named 'Thorgar' without
+# knowing anything about news.py -- without this, every full pytest run
+# appended another "Thorgar ... has joined" item to the real
+# run/server/news.json. Caught live 2026-08-20: 18 days of repeated test
+# runs had silently accumulated 1622 duplicate entries there, which is what
+# actually caused the reported "NEWS repeats/accumulates forever" symptom
+# (on top of the separate last-read-cursor bug fixed the same day -- see
+# date_cursor.py/command_settings.news). Session-scoped autouse fixture,
+# same pattern as _isolate_mail_dir() above; a test that wants to inspect
+# its own news (tests/logon_events/test_news_login.py and friends) just
+# patches news.NEWS_FILE again on top of this one.
+@pytest.fixture(scope='session', autouse=True)
+def _isolate_news_file():
+    import tempfile
+    from pathlib import Path
+    from unittest.mock import patch
+
+    with tempfile.TemporaryDirectory() as tmp:
+        with patch('news.NEWS_FILE', Path(tmp) / 'news.json'):
+            yield
+
+
+# ---------------------------------------------------------------------------
+# Global battle.log / credential-dir isolation
+# ---------------------------------------------------------------------------
+# net_common.append_battle_log() and user_dir() both resolve their path from
+# net_common.run_server_dir at call time (see net_common.py's own comment),
+# defaulting to the real run/server/ when unset. Plenty of individual test
+# files already set this themselves in setUp() (test_new_player_prompts.py,
+# tests/commands/test_logs.py, ...), and combat/duel.py callers mostly patch
+# net_common.append_battle_log directly per-test -- but not every call site
+# does, so runs of tests/combat/test_duel.py and test_galadriel.py in
+# particular were still writing real "Ardent defeated Belwin"/"Testerson ...
+# Test Of Galadriel" lines into the live run/server/battle.log on every
+# pytest invocation (caught live 2026-08-20 investigating the news.json
+# pollution above -- battle.log had grown to 4688 lines the same way).
+# Session-scoped autouse fixture, same pattern as _isolate_mail_dir()/
+# _isolate_news_file() above; a test that wants a specific run_server_dir
+# of its own (or asserts append_battle_log's call args directly) just
+# patches over this one -- patches nest fine.
+@pytest.fixture(scope='session', autouse=True)
+def _isolate_run_server_dir():
+    import tempfile
+    from unittest.mock import patch
+
+    with tempfile.TemporaryDirectory() as tmp:
+        with patch('net_common.run_server_dir', tmp):
+            yield
+
+
+# ---------------------------------------------------------------------------
 # Network e2e test helpers
 # ---------------------------------------------------------------------------
 # Shared by tests/test_network_e2e_real_login.py, test_network_e2e_reconnect.py,

@@ -49,6 +49,23 @@ class TestAnnounceNewRecruit(unittest.TestCase):
         self.assertIn('Human', item['body'][0])
         self.assertIn('Fighter', item['body'][0])
 
+    def test_race_name_is_not_doubled(self):
+        # Regression: a_or_an() already returns the full "a/an <race>"
+        # phrase -- appending race.value again produced "a Human Human
+        # Wizard" (found live 2026-08-20 in news.json's accumulated
+        # New Recruit items).
+        player = _FakePlayer(char_race=PlayerRace.HUMAN, char_class=PlayerClass.WIZARD,
+                              guild=Guild.CIVILIAN)
+        ctx = _FakeCtx(player)
+        with patch('news.load_news', return_value=[]), \
+             patch('news.next_id', return_value=1), \
+             patch('news.save_news') as mock_save:
+            _announce_new_recruit(ctx)
+
+        body = mock_save.call_args[0][0][0]['body'][0]
+        self.assertEqual(body.count('Human'), 1)
+        self.assertIn('a Human Wizard', body)
+
     def test_civilian_guild_uses_a_or_an_phrasing(self):
         player = _FakePlayer(char_race=PlayerRace.OGRE, char_class=PlayerClass.KNIGHT,
                               guild=Guild.CIVILIAN)

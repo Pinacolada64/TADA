@@ -392,6 +392,23 @@ class Server:
                     await active_duel.forfeit(player)
                 except Exception:
                     logging.exception('%s: failed to forfeit duel on disconnect', addr)
+            # Belt-and-suspenders save for any exit path that *isn't* a
+            # clean quit (an uncaught exception/CancelledError anywhere in
+            # _login()/_game_loop(), a raw socket error, etc.) -- those
+            # unwind straight past _player_quit() without ever calling
+            # player.save(), which used to leave player.last_connection
+            # (and, worse, command_settings.news.last_read) permanently
+            # stuck at its previous value: every future login would then
+            # treat all news posted since that stale point as "new" again,
+            # forever. force is deliberately omitted -- _player_quit()
+            # already force-saved and cleared unsaved_changes on a clean
+            # quit, so this is a no-op there and only actually writes when
+            # something really was left unsaved.
+            if player is not None and not isinstance(player, GuestPlayer):
+                try:
+                    player.save()
+                except Exception:
+                    logging.exception('%s: failed to save player on connection close', addr)
             logging.info('%s: connection closed. Total clients: %d',
                          addr, len(self.clients))
             writer.close()

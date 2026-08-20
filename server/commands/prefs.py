@@ -24,7 +24,7 @@ Settings managed here
                       — ANSI terminals only; PETSCII has one fixed style
   C  Colors           client_settings.colors.text_color
                       client_settings.colors.highlight_color
-  N  News Display     command_settings.news_show_all  (New only / Full directory)
+  N  News Display     command_settings.news.show_all  (New only / Full directory)
   W  Movement Keys    command_settings.wasd_movement  (Compass / WASD)
   T  Client Type      client_settings.screen_columns/screen_rows/translation
                       — presets (C64/C128/TADA client) or a custom size.
@@ -417,7 +417,7 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         t.add_row(['M', 'More Prompt', 'On' if more_prompt else 'Off', 'hm'])
         t.add_row(['P', 'Prompt Mode', 'On' if prompt_mode else 'Off', 'hp'])
         t.add_row(['C', 'Colors & Graphics...', '(Submenu)', 'hc'])
-        news_all = getattr(ctx.player.command_settings, 'news_show_all', False)
+        news_all = getattr(ctx.player.command_settings.news, 'show_all', False)
         t.add_row(['N', 'News Display', 'Full directory' if news_all else 'New only', 'hn'])
         t.add_row(['T', 'Terminal Settings...', '(Submenu)', 'ht'])
         t.add_row(['D', 'Date & Time...', '(Submenu)', 'hd'])
@@ -518,9 +518,9 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
 
         elif ans == 'n':
             option = "|white|News Display: "
-            cs2 = ctx.player.command_settings
-            cs2.news_show_all = not getattr(cs2, 'news_show_all', False)
-            await ctx.send(f"{option}{'|green|Full directory' if cs2.news_show_all else '|green|New only'}|reset|")
+            news2 = ctx.player.command_settings.news
+            news2.show_all = not getattr(news2, 'show_all', False)
+            await ctx.send(f"{option}{'|green|Full directory' if news2.show_all else '|green|New only'}|reset|")
 
         elif ans == 't':
             await _terminal_menu(ctx)

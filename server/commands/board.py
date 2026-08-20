@@ -262,32 +262,20 @@ class BoardCommand(Command):
             return None
 
     async def _set_last_date(self, ctx) -> CommandResult:
-        from parse_date import DATE_HELP, RELATIVE_DATE_HELP, parse_date, parse_relative_date
+        from date_cursor import INVALID, UNCHANGED, prompt_date_cursor
 
         settings = ctx.player.command_settings
-        cur = settings.board.last_date
-        cur_str = cur if cur else '(not set -- everything currently counts as new)'
-        raw = await ctx.prompt(
-            'New threshold',
-            preamble_lines=['', f'Current: {cur_str}', '', RELATIVE_DATE_HELP, '', DATE_HELP,
-                            '', 'Blank to cancel:'],
+        result = await prompt_date_cursor(
+            ctx, ctx.player, self._last_date(ctx), label='threshold',
+            note="'board rn' will show anything posted after this date.",
         )
-        if raw is None or not raw.strip():
-            await ctx.send('Unchanged.')
+        if result is UNCHANGED:
             return CommandResult.ok('Unchanged.')
-
-        text = raw.strip()
-        new_date = parse_relative_date(text) or parse_date(text)
-        if new_date is None:
-            await ctx.send("Didn't understand that date.")
+        if result is INVALID:
             return CommandResult.fail('Bad date.', error='bad_args')
 
-        settings.board.last_date = new_date.isoformat()
+        settings.board.last_date = result.isoformat() if result else None
         ctx.player.unsaved_changes = True
-        await ctx.send(
-            f"Threshold set to {new_date.strftime('%B %d, %Y')}. "
-            f"'board rn' will show anything posted after this date."
-        )
         return CommandResult.ok('Threshold set.')
 
     # ------------------------------------------------------------------

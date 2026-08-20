@@ -131,6 +131,24 @@ class TestRun(_TempDirs):
         on_disk = json.loads(out_file.read_text())
         self.assertEqual(on_disk['overall']['counts']['sword'], 1)
 
+    def test_skips_when_disabled_via_config(self):
+        # tools/nightly_guild_maintenance.py's run() reads the real,
+        # already-imported config.config singleton, so toggle its
+        # in-memory dict directly rather than going through the
+        # @property setter -- that setter calls ServerConfig.set(),
+        # which persists to the real server_config.json on disk.
+        from config import config as server_config
+        orig = server_config._config.get('nightly_guild_maintenance_enabled', True)
+        server_config._config['nightly_guild_maintenance_enabled'] = False
+        try:
+            self._write_level(1, [{'number': 1, 'name': 'A', 'room_alignment': 'neutral'}])
+            result = self.m.run()
+        finally:
+            server_config._config['nightly_guild_maintenance_enabled'] = orig
+
+        self.assertEqual(result, {'skipped_disabled': True})
+        self.assertFalse((self.tmp / 'run' / 'server' / 'guild_control.json').exists())
+
 
 if __name__ == '__main__':
     unittest.main()

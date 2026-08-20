@@ -46,6 +46,27 @@ class BoardSettings:
 
 
 @dataclass
+class NewsSettings:
+    """news.py / logon_events/news.py's login-time news display preferences.
+
+    last_read: ISO datetime string of this player's own news-read cursor,
+    replacing player.last_connection as the 'since' argument to
+    news.is_new_since() -- last_connection is a general-purpose timestamp
+    other login-sequence code also reads/writes (e.g. connect.py's
+    _maybe_reset_once_per_day()), so a bug there could desync news
+    display too. None means never set -- is_new_since() treats that as
+    "everything currently visible is new" (matches a brand-new player).
+
+    show_all: False (default) shows only news posted since last_read;
+    True shows the full directory of currently-active news items every
+    login ('prefs' command toggle N). Formerly the flat
+    command_settings.news_show_all field.
+    """
+    last_read: Optional[str] = None
+    show_all: bool = False
+
+
+@dataclass
 class TeleportSettings:
     """commands/teleport.py preferences.
 
@@ -64,9 +85,6 @@ class CommandSettings:
     whereat_hidden: bool = False
     # Named groups for whisper/page: group_name (lower) → list of player names
     groups: dict = field(default_factory=dict)
-    # False (default): show only news posted since the player's last login.
-    # True: show the full directory of currently-active news items every login.
-    news_show_all: bool = False
     # PAGE command preferences (commands/page.py)
     # True: block ALL incoming pages ('page #haven' / 'page #unhaven').
     haven: bool = False
@@ -78,6 +96,8 @@ class CommandSettings:
     tips: TipsSettings = field(default_factory=TipsSettings)
     # Threaded message board preferences (board.py, commands/board.py)
     board: BoardSettings = field(default_factory=BoardSettings)
+    # Login-time news display cursor (news.py, commands/connect.py)
+    news: NewsSettings = field(default_factory=NewsSettings)
     # Saved teleport destinations (commands/teleport.py)
     teleport: TeleportSettings = field(default_factory=TeleportSettings)
     # False (default): bare movement letters are n/s/e/w (compass).
@@ -92,6 +112,7 @@ class CommandSettings:
         known = {k: v for k, v in data.items() if k in cls.__dataclass_fields__}
         tips_data = known.pop('tips', None)
         board_data = known.pop('board', None)
+        news_data = known.pop('news', None)
         teleport_data = known.pop('teleport', None)
         instance = cls(**known)
         if isinstance(tips_data, dict):
@@ -103,6 +124,11 @@ class CommandSettings:
             instance.board = BoardSettings(**{
                 k: v for k, v in board_data.items()
                 if k in BoardSettings.__dataclass_fields__
+            })
+        if isinstance(news_data, dict):
+            instance.news = NewsSettings(**{
+                k: v for k, v in news_data.items()
+                if k in NewsSettings.__dataclass_fields__
             })
         if isinstance(teleport_data, dict):
             # JSON round-trips tuples as lists -- convert (level, room)

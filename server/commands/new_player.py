@@ -363,9 +363,20 @@ def _announce_new_recruit(ctx) -> None:
 
         race  = getattr(player, 'char_race', None)
         klass = getattr(player, 'char_class', None)
-        body = [f"{player.name}, {a_or_an(race.value if race else 'adventurer')} "
-                f"{race.value if race else ''} {klass.value if klass else ''}, "
+        # a_or_an() already returns the full "a/an <race>" phrase -- don't
+        # also append race.value again here, or it reads "a Human Human
+        # Wizard" (found live 2026-08-20 in news.json's accumulated
+        # New Recruit items).
+        race_name = race.value if race else 'adventurer'
+        body = [f"{player.name}, {a_or_an(race_name)} "
+                f"{klass.value if klass else ''}, "
                 f"has joined {guild_phrase}."]
+
+        # tools/nightly_recruit_digest.py greps battle.log for this exact
+        # 'NEW RECRUIT: ' tag to build the previous day's combined digest
+        # post -- keep the tag stable if this line's wording changes.
+        from net_common import append_battle_log
+        append_battle_log(f'NEW RECRUIT: {body[0]}')
 
         items = news_store.load_news()
         items.append({

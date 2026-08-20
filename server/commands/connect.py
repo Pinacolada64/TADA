@@ -68,50 +68,6 @@ def guild_welcome_line(guild) -> str | None:
     return f"{parts[0]} {parts[1]}" if parts else None
 
 
-def _login_news_lines(ctx, player) -> list[str]:
-    """Build the login-time news display for *player*, honoring their
-    command_settings.news_show_all preference (full directory every login
-    vs. just what's new since player.last_connection). Marks 'once' items
-    as seen and persists that back to news.json.
-
-    Reuses news.py's helpers directly rather than commands/news.py's
-    NewsCommand, since this runs before the player has a live prompt loop.
-    *ctx* is only needed to pass through to news_store.format_item(),
-    which re-renders each item's body at this viewer's own screen width/
-    terminal type (see news.py's module docstring).
-    """
-    import news as news_store
-
-    items = news_store.load_news()
-    if not items:
-        return []
-
-    today   = datetime.date.today()
-    since   = getattr(player, 'last_connection', None)
-    last_played = since.date() if since else None
-    show_all = getattr(player.command_settings, 'news_show_all', False)
-
-    visible = [it for it in items
-               if news_store.is_visible(it, player.name, today, last_played=last_played)]
-    if show_all:
-        to_show = visible
-    else:
-        to_show = [it for it in visible if news_store.is_new_since(it, since)]
-
-    if not to_show:
-        return []
-
-    lines = ['', '|yellow|--- News ---|reset|']
-    for it in to_show:
-        lines += news_store.format_item(it, ctx)
-        lines.append('')
-        if it.get('lifetime') == 'once':
-            news_store.mark_seen(it, player.name)
-
-    news_store.save_news(items)
-    return lines
-
-
 def _login_mail_lines(player) -> list[str]:
     """Build the login-time "you have N unread message(s)" notice for
     *player* -- see mail.py for storage/schema and commands/mail.py for
@@ -181,7 +137,7 @@ def _login_tip_lines(ctx) -> list[str]:
     command_settings.tips.enabled preference ('tips #on'/'tips #off').
 
     Reuses tips.py's next_tip()/format_tip_box() directly (same
-    convention as _login_news_lines() above) -- this advances the same
+    convention as logon_events/news.py's news_lines() -- this advances the same
     command_settings.tips.tip_number cursor commands/tips.py's bare
     'tips' command does, so the login tip and a manually-typed 'tips'
     right after don't repeat. Takes ctx (not just player) since the box
@@ -496,10 +452,12 @@ class ConnectCommand(Command):
         # Must run before player.last_connection is overwritten below.
         _maybe_reset_once_per_day(player)
 
-        # News since last login -- see news.py for storage/visibility rules
-        # and commands/news.py for the standalone 'news' command that reuses
-        # the same helpers.
-        news_lines = _login_news_lines(ctx, player)
+        # News since last login -- see news.py for storage/visibility rules,
+        # logon_events/news.py for this login-time display, and
+        # commands/news.py for the standalone 'news' command that reuses
+        # the same news.py helpers.
+        from logon_events.news import news_lines as _news_lines
+        news_lines = _news_lines(ctx, player)
         if news_lines:
             login_lines += news_lines
 

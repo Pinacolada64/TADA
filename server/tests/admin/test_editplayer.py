@@ -413,6 +413,86 @@ class TestCommandSettingsMenu(unittest.IsolatedAsyncioTestCase):
         self.assertIn('Yes', combined)
 
 
+class TestCommandSettingsNewsMenu(unittest.IsolatedAsyncioTestCase):
+
+    def _item(self, ctx, text):
+        menu = _command_settings_menu(ctx)
+        return next(i for i in menu.selectable if i.text == text)
+
+    async def test_show_all_dot_leader_reflects_current_value(self):
+        ctx = _MockCtx()
+        item = self._item(ctx, 'News Show All')
+        self.assertEqual(item.dot_leader_handler(ctx), 'No')
+        ctx.player.command_settings.news.show_all = True
+        self.assertEqual(item.dot_leader_handler(ctx), 'Yes')
+
+    async def test_show_all_toggles_and_marks_unsaved(self):
+        ctx = _MockCtx()
+        item = self._item(ctx, 'News Show All')
+        await item.action(ctx)
+        self.assertTrue(ctx.player.command_settings.news.show_all)
+        self.assertTrue(ctx.player.unsaved_changes)
+        await item.action(ctx)
+        self.assertFalse(ctx.player.command_settings.news.show_all)
+
+    async def test_last_read_dot_leader_shows_never_when_unset(self):
+        ctx = _MockCtx()
+        item = self._item(ctx, 'News Last Read')
+        self.assertEqual(item.dot_leader_handler(ctx), '(never)')
+
+    async def test_last_read_dot_leader_shows_date_when_set(self):
+        ctx = _MockCtx()
+        ctx.player.command_settings.news.last_read = '2026-08-19T12:00:00'
+        item = self._item(ctx, 'News Last Read')
+        self.assertEqual(item.dot_leader_handler(ctx), '2026-08-19')
+
+    async def test_edit_last_read_blank_leaves_unchanged(self):
+        ctx = _MockCtx(responses=[''])
+        ctx.player.command_settings.news.last_read = '2026-08-19T00:00:00'
+        item = self._item(ctx, 'News Last Read')
+        await item.action(ctx)
+        self.assertEqual(ctx.player.command_settings.news.last_read, '2026-08-19T00:00:00')
+        self.assertIn('Unchanged.', ctx.sent)
+
+    async def test_edit_last_read_absolute_date_sets_cursor(self):
+        ctx = _MockCtx(responses=['8/25/26'])
+        item = self._item(ctx, 'News Last Read')
+        await item.action(ctx)
+        self.assertEqual(ctx.player.command_settings.news.last_read, '2026-08-25T00:00:00')
+        self.assertTrue(ctx.player.unsaved_changes)
+
+    async def test_edit_last_read_offset_from_current(self):
+        ctx = _MockCtx(responses=['+3'])
+        ctx.player.command_settings.news.last_read = '2026-08-19T00:00:00'
+        item = self._item(ctx, 'News Last Read')
+        await item.action(ctx)
+        self.assertEqual(ctx.player.command_settings.news.last_read, '2026-08-22T00:00:00')
+
+    async def test_edit_last_read_offset_from_today_when_unset(self):
+        import datetime
+        ctx = _MockCtx(responses=['-1'])
+        item = self._item(ctx, 'News Last Read')
+        await item.action(ctx)
+        expected = (datetime.date.today() - datetime.timedelta(days=1)).isoformat() + 'T00:00:00'
+        self.assertEqual(ctx.player.command_settings.news.last_read, expected)
+
+    async def test_edit_last_read_clear_resets_cursor(self):
+        ctx = _MockCtx(responses=['clear'])
+        ctx.player.command_settings.news.last_read = '2026-08-19T00:00:00'
+        item = self._item(ctx, 'News Last Read')
+        await item.action(ctx)
+        self.assertIsNone(ctx.player.command_settings.news.last_read)
+        self.assertTrue(ctx.player.unsaved_changes)
+
+    async def test_edit_last_read_invalid_input_leaves_unchanged(self):
+        ctx = _MockCtx(responses=['not a date at all!!'])
+        ctx.player.command_settings.news.last_read = '2026-08-19T00:00:00'
+        item = self._item(ctx, 'News Last Read')
+        await item.action(ctx)
+        self.assertEqual(ctx.player.command_settings.news.last_read, '2026-08-19T00:00:00')
+        self.assertIn("Didn't understand that date.", ctx.sent)
+
+
 # ---------------------------------------------------------------------------
 # 4b. Survival counter (Food/Drink) action
 # ---------------------------------------------------------------------------

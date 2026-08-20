@@ -102,6 +102,11 @@ def _tally_level(level: int) -> dict:
 
 
 def run() -> dict:
+    from config import config as server_config
+    if not server_config.nightly_guild_maintenance_enabled:
+        log.info("nightly_guild_maintenance_enabled is Off (CONFIG command) -- skipping.")
+        return {'skipped_disabled': True}
+
     report = {'generated_at': datetime.now(timezone.utc).isoformat(), 'levels': {}}
     overall_counts = {'neutral': 0, 'free_fire': 0, 'hq': 0, 'fist': 0, 'claw': 0, 'sword': 0}
     overall_total = 0

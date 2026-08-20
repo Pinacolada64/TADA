@@ -706,6 +706,49 @@ def _command_settings_menu(ctx) -> Menu:
         dot_leader_handler=lambda ctx: 'Yes' if p.command_settings.whereat_hidden else 'No',
         action=toggle_whereat_hidden,
     ))
+
+    async def toggle_news_show_all(ctx) -> None:
+        news = p.command_settings.news
+        news.show_all = not news.show_all
+        p.unsaved_changes = True
+        await ctx.send(f'News Show All: {"Yes" if news.show_all else "No"}')
+
+    async def edit_news_last_read(ctx) -> None:
+        import datetime as _datetime
+
+        from date_cursor import INVALID, UNCHANGED, prompt_date_cursor
+
+        news = p.command_settings.news
+        current = None
+        if news.last_read:
+            try:
+                current = _datetime.datetime.fromisoformat(news.last_read).date()
+            except ValueError:
+                current = None
+
+        result = await prompt_date_cursor(
+            ctx, p, current, label="news-read cursor",
+            note=f"{p.name} will see news posted after this date again at their next login.",
+        )
+        if result is UNCHANGED or result is INVALID:
+            return
+
+        news.last_read = (
+            _datetime.datetime.combine(result, _datetime.time.min).isoformat()
+            if result else None
+        )
+        p.unsaved_changes = True
+
+    menu.add_item(MenuItem(
+        'News Show All', shortcuts='na',
+        dot_leader_handler=lambda ctx: 'Yes' if p.command_settings.news.show_all else 'No',
+        action=toggle_news_show_all,
+    ))
+    menu.add_item(MenuItem(
+        'News Last Read', shortcuts='nr',
+        dot_leader_handler=lambda ctx: (p.command_settings.news.last_read or '(never)')[:10],
+        action=edit_news_last_read,
+    ))
     return menu
 
 

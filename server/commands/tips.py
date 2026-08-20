@@ -7,7 +7,7 @@
 
 Login-time display is commands/connect.py's _login_tip_lines(), which
 calls tips.py's next_tip() directly (same convention as
-_login_news_lines()/news.py) -- both advance the same
+logon_events/news.py's news_lines()) -- both advance the same
 command_settings.tips.tip_number cursor, so a session's login tip and a
 manually-typed 'tips' right after don't repeat the same one.
 """
