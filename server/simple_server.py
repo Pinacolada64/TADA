@@ -965,7 +965,11 @@ class Server:
                     # port's own wording convention).
                     monster_and_seen += ['', 'A short bearded person is here, with a pile of silver!']
                 else:
-                    monster_and_seen += ['', f"There {is_or_are(name)} {f'{size} ' if size else ''}{name} here."]
+                    descr = f'{size} ' if size else ''
+                    if is_or_are(name) == 'are':
+                        monster_and_seen += ['', f'There are {descr}{name} here.']
+                    else:
+                        monster_and_seen += ['', f'There is {a_or_an(descr + name)} here.']
 
                 # Non-expert nudge toward the SAY-riddle easter egg
                 # (encounters/gollum.py) -- pure new content, no SPUR

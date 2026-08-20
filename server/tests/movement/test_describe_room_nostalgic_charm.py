@@ -71,7 +71,7 @@ class TestNostalgicCharmedMonsterLine:
         lines = server._describe_room(_client(player))
 
         assert not any('nostalgically' in l for l in lines)
-        assert 'There is PIXIE here.' in lines
+        assert 'There is a PIXIE here.' in lines
 
     def test_no_nostalgic_line_for_a_different_players_charm(self, server):
         server.game_map = _make_map(monster_number=_PIXIE['number'])
@@ -81,4 +81,4 @@ class TestNostalgicCharmedMonsterLine:
         lines = server._describe_room(_client(player))
 
         assert not any('nostalgically' in l for l in lines)
-        assert 'There is PIXIE here.' in lines
+        assert 'There is a PIXIE here.' in lines
