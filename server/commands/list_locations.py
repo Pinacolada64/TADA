@@ -249,7 +249,10 @@ class ListLocationsCommand(Command):
         return CommandResult.ok()
 
     async def _offer_teleport(self, ctx: GameContext, found: list) -> None:
-        raw_choice = await ctx.prompt('Teleport to which number? (blank to cancel)')
+        return_key = ctx.player.return_key
+        raw_choice = await ctx.prompt(
+            f'Teleport to which number? (or {return_key} to abort)'
+        )
         if not raw_choice or not raw_choice.strip():
             return
         try:

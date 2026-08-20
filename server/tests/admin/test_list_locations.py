@@ -28,6 +28,7 @@ def make_ctx(*, admin=False, dm=False, levels=None, items=None, weapons=None,
     player.map_level = 1
     player.client_settings.screen_columns = 78
     player.client_settings.border_style = 'ascii'
+    player.return_key = 'Return'
 
     def _query_flag(flag):
         if flag == PlayerFlags.ADMIN:         return admin
@@ -293,6 +294,17 @@ class TestTeleportOption(unittest.IsolatedAsyncioTestCase):
         ctx.prompt.assert_awaited_once()
         self.assertEqual(ctx.client.room, 1)
         self.assertEqual(ctx.player.map_level, 1)
+
+    async def test_tel_prompt_mentions_return_key_to_abort(self):
+        cmd = ListLocationsCommand()
+        weapons = [{'number': 1, 'name': 'LONG SWORD'}]
+        rooms = {1: _room('Armory', weapon=1)}
+        ctx = make_ctx(admin=True, levels={1: rooms}, weapons=weapons,
+                        prompt_answer='')
+        ctx.player.return_key = 'Return'
+        await cmd.execute(ctx, '#w', '#tel')
+        prompt_text = ctx.prompt.await_args.args[0]
+        self.assertIn('Return', prompt_text)
 
     async def test_tel_flag_cancel_on_blank(self):
         cmd = ListLocationsCommand()
