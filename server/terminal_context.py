@@ -38,54 +38,13 @@ if TYPE_CHECKING:
     from player import Player
     from terminal import Translation
 
-# ---------------------------------------------------------------------------
-# GuestPlayer — pre-login stub
-# ---------------------------------------------------------------------------
-
-class GuestPlayer:
-    """
-    Minimal Player-compatible stub used before a user authenticates.
-
-    Provides the attributes that ctx and formatting code need without
-    loading or creating a real Player record. Replaced by a real Player
-    object after successful login.
-    """
-    def __init__(self):
-        self.name       = 'Guest'
-        self.flags      = {}
-        self._flags_set = set()
-
-        # Default settings — updated during terminal negotiation
-        self.client_settings = _GuestSettings()
-
-    def query_flag(self, flag) -> bool:
-        return flag in self._flags_set
-
-    def set_flag(self, flag):
-        self._flags_set.add(flag)
-
-    def clear_flag(self, flag):
-        self._flags_set.discard(flag)
-
-    def __str__(self):
-        return f'{self.name} <Guest>'
-
-
-@dataclass
-class _GuestSettings:
-    """ClientSettings-compatible stub for GuestPlayer."""
-    screen_columns: int   = 80
-    screen_rows:    int   = 24
-    return_key:     str   = 'Enter'
-    translation:    object = None   # set during terminal negotiation
-    border_style:   str   = 'single'
-
-    def __post_init__(self):
-        try:
-            from terminal import Translation
-            self.translation = Translation.ANSI
-        except ImportError:
-            self.translation = None
+# GuestPlayer used to be duplicated here as its own stub class -- now a
+# real Player subclass (see network_context.py's own docstring on it),
+# so it's imported rather than re-defined a second time that could drift
+# out of sync. No circular import risk: network_context.py doesn't
+# import terminal_context.py (or anything that does) either directly or
+# via player.py.
+from network_context import GuestPlayer
 
 
 # ---------------------------------------------------------------------------

@@ -328,7 +328,10 @@ class ConnectCommand(Command):
         except AttributeError:
             pass  # server or clients not available (e.g. in tests)
 
-        guest_name = f"Guest {guest_count + 1}" if guest_count else "Guest"
+        # Always numbered, including the first ("Guest 1", not bare
+        # "Guest") -- Ryan's call, so every guest's name is consistently
+        # sequential rather than the first one being a special case.
+        guest_name = f"Guest {guest_count + 1}"
 
         ctx.client.username = guest_name
         ctx.player.name = guest_name

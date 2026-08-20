@@ -35,6 +35,7 @@ from formatting import (
     format_lines, codec_for_settings, flatten_send_args,
     ansi_encode_lines, petscii_encode_lines, ANSICodec, PlainCodec,
 )
+from player import Player
 
 if TYPE_CHECKING:
     # These are only needed for type annotations, never at runtime.
@@ -42,54 +43,40 @@ if TYPE_CHECKING:
     #   simple_server -> context -> simple_server
     from simple_server import Server
     from net_client import Client
-    from player import Player
 
 
 # ---------------------------------------------------------------------------
-# GuestPlayer — pre-login stub
+# GuestPlayer — pre-login stand-in
 # ---------------------------------------------------------------------------
 
-class GuestPlayer:
+class GuestPlayer(Player):
     """
-    Minimal Player-compatible stub used before a user authenticates.
+    A player who hasn't authenticated (or never will). A real, fully
+    populated Player -- rolled stats, starting silver, a working
+    Inventory/Party/flags, see Player.__init__'s "not loaded" branch --
+    rather than an unrelated stub with a handful of hand-picked
+    attributes. That used to mean every command needing its own
+    defensive getattr/hasattr guard against whatever GuestPlayer hadn't
+    bothered to define, and still crashed repeatedly in practice
+    (is_expert, map_level, party, record_item_pickup/record_ration_pickup,
+    ... found live 2026-08-19) whenever a new code path reached one it
+    didn't have.
 
-    Provides the attributes that ctx and formatting code need without
-    loading or creating a real Player record. Replaced by a real Player
-    object after successful login.
+    Never gets an `id` (see __init__ below) -- Player.save() no-ops
+    whenever self.id is None (player.py:1090-1092), so nothing a guest
+    does is ever written to disk, matching "Your session will not be
+    saved." to the player. Ryan's call: persistence is naturally a
+    per-Player-instance thing once GuestPlayer IS a Player, so there's
+    no need to separately block things like item pickup for guests any
+    more -- whatever they do just lives as long as this object does
+    (the connection) and is discarded on disconnect like everything
+    else about a guest.
     """
     def __init__(self):
-        self.name        = 'Guest'
-        self.flags       = {}
-        self._flags_set  = set()
-        self.client_settings = _GuestSettings()
-
-    def query_flag(self, flag) -> bool:
-        return flag in self._flags_set
-
-    def set_flag(self, flag):
-        self._flags_set.add(flag)
-
-    def clear_flag(self, flag):
-        self._flags_set.discard(flag)
+        super().__init__(name='Guest')
 
     def __str__(self):
         return f'{self.name} <Guest>'
-
-
-@dataclass
-class _GuestSettings:
-    """ClientSettings-compatible stub for GuestPlayer."""
-    screen_columns: int    = 80
-    screen_rows:    int    = 24
-    return_key:     str    = 'Enter'
-    translation:    object = None
-
-    def __post_init__(self):
-        try:
-            from terminal import Translation
-            self.translation = Translation.ANSI
-        except ImportError:
-            self.translation = None
 
 
 # ---------------------------------------------------------------------------

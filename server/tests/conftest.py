@@ -63,7 +63,7 @@ async def answer_terminal_negotiation(reader, writer, choice: str = 'A') -> None
 async def perform_login_as_guest(reader, writer, timeout: float = 3.0) -> str | None:
     """Complete handshake + terminal negotiation, then log in as a guest.
 
-    Returns the assigned guest username (e.g. 'Guest', 'Guest 2'), or None
+    Returns the assigned guest username (e.g. 'Guest 1', 'Guest 2'), or None
     if the server never confirmed the connection within `timeout` seconds.
     'connect guest' is the real command -- bare 'guest' isn't registered.
 

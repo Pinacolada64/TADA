@@ -47,7 +47,7 @@ def _make_ctx(username: str = "", mode: Mode = Mode.LOGIN,
 
     # Populate server.clients with fake guests so numbering tests work
     fake_guests = {
-        i: MagicMock(username=f"Guest {i}" if i > 1 else "Guest")
+        i: MagicMock(username=f"Guest {i}")
         for i in range(1, guest_count + 1)
     }
     ctx.server.clients = fake_guests
@@ -117,7 +117,8 @@ class TestConnectGuest(unittest.IsolatedAsyncioTestCase):
         cmd = ConnectCommand()
         ctx = _make_ctx(guest_count=0)
         await cmd.execute(ctx, "guest")
-        self.assertEqual(ctx.client.username, "Guest")
+        # Always numbered, including the first -- Ryan's call, 2026-08-19.
+        self.assertEqual(ctx.client.username, "Guest 1")
 
     async def test_guest_numbering_with_existing_guests(self):
         cmd = ConnectCommand()
