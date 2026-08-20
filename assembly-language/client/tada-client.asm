@@ -224,6 +224,14 @@
                                           ; ~60Hz tick rate -- see
                                           ; apply_recv_byte's own comment
 
+        SID_RECV_TIMEOUT_JIFFIES = 180   ; ~3 seconds -- see
+                                          ; sid_service_background_recv's
+                                          ; own comment. Kept well under
+                                          ; 256 so the single-byte $a2
+                                          ; delta this is compared against
+                                          ; can't wrap around and mask a
+                                          ; real timeout.
+
         rx_head     = $f9       ; NMI receive ring buffer: next write index
         rx_tail     = $fa       ; NMI receive ring buffer: next read index
 
@@ -862,6 +870,23 @@ sl_recv_empty:
 ; already-handled case -- untouched here); that path never touches
 ; capture/display/prompt_buf since stream bytes never reach
 ; handle_recv_byte_text.
+;
+; Gadget flagged the gap this closes: frames.py's protocol has no in-band
+; end-of-stream marker for a dropped/truncated transfer to fall back on
+; (SID_FRAME_END only delimits one tick's register writes within already-
+; arrived bytes -- see its own comment -- and sid_play_scan already bails
+; safely, frame-by-frame, if it never shows up). But the *reception* side
+; had nothing symmetrical: sid_mode counts down an exact byte length with
+; no timeout, so a connection drop or server crash mid-stream left it
+; stuck in mode 1/2/3/4 forever, silently swallowing every future byte
+; into SID framing instead of text -- and since SID_STOP is only
+; recognized from mode 0 (handle_recv_byte_text), the player couldn't
+; even `#stop` their way out. sid_recv_last_jiffy (restamped on every
+; byte that actually advances the state machine -- see its own comment)
+; lets this branch notice "mid-stream, but no byte at all in
+; SID_RECV_TIMEOUT_JIFFIES" and force the same recovery SID_STOP already
+; does: sid_stop silences the chip and zeroes sid_mode/sid_active, handing
+; the connection back to ordinary text mode same as a real #stop would.
 sid_service_background:
         lda sid_mode
         bne sid_service_background_recv
@@ -872,7 +897,15 @@ sid_service_background_idle:
         jmp service_async_idle
 sid_service_background_recv:
         jsr sl_recv
-        bcc sid_service_background_rts
+        bcs sid_service_background_got_byte
+        lda $a2
+        sec
+        sbc sid_recv_last_jiffy
+        cmp #SID_RECV_TIMEOUT_JIFFIES
+        bcc sid_service_background_rts   ; still within the idle window
+        jsr sid_stop                     ; gave up -- same recovery as #stop
+        rts
+sid_service_background_got_byte:
         jsr handle_recv_byte
 sid_service_background_rts:
         rts
@@ -1347,6 +1380,18 @@ display_char:
 handle_recv_byte:
         ldy sid_mode
         beq handle_recv_byte_text
+        ; sid_mode != 0 -- a byte just advanced the SID receive state
+        ; machine, so this stream is still genuinely alive. Restamp the
+        ; idle clock sid_service_background_recv checks, so a truncated/
+        ; dropped stream (no further bytes ever) times out from its own
+        ; last real progress rather than from whenever reception happened
+        ; to start. .a holds the just-received byte, still needed by every
+        ; branch below (len_lo/len_hi/store/confirm all read it) -- pha/pla
+        ; around the $a2 read/store so this is transparent to them.
+        pha
+        lda $a2
+        sta sid_recv_last_jiffy
+        pla
         cpy #1
         bne handle_recv_byte_not_len_lo
         jmp handle_recv_byte_len_lo
@@ -1386,6 +1431,10 @@ handle_recv_byte_stop:
 handle_recv_byte_maybe_start:
         lda #4
         sta sid_mode
+        lda $a2
+        sta sid_recv_last_jiffy   ; starts the idle clock for this mode-4
+                                   ; wait too -- see sid_recv_last_jiffy's
+                                   ; own comment
         rts
 
 handle_recv_byte_confirm:
@@ -2125,6 +2174,16 @@ sid_background:
                                   ; 1 = background (read_line) context --
                                   ; gates the TEMP diagnostic prints, see
                                   ; handle_recv_byte_store
+
+sid_recv_last_jiffy:
+        byte 0                   ; $a2 snapshot taken every time a byte
+                                  ; actually advances the sid_mode 1-4
+                                  ; receive state machine -- see
+                                  ; handle_recv_byte's and
+                                  ; handle_recv_byte_maybe_start's own
+                                  ; comments, checked against
+                                  ; SID_RECV_TIMEOUT_JIFFIES by
+                                  ; sid_service_background_recv
 
 sid_byte_count:
         byte 0,0                 ; lo,hi -- bytes redirected into SID_BUF this
