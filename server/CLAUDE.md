@@ -94,6 +94,14 @@
   reference stays authoritative rather than each session re-deriving it
   from scratch.
 
+## Server operations
+
+- **Before restarting the live server, show Ryan the `who` command's output**
+  so he can see who (if anyone) is currently connected before it happens.
+  Connect as admin (bot_client.py, same pattern as tools/bot_config_check.py)
+  and run `who`, then report those results, before stopping/restarting the
+  `tada` screen session's `run_server.py` process.
+
 ## Bot scripts
 
 - **Once a scripted bot session built on `bot_client.py` (e.g. to drive
