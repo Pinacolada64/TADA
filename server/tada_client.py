@@ -532,7 +532,8 @@ async def run(host: str, port: int, user_id: str, password: str, debug: bool = F
         reader, writer = await asyncio.open_connection(host, port)
         state.connected = True
     except OSError as e:
-        print(f'Connection failed: {e}', file=sys.stderr)
+        print(f'Cannot connect to {host}:{port} -- the server may not be running. ({e})',
+              file=sys.stderr)
         return
 
     app, output_buffer, input_buffer = _build_app(state)
@@ -605,7 +606,7 @@ def main() -> int:
         user_id  = args.username
         password = args.password
     else:
-        user_id  = args.username or input('Username: ').strip() or 'guest'
+        user_id  = args.username or input("Username [Enter: 'Guest']: ").strip() or 'guest'
         password = getpass.getpass('Password: ') if user_id != 'guest' else 'guest'
 
     try:
