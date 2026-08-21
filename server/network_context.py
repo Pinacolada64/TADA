@@ -406,6 +406,18 @@ class PETSCIINetworkContext(GameContext):
         else:
             await self._send_formatted(formatted)
 
+    def _line_ending_bytes(self) -> bytes:
+        """Player's PREFS 'L' (Line Ending) choice, encoded to bytes -- falls
+        back to LINE_ENDING (Commodore CR) if unset/unencodable, e.g. a
+        GuestPlayer stub that hasn't gone through client_settings setup."""
+        raw = getattr(self.player.client_settings, 'line_ending', None)
+        if not raw:
+            return self.LINE_ENDING
+        try:
+            return raw.encode('ascii')
+        except (AttributeError, UnicodeEncodeError):
+            return self.LINE_ENDING
+
     async def _send_formatted(self, formatted: list[str]) -> None:
         """Send pre-formatted lines as raw PETSCII bytes without pagination."""
         from formatting import codec_for_settings, PETSCIICodec
@@ -413,7 +425,7 @@ class PETSCIINetworkContext(GameContext):
         reset_color = codec.reset_color if isinstance(codec, PETSCIICodec) else None
         encoded = petscii_encode_lines(formatted,
                                        codec_name     = self.CODEC_NAME,
-                                       line_ending    = self.LINE_ENDING,
+                                       line_ending    = self._line_ending_bytes(),
                                        screen_columns = self.player.client_settings.screen_columns,
                                        reset_color    = reset_color)
         try:
