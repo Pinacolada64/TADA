@@ -743,7 +743,7 @@
         "number": 21,
         "status": 1,
         "name": "PIXIE",
-        "size": "huge",
+        "size": "small",
         "strength": 3,
         "special_weapon": 0,
         "to_hit": 8,
