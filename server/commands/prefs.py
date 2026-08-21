@@ -1062,11 +1062,14 @@ async def _pick_client_type(ctx) -> None:
                     "Commodore connection (the dedicated PETSCII port), not this one."
                 )
                 return
-            if encoding != Translation.PETSCII and is_real_petscii:
+            if encoding == Translation.ANSI and is_real_petscii:
                 # Mirror image of the guard above: apply the screen size,
                 # but never switch a *real* PETSCII connection's
-                # translation away from PETSCII -- ANSI escape codes sent
-                # to real Commodore hardware would garble its display.
+                # translation to ANSI -- ANSI escape codes sent to real
+                # Commodore hardware would garble its display. ASCII
+                # (Plain) is fine over this transport, though -- it's
+                # just PETSCII-encoded text with no color codes at all
+                # (see PlainCodec), so it isn't blocked here.
                 await ctx.send(
                     f'Client type set to: {label} screen size ({cols}x{rows}), '
                     "but keeping PETSCII translation -- ANSI color codes don't "
@@ -1113,11 +1116,16 @@ async def _pick_client_type(ctx) -> None:
 
     if is_real_petscii:
         # Same guard as the preset branch above -- a real Commodore
-        # connection can pick a custom screen size, but its translation
-        # stays PETSCII; ANSI/Plain aren't real options over that port,
-        # so don't even ask.
+        # connection can pick a custom screen size, and can choose
+        # PETSCII (with color) or Plain (no color, still PETSCII-encoded
+        # text -- see PlainCodec); ANSI isn't a real option over this
+        # port, so it's not offered.
+        raw_trans = await ctx.prompt('PETSCII or Plain text? (T/P)')
+        ans_trans = (raw_trans or '').strip().lower()
+        translation = Translation.ASCII if ans_trans.startswith('p') else Translation.PETSCII
+        cs.translation = translation
         await ctx.send(f'Client type set to: Custom, {cols}x{rows} screen size, '
-                        'keeping PETSCII translation.')
+                        f'{translation.name} translation.')
         return
 
     raw_trans = await ctx.prompt('PETSCII, ANSI color, or Plain text? (T/A/P)')

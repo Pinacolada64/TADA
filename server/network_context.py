@@ -406,6 +406,23 @@ class PETSCIINetworkContext(GameContext):
         else:
             await self._send_formatted(formatted)
 
+    def _text_codec_name(self) -> str:
+        """Codec name for encoding this player's outgoing text.
+
+        A real Commodore connection normally wants CODEC_NAME
+        ('petscii_c64en_lc', translating characters to actual C64 screen
+        codes). But a player who's set Translation.ASCII via PREFS wants
+        literal ASCII bytes instead -- the whole point of that choice is
+        receiving plain ASCII despite being on Commodore hardware, not
+        PETSCII-transliterated text with the color codes merely stripped.
+        Python's builtin 'ascii' codec (also used by petscii_encode's own
+        no-cbmcodecs2 fallback) does exactly that.
+        """
+        from terminal import Translation
+        if self.player.client_settings.translation == Translation.ASCII:
+            return 'ascii'
+        return self.CODEC_NAME
+
     def _line_ending_bytes(self) -> bytes:
         """Player's PREFS 'L' (Line Ending) choice, encoded to bytes -- falls
         back to LINE_ENDING (Commodore CR) if unset/unencodable, e.g. a
@@ -420,14 +437,24 @@ class PETSCIINetworkContext(GameContext):
 
     async def _send_formatted(self, formatted: list[str]) -> None:
         """Send pre-formatted lines as raw PETSCII bytes without pagination."""
-        from formatting import codec_for_settings, PETSCIICodec
+        from formatting import codec_for_settings, PETSCIICodec, plain_encode_lines
         codec = codec_for_settings(self.player.client_settings)
         reset_color = codec.reset_color if isinstance(codec, PETSCIICodec) else None
+        codec_name = self._text_codec_name()
+        if codec_name == 'ascii':
+            # petscii_encode() always interprets surviving |token| color
+            # markup into raw PETSCII control bytes (0x1C, 0x92, ...) --
+            # PlainCodec only blanks the [bracket]-highlight path via
+            # format_lines(), not explicit |red|/|reset| tokens. Strip
+            # those here too, or ASCII translation would still leak
+            # non-ASCII control bytes into otherwise-plain text.
+            formatted = plain_encode_lines(formatted)
         encoded = petscii_encode_lines(formatted,
-                                       codec_name     = self.CODEC_NAME,
-                                       line_ending    = self._line_ending_bytes(),
-                                       screen_columns = self.player.client_settings.screen_columns,
-                                       reset_color    = reset_color)
+                                       codec_name      = codec_name,
+                                       line_ending     = self._line_ending_bytes(),
+                                       screen_columns  = self.player.client_settings.screen_columns,
+                                       reset_color     = reset_color,
+                                       apply_overrides = codec_name != 'ascii')
         try:
             self.writer.write(encoded)
             await self.writer.drain()
@@ -464,10 +491,19 @@ class PETSCIINetworkContext(GameContext):
         if prompt_text:
             codec = codec_for_settings(self.player.client_settings)
             reset_color = codec.reset_color if isinstance(codec, PETSCIICodec) else None
+            codec_name = self._text_codec_name()
+            out_text = prompt_text + ' > '
+            if codec_name == 'ascii':
+                # Same reasoning as _send_formatted() -- strip any
+                # surviving |token| markup instead of letting
+                # petscii_encode() turn it into raw PETSCII control bytes.
+                from formatting import plain_encode
+                out_text = plain_encode(out_text)
             # No leading CR needed — petscii_encode_lines() now always
             # terminates each send() with CR, so the cursor is already
             # on a fresh line.
-            self.writer.write(petscii_encode(prompt_text + ' > ', self.CODEC_NAME, reset_color=reset_color))
+            self.writer.write(petscii_encode(out_text, codec_name, reset_color=reset_color,
+                                             apply_overrides=codec_name != 'ascii'))
             await self.writer.drain()
         try:
             raw = await self.reader.readuntil(b'\r')
