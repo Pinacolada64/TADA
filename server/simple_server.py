@@ -615,6 +615,7 @@ class Server:
             "Type 'connect guest' to look around as a guest.",
             "Type 'new' to create a new character.",
             "Type 'who' to see who is online.",
+            "Type 'prefs' to set terminal type, colors, and other display preferences.",
             "Type 'help' for help, 'help about' to learn what this is, or 'quit' to leave.",
             '',
         )
