@@ -284,6 +284,7 @@ register_topic(
         usage=[
             ("connect guest",              "Look around without an account."),
             ("new",                        "Create a character and dive in."),
+            ("prefs",                      "Set terminal type, colors, and other display preferences."),
             ("help",                       "See what commands are available."),
         ],
         notes=[

@@ -373,11 +373,22 @@ class ConnectCommand(Command):
         player = Player(name=char_name, id=username,  # __init__ calls _load() internally
                         weapons_data=getattr(ctx.server, 'weapons', None))
 
-        # Carry over terminal settings negotiated before login.
+        # Carry over terminal settings negotiated before login. Everything
+        # PREFS can set pre-login (Terminal Settings and its sub-menus) is
+        # session/hardware-specific, not account-specific, so it should win
+        # over whatever the returning player's saved client_settings has --
+        # a player connecting from a different terminal this session
+        # shouldn't have their live picks silently discarded in favor of
+        # last session's saved values.
         guest_cs = getattr(ctx.player, 'client_settings', None)
         if guest_cs is not None:
             cs = player.client_settings
-            for attr in ('screen_columns', 'translation', 'border_style', 'return_key'):
+            for attr in (
+                'screen_columns', 'screen_rows', 'translation',
+                'border_style', 'return_key', 'colors', 'has_color',
+                'tab_settings', 'has_tab', 'tab_char', 'line_ending',
+                'menu_colors', 'table_colors', 'cursor_blink_speed',
+            ):
                 if hasattr(guest_cs, attr):
                     setattr(cs, attr, getattr(guest_cs, attr))
         ctx.player = player
