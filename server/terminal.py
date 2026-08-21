@@ -294,11 +294,12 @@ class ClientSettings:
     # (network_context.py/terminal_context.py's prompt()) and available
     # for any other player-facing time-of-day display.
     time_format: str = '%H:%M'
-    # Editable via commands/prefs.py's 'L' (Line Ending) row. Stored/reported
-    # only for now -- not yet threaded through formatting.py's actual
-    # send path (every line goes out as a JSON array element for ANSI/
-    # plain clients, so this only has real bearing for a raw-byte PETSCII
-    # or future raw-terminal client).
+    # Editable via commands/prefs.py's 'L' (Line Ending) row. Threaded
+    # through PETSCIINetworkContext._send_formatted() (network_context.py),
+    # which encodes it to bytes in place of the class's hardcoded default
+    # -- only has real bearing there, since ANSI/plain clients receive
+    # every line as a separate JSON array element with no terminator byte
+    # for this to control.
     line_ending: str = LineEnding.LF
     # Set automatically as a side effect of picking a client type (PREFS
     # 'T') -- true for the Commodore 128, TADA/ANSI, and Custom presets
