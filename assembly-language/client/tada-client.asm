@@ -2351,36 +2351,39 @@ status_print_stream_starts:
 ; {alpha:pokealt} label fragments for the status_print_* routines above,
 ; and the screen-code hex-digit table status_print_hex_nibble reads --
 ; see this section's own header comment for why these need pre-encoded
-; screen codes rather than plain ascii.
+; screen codes rather than plain ascii. Sentence-case, not the original
+; SPUR-style ALL-CAPS these were first ported as (Ryan's ask, 2026-08-20,
+; once pokealt proved out via the build-date/time message) -- matches
+; this port's own sentence-case convention for player-facing text.
 {alpha:pokealt}
 status_hex_digits:
         ascii "0123456789ABCDEF"
 status_lbl_played:
-        ascii "PLAYED $"
+        ascii "Played $"
         byte 0
 status_lbl_frames:
-        ascii " FRAMES"
+        ascii " frames"
         byte 0
 status_lbl_elapsed:
-        ascii "ELAPSED $"
+        ascii "Elapsed $"
         byte 0
 status_lbl_jiffies:
-        ascii " JIFFIES"
+        ascii " jiffies"
         byte 0
 status_lbl_rd:
-        ascii "RD=$"
+        ascii "Rd=$"
         byte 0
 status_lbl_wr:
-        ascii " WR=$"
+        ascii " wr=$"
         byte 0
 status_lbl_starts:
-        ascii "STARTS=$"
+        ascii "Starts=$"
         byte 0
 status_lbl_got:
-        ascii "GOT $"
+        ascii "Got $"
         byte 0
 status_lbl_bytes:
-        ascii " BYTES"
+        ascii " bytes"
         byte 0
 {alpha:normal}
 
