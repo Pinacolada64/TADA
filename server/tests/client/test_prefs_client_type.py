@@ -242,7 +242,7 @@ class TestPickClientType(unittest.IsolatedAsyncioTestCase):
         # Only two prompts (columns, rows) -- no third "ANSI or Plain?"
         # answer needed/consumed, since translation can't change for a
         # real Commodore connection.
-        ctx = _FakePetsciiCtx(['5', '80', '25'], Player())
+        ctx = _FakePetsciiCtx(['6', '80', '25'], Player())
         ctx.player.client_settings.translation = Translation.PETSCII
         await _pick_client_type(ctx)
         cs = ctx.player.client_settings
@@ -285,27 +285,58 @@ class TestPickClientType(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(cs.has_tab)
         self.assertEqual(cs.tab_char, chr(9))
 
+    async def test_ascii_c64_preset_sets_screen_size_and_translation(self):
+        """Ryan: a C64 running a plain-ASCII terminal program (not the
+        dedicated PETSCII port) -- 40x25 like the real hardware, but
+        Translation.ASCII instead of PETSCII."""
+        ctx = _FakeCtx(['5'], Player())
+        await _pick_client_type(ctx)
+        cs = ctx.player.client_settings
+        self.assertEqual((cs.screen_columns, cs.screen_rows), (40, 25))
+        self.assertEqual(cs.translation, Translation.ASCII)
+
+    async def test_ascii_c64_preset_does_not_set_has_tab(self):
+        """No real Tab key on a C64 keyboard regardless of terminal mode."""
+        ctx = _FakeCtx(['5'], Player())
+        await _pick_client_type(ctx)
+        self.assertFalse(getattr(ctx.player.client_settings, 'has_tab', False))
+
     async def test_custom_size_sets_has_tab(self):
-        ctx = _FakeCtx(['5', '100', '40', 'A'], Player())
+        ctx = _FakeCtx(['6', '100', '40', 'A'], Player())
         await _pick_client_type(ctx)
         cs = ctx.player.client_settings
         self.assertTrue(cs.has_tab)
         self.assertEqual(cs.tab_char, chr(9))
 
     async def test_custom_size_within_range_accepted(self):
-        ctx = _FakeCtx(['5', '100', '40', 'A'], Player())
+        ctx = _FakeCtx(['6', '100', '40', 'A'], Player())
         await _pick_client_type(ctx)
         cs = ctx.player.client_settings
         self.assertEqual((cs.screen_columns, cs.screen_rows), (100, 40))
         self.assertEqual(cs.translation, Translation.ANSI)
 
     async def test_custom_size_plain_text_option(self):
-        ctx = _FakeCtx(['5', '100', '40', 'P'], Player())
+        ctx = _FakeCtx(['6', '100', '40', 'P'], Player())
         await _pick_client_type(ctx)
         self.assertEqual(ctx.player.client_settings.translation, Translation.ASCII)
 
+    async def test_custom_size_petscii_option_over_ansi_transport_blocked(self):
+        """Custom now offers PETSCII too, but picking it over a
+        non-real-PETSCII connection must be guarded the same as the preset
+        branch -- screen size still applies, translation doesn't change."""
+        ctx = _FakeCtx(['6', '100', '40', 'T'], Player())
+        original_translation = ctx.player.client_settings.translation
+        await _pick_client_type(ctx)
+        cs = ctx.player.client_settings
+        self.assertEqual((cs.screen_columns, cs.screen_rows), (100, 40))
+        self.assertEqual(cs.translation, original_translation)
+        self.assertNotEqual(cs.translation, Translation.PETSCII)
+        text = ctx._flat()
+        self.assertIn('PETSCII', text)
+        self.assertIn('real Commodore connection', text)
+
     async def test_custom_columns_below_minimum_rejected(self):
-        ctx = _FakeCtx(['5', str(_MIN_COLS - 1)], Player())
+        ctx = _FakeCtx(['6', str(_MIN_COLS - 1)], Player())
         original = (ctx.player.client_settings.screen_columns,
                     ctx.player.client_settings.screen_rows)
         await _pick_client_type(ctx)
@@ -313,7 +344,7 @@ class TestPickClientType(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((cs.screen_columns, cs.screen_rows), original)
 
     async def test_custom_columns_above_maximum_rejected(self):
-        ctx = _FakeCtx(['5', str(_MAX_COLS + 1)], Player())
+        ctx = _FakeCtx(['6', str(_MAX_COLS + 1)], Player())
         original = (ctx.player.client_settings.screen_columns,
                     ctx.player.client_settings.screen_rows)
         await _pick_client_type(ctx)
@@ -321,7 +352,7 @@ class TestPickClientType(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((cs.screen_columns, cs.screen_rows), original)
 
     async def test_custom_rows_out_of_range_rejected(self):
-        ctx = _FakeCtx(['5', '100', str(_MAX_ROWS + 1)], Player())
+        ctx = _FakeCtx(['6', '100', str(_MAX_ROWS + 1)], Player())
         original = (ctx.player.client_settings.screen_columns,
                     ctx.player.client_settings.screen_rows)
         await _pick_client_type(ctx)
@@ -428,6 +459,10 @@ class TestClientTypeLabel(unittest.TestCase):
         # wins, since stored state alone can't tell them apart.
         cs = self._cs(40, 25, Translation.PETSCII)
         self.assertEqual(_client_type_label(cs), 'Commodore 64')
+
+    def test_ascii_c64_preset_matches(self):
+        cs = self._cs(40, 25, Translation.ASCII)
+        self.assertEqual(_client_type_label(cs), 'Commodore 64 (ASCII)')
 
     def test_size_never_matching_a_preset_reports_custom(self):
         cs = self._cs(78, 30, Translation.ANSI)

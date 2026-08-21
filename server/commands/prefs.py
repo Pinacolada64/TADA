@@ -960,10 +960,11 @@ def _client_type_presets() -> list:
     never drift out of sync."""
     from terminal import Translation
     return [
-        ('1', 'Commodore 64',  40, 25, Translation.PETSCII),
-        ('2', 'Commodore 128', 40, 25, Translation.PETSCII),
-        ('3', 'Commodore 128', 80, 25, Translation.PETSCII),
-        ('4', 'TADA Client',   80, 25, Translation.ANSI),
+        ('1', 'Commodore 64',         40, 25, Translation.PETSCII),
+        ('2', 'Commodore 128',        40, 25, Translation.PETSCII),
+        ('3', 'Commodore 128',        80, 25, Translation.PETSCII),
+        ('4', 'TADA Client',          80, 25, Translation.ANSI),
+        ('5', 'Commodore 64 (ASCII)', 40, 25, Translation.ASCII),
     ]
 
 
@@ -1032,7 +1033,7 @@ async def _pick_client_type(ctx) -> None:
               border_style=border_style_for_ctx(ctx))
     for num, label, cols, rows, encoding in presets:
         t.add_row([num, label, f'{cols} x {rows}', encoding.name])
-    t.add_row(['5', 'Custom', f'{_MIN_COLS}-{_MAX_COLS} x {_MIN_ROWS}-{_MAX_ROWS}', 'ANSI or Plain'])
+    t.add_row(['6', 'Custom', f'{_MIN_COLS}-{_MAX_COLS} x {_MIN_ROWS}-{_MAX_ROWS}', 'ANSI or Plain'])
 
     lines = (
         ['', '|yellow|Client Type:|reset|', '']
@@ -1074,9 +1075,10 @@ async def _pick_client_type(ctx) -> None:
                 return
             cs.translation = encoding
             # The Commodore 128's keyboard has a real Tab key (the C64's
-            # doesn't), and so does any ANSI/TADA client -- set as a side
-            # effect of picking this client type, not asked separately.
-            if label != 'Commodore 64':
+            # doesn't, in either PETSCII or ASCII-terminal mode), and so
+            # does any ANSI/TADA client -- set as a side effect of picking
+            # this client type, not asked separately.
+            if label not in ('Commodore 64', 'Commodore 64 (ASCII)'):
                 cs.has_tab  = True
                 cs.tab_char = chr(9)
             else:
@@ -1084,8 +1086,8 @@ async def _pick_client_type(ctx) -> None:
             await ctx.send(f'Client type set to: {label}, {cols}x{rows} screen size.')
             return
 
-    if ans != '5':
-        await ctx.send(f'Client type unchanged -- enter a number between 1 and 5.')
+    if ans != '6':
+        await ctx.send(f'Client type unchanged -- enter a number between 1 and 6.')
         return
 
     raw_cols = await ctx.prompt(f'Screen columns ({_MIN_COLS}-{_MAX_COLS})')
@@ -1118,11 +1120,36 @@ async def _pick_client_type(ctx) -> None:
                         'keeping PETSCII translation.')
         return
 
-    raw_trans = await ctx.prompt('ANSI color or Plain text? (A/P)')
-    translation = Translation.ASCII if (raw_trans or '').strip().lower().startswith('p') else Translation.ANSI
+    raw_trans = await ctx.prompt('PETSCII, ANSI color, or Plain text? (T/A/P)')
+    ans_trans = (raw_trans or '').strip().lower()
+    if ans_trans.startswith('t'):
+        translation = Translation.PETSCII
+    elif ans_trans.startswith('p'):
+        translation = Translation.ASCII
+    else:
+        translation = Translation.ANSI
+
+    if translation == Translation.PETSCII:
+        # Same guard as the preset branch above -- this whole function
+        # already returned early for is_real_petscii, so getting here
+        # means the connection is ANSI/JSON, and switching *that* to
+        # PETSCII is what produced raw Commodore control-code bytes in a
+        # Linux terminal (server/hardcopy.0). Screen size still applies;
+        # translation doesn't change.
+        await ctx.send(
+            f'Client type set to: Custom, {cols}x{rows} screen size, '
+            f'but keeping {cs.translation.name if hasattr(cs.translation, "name") else cs.translation} '
+            "translation -- PETSCII color codes only work over a real "
+            "Commodore connection (the dedicated PETSCII port), not this one."
+        )
+        cs.has_tab  = True
+        cs.tab_char = chr(9)
+        return
+
     cs.translation = translation
-    # Custom is only ever ANSI or Plain -- neither is the C64's no-real-
-    # tab-key case, so both get a real Tab key like TADA Client does.
+    # Custom is only ever PETSCII (real hardware, handled above), ANSI, or
+    # Plain -- neither ANSI nor Plain is the C64's no-real-tab-key case,
+    # so both get a real Tab key like TADA Client does.
     cs.has_tab  = True
     cs.tab_char = chr(9)
     await ctx.send(f'Client type set to: Custom, {cols}x{rows} screen size, {translation.name}.')
