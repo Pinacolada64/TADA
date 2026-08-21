@@ -141,6 +141,19 @@
 {const: KERNAL_SETLFS $ffba}
 {const: KERNAL_LOAD    $ffd5}
 
+; KERNAL_PLOT is X=row, Y=column (carry set = read current position into
+; X/Y, carry clear = set position from X/Y) -- NOT the commonly-cited
+; opposite. Verified empirically 2026-08-20 by poking a stub into free
+; RAM ($c000) via the VICE remote monitor and reading back $d3 (PNTR,
+; column) / $d6 (TBLX, row) afterward: X came back holding the row value,
+; Y the column value, for both directions. Used by term_scroll_advance to
+; reposition the cursor after a dialogue-window scroll. Plain `=`, not
+; {const:} -- {const:} is a per-file macro_preprocessor.py text
+; substitution, invisible to screen-handler.asm's own separate
+; preprocessing pass (async_step_back/async_blank need this too); plain
+; `=` is a real c64list symbol, resolved globally across {include:}s.
+KERNAL_PLOT = $fff0
+
 ; Where the petscii_editor overlay module loads and runs. Chosen well
 ; clear of both this resident program's own growth (currently topping
 ; out well under $1000 -- see tada-client-vice-labels after a build for
@@ -374,6 +387,12 @@ init_screen:
         lda #$93                ; PETSCII clear screen
         jsr CHROUT
         jsr update_status_line
+        jsr redraw_status_row     ; blank reverse bar, queue empty so far
+        jsr status_push_reset     ; build-date/time message, its own
+        ldx #<build_msg           ; batch -- shows immediately (status_
+        ldy #>build_msg           ; push_buf's "first message of a fresh
+        jsr build_status_line     ; batch" behavior), until the first
+                                   ; real SID event replaces it
         ; set screen pointer to row 2 col 0
         lda #<(SCREEN_RAM + 80)
         sta scr_ptr_lo
@@ -516,14 +535,19 @@ restore_screen:
         sta copy_dst_hi
         jmp copy_1000
 
-; Plain untransformed SCREEN_CELLS-byte copy. Input: copy_src_lo/hi =
-; source base address, copy_dst_lo/hi = dest base address. Ported
-; verbatim from petscii_editor.asm's own copy_1000 (self-modified
-; lda/sta operands, incrementing the operand bytes directly rather than
-; X/Y indexed addressing, since the buffer exceeds 256 bytes) -- same
-; "no ds directive, no macro parameters" pattern documented in
-; CLIENT_MECHANICS.md.
-copy_1000:
+; Generic length-parameterized copy. Input: copy_src_lo/hi = source base
+; address, copy_dst_lo/hi = dest base address, copy_remaining_lo/hi =
+; length (already set by the caller). Self-modified lda/sta operands,
+; incrementing the operand bytes directly rather than X/Y indexed
+; addressing, since a buffer can exceed 256 bytes -- ported verbatim
+; from petscii_editor.asm's own copy_1000 (same "no ds directive, no
+; macro parameters" pattern documented in CLIENT_MECHANICS.md).
+; Factored out of copy_1000 (now a 2-line wrapper below) 2026-08-20 so
+; term_scroll_advance's dialogue-window shift (see [[project_async_
+; prompt_status_line]] phase 2 in project memory) could reuse the same
+; self-modified-address technique for an 880-byte copy instead of
+; hand-rolling a second near-identical loop.
+copy_block:
         lda copy_src_lo
         sta copy_src_load+1
         lda copy_src_hi
@@ -532,32 +556,48 @@ copy_1000:
         sta copy_dst_store+1
         lda copy_dst_hi
         sta copy_dst_store+2
-        lda #<SCREEN_CELLS
-        sta copy_remaining_lo
-        lda #>SCREEN_CELLS
-        sta copy_remaining_hi
-copy_1000_loop:
+copy_block_loop:
 copy_src_load:
         lda $ffff
 copy_dst_store:
         sta $ffff
         inc copy_src_load+1
-        bne copy_src_no_carry
+        bne copy_block_src_ok
         inc copy_src_load+2
-copy_src_no_carry:
+copy_block_src_ok:
         inc copy_dst_store+1
-        bne copy_dst_no_carry
+        bne copy_block_dst_ok
         inc copy_dst_store+2
-copy_dst_no_carry:
+copy_block_dst_ok:
         lda copy_remaining_lo
-        bne copy_dec_lo
+        bne copy_block_dec_lo
         dec copy_remaining_hi
-copy_dec_lo:
+copy_block_dec_lo:
         dec copy_remaining_lo
         lda copy_remaining_lo
         ora copy_remaining_hi
-        bne copy_1000_loop
+        bne copy_block_loop
         rts
+
+; copy_1000 is just copy_block with the length fixed at SCREEN_CELLS --
+; save_screen/restore_screen's own copy_src_lo/hi/copy_dst_lo/hi setup
+; is unchanged, they just fall into this instead of the old inline loop.
+copy_1000:
+        lda #<SCREEN_CELLS
+        sta copy_remaining_lo
+        lda #>SCREEN_CELLS
+        sta copy_remaining_hi
+        jmp copy_block
+
+; term_scroll_advance's 880-byte dialogue-window shift (rows 1-22 into
+; rows 0-21, screen + color) -- see its own comment.
+DIALOGUE_SHIFT_BYTES = 880
+copy_dialogue_block:
+        lda #<DIALOGUE_SHIFT_BYTES
+        sta copy_remaining_lo
+        lda #>DIALOGUE_SHIFT_BYTES
+        sta copy_remaining_hi
+        jmp copy_block
 
 copy_src_lo:
         byte 0
@@ -571,6 +611,422 @@ copy_remaining_lo:
         byte 0
 copy_remaining_hi:
         byte 0
+
+; ============================================================
+; --- Fixed status row (row 23) + custom scroll ---
+; ============================================================
+; Reserves the bottom two screen rows -- row 23 (STATUS_ROW, reverse-
+; video, rotating diagnostic messages) and row 24 (input/prompt, left to
+; land wherever it naturally does) -- from KERNAL's own whole-screen
+; scroll, which only ever triggers once the cursor would need to reach
+; row 25 (past physical row 24). term_chrout corrects the cursor back
+; down to row 22 (DIALOGUE_LAST_ROW) every time it would otherwise reach
+; row 23, so that trigger condition never occurs and KERNAL's real
+; scroll never fires at all -- rows 23/24 are structurally protected,
+; not just redrawn after the fact.
+;
+; Validated first in a standalone harness (test_screen_routines.asm,
+; same directory) before landing here -- see that file's own history/
+; comments and project memory (async-prompt/status-line project, phase
+; 2) for the two wrong designs that were tried and rejected along the
+; way: relocating "new" content out of STATUS_ROW on every scroll
+; (wrong for both the CR and column-wrap triggers -- neither ever
+; writes anything real there; a column wrap writes its character into
+; the *old* row's last column, not the new row, which the shift below
+; already carries forward correctly since that row is within its normal
+; source range) and the initially-assumed-backwards KERNAL_PLOT X/Y
+; convention (see its own {const:} comment).
+STATUS_ROW           = 23
+DIALOGUE_LAST_ROW    = 22
+ROW_BYTES            = 40
+STATUS_ROW_OFFSET    = 920      ; STATUS_ROW * ROW_BYTES
+
+; --- term_chrout: drop-in CHROUT replacement for dialogue text ---
+; Use instead of a bare `jsr CHROUT` for anything that can legitimately
+; advance the cursor a row at a time -- display_char (incoming server
+; text) and read_line_store's typed-char echo. Preserves the caller's
+; X/Y across the entire call, restored right before every exit --
+; confirmed live this matters, not just defensive box-checking:
+; term_scroll_advance uses Y freely as its own loop counter, and CHROUT
+; itself is already documented elsewhere in this file as not reliably
+; preserving X (see read_line's own comment). A caller that uses X/Y as
+; its own loop index across a run of term_chrout calls (e.g. printing a
+; string char-by-char) would otherwise get that index silently
+; clobbered by whichever branch fires here.
+term_chrout:
+        stx term_saved_x
+        sty term_saved_y
+        jsr CHROUT
+        ldx $d6                    ; TBLX -- physical cursor row
+        cpx #STATUS_ROW
+        bcc term_chrout_rts
+        jsr term_scroll_advance
+term_chrout_rts:
+        ldx term_saved_x
+        ldy term_saved_y
+        rts
+
+term_saved_x:
+        byte 0
+term_saved_y:
+        byte 0
+
+; --- term_cursor_left / term_cursor_right: single-step relative cursor
+; move ($9d/$1d) that skips over STATUS_ROW instead of landing on it,
+; without triggering a scroll -- there's no new content here, just
+; navigation within already-displayed text (arrow-key movement, the
+; single step-back after a DEL, redraw_tail's own step-back). Same
+; principle as screen-handler.asm's async_step_back/async_blank (see
+; their own comment for the full reasoning); those two loop internally
+; and stay as their own inline copies since they were already verified
+; working, but any OTHER single-step $9d/$1d call site should use these
+; instead of a bare CHROUT -- confirmed live 2026-08-20 that missing
+; this class of call site is exactly what let a single stray character
+; land in STATUS_ROW with no correction at all.
+term_cursor_left:
+        lda #$9d
+        jsr CHROUT
+        ldx $d6
+        cpx #STATUS_ROW
+        bne term_cursor_left_rts
+        ldx #DIALOGUE_LAST_ROW
+        ldy #39
+        clc
+        jsr KERNAL_PLOT
+term_cursor_left_rts:
+        rts
+
+term_cursor_right:
+        lda #$1d
+        jsr CHROUT
+        ldx $d6
+        cpx #STATUS_ROW
+        bne term_cursor_right_rts
+        ldx #24
+        ldy #0
+        clc
+        jsr KERNAL_PLOT
+term_cursor_right_rts:
+        rts
+
+; --- wait_vblank: busy-wait until the raster beam reaches line 250 ---
+; Comfortably past the visible area on both PAL (312 lines/frame) and
+; NTSC (262 lines/frame) -- moves the START of the scroll's screen-
+; memory writes to an off-screen moment, rather than however mid-frame
+; the triggering character happened to land. Does NOT fully eliminate
+; tearing on its own: the shift itself (two 880-byte copies, screen +
+; color, ~3.5ms of CPU time) runs longer than a single vblank window
+; (well under 1ms) and can spill back into active drawing time
+; regardless. A complete fix would chunk the copy across several frames
+; instead of doing it atomically; not pursued since checking real frames
+; extracted from a screen recording (see project memory) found no
+; visible tearing with just this cheap version. $d012 alone (without
+; checking $d011 bit 7) is sufficient for line 250 since that's well
+; under 256.
+wait_vblank:
+        lda $d012
+        cmp #250
+        bne wait_vblank
+        rts
+
+; Shift the dialogue window up, rows 1-22 -> rows 0-21 (screen + color),
+; discarding old row 0, then blank the fresh row 22 and reposition the
+; cursor there. Both of term_chrout's triggers (a bare CR, or a column
+; wrap) reduce to exactly this -- neither ever leaves real new content
+; in STATUS_ROW to preserve (see this section's own header comment).
+term_scroll_advance:
+        jsr wait_vblank
+        lda #<(SCREEN_RAM+ROW_BYTES)
+        sta copy_src_lo
+        lda #>(SCREEN_RAM+ROW_BYTES)
+        sta copy_src_hi
+        lda #<SCREEN_RAM
+        sta copy_dst_lo
+        lda #>SCREEN_RAM
+        sta copy_dst_hi
+        jsr copy_dialogue_block
+
+        lda #<(COLOR_RAM+ROW_BYTES)
+        sta copy_src_lo
+        lda #>(COLOR_RAM+ROW_BYTES)
+        sta copy_src_hi
+        lda #<COLOR_RAM
+        sta copy_dst_lo
+        lda #>COLOR_RAM
+        sta copy_dst_hi
+        jsr copy_dialogue_block
+
+        lda #DIALOGUE_LAST_ROW
+        jsr set_screen_line         ; scr_ptr_lo/hi = row 22 base
+        ldy #0
+        lda #$20
+term_scroll_advance_blank:
+        sta (scr_ptr_lo),y
+        iny
+        cpy #40
+        bne term_scroll_advance_blank
+        ldx #DIALOGUE_LAST_ROW      ; KERNAL_PLOT: X=row, Y=col
+        ldy #0
+        clc
+        jsr KERNAL_PLOT
+        rts
+
+; ============================================================
+; --- Status queue (reverse-video, rotating, fixed row 23) ---
+; ============================================================
+; Up to STATUS_QUEUE_MAX null-terminated messages, each built up via
+; status_putc (or status_build_from_table for a whole pre-encoded
+; literal at once) into status_build_buf, then handed to status_push_buf
+; to land in the queue. redraw_status_row paints whichever one
+; status_queue_read currently points at, reverse video, padded to 40
+; columns; status_service (polled from sid_service_background --
+; deliberately mainline-only, NOT the IRQ round-robin task table, to
+; avoid a CHROUT/PLOT-vs-KERNAL-zero-page reentrancy hazard) rotates to
+; the next one every STATUS_ROTATE_JIFFIES.
+;
+; Queue slot content is real, pre-encoded SCREEN CODES, not PETSCII/
+; ASCII -- redraw_status_row pokes it straight into SCREEN_RAM rather
+; than routing it through CHROUT. Static label text must be declared
+; under {alpha:pokealt} (see build_msg/status label tables below); any
+; caller building dynamic content (hex digits, decimal numbers) must
+; likewise emit screen-code bytes, not ASCII -- digits 0-9 happen to
+; already match ASCII byte-for-byte in this charset, but letters don't
+; (screen code 'A' is $01, not ASCII $41).
+STATUS_QUEUE_MAX     = 4
+STATUS_SLOT_LEN      = 40       ; 39 visible chars max + null terminator
+STATUS_ROTATE_JIFFIES_LO = $2c  ; 300 jiffies (~5s @ ~60Hz), low byte
+STATUS_ROTATE_JIFFIES_HI = $01  ; 300 jiffies, high byte
+
+status_build_from_table:
+        stx scr_ptr_lo
+        sty scr_ptr_hi
+        ldy #0
+status_build_from_table_loop:
+        lda (scr_ptr_lo),y
+        beq status_build_from_table_done
+        jsr status_putc
+        iny
+        jmp status_build_from_table_loop
+status_build_from_table_done:
+        rts
+
+; Preserves the caller's Y across the call -- status_build_from_table's
+; own string-index loop uses Y, and this routine also uses Y internally
+; (status_build_idx bookkeeping); without saving/restoring it, the
+; caller's index silently gets reset to whatever value this routine's
+; own use of Y last left it at, skipping every other source character.
+status_putc:
+        sty status_putc_saved_y
+        ldy status_build_idx
+        cpy #STATUS_SLOT_LEN-1
+        bcs status_putc_rts
+        sta status_build_buf,y
+        iny
+        sty status_build_idx
+status_putc_rts:
+        ldy status_putc_saved_y
+        rts
+
+status_putc_saved_y:
+        byte 0
+
+status_push_reset:
+        lda #0
+        sta status_queue_count
+        sta status_queue_write
+        sta status_queue_read
+        rts
+
+status_push_buf:
+        ldy status_build_idx
+        lda #0
+        sta status_build_buf,y
+        lda status_queue_write
+        jsr status_slot_addr
+        ldy #0
+status_push_buf_copy:
+        lda status_build_buf,y
+        sta (scr_ptr_lo),y
+        beq status_push_buf_copied
+        iny
+        cpy #STATUS_SLOT_LEN
+        bcc status_push_buf_copy
+status_push_buf_copied:
+        lda #0
+        sta status_build_idx
+        inc status_queue_write
+        lda status_queue_write
+        cmp #STATUS_QUEUE_MAX
+        bcc status_push_buf_no_wrap
+        lda #0
+        sta status_queue_write
+status_push_buf_no_wrap:
+        lda status_queue_count
+        cmp #STATUS_QUEUE_MAX
+        bcs status_push_buf_count_done
+        inc status_queue_count
+status_push_buf_count_done:
+        lda status_queue_count
+        cmp #1
+        bne status_push_buf_rts
+        lda #0
+        sta status_queue_read
+        jsr redraw_status_row
+        lda $a2
+        sta status_rotate_last_lo
+        lda $a1
+        sta status_rotate_last_hi
+status_push_buf_rts:
+        rts
+
+; .a = slot index 0..3 -> scr_ptr_lo/hi
+status_slot_addr:
+        tay
+        lda status_slot_lo,y
+        sta scr_ptr_lo
+        lda status_slot_hi,y
+        sta scr_ptr_hi
+        rts
+
+; Called from sid_service_background every read_line poll iteration.
+status_service:
+        lda status_queue_count
+        cmp #2
+        bcc status_service_rts    ; 0 or 1 messages queued -- nothing to
+                                    ; rotate to
+        lda $a2
+        sec
+        sbc status_rotate_last_lo
+        sta status_elapsed_lo
+        lda $a1
+        sbc status_rotate_last_hi
+        sta status_elapsed_hi
+        lda status_elapsed_hi
+        cmp #STATUS_ROTATE_JIFFIES_HI
+        bcc status_service_rts
+        bne status_service_due
+        lda status_elapsed_lo
+        cmp #STATUS_ROTATE_JIFFIES_LO
+        bcc status_service_rts
+status_service_due:
+        jsr status_rotate
+status_service_rts:
+        rts
+
+status_elapsed_lo:
+        byte 0
+status_elapsed_hi:
+        byte 0
+
+status_rotate:
+        inc status_queue_read
+        lda status_queue_read
+        cmp status_queue_count
+        bcc status_rotate_redraw
+        lda #0
+        sta status_queue_read
+status_rotate_redraw:
+        jsr redraw_status_row
+        lda $a2
+        sta status_rotate_last_lo
+        lda $a1
+        sta status_rotate_last_hi
+        rts
+
+; --- redraw_status_row: repaint STATUS_ROW with the currently-selected
+; queued message (or an all-blank bar if the queue is empty), reverse
+; video, padded to 40 columns. Pure raw SCREEN_RAM pokes -- no CHROUT,
+; no cursor save/restore, no KERNAL_PLOT at all -- since queue content
+; is pre-encoded screen codes already (same convention update_status_
+; line already uses for row 0's banner). Destination is plain absolute
+; indexed addressing (STATUS_ROW_OFFSET is a compile-time constant)
+; rather than set_screen_line, freeing scr_ptr_lo/hi to be used solely
+; for the source (queue slot) pointer -- a raw copy-with-OR needs two
+; concurrent pointers, and this file's convention is one shared
+; transient pointer, not a second dedicated zero-page pair for
+; something this narrow.
+redraw_status_row:
+        lda status_queue_count
+        beq redraw_status_row_blank
+        lda status_queue_read
+        jsr status_slot_addr        ; scr_ptr_lo/hi = &status_queue[read]
+        ldy #0
+redraw_status_row_copy:
+        cpy #39
+        bcs redraw_status_row_pad
+        lda (scr_ptr_lo),y
+        beq redraw_status_row_pad
+        ora #$80                    ; reverse video -- same $80-bit trick
+        sta SCREEN_RAM+STATUS_ROW_OFFSET,y
+        iny
+        jmp redraw_status_row_copy
+redraw_status_row_pad:
+        lda #$a0                    ; reverse-video space
+redraw_status_row_pad_loop:
+        cpy #40
+        bcs redraw_status_row_rts
+        sta SCREEN_RAM+STATUS_ROW_OFFSET,y
+        iny
+        jmp redraw_status_row_pad_loop
+redraw_status_row_rts:
+        rts
+redraw_status_row_blank:
+        ldy #0
+        lda #$a0
+redraw_status_row_blank_loop:
+        sta SCREEN_RAM+STATUS_ROW_OFFSET,y
+        iny
+        cpy #40
+        bne redraw_status_row_blank_loop
+        rts
+
+status_build_buf:
+        area STATUS_SLOT_LEN, 0
+status_build_idx:
+        byte 0
+
+status_queue0:
+        area STATUS_SLOT_LEN, 0
+status_queue1:
+        area STATUS_SLOT_LEN, 0
+status_queue2:
+        area STATUS_SLOT_LEN, 0
+status_queue3:
+        area STATUS_SLOT_LEN, 0
+
+status_slot_lo:
+        byte <status_queue0, <status_queue1, <status_queue2, <status_queue3
+status_slot_hi:
+        byte >status_queue0, >status_queue1, >status_queue2, >status_queue3
+
+status_queue_count:
+        byte 0
+status_queue_write:
+        byte 0
+status_queue_read:
+        byte 0
+status_rotate_last_lo:
+        byte 0
+status_rotate_last_hi:
+        byte 0
+
+; --- Build-date/time status message -- shown at boot as its own batch
+; (status_push_buf's "first message of a fresh batch" behavior displays
+; it immediately) until the first real event (e.g. a SID stream) pushes
+; its own batch and replaces it. {alpha:pokealt} makes this `ascii`
+; literal emit real screen codes at assembly time -- required since
+; redraw_status_row pokes queue content straight into SCREEN_RAM rather
+; than going through CHROUT's own PETSCII->screencode conversion. Reset
+; to {alpha:normal} right after so this doesn't leak into anything below
+; that uses plain `ascii`.
+{alpha:pokealt}
+build_msg:
+        ascii "build "
+        ascii {usedef:__BuildDate}
+        ascii " "
+        ascii {usedef:__BuildTime}
+        byte 0
+{alpha:normal}
 
 ; .a = new cursor_blink_mask value -- see JT_SET_BLINK_MASK's own comment.
 set_blink_mask:
@@ -658,31 +1114,31 @@ load_config_menu:
 load_overlay_error:
         pha
         lda #'?'
-        jsr CHROUT
+        jsr term_chrout
         lda #'L'
-        jsr CHROUT
+        jsr term_chrout
         lda #'O'
-        jsr CHROUT
+        jsr term_chrout
         lda #'A'
-        jsr CHROUT
+        jsr term_chrout
         lda #'D'
-        jsr CHROUT
+        jsr term_chrout
         lda #' '
-        jsr CHROUT
+        jsr term_chrout
         lda #'E'
-        jsr CHROUT
+        jsr term_chrout
         lda #'R'
-        jsr CHROUT
+        jsr term_chrout
         lda #'R'
-        jsr CHROUT
+        jsr term_chrout
         lda #' '
-        jsr CHROUT
+        jsr term_chrout
         lda #'$'
-        jsr CHROUT
+        jsr term_chrout
         pla
         jsr sid_print_hex_byte
         lda #$0d
-        jsr CHROUT
+        jsr term_chrout
         jmp prompt_loop
 
 ; {alpha:alt} makes the `ascii` line below emit $C1-$DA range bytes for
@@ -888,6 +1344,9 @@ sl_recv_empty:
 ; does: sid_stop silences the chip and zeroes sid_mode/sid_active, handing
 ; the connection back to ordinary text mode same as a real #stop would.
 sid_service_background:
+        jsr status_service        ; rotate the status row's queued
+                                    ; message every ~5s, regardless of
+                                    ; what else this poll iteration does
         lda sid_mode
         bne sid_service_background_recv
         lda linelen
@@ -1070,18 +1529,18 @@ read_line_loop:
 {ifdef: debug}
         pha
         lda #'<'
-        jsr CHROUT
+        jsr term_chrout
         pla
         pha
         jsr print_hex_byte
         lda #'>'
-        jsr CHROUT
+        jsr term_chrout
         lda #'['
-        jsr CHROUT
+        jsr term_chrout
         lda linelen
         jsr print_hex_byte
         lda #']'
-        jsr CHROUT
+        jsr term_chrout
         pla
 {endif}
 
@@ -1126,8 +1585,8 @@ read_line_del_shift:
 read_line_del_shift_done:
         dec linelen
         dec cursor_pos
-        lda #$9d                 ; step the screen cursor back onto the
-        jsr CHROUT               ; now-deleted column
+        jsr term_cursor_left     ; step the screen cursor back onto the
+                                  ; now-deleted column
         lda #1                   ; redraw the tail plus one trailing blank
         jsr redraw_tail          ; to erase the old last character on screen
         jmp read_line_loop
@@ -1166,8 +1625,7 @@ read_line_left:
         jmp read_line_loop
 read_line_left_move:
         dec cursor_pos
-        lda #$9d
-        jsr CHROUT
+        jsr term_cursor_left
         jmp read_line_loop
 
 read_line_right:
@@ -1177,8 +1635,7 @@ read_line_right:
         jmp read_line_loop
 read_line_right_move:
         inc cursor_pos
-        lda #$1d
-        jsr CHROUT
+        jsr term_cursor_right
         jmp read_line_loop
 
 read_line_store:
@@ -1208,7 +1665,10 @@ read_line_store_shift_done:
         sta linebuf,x             ; 0-based: store first, then advance --
         inc linelen               ; matches send_line, which still starts
         inc cursor_pos            ; at index 0 and reads until the null
-        jsr CHROUT               ; echo the typed char locally
+        jsr term_chrout           ; echo the typed char locally -- through
+                                   ; term_chrout, not a bare CHROUT, so a
+                                   ; long line wrapping near the bottom of
+                                   ; the screen can't scroll past STATUS_ROW
 
         ; Echoing a literal '"' through CHROUT toggles the KERNAL's quote
         ; mode (same as typing one in a normal BASIC line) -- once on, it
@@ -1249,14 +1709,14 @@ redraw_print_loop:
         bcs redraw_print_done
         tax
         lda linebuf,x
-        jsr CHROUT
+        jsr term_chrout
         inc redraw_idx
         jmp redraw_print_loop
 redraw_print_done:
         lda redraw_extra
         beq redraw_back_setup
         lda #$20
-        jsr CHROUT
+        jsr term_chrout
 redraw_back_setup:
         lda linelen               ; total columns to step back = tail length
         sec                       ; printed (linelen - cursor_pos) plus the
@@ -1268,8 +1728,7 @@ redraw_back_loop:
         lda redraw_count
         beq redraw_done
         dec redraw_count
-        lda #$9d
-        jsr CHROUT
+        jsr term_cursor_left
         jmp redraw_back_loop
 redraw_done:
         rts
@@ -1279,20 +1738,20 @@ read_line_done:
         lda #0
         sta linebuf,x            ; null-terminate right at the real length
         lda #$0d
-        jsr CHROUT               ; echo the newline locally
+        jsr term_chrout          ; echo the newline locally
         ; TEMP diagnostic: show how many characters read_line actually
         ; captured. Remove once the character-loss bug is confirmed fixed.
 {ifdef: debug}
         lda #'['
-        jsr CHROUT
+        jsr term_chrout
         lda #'L'
-        jsr CHROUT
+        jsr term_chrout
         lda linelen             ; was x_save
         jsr print_hex_byte
         lda #']'
-        jsr CHROUT
+        jsr term_chrout
         lda #$0d
-        jsr CHROUT
+        jsr term_chrout
 {endif}
         rts
 
@@ -1304,7 +1763,7 @@ hex_digits:
 print_hex_nibble:                ; .A = nibble (0-15)
         tax
         lda hex_digits,x
-        jsr CHROUT
+        jsr term_chrout
         rts
 
 print_hex_byte:                  ; .A = byte to print in hex
@@ -1340,13 +1799,38 @@ send_line_term:
 ; --- Display character on screen ---
 ; Input: .A = byte received from server
 ; Writes directly to screen RAM via pointer, handles CR
+; Routes through term_chrout, not a bare CHROUT, so incoming server text
+; can't scroll past STATUS_ROW -- see that section's own header comment.
+;
+; Resets QTSW (KERNAL quote-mode switch) after every character, same
+; reasoning as read_line_store/reprint_input_line/service_async_idle's
+; own QTSW resets (a literal '"' toggles quote mode, which makes
+; subsequent CHROUT control codes print as literal reverse-video glyphs
+; instead of being interpreted) -- but this is the one call site that
+; was missing it: those three all reset QTSW when RE-displaying already-
+; buffered content, but nothing reset it for incoming server text's
+; *original* display pass. Confirmed live 2026-08-20 this was a real,
+; not just theoretical, gap: ordinary server text (chat messages
+; routinely contain literal quotes) could leave quote mode stuck on
+; indefinitely, silently breaking every control code sent afterward --
+; including async_step_back's own $9d CRSR-LEFT stepping, which stopped
+; actually moving the cursor and instead printed $9d's literal glyph
+; forward, corrupting STATUS_ROW with garbage in a way that looked like
+; a completely different bug (a stray character landing there) until
+; traced back to this.
 display_char:
         cmp #$0d                ; carriage return?
         bne >@
         lda #$0d
-        jsr CHROUT
-        rts
-@:      jsr CHROUT              ; let KERNAL handle PETSCII->screen code conversion
+        jsr term_chrout
+        jmp display_char_qtsw_reset
+@:      jsr term_chrout          ; let KERNAL handle PETSCII->screen code
+                                  ; conversion (term_chrout wraps CHROUT)
+display_char_qtsw_reset:
+        pha
+        lda #0
+        sta QTSW
+        pla
         rts
 
 ; --- Dispatch a byte received from the server: text or SID stream ---
@@ -1413,10 +1897,11 @@ handle_recv_byte_text:
         jmp display_char
 
 handle_recv_byte_stop:
-        jsr sid_print_frames_played  ; TEMP diagnostics -- see their own
-        jsr sid_print_elapsed        ; comments
-        jsr sid_print_pointers
-        jsr sid_print_stream_starts
+        jsr status_push_reset        ; fresh status-row batch -- see each
+        jsr status_print_frames_played ; routine's own comment
+        jsr status_print_elapsed
+        jsr status_print_pointers
+        jsr status_print_stream_starts
         jmp sid_stop                 ; silence + reset -- see sid_stop's own
                                       ; comment (shared with init_sid at boot)
 
@@ -1676,103 +2161,130 @@ handle_recv_byte_dec_lo:
         sta sid_mode                      ; countdown hit zero -- back to text mode
         lda sid_background        ; skip the diagnostics if this transfer's
         bne handle_recv_byte_store_done   ; tail landed while backgrounded
-                                   ; (read_line, player mid-typing) --
-                                   ; CHROUT-ing them here would corrupt
-                                   ; the input line; see
-                                   ; sid_service_background's own comment
-        jsr sid_print_byte_count
-        jsr sid_print_pointers    ; TEMP diagnostic -- rd/wr right *now*,
-                                   ; before any further idle time, to tell
-                                   ; whether SID_BUF is already wrapped by
-                                   ; the time reception itself finishes
-        jsr sid_print_bufdump
+                                   ; -- kept out of caution, though the
+                                   ; original reason no longer strictly
+                                   ; applies now that these build into the
+                                   ; status queue (redraw_status_row is
+                                   ; pure raw SCREEN_RAM pokes to
+                                   ; STATUS_ROW, never touches CHROUT/the
+                                   ; input line the way the old CHROUT-
+                                   ; based sid_print_* did)
+        jsr status_push_reset      ; fresh status-row batch
+        jsr status_print_byte_count
+        jsr status_print_pointers ; rd/wr right *now*, before any further
+                                   ; idle time, to tell whether SID_BUF is
+                                   ; already wrapped by the time reception
+                                   ; itself finishes
+        jsr status_print_bufdump
 handle_recv_byte_store_done:
         rts
 
-; --- TEMP diagnostic: dump SID_BUF[0..23] as hex ---
+; --- SID diagnostics: status-row messages, not scrolling text ---
+; Ported 2026-08-20 from the original CHROUT-based sid_print_* routines
+; (same names, "status_print_" prefix) to build into the status queue
+; instead -- each pushes one reverse-video message onto STATUS_ROW's
+; rotation rather than printing a CR-terminated line into the scrolling
+; dialogue area. Two call sites (handle_recv_byte_stop's 4-message group,
+; handle_recv_byte_store_done's 3-message group) each start their own
+; batch with status_push_reset first. Message text/values are otherwise
+; unchanged from the originals -- see each routine's own history/reasoning
+; comment, preserved below.
+;
+; status_print_hex_byte/nibble mirror sid_print_hex_byte/nibble exactly
+; (same shift-and-mask structure) but write screen codes via status_putc
+; into status_build_buf instead of CHROUT-ing PETSCII -- status_hex_digits
+; is a SEPARATE table from sid_hex_digits (which stays, CHROUT-based, for
+; load_overlay_error's unrelated use): digits 0-9 already match ASCII
+; byte-for-byte in this charset, but letters A-F don't (screen code 'A'
+; is $01, not ASCII $41), so a table meant for direct-poke display can't
+; be shared with one meant for CHROUT.
+status_print_hex_nibble:           ; .A = nibble (0-15)
+        and #$0f
+        tax
+        lda status_hex_digits,x
+        jsr status_putc
+        rts
+
+status_print_hex_byte:              ; .A = byte to print in hex
+        pha
+        lsr
+        lsr
+        lsr
+        lsr
+        jsr status_print_hex_nibble
+        pla
+        jsr status_print_hex_nibble
+        rts
+
+; --- Dump SID_BUF[0..11] as hex ---
 ; Ground truth for comparing against the server's own encoded bytes (see
 ; sid_engine.frames.encode_stream output) -- confirms whether stored
 ; frame data matches what was actually sent, independent of the byte
-; *count* already being verified correct by sid_print_byte_count.
-;
-; Keeps its loop index in a memory byte (sid_dump_idx), not X: X is
-; scratch inside sid_print_hex_byte/sid_print_hex_nibble (used for the
-; hex-digit-table lookup) and CHROUT itself isn't reliable about
-; preserving X either (see read_line's own linelen -- same fix, same
-; underlying lesson, learned the hard way earlier in this file).
-sid_print_bufdump:
+; *count* already being verified correct by status_print_byte_count.
+; First 12 bytes only (not the original's 24) -- STATUS_SLOT_LEN caps a
+; message at 39 visible chars, and 12 bytes * 3 chars ("xx ") fits that
+; cleanly where 24 would silently truncate mid-byte.
+status_print_bufdump:
         lda #0
         sta sid_dump_idx
-sid_print_bufdump_loop:
+status_print_bufdump_loop:
         ldx sid_dump_idx
         lda SID_BUF,x
-        jsr sid_print_hex_byte
+        jsr status_print_hex_byte
         lda #' '
-        jsr CHROUT
+        jsr status_putc
         inc sid_dump_idx
         lda sid_dump_idx
-        cmp #24
-        bne sid_print_bufdump_loop
-        lda #$0d
-        jsr CHROUT
+        cmp #12
+        bne status_print_bufdump_loop
+        jsr status_push_buf
         rts
 
-; --- Print "GOT $xxxx BYTES" -- diagnostic for the SID stream pipe ---
+; --- "GOT $xxxx BYTES" -- diagnostic for the SID stream pipe ---
 ; Prints sid_byte_count (hi byte first) as 4 hex digits. Unconditional
 ; (not gated behind {ifdef:debug}) since this answers a real end-to-end
 ; question -- did the bytes the server said it sent actually arrive --
 ; not a temporary bug hunt.
-; --- TEMP diagnostic: print "PLAYED $xxxx FRAMES" ---
-; sid_frames_played counts every frame sid_play has successfully applied
-; since the current stream started (reset in handle_recv_byte_start).
-; Printed on `play #stop` -- comparing this count against real elapsed
-; (stopwatch) time gives the client's true empirical playback rate,
-; cutting through any PAL/NTSC IRQ-rate guessing.
-sid_print_frames_played:
-        lda #'P'
-        jsr CHROUT
-        lda #'L'
-        jsr CHROUT
-        lda #'A'
-        jsr CHROUT
-        lda #'Y'
-        jsr CHROUT
-        lda #'E'
-        jsr CHROUT
-        lda #'D'
-        jsr CHROUT
-        lda #' '
-        jsr CHROUT
-        lda #'$'
-        jsr CHROUT
-        lda sid_frames_played+1
-        jsr sid_print_hex_byte
-        lda sid_frames_played+0
-        jsr sid_print_hex_byte
-        lda #' '
-        jsr CHROUT
-        lda #'F'
-        jsr CHROUT
-        lda #'R'
-        jsr CHROUT
-        lda #'A'
-        jsr CHROUT
-        lda #'M'
-        jsr CHROUT
-        lda #'E'
-        jsr CHROUT
-        lda #'S'
-        jsr CHROUT
-        lda #$0d
-        jsr CHROUT
+status_print_byte_count:
+        ldx #<status_lbl_got
+        ldy #>status_lbl_got
+        jsr status_build_from_table
+        lda sid_byte_count+1
+        jsr status_print_hex_byte
+        lda sid_byte_count+0
+        jsr status_print_hex_byte
+        ldx #<status_lbl_bytes
+        ldy #>status_lbl_bytes
+        jsr status_build_from_table
+        jsr status_push_buf
         rts
 
-; --- TEMP diagnostic: print "ELAPSED $xxxxxx JIFFIES" ---
+; --- "PLAYED $xxxx FRAMES" ---
+; sid_frames_played counts every frame sid_play has successfully applied
+; since the current stream started (reset in handle_recv_byte_start).
+; Pushed on `play #stop` -- comparing this count against real elapsed
+; (stopwatch) time gives the client's true empirical playback rate,
+; cutting through any PAL/NTSC IRQ-rate guessing.
+status_print_frames_played:
+        ldx #<status_lbl_played
+        ldy #>status_lbl_played
+        jsr status_build_from_table
+        lda sid_frames_played+1
+        jsr status_print_hex_byte
+        lda sid_frames_played+0
+        jsr status_print_hex_byte
+        ldx #<status_lbl_frames
+        ldy #>status_lbl_frames
+        jsr status_build_from_table
+        jsr status_push_buf
+        rts
+
+; --- "ELAPSED $xxxxxx JIFFIES" ---
 ; current jiffy clock ($a0/$a1/$a2) minus the snapshot handle_recv_byte_
 ; start took when the stream began -- standard 3-byte subtract-with-
 ; borrow, low byte first. No BCD involved; the jiffy clock is a plain
 ; binary counter.
-sid_print_elapsed:
+status_print_elapsed:
         sec
         lda $a2
         sbc sid_jiffy_start2
@@ -1784,84 +2296,42 @@ sid_print_elapsed:
         sbc sid_jiffy_start0
         sta sid_jiffy_elapsed0
 
-        lda #'E'
-        jsr CHROUT
-        lda #'L'
-        jsr CHROUT
-        lda #'A'
-        jsr CHROUT
-        lda #'P'
-        jsr CHROUT
-        lda #'S'
-        jsr CHROUT
-        lda #'E'
-        jsr CHROUT
-        lda #'D'
-        jsr CHROUT
-        lda #' '
-        jsr CHROUT
-        lda #'$'
-        jsr CHROUT
+        ldx #<status_lbl_elapsed
+        ldy #>status_lbl_elapsed
+        jsr status_build_from_table
         lda sid_jiffy_elapsed0
-        jsr sid_print_hex_byte
+        jsr status_print_hex_byte
         lda sid_jiffy_elapsed1
-        jsr sid_print_hex_byte
+        jsr status_print_hex_byte
         lda sid_jiffy_elapsed2
-        jsr sid_print_hex_byte
-        lda #' '
-        jsr CHROUT
-        lda #'J'
-        jsr CHROUT
-        lda #'I'
-        jsr CHROUT
-        lda #'F'
-        jsr CHROUT
-        lda #'F'
-        jsr CHROUT
-        lda #'I'
-        jsr CHROUT
-        lda #'E'
-        jsr CHROUT
-        lda #'S'
-        jsr CHROUT
-        lda #$0d
-        jsr CHROUT
+        jsr status_print_hex_byte
+        ldx #<status_lbl_jiffies
+        ldy #>status_lbl_jiffies
+        jsr status_build_from_table
+        jsr status_push_buf
         rts
 
-; --- TEMP diagnostic: print "RD=$xx WR=$xx" ---
+; --- "RD=$xx WR=$xx" ---
 ; Raw current values of sid_rd/sid_wr at the moment #stop was processed.
 ; Ground truth for whether SID_BUF's producer/consumer indices are where
 ; they should be (matching sid_byte_count/sid_frames_played) or have
-; drifted -- e.g. sid_wr still growing after "GOT" already printed would
+; drifted -- e.g. sid_wr still growing after "GOT" already pushed would
 ; mean more bytes are landing in SID_BUF than accounted for.
-sid_print_pointers:
-        lda #'R'
-        jsr CHROUT
-        lda #'D'
-        jsr CHROUT
-        lda #'='
-        jsr CHROUT
-        lda #'$'
-        jsr CHROUT
+status_print_pointers:
+        ldx #<status_lbl_rd
+        ldy #>status_lbl_rd
+        jsr status_build_from_table
         lda sid_rd
-        jsr sid_print_hex_byte
-        lda #' '
-        jsr CHROUT
-        lda #'W'
-        jsr CHROUT
-        lda #'R'
-        jsr CHROUT
-        lda #'='
-        jsr CHROUT
-        lda #'$'
-        jsr CHROUT
+        jsr status_print_hex_byte
+        ldx #<status_lbl_wr
+        ldy #>status_lbl_wr
+        jsr status_build_from_table
         lda sid_wr
-        jsr sid_print_hex_byte
-        lda #$0d
-        jsr CHROUT
+        jsr status_print_hex_byte
+        jsr status_push_buf
         rts
 
-; --- TEMP diagnostic: print "STARTS=$xx" ---
+; --- "STARTS=$xx" ---
 ; sid_stream_starts counts every time handle_recv_byte_start fired (a
 ; real SID_STREAM_START+SID_STREAM_CONFIRM pair was seen) since the last
 ; #stop. A count > 1 when the player only issued one `play` command
@@ -1869,66 +2339,57 @@ sid_print_pointers:
 ; ambient/ally/room broadcasts most likely, given this is a live
 ; multiplayer server. Ground truth for whether the confirm-byte fix
 ; actually stopped spurious triggers or just made them rarer.
-sid_print_stream_starts:
-        lda #'S'
-        jsr CHROUT
-        lda #'T'
-        jsr CHROUT
-        lda #'A'
-        jsr CHROUT
-        lda #'R'
-        jsr CHROUT
-        lda #'T'
-        jsr CHROUT
-        lda #'S'
-        jsr CHROUT
-        lda #'='
-        jsr CHROUT
-        lda #'$'
-        jsr CHROUT
+status_print_stream_starts:
+        ldx #<status_lbl_starts
+        ldy #>status_lbl_starts
+        jsr status_build_from_table
         lda sid_stream_starts
-        jsr sid_print_hex_byte
-        lda #$0d
-        jsr CHROUT
+        jsr status_print_hex_byte
+        jsr status_push_buf
         rts
 
-sid_print_byte_count:
-        lda #'G'
-        jsr CHROUT
-        lda #'O'
-        jsr CHROUT
-        lda #'T'
-        jsr CHROUT
-        lda #' '
-        jsr CHROUT
-        lda #'$'
-        jsr CHROUT
-        lda sid_byte_count+1
-        jsr sid_print_hex_byte
-        lda sid_byte_count+0
-        jsr sid_print_hex_byte
-        lda #' '
-        jsr CHROUT
-        lda #'B'
-        jsr CHROUT
-        lda #'Y'
-        jsr CHROUT
-        lda #'T'
-        jsr CHROUT
-        lda #'E'
-        jsr CHROUT
-        lda #'S'
-        jsr CHROUT
-        lda #$0d
-        jsr CHROUT
-        rts
+; {alpha:pokealt} label fragments for the status_print_* routines above,
+; and the screen-code hex-digit table status_print_hex_nibble reads --
+; see this section's own header comment for why these need pre-encoded
+; screen codes rather than plain ascii.
+{alpha:pokealt}
+status_hex_digits:
+        ascii "0123456789ABCDEF"
+status_lbl_played:
+        ascii "PLAYED $"
+        byte 0
+status_lbl_frames:
+        ascii " FRAMES"
+        byte 0
+status_lbl_elapsed:
+        ascii "ELAPSED $"
+        byte 0
+status_lbl_jiffies:
+        ascii " JIFFIES"
+        byte 0
+status_lbl_rd:
+        ascii "RD=$"
+        byte 0
+status_lbl_wr:
+        ascii " WR=$"
+        byte 0
+status_lbl_starts:
+        ascii "STARTS=$"
+        byte 0
+status_lbl_got:
+        ascii "GOT $"
+        byte 0
+status_lbl_bytes:
+        ascii " BYTES"
+        byte 0
+{alpha:normal}
 
 sid_print_hex_nibble:             ; .A = nibble (0-15)
         pha
         and #$0f
         tax
         lda sid_hex_digits,x
-        jsr CHROUT
+        jsr term_chrout
         pla
         rts
 
@@ -2188,11 +2649,11 @@ sid_recv_last_jiffy:
 sid_byte_count:
         byte 0,0                 ; lo,hi -- bytes redirected into SID_BUF this
                                   ; stream, reset on SID_STREAM_START, printed
-                                  ; by sid_print_byte_count once the mode-3
+                                  ; by status_print_byte_count once the mode-3
                                   ; countdown (sid_remaining_lo/hi) hits zero
 
 sid_dump_idx:
-        byte 0                   ; sid_print_bufdump's loop counter
+        byte 0                   ; status_print_bufdump's loop counter
 
 sid_frames_played:
         byte 0,0                 ; lo,hi -- frames sid_play has applied
@@ -2207,7 +2668,7 @@ sid_jiffy_start2:
 
 sid_jiffy_elapsed0:
         byte 0                   ; hi/mid/lo of (now - start), computed
-sid_jiffy_elapsed1:                ; by sid_print_elapsed
+sid_jiffy_elapsed1:                ; by status_print_elapsed
         byte 0
 sid_jiffy_elapsed2:
         byte 0

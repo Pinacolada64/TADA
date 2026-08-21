@@ -12,9 +12,38 @@
 ; resolves labels across the include globally, so everything here can
 ; freely reference and be referenced by tada-client.asm's own labels
 ; (CHROUT, QTSW, linelen, cursor_pos, linebuf, rx_head, rx_tail, sl_recv,
-; handle_recv_byte, sid_mode). This file is pure code motion: no
-; behavior change from when these routines lived directly in
-; tada-client.asm.
+; handle_recv_byte, sid_mode, status_build_from_table, status_push_buf).
+; This file is pure code motion: no behavior change from when these
+; routines lived directly in tada-client.asm.
+
+; --- build_status_line: push one complete status-row message in one
+; call ---
+; X/Y = lo/hi of a null-terminated, {alpha:pokealt}-encoded string (see
+; tada-client.asm's status queue section for why pokealt matters).
+; Convenience wrapper for the common single-fragment case (e.g. the
+; boot-time build-date/time message) -- status_build_from_table +
+; status_push_buf are still called directly, not through this, for
+; compound messages that interleave runtime-computed content (hex
+; digits, decimal numbers) between multiple label fragments, since a
+; single static string can't include those (see the SID diagnostics'
+; status_print_* routines in tada-client.asm for that pattern).
+;
+; Padding a short message out to the full 40-column width with $a0
+; (reverse-video space) once it hits its null terminator happens in
+; redraw_status_row at DISPLAY time, not here at build time -- already
+; tested and working that way, so this wrapper doesn't change it.
+;
+; TODO (Ryan, 2026-08-20): once hourglass_mode display is wired up
+; (PlayerFlags.HOURGLASS, see the deferred phase-2 design in project
+; memory), the clock belongs on the RIGHT side of STATUS_ROW -- whatever
+; renders that will need to co-exist with this left-aligned message
+; content and redraw_status_row's own padding, not fight over the same
+; columns. Not designed yet; flagging so build_status_line's contract
+; (a left-aligned, null-terminated string) doesn't quietly become
+; something the clock rendering can't fit next to.
+build_status_line:
+        jsr status_build_from_table
+        jmp status_push_buf
 
 ; --- sync_prompt_buf: freeze cur_line_buf/cur_line_len into prompt_buf/
 ; prompt_len ---
@@ -69,7 +98,12 @@ reprint_input_line_prompt_loop:
         bcs reprint_input_line_prompt_done
         tax
         lda prompt_buf,x
-        jsr CHROUT
+        jsr term_chrout            ; real content, not navigation -- needs
+                                     ; the same STATUS_ROW protection as
+                                     ; any other freshly-printed text (see
+                                     ; async_step_back/async_blank's own
+                                     ; comment for why *those* deliberately
+                                     ; don't use term_chrout, unlike this)
         lda #0
         sta QTSW                  ; guard against a literal '"' toggling
         inc async_idx             ; the KERNAL's quote mode -- same reason
@@ -83,7 +117,7 @@ reprint_input_line_line_loop:
         bcs reprint_input_line_line_done
         tax
         lda linebuf,x
-        jsr CHROUT
+        jsr term_chrout
         lda #0
         sta QTSW
         inc async_idx
@@ -96,6 +130,19 @@ reprint_input_line_line_done:
         jsr async_step_back
         rts
 
+; Both loops below call plain CHROUT, not term_chrout -- deliberately:
+; term_chrout's own STATUS_ROW handling (term_scroll_advance) shifts the
+; whole dialogue window up a row, which is correct for genuinely NEW
+; content but wrong here. These two are pure navigation/erasure over
+; content that's already on screen (stepping back over an already-
+; displayed prompt+typed line, or blanking it back out) -- landing on
+; STATUS_ROW mid-walk doesn't mean new content needs a home, it just
+; means the walk needs to hop over the reserved row and keep going.
+; Confirmed live 2026-08-20: without this, a prompt+typed-line long
+; enough to wrap (e.g. the MORE-pagination prompt combined with
+; whatever was already on that logical line) walked erase_input_line's
+; blind CRSR-LEFT stepping straight onto STATUS_ROW and blanked it to
+; plain (non-reverse) spaces -- the status bar visibly disappeared.
 async_step_back:
 async_step_back_loop:
         lda async_count
@@ -103,6 +150,13 @@ async_step_back_loop:
         dec async_count
         lda #$9d                  ; CRSR LEFT
         jsr CHROUT
+        ldx $d6                    ; TBLX -- landed on the reserved row?
+        cpx #STATUS_ROW
+        bne async_step_back_loop   ; no -- ordinary case, keep going
+        ldx #DIALOGUE_LAST_ROW     ; yes -- hop straight over it to the
+        ldy #39                     ; last column of the row above
+        clc                         ; (KERNAL_PLOT: X=row, Y=col)
+        jsr KERNAL_PLOT
         jmp async_step_back_loop
 async_step_back_done:
         rts
@@ -114,6 +168,13 @@ async_blank_loop:
         dec async_count
         lda #$20
         jsr CHROUT
+        ldx $d6
+        cpx #STATUS_ROW
+        bne async_blank_loop
+        ldx #24                    ; blanking forward hit the reserved
+        ldy #0                      ; row -- hop over it to the start of
+        clc                         ; the row below instead of scrolling
+        jsr KERNAL_PLOT
         jmp async_blank_loop
 async_blank_done:
         rts
@@ -209,7 +270,8 @@ service_async_idle_prompt_loop:
         bcs service_async_idle_copyback
         tax
         lda prompt_buf,x
-        jsr CHROUT
+        jsr term_chrout             ; real content -- see reprint_input_
+                                      ; line's own comment on this
         lda #0
         sta QTSW
         inc async_idx
