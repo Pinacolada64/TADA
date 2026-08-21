@@ -116,7 +116,7 @@ async def answer_terminal_negotiation(reader, writer, choice: str = 'A') -> None
     await send_message(writer, Message(lines=[choice], mode=Mode.app))
 
 
-async def _skip_login_banner_pagination(reader, writer) -> None:
+async def _skip_login_banner_pagination(reader, writer, timeout: float = 3.0) -> None:
     """Advance past the pre-login ANSI banner's '-- More/End [n/m] --' pages.
 
     f31b6e7 added a login banner long enough that _login()'s ctx.send(*banner)
@@ -137,13 +137,28 @@ async def _skip_login_banner_pagination(reader, writer) -> None:
     pagination prompts do. Instead, keep draining until we've seen the
     login menu text ("Type 'connect ...") and then the one real login
     prompt that follows it.
+
+    Bounded by `timeout` overall: receive_message()'s underlying
+    reader.readline() has no timeout of its own and only returns on a
+    clean socket close, so if the expected banner/pagination text is ever
+    reworded and stops matching, this would otherwise hang forever instead
+    of failing the test.
     """
+    import asyncio
+    import time
     from simple_client import send_message, receive_message
     from net_common import Message, Mode
 
     seen_login_menu = False
+    start = time.time()
     while True:
-        msg = await receive_message(reader)
+        remaining = timeout - (time.time() - start)
+        if remaining <= 0:
+            return
+        try:
+            msg = await asyncio.wait_for(receive_message(reader), timeout=remaining)
+        except asyncio.TimeoutError:
+            return
         if not msg:
             return
         lines = msg.get('lines') if isinstance(msg, dict) else None
@@ -179,7 +194,7 @@ async def perform_login_as_guest(reader, writer, timeout: float = 3.0) -> str | 
 
     await perform_handshake(reader, writer)
     await answer_terminal_negotiation(reader, writer)
-    await _skip_login_banner_pagination(reader, writer)
+    await _skip_login_banner_pagination(reader, writer, timeout=timeout)
     await send_message(writer, Message(lines=['connect guest'], mode=Mode.login))
 
     assigned_username = None
@@ -241,7 +256,7 @@ async def perform_login(reader, writer, username: str, password: str,
 
     await perform_handshake(reader, writer)
     await answer_terminal_negotiation(reader, writer)
-    await _skip_login_banner_pagination(reader, writer)
+    await _skip_login_banner_pagination(reader, writer, timeout=timeout)
     await send_message(writer, Message(lines=[f'connect {username} {password}'], mode=Mode.login))
 
     start = time.time()

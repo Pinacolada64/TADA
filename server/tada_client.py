@@ -21,6 +21,7 @@ import getpass
 import json
 import logging
 import re
+import shutil
 import sys
 from datetime import datetime
 
@@ -403,12 +404,17 @@ async def _login(
     Returns True once credentials have been sent, False if the server
     closed the connection before login could proceed.
     """
+    # Report our real window size so the server doesn't fall back to its
+    # 40x25 ClientSettings default -- see simple_server.py's _handshake().
+    term_size = shutil.get_terminal_size(fallback=(80, 25))
     await _send_message(writer, {
         'mode':             'init',
         'server_id':        'test_server',
         'server_key':       'test_key',
         'protocol_version': 1,
         'translation':      translation,
+        'columns':          term_size.columns,
+        'rows':             term_size.lines,
     })
     _append_output(output_buffer, [f'Connecting to {state.host}:{state.port}...'])
     app.invalidate()
