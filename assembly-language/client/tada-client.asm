@@ -296,7 +296,20 @@ start:
         dex
         bne <@
 
-        ; wait for server to send negotiation menu, display it
+        ; wait for server to send negotiation menu, display it.
+        ; prompt_relocate_enabled stays 0 through this specific call --
+        ; the raw SwiftLink negotiation exchange isn't a real interactive
+        ; game prompt (nothing here waits for player input the way a
+        ; genuine ctx.prompt() does), but confirmed live 2026-08-20 its
+        ; own content can coincidentally end in "> ", false-matching
+        ; relocate_prompt_to_row24's heuristic -- and since more
+        ; negotiation bytes keep arriving regardless (nothing here is
+        ; actually waiting on anything relocate parked at PROMPT_ROW),
+        ; ordinary text continues printing from wherever the false
+        ; relocate left the cursor: PROMPT_ROW itself, the one row
+        ; term_chrout does not protect against overflowing (only
+        ; STATUS_ROW triggers its fixup) -- letting KERNAL's own real
+        ; whole-screen scroll fire and corrupt STATUS_ROW.
         jsr wait_for_data
 
         ; respond: 40 columns (C64)
@@ -304,6 +317,9 @@ start:
         jsr sl_send
         lda #$0d                ; CR
         jsr sl_send
+
+        lda #1
+        sta prompt_relocate_enabled ; real game prompts start here on out
 
         ; fall into prompt loop
         jmp prompt_loop
@@ -365,7 +381,8 @@ wait_for_data_poll:
         dex
         bne wait_for_data_poll
         jsr sync_prompt_buf       ; settled -- snapshot the current line as
-        rts                       ; the prompt read_line will redraw around
+        jsr relocate_prompt_to_row24 ; the prompt, pin it to PROMPT_ROW
+        rts                       ; if it looks like a real prompt
 wait_for_data_got_byte:
         jsr handle_recv_byte
         lda sid_mode
@@ -638,6 +655,9 @@ copy_remaining_hi:
 ; convention (see its own {const:} comment).
 STATUS_ROW           = 23
 DIALOGUE_LAST_ROW    = 22
+PROMPT_ROW           = 24       ; fixed row the player types on, right
+                                  ; below STATUS_ROW -- see relocate_
+                                  ; prompt_to_row24 (screen-handler.asm)
 ROW_BYTES            = 40
 STATUS_ROW_OFFSET    = 920      ; STATUS_ROW * ROW_BYTES
 
@@ -653,13 +673,73 @@ STATUS_ROW_OFFSET    = 920      ; STATUS_ROW * ROW_BYTES
 ; its own loop index across a run of term_chrout calls (e.g. printing a
 ; string char-by-char) would otherwise get that index silently
 ; clobbered by whichever branch fires here.
+; PROMPT_ROW (24) is the TRUE last physical row -- unlike STATUS_ROW
+; (23), a character that needs a new row while sitting there triggers
+; KERNAL's OWN real whole-screen scroll DURING the CHROUT call itself,
+; not after. That can't be caught post-hoc the way STATUS_ROW is: by
+; the time term_chrout reads $d6 back, KERNAL's scroll already ran and
+; already reset the cursor to a perfectly normal-looking row 24 (same
+; as it always leaves it after any scroll) -- nothing about that read
+; distinguishes "a real KERNAL scroll just corrupted STATUS_ROW" from
+; "ordinary printing, still on row 24, nothing happened". Confirmed live
+; 2026-08-20: ordinary text continuing to print after relocate_prompt_
+; to_row24 parked the cursor there (an unanswered/still-arriving
+; response following what looked like, but wasn't reliably, a genuine
+; prompt) corrupted STATUS_ROW exactly this way, and the post-hoc check
+; alone never caught it.
+;
+; So this checks BEFORE calling CHROUT: if already on PROMPT_ROW and
+; this character would need a new row (a CR, or filling the last
+; column), redirect through term_scroll_advance FIRST -- landing safely
+; at DIALOGUE_LAST_ROW instead of letting KERNAL scroll from row 24 at
+; all. Ordinary text that overflows PROMPT_ROW genuinely belongs back
+; in the normal scrolling dialogue area above STATUS_ROW anyway; only
+; the player's own current input belongs pinned at PROMPT_ROW itself.
 term_chrout:
         stx term_saved_x
         sty term_saved_y
+        pha
+        ldx $d6
+        cpx #PROMPT_ROW
+        bne term_chrout_plain
+        cmp #$0d
+        beq term_chrout_prevent_cr
+        ldx $d3
+        cpx #39                     ; about to fill the last column?
+        bne term_chrout_plain
+        ; wrap case: this character would fill PROMPT_ROW's last column,
+        ; and KERNAL's own advance-in-preparation-for-the-next-character
+        ; would need row 25 -- shift first, THEN print this character at
+        ; the now-current (DIALOGUE_LAST_ROW) position, which has a
+        ; full fresh 40 columns to receive it safely.
+        jsr term_scroll_advance
+        jmp term_chrout_plain
+term_chrout_prevent_cr:
+        ; CR has no glyph of its own -- term_scroll_advance's shift +
+        ; reposition-to-DIALOGUE_LAST_ROW-col0 already IS everything a
+        ; CR should do; nothing left to hand to CHROUT.
+        jsr term_scroll_advance
+        pla
+        jmp term_chrout_rts
+term_chrout_plain:
+        pla
         jsr CHROUT
         ldx $d6                    ; TBLX -- physical cursor row
         cpx #STATUS_ROW
-        bcc term_chrout_rts
+        bne term_chrout_rts        ; exact match only -- NOT bcc/"< 23".
+                                     ; Safe to be this precise now that
+                                     ; PROMPT_ROW (24) is a real,
+                                     ; deliberately-PLOTted-to position
+                                     ; text can legitimately sit at and
+                                     ; keep printing from (relocate_
+                                     ; prompt_to_row24) -- bcc would
+                                     ; wrongly fire term_scroll_advance
+                                     ; on every character printed there.
+                                     ; Behaviorally identical to the old
+                                     ; bcc for rows 0-22 (X was never >23
+                                     ; under the old model, so "< 23" and
+                                     ; "== 23" only ever differed for a
+                                     ; row that couldn't occur yet).
         jsr term_scroll_advance
 term_chrout_rts:
         ldx term_saved_x
@@ -765,6 +845,18 @@ term_scroll_advance_blank:
         iny
         cpy #40
         bne term_scroll_advance_blank
+        ; Unconditionally repaint STATUS_ROW as the last act of every
+        ; single scroll, not just when something is known to have
+        ; touched it. Confirmed live 2026-08-20: STATUS_ROW measurably
+        ; ended up holding stray ordinary dialogue-text bytes after a
+        ; long enough burst of scrolling (a real, reproducible transient
+        ; write into that row from *somewhere* in this chain -- CHROUT's
+        ; own internal wrap bookkeeping is the leading suspect but this
+        ; wasn't fully isolated), even though nothing in this routine
+        ; deliberately writes there. Rather than keep chasing the exact
+        ; write, make every scroll self-healing: cheap (one more 40-byte
+        ; raw poke) and correct regardless of the actual mechanism.
+        jsr redraw_status_row
         ldx #DIALOGUE_LAST_ROW      ; KERNAL_PLOT: X=row, Y=col
         ldy #0
         clc
@@ -2638,6 +2730,13 @@ sid_background:
                                   ; 1 = background (read_line) context --
                                   ; gates the TEMP diagnostic prints, see
                                   ; handle_recv_byte_store
+
+prompt_relocate_enabled:
+        byte 0                   ; 0 until the SwiftLink negotiation
+                                  ; exchange finishes -- see start:'s own
+                                  ; comment for why that first wait_for_
+                                  ; data call must not run relocate_
+                                  ; prompt_to_row24
 
 sid_recv_last_jiffy:
         byte 0                   ; $a2 snapshot taken every time a byte
