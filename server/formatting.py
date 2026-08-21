@@ -330,7 +330,8 @@ _PETSCII_RAW_BYTE_OVERRIDES: dict[str, int] = {
 }
 
 
-def _encode_petscii_segment(text: str, codec_name: str) -> bytes:
+def _encode_petscii_segment(text: str, codec_name: str,
+                            apply_overrides: bool = True) -> bytes:
     """Encode a plain text segment, substituting raw PETSCII bytes for
     characters cbmcodecs2 has no mapping for (see
     _PETSCII_RAW_BYTE_OVERRIDES). Also used with codec_name='ascii' by
@@ -341,8 +342,15 @@ def _encode_petscii_segment(text: str, codec_name: str) -> bytes:
     path (this environment doesn't have cbmcodecs2 installed) sent a raw
     ASCII 0x5F for '_', which isn't underscore on a real Commodore
     screen -- it happened to render as an unrelated glyph. $64 is the
-    actual PETSCII underline-glyph code."""
-    if not any(c in text for c in _PETSCII_RAW_BYTE_OVERRIDES):
+    actual PETSCII underline-glyph code.
+
+    :param apply_overrides: False for PETSCIINetworkContext's genuine
+        Translation.ASCII output (network_context.py's _text_codec_name())
+        -- there, codec_name='ascii' means the player actually wants
+        literal ASCII bytes, not PETSCII-emulating substitutes, so '_'/'^'
+        must stay ASCII 0x5F/0x5E instead of becoming PETSCII glyph bytes.
+    """
+    if not apply_overrides or not any(c in text for c in _PETSCII_RAW_BYTE_OVERRIDES):
         return text.encode(codec_name, errors='replace')
     pattern = '[' + re.escape(''.join(_PETSCII_RAW_BYTE_OVERRIDES)) + ']'
     parts = re.split(f'({pattern})', text)
@@ -357,7 +365,8 @@ def _encode_petscii_segment(text: str, codec_name: str) -> bytes:
 
 def petscii_encode(text: str,
                    codec_name: str = 'petscii_c64en_lc',
-                   reset_color: str | None = None) -> bytes:
+                   reset_color: str | None = None,
+                   apply_overrides: bool = True) -> bytes:
     """
     Encode a string for transmission to a Commodore client.
 
@@ -409,7 +418,7 @@ def petscii_encode(text: str,
         # Encode plain text segment before this token
         segment = text[pos:match.start()]
         if segment:
-            result.extend(_encode_petscii_segment(segment, codec_name))
+            result.extend(_encode_petscii_segment(segment, codec_name, apply_overrides))
 
         if match.group('etoken') is not None:
             # !!token!! / ||token|| (and their ':count' forms) escape --
@@ -420,13 +429,13 @@ def petscii_encode(text: str,
             if match.group('ecount'):
                 literal += ':' + match.group('ecount')
             literal += d
-            result.extend(_encode_petscii_segment(literal, codec_name))
+            result.extend(_encode_petscii_segment(literal, codec_name, apply_overrides))
             pos = match.end()
             continue
 
         if match.group('gelit') is not None:
             # {{literal}} escape -- literal {literal}, see _GLYPH_TOKEN_RE.
-            result.extend(_encode_petscii_segment('{' + match.group('gelit') + '}', codec_name))
+            result.extend(_encode_petscii_segment('{' + match.group('gelit') + '}', codec_name, apply_overrides))
             pos = match.end()
             continue
 
@@ -459,7 +468,7 @@ def petscii_encode(text: str,
     # Encode any remaining text after the last token
     tail = text[pos:]
     if tail:
-        result.extend(_encode_petscii_segment(tail, codec_name))
+        result.extend(_encode_petscii_segment(tail, codec_name, apply_overrides))
 
     return bytes(result)
 
@@ -468,7 +477,8 @@ def petscii_encode_lines(lines: list[str],
                          codec_name: str = 'petscii_c64en_lc',
                          line_ending: bytes = b'\r',
                          screen_columns: int = 0,
-                         reset_color: str | None = None) -> bytes:
+                         reset_color: str | None = None,
+                         apply_overrides: bool = True) -> bytes:
     """
     Encode a list of formatted strings for a Commodore client.
     Each line is encoded via petscii_encode() and joined with the
@@ -509,7 +519,8 @@ def petscii_encode_lines(lines: list[str],
     """
     result = bytearray()
     for line in lines:
-        result.extend(petscii_encode(line, codec_name, reset_color=reset_color))
+        result.extend(petscii_encode(line, codec_name, reset_color=reset_color,
+                                     apply_overrides=apply_overrides))
         # Always CR after each line so consecutive send() calls don't run
         # together — except when the line fills the full screen width, where
         # the C64 hardware-wraps and a CR would produce an extra blank line.

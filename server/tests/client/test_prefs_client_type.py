@@ -238,16 +238,38 @@ class TestPickClientType(unittest.IsolatedAsyncioTestCase):
         text = ctx._flat()
         self.assertIn('PETSCII', text)
 
-    async def test_custom_size_over_real_petscii_transport_keeps_petscii_and_skips_translation_prompt(self):
-        # Only two prompts (columns, rows) -- no third "ANSI or Plain?"
-        # answer needed/consumed, since translation can't change for a
-        # real Commodore connection.
+    async def test_custom_size_over_real_petscii_transport_defaults_to_petscii(self):
+        # A 4th prompt ("PETSCII or Plain text?") is asked but left
+        # unanswered here (only 3 responses queued) -- defaults to PETSCII.
         ctx = _FakePetsciiCtx(['6', '80', '25'], Player())
         ctx.player.client_settings.translation = Translation.PETSCII
         await _pick_client_type(ctx)
         cs = ctx.player.client_settings
         self.assertEqual((cs.screen_columns, cs.screen_rows), (80, 25))
         self.assertEqual(cs.translation, Translation.PETSCII)
+
+    async def test_custom_size_over_real_petscii_transport_can_pick_plain(self):
+        """A real Commodore connection can now choose Plain (ASCII) text
+        -- PlainCodec emits no color/escape bytes at all, so it's safe
+        over the raw PETSCII port (unlike ANSI, which stays blocked)."""
+        ctx = _FakePetsciiCtx(['6', '80', '25', 'p'], Player())
+        ctx.player.client_settings.translation = Translation.PETSCII
+        await _pick_client_type(ctx)
+        cs = ctx.player.client_settings
+        self.assertEqual((cs.screen_columns, cs.screen_rows), (80, 25))
+        self.assertEqual(cs.translation, Translation.ASCII)
+
+    async def test_ascii_c64_preset_over_real_petscii_transport_switches_translation(self):
+        """Preset 5 ('Commodore 64 (ASCII)') is now reachable from a real
+        Commodore connection too, not just an ASCII-terminal-over-a-
+        different-port setup -- ASCII/Plain is safe over the raw PETSCII
+        port, so it's not subject to the ANSI-only guard."""
+        ctx = _FakePetsciiCtx(['5'], Player())
+        ctx.player.client_settings.translation = Translation.PETSCII
+        await _pick_client_type(ctx)
+        cs = ctx.player.client_settings
+        self.assertEqual((cs.screen_columns, cs.screen_rows), (40, 25))
+        self.assertEqual(cs.translation, Translation.ASCII)
 
     async def test_c64_preset_does_not_set_has_tab(self):
         """Ryan: the C128 has a real Tab key, unlike the C64."""
