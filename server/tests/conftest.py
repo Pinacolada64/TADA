@@ -116,6 +116,51 @@ async def answer_terminal_negotiation(reader, writer, choice: str = 'A') -> None
     await send_message(writer, Message(lines=[choice], mode=Mode.app))
 
 
+async def _skip_login_banner_pagination(reader, writer) -> None:
+    """Advance past the pre-login ANSI banner's '-- More/End [n/m] --' pages.
+
+    f31b6e7 added a login banner long enough that _login()'s ctx.send(*banner)
+    now paginates (network_context.py's _paginate()) before the
+    'connect <user> <pass>' prompt ever appears -- each page blocks on its own
+    ctx.prompt() read, waiting for literally any input to continue. Without
+    this, a helper that fires 'connect ...' right after the terminal-type
+    answer has that message silently consumed as a page-continue keystroke
+    instead, and the real connect command is never seen -- the server then
+    hangs forever on the next prompt() read, which is what timed out here.
+
+    There's also a stale message to drain first: answer_terminal_negotiation()
+    never reads back ctx.prompt()'s own 'Terminal type [A/P/C/Q]' message (it
+    only sends 'A' and moves on), so that message is always still sitting
+    unread in the socket when this is called. We can't just stop at the
+    first non-pagination message either -- 'ANSI color mode set.' and the
+    banner art itself are non-pagination messages that arrive before the
+    pagination prompts do. Instead, keep draining until we've seen the
+    login menu text ("Type 'connect ...") and then the one real login
+    prompt that follows it.
+    """
+    from simple_client import send_message, receive_message
+    from net_common import Message, Mode
+
+    seen_login_menu = False
+    while True:
+        msg = await receive_message(reader)
+        if not msg:
+            return
+        lines = msg.get('lines') if isinstance(msg, dict) else None
+        prompt = msg.get('prompt') if isinstance(msg, dict) else None
+
+        if isinstance(prompt, str) and ('-- More' in prompt or '-- End' in prompt):
+            await send_message(writer, Message(lines=[''], mode=Mode.app))
+            continue
+
+        if lines and any(isinstance(ln, str) and "Type 'connect" in ln for ln in lines):
+            seen_login_menu = True
+            continue
+
+        if seen_login_menu:
+            return
+
+
 async def perform_login_as_guest(reader, writer, timeout: float = 3.0) -> str | None:
     """Complete handshake + terminal negotiation, then log in as a guest.
 
@@ -134,6 +179,7 @@ async def perform_login_as_guest(reader, writer, timeout: float = 3.0) -> str | 
 
     await perform_handshake(reader, writer)
     await answer_terminal_negotiation(reader, writer)
+    await _skip_login_banner_pagination(reader, writer)
     await send_message(writer, Message(lines=['connect guest'], mode=Mode.login))
 
     assigned_username = None
@@ -195,6 +241,7 @@ async def perform_login(reader, writer, username: str, password: str,
 
     await perform_handshake(reader, writer)
     await answer_terminal_negotiation(reader, writer)
+    await _skip_login_banner_pagination(reader, writer)
     await send_message(writer, Message(lines=[f'connect {username} {password}'], mode=Mode.login))
 
     start = time.time()
