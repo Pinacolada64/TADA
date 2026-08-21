@@ -35,6 +35,7 @@ from monsters import load_monsters, load_quotes, get_monster
 from messages import load_messages, send_message
 from commands.command_processor import create_command_processor
 from commands.base_command import Mode
+from commands.prefs import _MIN_COLS, _MAX_COLS, _MIN_ROWS, _MAX_ROWS
 from terminal import Translation
 
 DEFAULT_PORT = 34083
@@ -141,12 +142,19 @@ class _PlayerFilter(logging.Filter):
 class Init:
     """Exchanged between client and server to negotiate protocol version."""
     def __init__(self, server_id='test_server', server_key='test_key',
-                 protocol_version=1, translation=Translation.ANSI):
+                 protocol_version=1, translation=Translation.ANSI,
+                 columns=None, rows=None):
         self.type             = nc.MessageType.INIT
         self.server_id        = server_id
         self.server_key       = server_key
         self.protocol_version = protocol_version
         self.translation      = translation
+        # Real terminal size, reported by JSON/ANSI clients that know their
+        # own window size (e.g. tada_client.py via shutil.get_terminal_size()).
+        # PETSCII clients don't send these -- their size comes from the
+        # 40/80-column prompt in _negotiate_terminal() instead.
+        self.columns           = columns
+        self.rows              = rows
 
 
 # ---------------------------------------------------------------------------
@@ -439,7 +447,8 @@ class Server:
 
             client_init = Init(**{k: v for k, v in data.items()
                                   if k in ('server_id', 'server_key',
-                                           'protocol_version', 'translation')})
+                                           'protocol_version', 'translation',
+                                           'columns', 'rows')})
 
             if client_init.server_id != self.server_init.server_id:
                 logging.warning('handshake failed — server ID mismatch (got %r)', client_init.server_id)
@@ -451,6 +460,20 @@ class Server:
                 await ctx.send('Handshake failed: server key mismatch.')
                 logging.debug('EXIT False (server_key mismatch)')
                 return False
+
+            # JSON/ANSI clients that know their real window size (e.g.
+            # tada_client.py) report it here; apply it now so
+            # _negotiate_terminal()'s ANSI branch doesn't have to fall back
+            # to ClientSettings' 40x25 default. PETSCII clients don't send
+            # these -- they set screen_columns via the 40/80-column prompt
+            # in _negotiate_terminal() instead.
+            # Same bounds as commands/prefs.py's "Custom" screen-size prompt
+            # (_MIN_COLS/_MAX_COLS/_MIN_ROWS/_MAX_ROWS) so a client-reported
+            # size can't produce a stored value manual entry would reject.
+            if isinstance(client_init.columns, int) and _MIN_COLS <= client_init.columns <= _MAX_COLS:
+                ctx.player.client_settings.screen_columns = client_init.columns
+            if isinstance(client_init.rows, int) and _MIN_ROWS <= client_init.rows <= _MAX_ROWS:
+                ctx.player.client_settings.screen_rows = client_init.rows
 
             await self.send_message(
                 ctx.writer,

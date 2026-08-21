@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -106,6 +107,23 @@ class TestLoginSendsCredentials(unittest.TestCase):
         payloads = _sent_payloads(writer)
         init_msgs = [p for p in payloads if p.get('mode') == 'init']
         self.assertEqual(init_msgs[0]['translation'], 'ANSI')
+
+    def test_init_reports_real_terminal_size(self):
+        reader = _FakeReader()
+        writer = MagicMock()
+        writer.drain = AsyncMock()
+        state = tc.ClientState()
+        app = MagicMock()
+        output_buffer = MagicMock()
+
+        with patch.object(tc.shutil, 'get_terminal_size',
+                           return_value=os.terminal_size((132, 50))):
+            asyncio.run(tc._login(reader, writer, output_buffer, state, app, 'alexa', 'hunter2'))
+
+        payloads = _sent_payloads(writer)
+        init_msgs = [p for p in payloads if p.get('mode') == 'init']
+        self.assertEqual(init_msgs[0]['columns'], 132)
+        self.assertEqual(init_msgs[0]['rows'], 50)
 
     def test_translation_is_passed_through_in_handshake(self):
         reader = _FakeReader()
