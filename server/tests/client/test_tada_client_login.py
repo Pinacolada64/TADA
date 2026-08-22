@@ -109,6 +109,10 @@ class TestLoginSendsCredentials(unittest.TestCase):
         self.assertEqual(init_msgs[0]['translation'], 'ANSI')
 
     def test_init_reports_real_terminal_size(self):
+        # columns is one narrower than the real terminal, not the literal
+        # value -- see test_tada_client_exact_width_line.py for why (a
+        # server-formatted line landing exactly on the real window width
+        # trips a prompt_toolkit rendering artifact). rows is unaffected.
         reader = _FakeReader()
         writer = MagicMock()
         writer.drain = AsyncMock()
@@ -122,7 +126,7 @@ class TestLoginSendsCredentials(unittest.TestCase):
 
         payloads = _sent_payloads(writer)
         init_msgs = [p for p in payloads if p.get('mode') == 'init']
-        self.assertEqual(init_msgs[0]['columns'], 132)
+        self.assertEqual(init_msgs[0]['columns'], 131)
         self.assertEqual(init_msgs[0]['rows'], 50)
 
     def test_translation_is_passed_through_in_handshake(self):

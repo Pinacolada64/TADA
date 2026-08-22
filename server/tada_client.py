@@ -156,7 +156,15 @@ def _append_output(output_buffer: Buffer, lines: list[str]) -> None:
     new_text = '\n'.join(existing)
     # Cursor at end: BufferControl auto-scrolls to keep cursor in view,
     # which pins the output to the bottom — exactly like a terminal.
-    output_buffer.set_document(Document(new_text, len(new_text)), bypass_readonly=True)
+    #
+    # Position ON the last character (len - 1), not past it (len). When
+    # the final line's visible width exactly fills the wrapped window
+    # width, a cursor position past the last character reads to
+    # prompt_toolkit as sitting on that line's wrapped continuation row —
+    # a row that doesn't actually contain any text — which auto-scroll
+    # then pulls into view as a phantom blank line at the bottom.
+    cursor = max(0, len(new_text) - 1)
+    output_buffer.set_document(Document(new_text, cursor), bypass_readonly=True)
 
 
 # ---------------------------------------------------------------------------
@@ -406,14 +414,28 @@ async def _login(
     """
     # Report our real window size so the server doesn't fall back to its
     # 40x25 ClientSettings default -- see simple_server.py's _handshake().
+    #
+    # Report one column narrower than the real width, not the literal
+    # value. The output pane renders with wrap_lines=True, and
+    # prompt_toolkit gives a display line that exactly fills the window
+    # width a wrapped continuation row with no characters in it --
+    # structurally, independent of cursor placement -- which reads as a
+    # blank line under any server-formatted output that happens to fill
+    # the screen exactly (box-drawing borders in particular, since
+    # frame_text() sizes them to screen_columns on the nose). Reporting
+    # columns - 1 keeps every server-wrapped line and border strictly
+    # narrower than the real window, so that phantom row never occurs --
+    # cheaper and less fragile than trying to patch already-formatted
+    # lines back apart client-side after the fact.
     term_size = shutil.get_terminal_size(fallback=(80, 25))
+    report_columns = max(1, term_size.columns - 1)
     await _send_message(writer, {
         'mode':             'init',
         'server_id':        'test_server',
         'server_key':       'test_key',
         'protocol_version': 1,
         'translation':      translation,
-        'columns':          term_size.columns,
+        'columns':          report_columns,
         'rows':             term_size.lines,
     })
     _append_output(output_buffer, [f'Connecting to {state.host}:{state.port}...'])
