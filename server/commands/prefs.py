@@ -433,8 +433,8 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
             + t.render(width=cs.screen_columns)
             + ['', f"{keys_str} to change, h<key> for details (e.g. h{valid_keys[0].lower()}), "
                    f"{return_key} to "
-                   + ('continue creating your character' if from_new_player
-                      else 'save settings and exit'),
+                   + ('continue creating your character.' if from_new_player
+                      else 'save settings and exit.'),
                    '']
         )
         # A new (non-expert) player is the one who most needs pointing at
@@ -593,16 +593,17 @@ async def _colors_graphics_menu(ctx) -> None:
             t.add_row(['B', 'Border Style', border_key.title(), 'hb'])
         t.add_row(['G', 'Graphics Test', '', 'hg'])
 
-        valid_keys = ['C', 'S', 'A']
+        valid_keys = ['c', 's', 'a']
         if not is_petscii:
-            valid_keys.append('B')
-        valid_keys.append('G')
+            valid_keys.append('b')
+        valid_keys.append('g')
 
         menu = (
             ['', '|yellow|Colors & Graphics|reset|', '']
             + t.render(width=cs.screen_columns)
             + ['', f"{' '.join(valid_keys)} to change, h<key> for details "
-                   f"(e.g. h{valid_keys[0].lower()}), {return_key} to return", '']
+                   f"(e.g.: h{valid_keys[0].lower()}), {return_key} to return to previous menu"
+                if not ctx.player.is_expert else '', '']
         )
 
         raw = await ctx.prompt('colors & graphics', preamble_lines=menu)
@@ -610,7 +611,7 @@ async def _colors_graphics_menu(ctx) -> None:
             return
         ans = raw.strip().lower()
 
-        if len(ans) == 2 and ans[0] == 'h' and ans[1].upper() in valid_keys:
+        if len(ans) == 2 and ans[0] == 'h' and ans[1] in valid_keys:
             await ctx.send(*_COLORS_GRAPHICS_HELP[ans[1]])
             continue
 
@@ -869,7 +870,9 @@ async def _show_graphics_test(ctx) -> None:
     from table import ASCII, SINGLE, DOUBLE, PETSCII
     from formatting import make_box_for_settings
 
-    lines = ['', '|yellow|Graphics Test|reset|', '']
+    lines = ['', '|yellow|Graphics Test|reset|', '', "Border Styles:", '']
+
+    # TODO: only display PETSCII border if is_petscii terminal
     for left, right in ((('ASCII', ASCII), ('Single', SINGLE)),
                         (('Double', DOUBLE), ('PETSCII', PETSCII))):
         lines.extend('  ' + ln for ln in _windowpane_pair_lines(left, right))
@@ -885,7 +888,7 @@ async def _show_graphics_test(ctx) -> None:
     lines.append(
         "If any of these look like garbage or boxes with question marks, "
         "try a different Border Style ('B'). On a real Commodore, PETSCII "
-        "not rendering right is usually a character-set/font issue rather "
+        "not rendering right is usually a character set/font issue rather "
         "than something to fix here."
     )
     await ctx.send(*lines)
@@ -960,11 +963,11 @@ def _client_type_presets() -> list:
     never drift out of sync."""
     from terminal import Translation
     return [
-        ('1', 'Commodore 64',         40, 25, Translation.PETSCII),
-        ('2', 'Commodore 128',        40, 25, Translation.PETSCII),
-        ('3', 'Commodore 128',        80, 25, Translation.PETSCII),
-        ('4', 'TADA Client',          80, 25, Translation.ANSI),
-        ('5', 'Commodore 64 (ASCII)', 40, 25, Translation.ASCII),
+        ('1', 'Commodore 64 (PETSCII)', 40, 25, Translation.PETSCII),
+        ('2', 'Commodore 128',          40, 25, Translation.PETSCII),
+        ('3', 'Commodore 128',          80, 25, Translation.PETSCII),
+        ('4', 'TADA Client',            80, 25, Translation.ANSI),
+        ('5', 'Commodore 64 (ASCII)',   40, 25, Translation.ASCII),
     ]
 
 
@@ -1081,7 +1084,7 @@ async def _pick_client_type(ctx) -> None:
             # doesn't, in either PETSCII or ASCII-terminal mode), and so
             # does any ANSI/TADA client -- set as a side effect of picking
             # this client type, not asked separately.
-            if label not in ('Commodore 64', 'Commodore 64 (ASCII)'):
+            if label not in ('Commodore 64 (PETSCII)', 'Commodore 64 (ASCII)'):
                 cs.has_tab  = True
                 cs.tab_char = chr(9)
             else:
@@ -1171,6 +1174,29 @@ def _tab_test_line() -> str:
     return 'Tab test:|tab|1|tab|2|tab|3'
 
 
+def _tab_alignment_demo(tab_width: int) -> list[str]:
+    """Build a numbered ruler plus a small |tab|-separated table, so a
+    player picking a tab width can see exactly which columns it lands on
+    (see formatting._expand_tab_tokens(), which advances each |tab| to the
+    next real tab stop rather than a flat tab_width-space repeat) and how
+    real text of varying width lines up -- or doesn't -- at those stops.
+    Only meaningful for simulated tabs (a real Tab key delegates stop
+    placement to the client terminal, invisible to this server), so
+    callers should skip this when tab.has_tab_key is True."""
+    if tab_width <= 0:
+        return []
+    ruler_width = max(tab_width * 4, 20)
+    ruler = ''.join(str((i + 1) % 10) for i in range(ruler_width))
+    stops = ''.join('^' if i % tab_width == 0 else ' ' for i in range(ruler_width))
+    return [
+        ruler,
+        stops,
+        'Name|tab|Lvl|tab|Class',
+        'Bob|tab|12|tab|Warrior',
+        'Alexandria|tab|3|tab|Wizard',
+    ]
+
+
 async def _pick_tab_settings(ctx) -> None:
     """Toggle whether the client has a real Tab key, and (when simulating
     tabs with spaces instead) the tab width."""
@@ -1187,7 +1213,7 @@ async def _pick_tab_settings(ctx) -> None:
         preamble_lines=[
             '',
             '|yellow|Tab Key|reset|',
-            f"Does your client have a working Tab key? Currently: "
+            f"Does your client have a Tab key? Currently: "
             f"{'Yes' if tab.has_tab_key else 'No'}.",
             "If not, tabs are simulated with spaces instead.",
             _tab_test_line(),
@@ -1205,7 +1231,10 @@ async def _pick_tab_settings(ctx) -> None:
 
     raw_width = await ctx.prompt(
         f'Tab width (0-{cs.screen_columns})',
-        preamble_lines=[f'Current tab width: {tab.tab_width}'],
+        preamble_lines=[
+            f'Current tab width: {tab.tab_width}',
+            *_tab_alignment_demo(tab.tab_width),
+        ],
     )
     if raw_width is None or not raw_width.strip().isdigit():
         return
@@ -1213,7 +1242,8 @@ async def _pick_tab_settings(ctx) -> None:
     if 0 <= width <= cs.screen_columns:
         tab.tab_width  = width
         tab.tab_output = ' ' * width
-        await ctx.send(f'Tab width set to {width}.', _tab_test_line())
+        await ctx.send(f'Tab width set to {width}.', _tab_test_line(),
+                        *_tab_alignment_demo(width))
     else:
         await ctx.send(f'Tab width unchanged -- must be 0-{cs.screen_columns}.')
 
