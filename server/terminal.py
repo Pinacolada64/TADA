@@ -299,8 +299,12 @@ class ClientSettings:
     # which encodes it to bytes in place of the class's hardcoded default
     # -- only has real bearing there, since ANSI/plain clients receive
     # every line as a separate JSON array element with no terminator byte
-    # for this to control.
-    line_ending: str = LineEnding.LF
+    # for this to control. Defaults to CR, not LF: tada-client.asm's
+    # term_chrout only advances a screen row on $0D (CR) -- a real C64
+    # that never visits PREFS 'L' would otherwise get LF bytes its own
+    # line-advance routine doesn't recognize, and never scroll to a new
+    # line. Found live: real hardware was receiving nothing but LF's.
+    line_ending: str = LineEnding.CR
     # Set automatically as a side effect of picking a client type (PREFS
     # 'T') -- true for the Commodore 128, TADA/ANSI, and Custom presets
     # (all have a real Tab key sending chr(9)); false only for the
