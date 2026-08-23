@@ -93,3 +93,48 @@ here until someone gets a solid repro and either fixes them or rules them out.
     buffering unconditionally until the command fully returns.
 - **Next step:** unscoped -- needs a design decision on the buffering
   approach above before implementation.
+
+### Land Armory sells the ship's late-game/sci-fi gear (not just beginner equipment)
+
+- **Reported by:** Ryan (2026-08-22)
+- **Symptom:** the Merchant Shoppe's regular Armory ("A"/"P" -- reported as
+  "general store", but confirmed via follow-up to mean the Armory, citing
+  "LAW rockets, etc." as an example) shouldn't list high-level/quest-tier
+  items -- it should stick to basic equipment a beginning adventurer would
+  plausibly have access to.
+- **Root cause (confirmed by reading the code):** `shoppe/armory.py`'s
+  `main()`/`protection()` sell from the entire `weapons.json`/`objects.json`
+  catalog whenever no `item_ids` filter is passed -- and the regular land
+  Armory (`shoppe/main.py`'s `_armory`/`_protection`) calls both with no
+  filter. `ship/armory.py`'s own docstring confirms this was known:
+  "shoppe/armory.py, which this port already generalized to sell from the
+  *entire* weapons.json/objects.json catalog everywhere" -- and explicitly
+  restricts itself to `weapons.json` #58-60 and `objects.json` #113-116 for
+  its own sci-fi rack, via an `item_ids` filter the land Armory never
+  passes. Confirmed those items are genuinely late-game/sci-fi and show up
+  unfiltered in the land Armory today:
+  - `weapons.json` #58-60: LIGHT SABRE (100s), HAND PHASER (300s), PLASMA
+    RIFLE (600s)
+  - `objects.json` #113-116: battle armor, battle shield, power armor,
+    lazer shield (type `armor`/`shield`, so they pass `protection()`'s
+    `type in ('armor', 'shield')` filter same as any mundane shield)
+- **Rockets specifically NOT confirmed reachable:** `objects.json` #126-140
+  (TOW/LAW/Redeye/plasma/nuclear rockets) are `type: "treasure"` or
+  `"misc"`, not `"armor"`/`"shield"`, so they don't pass `protection()`'s
+  type filter; they're also outside Olly's Ammo & Traps' `_AMMO_RANGE`
+  (`shoppe/ollys.py`, #98-111) and aren't in `weapons.json` at all, so
+  `_buy()` wouldn't offer them either. Static reading found no current
+  purchase path for these specific items -- flagging the discrepancy
+  rather than assuming; worth double-checking with a live repro (which
+  shop, which menu path) since the sci-fi weapons/armor above are real,
+  confirmed instances of the same underlying bug (no `item_ids` filter on
+  the land Armory) even if rockets aren't literally one of them.
+- **Proposed fix direction:** give `shoppe/main.py`'s `_armory`/`_protection`
+  (the land Armory) their own `item_ids` filter -- excluding at minimum
+  #58-60 and #113-116 -- mirroring how `ship/armory.py` already restricts
+  its own rack, rather than leaving the land Armory as "everything except
+  what the ship variant explicitly carved out."
+- **Next step:** confirm with Ryan the exact intended item range for the
+  land Armory (is it "everything except the ship's sci-fi set," or a
+  tighter explicit allowlist?), and get a live repro for the rocket
+  sighting specifically since it isn't explained by the code as read.
