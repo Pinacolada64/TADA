@@ -179,3 +179,26 @@ here until someone gets a solid repro and either fixes them or rules them out.
 - **Next step:** unscoped -- needs Ryan to decide the canonical
   conventions (confirm-prompt delimiter style, inline command-letter
   call-out style in NPC text, etc.) before any cleanup work is planned.
+
+### Redundant [P]rotection/[A]rmory options in the Shoppe menu (FIXED 2026-08-22)
+
+- **Reported by:** Ryan (2026-08-22)
+- **Symptom:** the Merchant Shoppe's top-level menu (`shoppe/main.py`'s
+  `_MENU`) has both `('A', 'Armory', _armory)` and `('P', 'Protection',
+  _protection)`.
+- **Root cause (confirmed by reading the code):** `_armory` is
+  `shoppe.armory.main()`, whose very first prompt is "Wouldst thou be
+  interested in [P]rotection or [W]eaponry?" (`shoppe/armory.py:508`) --
+  choosing P there calls `protection()` (`:515`), the exact same function
+  the top-level menu's `_protection` entry (`shoppe.armory.protection`)
+  calls directly. So the standalone "P" menu entry is a shortcut into
+  behavior already reachable via "A" -> "P", not a distinct feature.
+- **Resolution:** Ryan's call -- drop the standalone "P", since "A" Armory
+  already routes to both Protection and Weaponry. Removed the `('P',
+  'Protection', _protection)` row from `shoppe/main.py`'s `_MENU` and the
+  now-unused `protection as _protection` import. Updated
+  `tests/shoppe/test_shoppe_session.py`'s `_PATCH_STUBS` to drop the
+  matching `_protection` patch target (it patched an attribute that no
+  longer exists in `shoppe.main`, which would otherwise fail every test
+  using that stub). `tests/shoppe/` + `tests/ship/` (270 tests) pass
+  clean after the change.

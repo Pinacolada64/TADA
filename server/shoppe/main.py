@@ -13,7 +13,7 @@ _AP = "'"
 # Shoppe is closed on level 7 (matches SPUR.SHOP.S main1 level-gate)
 _CLOSED_LEVELS = {7}
 
-from shoppe.armory import main as _armory, protection as _protection
+from shoppe.armory import main as _armory
 
 
 def _load_store_rations(numbers: object = None) -> list[dict]:
@@ -204,7 +204,6 @@ def _transfer(ctx: GameContext):
 
 _MENU = (
     ('A', 'Armory',              _armory),
-    ('P', 'Protection',          _protection),
     ('G', 'General Store',       _general_store),
     ('O', "Olly's Ammo & Traps", _ollys),
     ('B', 'Bank of SPUR',        _bank),
