@@ -138,3 +138,44 @@ here until someone gets a solid repro and either fixes them or rules them out.
   land Armory (is it "everything except the ship's sci-fi set," or a
   tighter explicit allowlist?), and get a live repro for the rocket
   sighting specifically since it isn't explained by the code as read.
+
+### UI/prompt style is inconsistent across the game (design consistency, not a single bug)
+
+- **Reported by:** alpha tester gsteemso, relayed by Ryan (2026-08-22)
+- **Symptom (tester's words):** "the UI style is very scattered, to the
+  point that it looks like four different teams worked on every individual
+  prompt. You have a menu on one level and the next has a conversational
+  interaction style, with keyletters (command letters) in the flow of NPC
+  verbiage bracketed... except where they are called out with an equals
+  sign or an actual phrase, sometimes all three in the same sentence."
+- **Spot-checked and confirmed real:** a grep across just the Y/N-style
+  confirmation prompts alone turns up at least five different conventions
+  actively in use, no apparent pattern to which command uses which:
+  - `(Y/N)` -- `commands/editplayer.py:129`, `commands/order.py:87`,
+    `shoppe/clan.py:149`, `shoppe/pawn.py:137,201`
+  - `[Y/N]` -- `commands/die.py:24`, `commands/read.py:148`,
+    `commands/quit.py:51`
+  - `(y/n)` lowercase -- `commands/prefs.py:1512,1647`
+  - `Y/N/Q` bare, no delimiter -- `commands/new_player.py:603`
+  - `([Y]es / [R]e-roll)` bracketed-letter-in-word -- `commands/new_player.py:1160`
+  - bare `Y/N` with no delimiter at all -- `shoppe/wizard.py:254`,
+    `commands/order.py:87`
+  This is almost certainly representative, not exhaustive -- the tester's
+  complaint is about the whole game's prompt style, not just Y/N prompts;
+  a full audit would need to cover menu-style prompts (`_MENU`-style
+  `[X] Label` listings), NPC-conversational prompts with inline
+  command-letter call-outs, and the various `h<key>`/`?`-for-help
+  conventions too.
+- **Scope note:** this is a cross-cutting design/consistency question, not
+  a single function to patch -- it likely needs a short style guide (one
+  canonical way to present a binary confirm, one canonical way to call out
+  an inline command letter in NPC dialogue, etc.) agreed on first, then a
+  sweep to bring existing prompts in line, similar in spirit to the
+  gold->silver rename's "fix files you're already touching, don't
+  drive-by sweep the whole repo at once" approach (see `server/CLAUDE.md`)
+  -- except this would need Ryan's sign-off on what the *target* style
+  even is before any sweeping starts, since there's no existing consistent
+  convention to converge on.
+- **Next step:** unscoped -- needs Ryan to decide the canonical
+  conventions (confirm-prompt delimiter style, inline command-letter
+  call-out style in NPC text, etc.) before any cleanup work is planned.
