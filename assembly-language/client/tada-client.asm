@@ -279,6 +279,15 @@ KERNAL_PLOT = $fff0
         byte $0a,$08,$0a,$00,$9e,$32,$30,$36,$31,$00,$00,$00
 
 start:
+        jsr switch_to_bank3_with_charset  ; MUST run before init_screen
+                                            ; (needs HIBASE/the VIC bank
+                                            ; already correct) and before
+                                            ; init_nmi/init_swiftlink (see
+                                            ; its own comment -- SwiftLink's
+                                            ; NMI isn't SEI-maskable, and
+                                            ; this briefly banks KERNAL's
+                                            ; NMI vector out to uninitialized
+                                            ; RAM while it runs)
         jsr init_screen
         jsr init_jump_table      ; populate JT_SL_SEND/JT_SL_RECV/JT_RESUME
                                   ; before anything could need them
@@ -396,8 +405,12 @@ wait_for_data_backgrounding:
 ; --- Init screen ---
 ; Clear screen, draw the status line, set up screen pointer
 init_screen:
-        lda #CHARSET_UPPER_LOWER
-        sta VIC_MEMORY_CONTROL
+        ; VIC_MEMORY_CONTROL is NOT touched here -- switch_to_bank3_with_
+        ; charset (called first, in start:) already set it correctly for
+        ; gothic_charset's char-ptr slot; re-poking CHARSET_UPPER_LOWER's
+        ; old value here would silently point the char generator at $d800
+        ; (COLOR_RAM's own fixed address, not usable as glyph bitmap data)
+        ; instead of $d000 where gothic_charset actually landed.
         lda #VIC_BLACK
         sta VIC_BORDER
         sta VIC_BACKGROUND
@@ -410,28 +423,34 @@ init_screen:
         ldy #>build_msg           ; push_buf's "first message of a fresh
         jsr build_status_line     ; batch" behavior), until the first
                                    ; real SID event replaces it
-        ; set screen pointer to row 2 col 0
-        lda #<(SCREEN_RAM + 80)
+        ; set screen pointer to row 2 col 0 (front buffer -- see set_
+        ; screen_line's own comment on why no low-byte carry is needed)
+        lda #<80
         sta scr_ptr_lo
-        lda #>(SCREEN_RAM + 80)
+        lda front_hi
+        clc
+        adc #>80
         sta scr_ptr_hi
         rts
 
-; --- set_screen_line: scr_ptr_lo/hi = SCREEN_RAM + row*40 ---
+; --- set_screen_line: scr_ptr_lo/hi = CURRENT FRONT BUFFER + row*40 ---
 ; Input: .a = row number (0-24). Reuses scr_ptr_lo/hi -- this file's own
 ; zero-page pointer for indirect screen access (see calc_screen_ptr-style
 ; usage in petscii_editor.asm for the same convention: whichever routine
 ; needs an indirect pointer right now temporarily owns scr_ptr_lo/hi,
-; rather than every routine claiming its own zero-page pair).
+; rather than every routine claiming its own zero-page pair). Uses
+; front_hi (not a fixed SCREEN_RAM constant) since the screen buffer is
+; now double-buffered -- see the "Double-buffered screen + custom
+; charset" section. No low-byte carry needed: both screen buffers are
+; 1K-aligned ($xx00), so front_hi's own low byte is always 0.
 set_screen_line:
         asl                       ; row*2 -- row_offsets is a word table
         tax
         lda row_offsets,x
-        clc
-        adc #<SCREEN_RAM
         sta scr_ptr_lo
         lda row_offsets+1,x
-        adc #>SCREEN_RAM
+        clc
+        adc front_hi
         sta scr_ptr_hi
         rts
 
@@ -512,10 +531,17 @@ init_jump_table_loop:
 ; the jump table instead of using its own local copy.
 SCREEN_CELLS = 1000
 
+; save_screen/restore_screen always operate against front_hi (the
+; CURRENT front buffer, not a fixed SCREEN_RAM constant) -- callers are
+; expected to have already run ensure_buffer_a_front first (see that
+; routine's own comment), so in practice this always means buffer A, but
+; reading front_hi directly here rather than assuming that keeps this
+; routine correct on its own terms rather than relying on a caller
+; convention it can't verify.
 save_screen:
-        lda #<SCREEN_RAM
+        lda #0
         sta copy_src_lo
-        lda #>SCREEN_RAM
+        lda front_hi
         sta copy_src_hi
         lda #<BACKUP_CHARS
         sta copy_dst_lo
@@ -537,9 +563,9 @@ restore_screen:
         sta copy_src_lo
         lda #>BACKUP_CHARS
         sta copy_src_hi
-        lda #<SCREEN_RAM
+        lda #0
         sta copy_dst_lo
-        lda #>SCREEN_RAM
+        lda front_hi
         sta copy_dst_hi
         jsr copy_1000
         lda #<BACKUP_COLORS
@@ -607,14 +633,13 @@ copy_1000:
         jmp copy_block
 
 ; term_scroll_advance's 880-byte dialogue-window shift (rows 1-22 into
-; rows 0-21, screen + color) -- see its own comment.
+; rows 0-21). Screen (glyph) data is now double-buffered (see the "Fixed
+; status row + custom scroll" section below) -- shifted straight into the
+; invisible back buffer with a plain, unchunked copy_block call, since
+; nobody's watching it. COLOR_RAM has no such second copy on real
+; hardware (single fixed 1K chip, always live on whichever buffer is
+; CURRENTLY front) -- copy_color_chunked below is what that still needs.
 DIALOGUE_SHIFT_BYTES = 880
-copy_dialogue_block:
-        lda #<DIALOGUE_SHIFT_BYTES
-        sta copy_remaining_lo
-        lda #>DIALOGUE_SHIFT_BYTES
-        sta copy_remaining_hi
-        jmp copy_block
 
 copy_src_lo:
         byte 0
@@ -627,6 +652,67 @@ copy_dst_hi:
 copy_remaining_lo:
         byte 0
 copy_remaining_hi:
+        byte 0
+
+; --- copy_color_chunked ---
+; COLOR_RAM's rows 1-22 -> rows 0-21 shift, split into COLOR_CHUNK_BYTES-
+; sized pieces, each preceded by its own wait_vblank -- the complete fix
+; wait_vblank's own comment used to flag but not implement: an 880-byte
+; copy (~1.75ms) runs longer than one vblank window and can spill into
+; active drawing time. Only color needs this now -- the screen-glyph half
+; moved entirely off-screen into the back buffer (see term_scroll_advance
+; below), so color isn't sharing its vblank budget with a screen copy the
+; way the original chunked-copy fix (2026-08-22, superseded same day by
+; double buffering) had it do. Self-contained (own inline loop, own
+; ccc_chunk_remaining countdown) rather than built from copy_block, same
+; reasoning as that routine's own single-range design.
+; Caller sets copy_src_lo/hi + copy_dst_lo/hi before calling.
+COLOR_CHUNK_BYTES = 220           ; 880 / 4
+copy_color_chunked:
+        lda copy_src_lo
+        sta ccc_load+1
+        lda copy_src_hi
+        sta ccc_load+2
+        lda copy_dst_lo
+        sta ccc_store+1
+        lda copy_dst_hi
+        sta ccc_store+2
+        lda #<DIALOGUE_SHIFT_BYTES
+        sta copy_remaining_lo
+        lda #>DIALOGUE_SHIFT_BYTES
+        sta copy_remaining_hi
+ccc_next_chunk:
+        jsr wait_vblank
+        lda #COLOR_CHUNK_BYTES
+        sta ccc_chunk_remaining
+ccc_loop:
+ccc_load:
+        lda $ffff
+ccc_store:
+        sta $ffff
+        inc ccc_load+1
+        bne ccc_src_ok
+        inc ccc_load+2
+ccc_src_ok:
+        inc ccc_store+1
+        bne ccc_dst_ok
+        inc ccc_store+2
+ccc_dst_ok:
+        lda copy_remaining_lo
+        bne ccc_dec_lo
+        dec copy_remaining_hi
+ccc_dec_lo:
+        dec copy_remaining_lo
+        lda copy_remaining_lo
+        ora copy_remaining_hi
+        beq ccc_done               ; whole 880-byte copy finished
+        dec ccc_chunk_remaining
+        bne ccc_loop                ; more bytes left in this chunk
+        jmp ccc_next_chunk          ; chunk done -- wait for the next vblank
+ccc_done:
+        rts
+
+ccc_chunk_remaining:
         byte 0
 
 ; ============================================================
@@ -660,6 +746,203 @@ PROMPT_ROW           = 24       ; fixed row the player types on, right
                                   ; prompt_to_row24 (screen-handler.asm)
 ROW_BYTES            = 40
 STATUS_ROW_OFFSET    = 920      ; STATUS_ROW * ROW_BYTES
+PROMPT_ROW_OFFSET    = 960      ; PROMPT_ROW * ROW_BYTES
+
+; ============================================================
+; --- Double-buffered screen + custom charset (VIC bank 3) ---
+; ============================================================
+; 2026-08-22: term_scroll_advance's dialogue-window shift no longer
+; copies live, currently-displayed SCREEN_RAM in chunks -- it shifts into
+; a completely invisible second screen buffer, at total leisure, then
+; flips which one the VIC displays via VIC_MEMORY_CONTROL's screen-
+; pointer bits. This is atomic (a handful of cycles) and structurally
+; eliminates glyph tearing, rather than just keeping each write burst
+; inside a vblank window and hoping. Prototyped first in the standalone
+; tada_screen_blit_test.asm harness (same directory) -- see that file and
+; project memory (async-prompt/status-line project) for the full
+; reasoning trail. COLOR_RAM has no such second copy on real hardware
+; (see copy_color_chunked above), so color tearing is mitigated the same
+; vblank-chunked way as before, just running alone now.
+;
+; Both screen buffers live in VIC bank 3 ($c000-$ffff), selected once at
+; boot and never switched again -- picked over bank 0 to avoid TWO
+; existing reservations: $2000 (OVERLAY_BUF, where petscii_editor.asm/
+; config_menu.asm load and run) and $c000-$c018 (JT_BASE/PROTO_TABLE,
+; constants.asm -- confirmed via grep before picking SCREEN_BUF_A/B's
+; addresses, same discipline constants.asm's own comment used when IT
+; claimed $c000). Character ROM is only VIC-visible in banks 0/2, which
+; would normally force a ROM-image-copy dance to keep the stock font
+; working in bank 3 -- moot here: gothic_charset ({include:}'d below)
+; supplies a complete custom 256-glyph charset of its own, an ordinary
+; assembled label always visible to the CPU, so switch_to_bank3_with_
+; charset only needs one $01=$30 "all RAM" banking window (to make the
+; WRITE side -- the real RAM behind $d000-$dfff -- visible) around one
+; copy_block call, not a ROM-read step first.
+SCREEN_BUF_A    = $c400        ; bank-3-relative slot 1 -- clear of
+                                 ; JT_BASE/PROTO_TABLE (slot 0, $c000)
+SCREEN_BUF_B    = $c800        ; bank-3-relative slot 2
+VIC_BANK_SELECT = $dd00        ; CIA2 port A, bits 0-1 -- INVERTED bank
+                                 ; encoding: 00=bank3, 01=bank2, 10=bank1,
+                                 ; 11=bank0 (KERNAL boot default). Bits
+                                 ; 2-7 drive the serial/IEC bus --
+                                 ; preserved, never touched here.
+VIC_BANK_BASE   = $c000        ; bank 3's absolute base -- flip_screen_
+                                 ; buffer subtracts this out to get the
+                                 ; bank-relative value VIC_MEMORY_CONTROL
+                                 ; actually wants
+HIBASE          = $0288        ; KERNAL's screen-high-byte shadow --
+                                 ; CHROUT/PLOT compute addresses from
+                                 ; this, not from VIC_MEMORY_CONTROL
+                                 ; directly, so a buffer flip has to
+                                 ; update both. Purely a CPU-side
+                                 ; absolute address, unrelated to
+                                 ; VIC_BANK_SELECT.
+CHARGEN_DEST    = $d000        ; bank-3-relative slot 4 (char-ptr value 2,
+                                 ; 2*$800) -- where the VIC will look for
+                                 ; gothic_charset once bank 3 is selected;
+                                 ; real RAM behind $d000-$d7ff, not
+                                 ; visible to the CPU without the $01
+                                 ; trick below
+CHARGEN_SIZE    = 2048
+CHARGEN_RAM_CONFIG = $30       ; LORAM=0, HIRAM=0, CHAREN=0 -- all RAM,
+                                 ; including the cells behind $d000-$dfff
+                                 ; (needed to WRITE there -- the CPU can't
+                                 ; write through the KERNAL/IO view $01
+                                 ; normally leaves mapped)
+VIC_D018_INIT   = $14          ; screen-ptr nibble 1 (buffer A, $c400 --
+                                 ; ($c400-$c000)>>2<<4 = $10) | char-ptr
+                                 ; value 2 ($d000, 2<<1=$04) -- boot value
+
+; --- switch_to_bank3_with_charset ---
+; One-time boot setup, called FIRST in start: (before init_screen even --
+; init_screen's own screen-clear needs HIBASE/the VIC bank already
+; correct). Copies gothic_charset into the RAM VIC bank 3 will read,
+; switches the VIC there, and leaves front_hi/HIBASE/VIC_MEMORY_CONTROL
+; pointing at SCREEN_BUF_A. Runs under SEI -- MUST happen before init_nmi/
+; init_swiftlink (see start:'s own comment): SwiftLink's byte-arrival NMI
+; is not maskable by SEI, and $01=$30 banks KERNAL's own NMI vector
+; ($fffa) out to uninitialized RAM for the duration of the write window --
+; a byte arriving mid-dance, if the cartridge's RxD IRQ were already
+; enabled, would jump through garbage. No such risk this early: nothing
+; has enabled SwiftLink's interrupt yet.
+switch_to_bank3_with_charset:
+        sei
+
+        ; --- 1. Select VIC bank 3 ---
+        lda VIC_BANK_SELECT
+        and #%11111100              ; bits 0-1 = 00 -> bank 3 (inverted
+        sta VIC_BANK_SELECT          ; encoding -- see this const's comment)
+
+        ; --- 2. Write gothic_charset into the RAM behind $d000-$dfff that
+        ; VIC-in-bank-3 will see at its own bank-relative $1000-$17ff ---
+        lda $01
+        pha
+        lda #CHARGEN_RAM_CONFIG
+        sta $01
+        lda #<gothic_charset
+        sta copy_src_lo
+        lda #>gothic_charset
+        sta copy_src_hi
+        lda #<CHARGEN_DEST
+        sta copy_dst_lo
+        lda #>CHARGEN_DEST
+        sta copy_dst_hi
+        lda #<CHARGEN_SIZE
+        sta copy_remaining_lo
+        lda #>CHARGEN_SIZE
+        sta copy_remaining_hi
+        jsr copy_block
+        pla
+        sta $01                     ; restore -- must happen before the
+                                      ; very next jsr CHROUT et al, which
+                                      ; need KERNAL ROM mapped
+
+        ; --- 3. Point the VIC and KERNAL at SCREEN_BUF_A, char-ptr 2 ---
+        lda #VIC_D018_INIT
+        sta VIC_MEMORY_CONTROL
+        lda #>SCREEN_BUF_A
+        sta front_hi
+        sta HIBASE
+
+        cli
+        rts
+
+; --- flip_screen_buffer: atomically swap which 1K page the VIC displays ---
+; Input: .A = the buffer's ABSOLUTE high byte to make the new front
+; (SCREEN_BUF_A's or SCREEN_BUF_B's >, i.e. $c4 or $c8).
+; Updates both:
+;   - VIC_MEMORY_CONTROL bits 4-7, the HARDWARE screen pointer (unit
+;     $0400, VALUE RELATIVE TO THE CURRENT VIC BANK -- both buffers are
+;     bank-3 slots, so the absolute high byte first gets VIC_BANK_BASE
+;     subtracted back out before the shift). new_nibble = relative_hi>>2,
+;     since relative_hi is always a multiple of 4 for a page that's also
+;     1K-aligned; computed via two LSRs then four ASLs (net: clear the
+;     bottom 2 bits, then shift into the top nibble) rather than a lookup
+;     table, since it's a pure bit-shuffle with no data-dependent
+;     branching.
+;   - HIBASE, the KERNAL shadow byte CHROUT/PLOT actually consult to
+;     compute where to poke -- without this, term_chrout's own `jsr
+;     CHROUT` calls would keep printing into the now-hidden buffer instead
+;     of the newly-visible one, invisibly diverging from what's on screen.
+;     Set from the ABSOLUTE high byte (a plain CPU-side address, unrelated
+;     to VIC bank selection), before the relative subtraction below.
+; Existing charset-pointer bits (bits 0-3) are preserved by ANDing them
+; back in from the register's current value, not just overwritten.
+flip_screen_buffer:
+        sta front_hi
+        sta HIBASE
+        sec
+        sbc #>VIC_BANK_BASE
+        lsr
+        lsr
+        asl
+        asl
+        asl
+        asl                         ; .A = (relative_hi >> 2) << 4
+        sta flip_d018_val
+        lda VIC_MEMORY_CONTROL
+        and #$0f                    ; keep charset-pointer bits untouched
+        ora flip_d018_val
+        sta VIC_MEMORY_CONTROL
+        rts
+
+flip_d018_val:
+        byte 0
+front_hi:
+        byte >SCREEN_BUF_A
+back_hi:
+        byte 0
+
+; --- ensure_buffer_a_front ---
+; Called before handing off to any overlay module (load_petscii_editor/
+; load_config_menu) -- those are separately-assembled .prg files with
+; SCREEN_RAM baked in as a compile-time constant matching SCREEN_BUF_A,
+; so they can't know or care which buffer is currently front. Guarantees
+; buffer A both IS front (flips if it wasn't) AND actually holds the true
+; current dialogue content, not stale leftovers from whenever it was last
+; shown -- a bare flip alone would just reveal whatever old screen data
+; happened to still be sitting in buffer A's memory from its last turn as
+; front. COLOR_RAM needs no copy here (unlike the screen/glyph half) --
+; it's a single shared chip, already correct on whichever buffer is
+; live, unaffected by which one that is.
+ensure_buffer_a_front:
+        lda front_hi
+        cmp #>SCREEN_BUF_A
+        beq ensure_buffer_a_front_rts   ; already front -- nothing to do
+        lda #0
+        sta copy_src_lo
+        lda front_hi
+        sta copy_src_hi
+        lda #0
+        sta copy_dst_lo
+        lda #>SCREEN_BUF_A
+        sta copy_dst_hi
+        jsr copy_1000               ; mirror current front's full 1000
+                                      ; cells into buffer A first
+        lda #>SCREEN_BUF_A
+        jsr flip_screen_buffer
+ensure_buffer_a_front_rts:
+        rts
 
 ; --- term_chrout: drop-in CHROUT replacement for dialogue text ---
 ; Use instead of a bare `jsr CHROUT` for anything that can legitimately
@@ -791,41 +1074,120 @@ term_cursor_right_rts:
 
 ; --- wait_vblank: busy-wait until the raster beam reaches line 250 ---
 ; Comfortably past the visible area on both PAL (312 lines/frame) and
-; NTSC (262 lines/frame) -- moves the START of the scroll's screen-
-; memory writes to an off-screen moment, rather than however mid-frame
-; the triggering character happened to land. Does NOT fully eliminate
-; tearing on its own: the shift itself (two 880-byte copies, screen +
-; color, ~3.5ms of CPU time) runs longer than a single vblank window
-; (well under 1ms) and can spill back into active drawing time
-; regardless. A complete fix would chunk the copy across several frames
-; instead of doing it atomically; not pursued since checking real frames
-; extracted from a screen recording (see project memory) found no
-; visible tearing with just this cheap version. $d012 alone (without
-; checking $d011 bit 7) is sufficient for line 250 since that's well
-; under 256.
+; NTSC (262 lines/frame) -- moves the START of each copied chunk's
+; screen-memory writes to an off-screen moment, rather than however
+; mid-frame the triggering character happened to land. Originally called
+; once before an 880-byte-times-two atomic copy, which (checking real
+; frames extracted from a screen recording, see project memory) showed
+; no visible tearing in practice despite the copy's ~3.5ms runtime
+; exceeding one vblank window -- but copy_dialogue_block_chunked (2026-08-
+; 22) now calls this once per DIALOGUE_CHUNK_BYTES chunk instead, the
+; complete fix this comment used to defer: every actual write burst stays
+; comfortably inside its own blanking window, full stop, rather than
+; relying on empirically-clean-so-far timing margins. $d012 alone
+; (without checking $d011 bit 7) is sufficient for line 250 since that's
+; well under 256.
 wait_vblank:
         lda $d012
         cmp #250
         bne wait_vblank
         rts
 
-; Shift the dialogue window up, rows 1-22 -> rows 0-21 (screen + color),
-; discarding old row 0, then blank the fresh row 22 and reposition the
-; cursor there. Both of term_chrout's triggers (a bare CR, or a column
-; wrap) reduce to exactly this -- neither ever leaves real new content
-; in STATUS_ROW to preserve (see this section's own header comment).
+; --- term_scroll_advance: double-buffered dialogue-window shift ---
+; Rows 1-22 up into rows 0-21, discarding old row 0, then blank the fresh
+; row 22 and reposition the cursor there. Both of term_chrout's triggers
+; (a bare CR, or a column wrap) reduce to exactly this -- neither ever
+; leaves real new content in STATUS_ROW to preserve (see this section's
+; own header comment).
+;
+; Prepares the BACK buffer completely off-screen, at leisure, then flips:
+;   1. Shift glyphs: front rows 1-22 -> back rows 0-21 (one atomic
+;      copy_block call -- back buffer is invisible, no vblank pressure).
+;   2. Blank back buffer's fresh row 22.
+;   3. Mirror PROMPT_ROW (24) from front into back too -- NOT part of the
+;      row 1-22 shift, so without this the back buffer's prompt row would
+;      still hold whatever was there the LAST time it was front (stale,
+;      possibly several scrolls old) until the next explicit reprint_
+;      input_line/relocate_prompt_to_row24 call caught up -- a real,
+;      if transient, visible-glitch class this closes outright rather
+;      than relying on "probably gets overwritten before anyone notices".
+;   4. Stamp back buffer's STATUS_ROW with the current queued message
+;      (redraw_status_row_to) -- same "unconditional self-healing repaint
+;      every scroll" reasoning the single-buffer version used, still
+;      valid: whichever buffer is about to become front must be correct
+;      BEFORE it's shown, not patched up after.
+;   5. Chunk-shift COLOR_RAM in place (still live/visible the whole
+;      time -- see copy_color_chunked's own comment).
+;   6. One final wait_vblank, then flip: back becomes front, atomically.
 term_scroll_advance:
-        jsr wait_vblank
-        lda #<(SCREEN_RAM+ROW_BYTES)
-        sta copy_src_lo
-        lda #>(SCREEN_RAM+ROW_BYTES)
-        sta copy_src_hi
-        lda #<SCREEN_RAM
-        sta copy_dst_lo
-        lda #>SCREEN_RAM
-        sta copy_dst_hi
-        jsr copy_dialogue_block
+        lda front_hi
+        cmp #>SCREEN_BUF_A
+        beq tsa_back_is_b
+        lda #>SCREEN_BUF_A
+        jmp tsa_back_known
+tsa_back_is_b:
+        lda #>SCREEN_BUF_B
+tsa_back_known:
+        sta back_hi
 
+        ; --- 1. Shift glyphs: front rows 1-22 -> back rows 0-21 ---
+        lda #<ROW_BYTES
+        sta copy_src_lo
+        lda front_hi
+        sta copy_src_hi
+        lda #0
+        sta copy_dst_lo
+        lda back_hi
+        sta copy_dst_hi
+        lda #<DIALOGUE_SHIFT_BYTES
+        sta copy_remaining_lo
+        lda #>DIALOGUE_SHIFT_BYTES
+        sta copy_remaining_hi
+        jsr copy_block
+
+        ; --- 2. Blank back buffer's fresh row 22 ---
+        ; scr_ptr = back_hi:00 + 880 ($0370) -- direct arithmetic since
+        ; DIALOGUE_LAST_ROW is a fixed compile-time row here.
+        lda #<880
+        sta scr_ptr_lo
+        lda back_hi
+        clc
+        adc #>880
+        sta scr_ptr_hi
+        ldy #0
+        lda #$20
+tsa_blank:
+        sta (scr_ptr_lo),y
+        iny
+        cpy #40
+        bne tsa_blank
+
+        ; --- 3. Mirror PROMPT_ROW, front -> back (via copy_block -- reads
+        ; and writes two DIFFERENT buffers at once, so a single scr_ptr_
+        ; lo/hi indirect pointer can't do this, unlike step 2's blank) ---
+        lda #<PROMPT_ROW_OFFSET
+        sta copy_src_lo
+        lda front_hi
+        clc
+        adc #>PROMPT_ROW_OFFSET
+        sta copy_src_hi
+        lda #<PROMPT_ROW_OFFSET
+        sta copy_dst_lo
+        lda back_hi
+        clc
+        adc #>PROMPT_ROW_OFFSET
+        sta copy_dst_hi
+        lda #<ROW_BYTES
+        sta copy_remaining_lo
+        lda #>ROW_BYTES
+        sta copy_remaining_hi
+        jsr copy_block
+
+        ; --- 4. Stamp back buffer's STATUS_ROW before it's ever shown ---
+        lda back_hi
+        jsr redraw_status_row_to
+
+        ; --- 5. Chunk-shift COLOR_RAM (still live the whole time) ---
         lda #<(COLOR_RAM+ROW_BYTES)
         sta copy_src_lo
         lda #>(COLOR_RAM+ROW_BYTES)
@@ -834,34 +1196,18 @@ term_scroll_advance:
         sta copy_dst_lo
         lda #>COLOR_RAM
         sta copy_dst_hi
-        jsr copy_dialogue_block
+        jsr copy_color_chunked
 
-        lda #DIALOGUE_LAST_ROW
-        jsr set_screen_line         ; scr_ptr_lo/hi = row 22 base
-        ldy #0
-        lda #$20
-term_scroll_advance_blank:
-        sta (scr_ptr_lo),y
-        iny
-        cpy #40
-        bne term_scroll_advance_blank
-        ; Unconditionally repaint STATUS_ROW as the last act of every
-        ; single scroll, not just when something is known to have
-        ; touched it. Confirmed live 2026-08-20: STATUS_ROW measurably
-        ; ended up holding stray ordinary dialogue-text bytes after a
-        ; long enough burst of scrolling (a real, reproducible transient
-        ; write into that row from *somewhere* in this chain -- CHROUT's
-        ; own internal wrap bookkeeping is the leading suspect but this
-        ; wasn't fully isolated), even though nothing in this routine
-        ; deliberately writes there. Rather than keep chasing the exact
-        ; write, make every scroll self-healing: cheap (one more 40-byte
-        ; raw poke) and correct regardless of the actual mechanism.
-        jsr redraw_status_row
+        ; --- 6. Flip: back becomes front, atomically ---
+        jsr wait_vblank
+        lda back_hi
+        jsr flip_screen_buffer
         ldx #DIALOGUE_LAST_ROW      ; KERNAL_PLOT: X=row, Y=col
         ldy #0
         clc
         jsr KERNAL_PLOT
         rts
+
 
 ; ============================================================
 ; --- Status queue (reverse-video, rotating, fixed row 23) ---
@@ -1025,51 +1371,72 @@ status_rotate_redraw:
         sta status_rotate_last_hi
         rts
 
-; --- redraw_status_row: repaint STATUS_ROW with the currently-selected
-; queued message (or an all-blank bar if the queue is empty), reverse
-; video, padded to 40 columns. Pure raw SCREEN_RAM pokes -- no CHROUT,
-; no cursor save/restore, no KERNAL_PLOT at all -- since queue content
-; is pre-encoded screen codes already (same convention update_status_
-; line already uses for row 0's banner). Destination is plain absolute
-; indexed addressing (STATUS_ROW_OFFSET is a compile-time constant)
-; rather than set_screen_line, freeing scr_ptr_lo/hi to be used solely
-; for the source (queue slot) pointer -- a raw copy-with-OR needs two
-; concurrent pointers, and this file's convention is one shared
-; transient pointer, not a second dedicated zero-page pair for
-; something this narrow.
+; --- redraw_status_row: repaint the CURRENT FRONT buffer's STATUS_ROW ---
+; Thin wrapper over redraw_status_row_to for the common case (every call
+; site except term_scroll_advance's own back-buffer pre-paint doesn't
+; care which buffer is front, it just wants "whatever's on screen now").
 redraw_status_row:
+        lda front_hi
+        ; falls through
+
+; --- redraw_status_row_to: repaint an EXPLICIT buffer's STATUS_ROW ---
+; Input: .A = target buffer's high byte.
+; Needed because term_scroll_advance must paint the BACK buffer's status
+; row (the one about to become front) BEFORE flipping, not whichever
+; buffer happens to be front at the moment it's called. Self-modifies
+; only the high byte of each STA operand's absolute address
+; (STATUS_ROW_OFFSET's low byte, $98, is identical in both buffers since
+; both are 1K-aligned; only the page differs) -- target_hi = buffer_hi +
+; 3, since STATUS_ROW_OFFSET (920, $0398) contributes high byte $03.
+; Otherwise unchanged from the single-buffer version: reverse video,
+; padded to 40 columns, pure raw pokes (queue content is pre-encoded
+; real screen codes already, same convention update_status_line uses for
+; row 0's banner). Destination addressing (not set_screen_line) frees
+; scr_ptr_lo/hi to be used solely for the source (queue slot) pointer --
+; a raw copy-with-OR needs two concurrent pointers, and this file's
+; convention is one shared transient pointer, not a second dedicated
+; zero-page pair for something this narrow.
+redraw_status_row_to:
+        clc
+        adc #>STATUS_ROW_OFFSET
+        sta rsrt_store+2
+        sta rsrt_pad_store+2
+        sta rsrt_blank_store+2
         lda status_queue_count
-        beq redraw_status_row_blank
+        beq rsrt_blank
         lda status_queue_read
         jsr status_slot_addr        ; scr_ptr_lo/hi = &status_queue[read]
         ldy #0
-redraw_status_row_copy:
+rsrt_copy:
         cpy #39
-        bcs redraw_status_row_pad
+        bcs rsrt_pad
         lda (scr_ptr_lo),y
-        beq redraw_status_row_pad
+        beq rsrt_pad
         ora #$80                    ; reverse video -- same $80-bit trick
-        sta SCREEN_RAM+STATUS_ROW_OFFSET,y
+rsrt_store:
+        sta STATUS_ROW_OFFSET,y     ; high byte self-modified above
         iny
-        jmp redraw_status_row_copy
-redraw_status_row_pad:
+        jmp rsrt_copy
+rsrt_pad:
         lda #$a0                    ; reverse-video space
-redraw_status_row_pad_loop:
+rsrt_pad_loop:
         cpy #40
-        bcs redraw_status_row_rts
-        sta SCREEN_RAM+STATUS_ROW_OFFSET,y
+        bcs rsrt_rts
+rsrt_pad_store:
+        sta STATUS_ROW_OFFSET,y
         iny
-        jmp redraw_status_row_pad_loop
-redraw_status_row_rts:
+        jmp rsrt_pad_loop
+rsrt_rts:
         rts
-redraw_status_row_blank:
+rsrt_blank:
         ldy #0
         lda #$a0
-redraw_status_row_blank_loop:
-        sta SCREEN_RAM+STATUS_ROW_OFFSET,y
+rsrt_blank_loop:
+rsrt_blank_store:
+        sta STATUS_ROW_OFFSET,y
         iny
         cpy #40
-        bne redraw_status_row_blank_loop
+        bne rsrt_blank_loop
         rts
 
 status_build_buf:
@@ -1177,6 +1544,13 @@ load_petscii_editor:
                                   ; disk error -- executes whatever garbage
                                   ; happened to already be sitting at $2000
                                   ; instead of failing cleanly)
+        jsr ensure_buffer_a_front ; overlay modules hardcode SCREEN_RAM as
+                                  ; a compile-time constant matching
+                                  ; buffer A -- they have no way to know
+                                  ; which buffer is currently front, so
+                                  ; this guarantees it's always A before
+                                  ; handing off (see that routine's own
+                                  ; comment)
         jmp OVERLAY_BUF           ; hand off -- the module returns control
                                   ; via JT_RESUME when it's done, not rts
 
@@ -1198,6 +1572,7 @@ load_config_menu:
         lda #0
         jsr KERNAL_LOAD
         bcs load_overlay_error
+        jsr ensure_buffer_a_front ; see load_petscii_editor's own comment
         jmp OVERLAY_BUF
 
 ; LOAD failed (either overlay module) -- report the KERNAL error number
@@ -1462,6 +1837,10 @@ sid_service_background_rts:
         rts
 
 {include:screen-handler_pp.asm}
+
+; gothic_charset -- no macro-preprocessor directives, so (like
+; constants.asm) included directly, not via a _pp.asm preprocessed copy.
+{include:gothic-charset.asm}
 
 ; --- Blinking input cursor ---
 ; GETIN-driven input (unlike CHRIN) never engages the KERNAL's own
