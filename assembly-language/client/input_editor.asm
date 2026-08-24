@@ -204,6 +204,14 @@ edkeys:
         byte 133 ; $85 - f1
         byte 136 ; $88 - f7
         byte 10  ; $0a - linefeed (ignored, see linefeed: below)
+        byte 145 ; $91 - cursor up (ignored -- not in the original
+                  ; upstream table at all, a single-line editor has
+                  ; nothing for up/down to do; without an entry here
+                  ; it fell through to putchr and got typed into the
+                  ; buffer as a literal control-code byte, confirmed
+                  ; live 2026-08-24 by Ryan: showed up as "quote mode
+                  ; style" reverse-video glyphs)
+        byte 17  ; $11 - cursor down (ignored, see above)
 numkeys:
         byte numkeys-edkeys
 
@@ -219,6 +227,8 @@ ekaddr:
         word next_word
         word prev_word
         word linefeed
+        word linefeed   ; cursor up -- shares linefeed's no-op
+        word linefeed   ; cursor down -- shares linefeed's no-op
 
 next_word:
         ldy cpos        ; get position within string
