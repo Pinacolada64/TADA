@@ -109,6 +109,9 @@ forty_col_mode:
         lda #1
         sta screen_mode          ; 1 = VIC-II/40-column
 
+        jsr init_irq              ; install the IRQ dispatcher (just the
+                                   ; blink-cursor task so far) before
+                                   ; anything else touches the screen
         jsr init_window
         jsr draw_status_row
 
@@ -284,7 +287,66 @@ draw_status_done:
 ; Space -> underscore display convention itself now (drwstr substitutes
 ; $a0 -> $e4 at display time only; see input_editor.asm's header).
 
+; --- IRQ dispatcher: install, round-robin one job per tick ---
+; Same shape as tada-client.asm's own init_irq/irq_handler/
+; irq_dispatch_next -- ported deliberately for parity across both
+; clients, not independently invented. Hooks CINV ($0314/$0315),
+; confirmed the same address/purpose on the 128 as the C64 (Compute's
+; 128 Programmer's Guide: "CINV vector to IRQ handler routine"). Not
+; independently re-verified here: whether the 128's KERNAL IRQ entry
+; stub pushes A/X/Y before jumping through CINV the same way the C64's
+; $FF48 does (which is what lets irq_handler skip saving registers
+; itself, relying on the eventual jmp (irq_orig) to fall through to the
+; stock handler's own pla/tax/pla/tay/pla/rti) -- inherited from the
+; C64 pattern on the reasonable assumption of shared KERNAL heritage,
+; same as this file's other C64-inherited-but-128-plausible assumptions.
+; Only one real job exists yet (irq_task_cursor_blink, from
+; input_editor.asm) -- no heartbeat placeholder needed since there's no
+; ambiguity to prove the dispatch mechanism against.
+init_irq:
+        sei
+        lda $0314
+        sta irq_orig+0
+        lda $0315
+        sta irq_orig+1
+        lda #<irq_handler
+        sta $0314
+        lda #>irq_handler
+        sta $0315
+        cli
+        rts
+
+irq_handler:
+        jsr irq_dispatch_next
+        jmp (irq_orig)
+
+irq_dispatch_next:
+        ldy irq_task_ptr
+        lda irq_task_table,y
+        sta irq_dispatch_jmp+1
+        iny
+        lda irq_task_table,y
+        sta irq_dispatch_jmp+2
+        iny
+        cpy #IRQ_TASK_TABLE_LEN
+        bcc irq_dispatch_next_store
+        ldy #0
+irq_dispatch_next_store:
+        sty irq_task_ptr
+irq_dispatch_jmp:
+        jmp $ffff
+
 {include:input_editor.asm}
+
+irq_orig:
+        byte 0,0                 ; saved KERNAL IRQ vector, set by init_irq
+
+irq_task_ptr:
+        byte 0                   ; byte offset into irq_task_table, self-modified
+
+irq_task_table:
+        word irq_task_cursor_blink
+IRQ_TASK_TABLE_LEN = 2           ; entries * 2 -- keep in sync with the table above
 
 ; --- Data ---
 

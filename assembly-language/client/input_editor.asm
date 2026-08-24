@@ -106,24 +106,49 @@ getstr:
 cursor:
         jsr rvson       ; reverse on
 gets10:
-        lda #30         ; value for blink time -- kept in memory
-        sta blinkctr    ; (blinkctr), not X. The C128's GETIN clobbers
-                        ; X and Y (Compute's 128 Programmer's Guide:
-                        ; "Registers changed: .A, .X, .Y"), unlike the
-                        ; C64's GETIN (.A only) -- a countdown kept in
-                        ; X across these repeated getin calls gets
-                        ; silently reset every poll on a real 128.
+        lda cursor_blink_mask  ; 0 = solid (no periodic redraw/re-reverse
+        beq gekey_solid ; cycle at all) -- see cursor_blink_mask's own
+                        ; comment; skip straight to a plain GETIN-only
+                        ; poll instead of arming the countdown below
+        sta blinkctr    ; kept in memory (blinkctr), not X. The C128's
+                        ; GETIN clobbers X and Y (Compute's 128
+                        ; Programmer's Guide: "Registers changed: .A,
+                        ; .X, .Y"), unlike the C64's GETIN (.A only) -- a
+                        ; countdown kept in X across these repeated getin
+                        ; calls gets silently reset every poll on a real
+                        ; 128.
+                        ;
+                        ; blinkctr USED to be paced by this loop's own
+                        ; delyms busy-wait (10ms * reload, decrementing
+                        ; and re-checking each spin). Now decremented by
+                        ; irq_task_cursor_blink instead (client-128.asm's
+                        ; round-robin IRQ task table), so gekey below just
+                        ; reads it -- no artificial per-poll delay, and
+                        ; GETIN gets checked far more often (better input
+                        ; latency) while blink timing runs on the IRQ's own
+                        ; real ~60Hz clock instead of CIA-timer polling.
+                        ; Safe to decrement from IRQ context unconditionally
+                        ; (even while gekey isn't running/blinkctr is stale)
+                        ; since it's a plain counter byte, never touched by
+                        ; CHROUT/PLOT -- gets10 always resets it fresh
+                        ; before every wait cycle anyway.
 gekey:
         jsr getin       ; get keypress
         bne gk1         ; if a key pressed
-        ldy #10         ; no keypress
-        jsr delyms      ; wait 10 milliseconds
-        dec blinkctr
+        lda blinkctr    ; irq_task_cursor_blink ticks this down
         bne gekey       ; not done - loop again
         lda rvsflg      ; time to switch cursor
         beq getstr      ; if rvs off, turn it on
         jsr rvsoff      ; if rvs on, turn it off
         jmp gets10
+
+; cursor_blink_mask == 0 (solid, no blink) -- just poll for a keypress,
+; leaving the cursor reversed (rvson already ran once above) instead of
+; ever re-entering the redraw/re-reverse cycle at all.
+gekey_solid:
+        jsr getin
+        bne gk1
+        jmp gekey_solid
 gk1:
         pha             ; save key pressed
         jsr rvsoff      ; turn off cursor
@@ -489,28 +514,17 @@ r2:
         lda #146
         jmp chrout      ; output rvs off & exit
 
-; subroutine
-; delay used for cursor blink (.y = milliseconds)
-delyms:
-        pha             ; save .a
-        lda #$7f
-        sta $dd0d       ; clear icr of cia #2
-        lda #$08
-        sta $dd0e       ; clear cra of cia #2
-        sta $dd0f       ; clear crb of cia #2
-        lda #$ff
-        sta $dd04       ; setup timer a lobyte
-        lda #$04
-        sta $dd05       ; setup timer a hibyte
-de1:
-        lda #$11
-        sta $dd0e       ; start timer a
-de2:
-        lda $dd05       ; has timer counted down?
-        bne de2         ; no - keep waiting
-        dey             ; yes - dec .y
-        bne de1         ; branch if not done
-        pla             ; restore .a
+; Round-robin IRQ task (client-128.asm's irq_task_table) that paces
+; the input editor's cursor blink -- see gets10/gekey's own comment on
+; why this replaced the old delyms busy-wait. Only touches a plain
+; counter byte, never CHROUT/PLOT, so (unlike a task that called
+; rvson/rvsoff directly) it's safe to run completely unconditionally,
+; whether or not the editor is even active right now.
+irq_task_cursor_blink:
+        lda blinkctr
+        beq irq_task_cursor_blink_rts
+        dec blinkctr
+irq_task_cursor_blink_rts:
         rts
 
 ; variables
@@ -524,6 +538,16 @@ maxlen:   byte 0  ; maximum length of the input string (1-254)
 strlen:   byte 0  ; current length of string
 rvsflg:   byte 0  ; blink flag for cursor
 blinkctr: byte 0  ; blink-timer countdown -- kept out of X, see gets10
+
+; Reload value for blinkctr / blink-speed selector -- same convention
+; and same numeric values as tada-client.asm's cursor_blink_mask ($08
+; fast/$10 normal/$20 slow/$40 very slow/$00 solid-no-blink), for parity
+; across both clients and so a future config-popup port to this client
+; can reuse the exact same wire values without a translation table. Not
+; yet wired to any live setter (no config popup on this client yet) --
+; defaults to $10, matching tada-client.asm's own hardcoded default.
+cursor_blink_mask: byte $10
+
 mode:     byte 0  ; $80: c128 mode
 
 msg_clear_prompt:
