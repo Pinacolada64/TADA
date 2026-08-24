@@ -76,6 +76,8 @@
 {const: INPUT_ROW     24}
 {const: STATUS_ROW_OFFSET 920}   ; STATUS_ROW * ROW_BYTES
 {const: INPUT_ROW_OFFSET  960}   ; INPUT_ROW * ROW_BYTES
+{const: WINDOW_CLEAR_COUNT 920}  ; (WIN_BOTTOM-WIN_TOP+1) * ROW_BYTES --
+                                  ; init_window's own full-window clear
 
 ; Reverse-video bit -- same convention as tada-client.asm's status row
 ; (a screen code with bit 7 set displays reverse video on this charset,
@@ -183,6 +185,44 @@ init_window:
         jsr KERNAL_CHROUT
         lda #'B'
         jsr KERNAL_CHROUT
+
+        ; ESC-T/ESC-B set the window's bounds but do NOT clear its
+        ; contents or home the cursor the way the BASIC-level
+        ; WINDOW x1,y1,x2,y2[,clear] statement does -- confirmed live in
+        ; VICE 2026-08-24: without this, the autostart boot text ("ready.",
+        ; "load...", "searching for *", ...) was still sitting in the
+        ; window area, and the demo text below started printing from
+        ; wherever the cursor happened to be after boot (mid-screen), not
+        ; the window's top-left. WINDOW_CLEAR_COUNT (920 = 23 rows * 40
+        ; columns) spaces via ordinary CHROUT clears the whole window --
+        ; safe to do this way (not raw pokes) since it stays within the
+        ; window's own just-established bounds the entire time, same as
+        ; any other window-confined output; auto-wraps row to row on its
+        ; own, no per-row PLOT needed.
+        clc
+        ldx #WIN_TOP
+        ldy #0
+        jsr KERNAL_PLOT
+        lda #<WINDOW_CLEAR_COUNT
+        sta window_clear_lo
+        lda #>WINDOW_CLEAR_COUNT
+        sta window_clear_hi
+init_window_clear_loop:
+        lda #' '
+        jsr KERNAL_CHROUT
+        lda window_clear_lo
+        bne init_window_clear_dec_lo
+        dec window_clear_hi
+init_window_clear_dec_lo:
+        dec window_clear_lo
+        lda window_clear_lo
+        ora window_clear_hi
+        bne init_window_clear_loop
+
+        clc
+        ldx #WIN_TOP
+        ldy #0
+        jsr KERNAL_PLOT
         rts
 
 ; --- draw_status_row: raw SCREEN_RAM pokes, reverse video, same
@@ -326,3 +366,9 @@ status_msg:
 ; (ROW_BYTES=40) plus a null terminator.
 inputbuf:
         area ROW_BYTES+1, 0
+
+; init_window's 16-bit down-counter for its full-window clear.
+window_clear_lo:
+        byte 0
+window_clear_hi:
+        byte 0
