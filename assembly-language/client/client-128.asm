@@ -244,6 +244,19 @@ draw_status_done:
 ; returned) -- petscii_to_screencode converts a COPY of it just for the
 ; screen poke, so a future SwiftLink send still has the real byte to
 ; work with. Output: inputbuf null-terminated. ---
+; NOTE (found live 2026-08-24, real typing in VICE via Ryan): the C128's
+; GETIN is documented ("Registers changed: .A, .X, .Y" -- Compute's 128
+; Programmer's Guide) to clobber X and Y, unlike the C64's GETIN, which
+; only touches A. A loop that keeps its buffer index in X across
+; `jsr KERNAL_GETIN` (as this one originally did, C64-`read_line`-style)
+; gets that index silently reset by GETIN itself on every single poll
+; call -- symptom was the input row never advancing past its first
+; character no matter how much was typed, confirmed both via real
+; keystrokes and (separately) raw keyboard-buffer pokes, since the bug
+; is in the register contract, not the injection method. Fix: keep the
+; index in memory (input_index) and reload it into X fresh every time
+; after a `jsr KERNAL_GETIN` returns, rather than trusting X survived
+; the call.
 read_input_row:
         ldx #0
         lda #' '
@@ -253,30 +266,37 @@ read_input_clear_loop:
         cpx #ROW_BYTES
         bne read_input_clear_loop
 
-        ldx #0
+        lda #0
+        sta input_index
 read_input_loop:
-        jsr KERNAL_GETIN
+        jsr KERNAL_GETIN         ; clobbers .A/.X/.Y on the 128 -- don't
+                                   ; trust X/Y afterward, see note above
         cmp #0
         beq read_input_loop      ; nothing typed yet, keep polling
         cmp #13                  ; RETURN
         beq read_input_done
         cmp #20                  ; DEL (PETSCII backspace)
         beq read_input_del
+        ldx input_index
         cpx #ROW_BYTES
         bcs read_input_loop      ; row full, ignore further typing
         sta inputbuf,x           ; keep the original byte
-        jsr petscii_to_screencode
+        jsr petscii_to_screencode   ; doesn't touch X -- safe to reuse
         sta SCREEN_RAM+INPUT_ROW_OFFSET,x
         inx
+        stx input_index
         jmp read_input_loop
 read_input_del:
+        ldx input_index
         cpx #0
         beq read_input_loop      ; nothing to delete
         dex
+        stx input_index
         lda #' '
         sta SCREEN_RAM+INPUT_ROW_OFFSET,x
         jmp read_input_loop
 read_input_done:
+        ldx input_index
         lda #0
         sta inputbuf,x
         rts
@@ -365,3 +385,8 @@ status_msg:
 ; (ROW_BYTES=40) plus a null terminator.
 inputbuf:
         area ROW_BYTES+1, 0
+
+; read_input_row's buffer index, kept in memory rather than X -- see
+; that routine's own header comment (GETIN clobbers X/Y on the 128).
+input_index:
+        byte 0
