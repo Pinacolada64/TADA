@@ -131,9 +131,20 @@ demo_msg_loop:
 ; --- Main loop: read a line from the input row, echo it into the
 ; scrolling dialogue window. No server connection yet -- this just
 ; proves the three-region layout (scrolling window / static status row
-; / static input row) works together before SwiftLink gets wired in. ---
+; / static input row) works together before SwiftLink gets wired in.
+;
+; The line editor itself is sliding-input.asm's ported insert/delete/
+; cursor-movement/word-jump core (input_editor.asm) -- its drwstr
+; redraw goes through PLOT, which is window-relative once ESC-T/ESC-B
+; is active (see this file's header comment), and INPUT_ROW (24) sits
+; below the normal WIN_BOTTOM=22 dialogue window. So the window is
+; widened to the full screen for the duration of the call and narrowed
+; back after -- narrowing does NOT re-clear (see set_window_narrow),
+; since that would wipe the scrolled dialogue history on every line. ---
 main_loop:
-        jsr read_input_row
+        jsr set_window_full
+        jsr call_sliding_input
+        jsr set_window_narrow
         ldx #0
 echo_prefix_loop:
         lda echo_prefix,x
@@ -166,23 +177,7 @@ done:
 ; via raw SCREEN_RAM pokes instead, never through PLOT/CHROUT again
 ; after this runs. ---
 init_window:
-        clc
-        ldx #WIN_TOP
-        ldy #0
-        jsr KERNAL_PLOT
-        lda #27                  ; ESC
-        jsr KERNAL_CHROUT
-        lda #'T'
-        jsr KERNAL_CHROUT
-
-        clc
-        ldx #WIN_BOTTOM
-        ldy #39
-        jsr KERNAL_PLOT
-        lda #27                  ; ESC
-        jsr KERNAL_CHROUT
-        lda #'B'
-        jsr KERNAL_CHROUT
+        jsr set_window_narrow
 
         ; ESC-T/ESC-B set the window's bounds but do NOT clear its
         ; contents or home the cursor the way the BASIC-level
@@ -205,6 +200,53 @@ init_window:
         ; if one turns up later this can shrink to a single JSR.
         lda #147
         jsr KERNAL_CHROUT
+        jsr KERNAL_CHROUT
+        rts
+
+; --- set_window_narrow / set_window_full: ESC-T/ESC-B window-bound
+; helpers. set_window_narrow (rows WIN_TOP-WIN_BOTTOM) is the normal
+; dialogue-window bound, used both at boot (init_window, which also
+; clears) and after each input_editor.asm call (which must NOT clear,
+; since that would wipe the scrolled dialogue history -- see
+; main_loop's comment). set_window_full extends the bottom edge down
+; to INPUT_ROW so the editor's PLOT-based redraw can reach it. ---
+set_window_narrow:
+        clc
+        ldx #WIN_TOP
+        ldy #0
+        jsr KERNAL_PLOT
+        lda #27                  ; ESC
+        jsr KERNAL_CHROUT
+        lda #'T'
+        jsr KERNAL_CHROUT
+
+        clc
+        ldx #WIN_BOTTOM
+        ldy #39
+        jsr KERNAL_PLOT
+        lda #27                  ; ESC
+        jsr KERNAL_CHROUT
+        lda #'B'
+        jsr KERNAL_CHROUT
+        rts
+
+set_window_full:
+        clc
+        ldx #WIN_TOP
+        ldy #0
+        jsr KERNAL_PLOT
+        lda #27                  ; ESC
+        jsr KERNAL_CHROUT
+        lda #'T'
+        jsr KERNAL_CHROUT
+
+        clc
+        ldx #INPUT_ROW
+        ldy #39
+        jsr KERNAL_PLOT
+        lda #27                  ; ESC
+        jsr KERNAL_CHROUT
+        lda #'B'
         jsr KERNAL_CHROUT
         rts
 
@@ -233,109 +275,16 @@ draw_status_msg_loop:
 draw_status_done:
         rts
 
-; --- read_input_row: minimal line editor for the input row -- append-
-; only plus backspace-at-end (no mid-line insert/delete yet; port
-; tada-client.asm's fuller read_line later if this needs it). Echoes
-; via raw SCREEN_RAM pokes, same reasoning as draw_status_row -- the
-; input row sits outside the active window, so CHROUT/PLOT can't reach
-; it once init_window has run.
-;
-; inputbuf keeps the ORIGINAL typed byte (PETSCII, whatever GETIN
-; returned) -- petscii_to_screencode converts a COPY of it just for the
-; screen poke, so a future SwiftLink send still has the real byte to
-; work with. Output: inputbuf null-terminated. ---
-; NOTE (found live 2026-08-24, real typing in VICE via Ryan): the C128's
-; GETIN is documented ("Registers changed: .A, .X, .Y" -- Compute's 128
-; Programmer's Guide) to clobber X and Y, unlike the C64's GETIN, which
-; only touches A. A loop that keeps its buffer index in X across
-; `jsr KERNAL_GETIN` (as this one originally did, C64-`read_line`-style)
-; gets that index silently reset by GETIN itself on every single poll
-; call -- symptom was the input row never advancing past its first
-; character no matter how much was typed, confirmed both via real
-; keystrokes and (separately) raw keyboard-buffer pokes, since the bug
-; is in the register contract, not the injection method. Fix: keep the
-; index in memory (input_index) and reload it into X fresh every time
-; after a `jsr KERNAL_GETIN` returns, rather than trusting X survived
-; the call.
-read_input_row:
-        ldx #0
-        lda #' '
-read_input_clear_loop:
-        sta SCREEN_RAM+INPUT_ROW_OFFSET,x
-        inx
-        cpx #ROW_BYTES
-        bne read_input_clear_loop
+; read_input_row/petscii_to_screencode used to live here -- superseded
+; 2026-08-24 by input_editor.asm's ported sliding-input.asm core
+; (insert/delete/cursor-movement/word-jump, not just append/backspace),
+; called from main_loop as call_sliding_input. That routine draws via
+; PLOT/CHROUT rather than raw SCREEN_RAM pokes, so it needs the window
+; widened first (see main_loop's comment) -- and it handles the Shift+
+; Space -> underscore display convention itself now (drwstr substitutes
+; $a0 -> $e4 at display time only; see input_editor.asm's header).
 
-        lda #0
-        sta input_index
-read_input_loop:
-        jsr KERNAL_GETIN         ; clobbers .A/.X/.Y on the 128 -- don't
-                                   ; trust X/Y afterward, see note above
-        cmp #0
-        beq read_input_loop      ; nothing typed yet, keep polling
-        cmp #13                  ; RETURN
-        beq read_input_done
-        cmp #20                  ; DEL (PETSCII backspace)
-        beq read_input_del
-        ldx input_index
-        cpx #ROW_BYTES
-        bcs read_input_loop      ; row full, ignore further typing
-        sta inputbuf,x           ; keep the original byte
-        jsr petscii_to_screencode   ; doesn't touch X -- safe to reuse
-        sta SCREEN_RAM+INPUT_ROW_OFFSET,x
-        inx
-        stx input_index
-        jmp read_input_loop
-read_input_del:
-        ldx input_index
-        cpx #0
-        beq read_input_loop      ; nothing to delete
-        dex
-        stx input_index
-        lda #' '
-        sta SCREEN_RAM+INPUT_ROW_OFFSET,x
-        jmp read_input_loop
-read_input_done:
-        ldx input_index
-        lda #0
-        sta inputbuf,x
-        rts
-
-; --- petscii_to_screencode: .A = PETSCII/ASCII byte in, screen code out.
-; Screen codes differ from PETSCII only for unshifted letters (screen
-; code = petscii - $40 for A-Z, $41-$5A); digits/space/most punctuation
-; ($20-$3F) are already identical byte-for-byte in this charset (same
-; fact tada-client.asm's status_print_* routines already rely on) -- so
-; this covers ordinary typing without needing a full translation table
-; yet. Anything outside $20-$5A/$A0 passes through unconverted (likely
-; wrong on screen, but not handled yet -- no full table exists for this
-; client until the wider translation-table idea from
-; 128_CLIENT_MECHANICS.md's open questions gets built).
-;
-; Shift+Space ($A0, GETIN's own value for that key combo -- see
-; network_context.py's _petscii_input_to_ascii() on the server side,
-; which decodes the same raw byte to '_') maps to screen code $64, the
-; underline-ish glyph ('▁', confirmed live via POKE 1024,100 in VICE) --
-; NOT left unconverted, which would poke $A0 directly as a screen code
-; and show reverse-video space instead. This is deliberate, not a
-; leftover gap: Ryan wants Shift+Space -> underscore kept as the
-; player-facing convention (e.g. `reload commands.some_module`), so the
-; input row's local echo needs to actually look like an underscore
-; rather than a blank reverse block. ---
-petscii_to_screencode:
-        cmp #$a0
-        bne petscii_to_screencode_letters
-        lda #$64                        ; Shift+Space -> underline glyph
-        rts
-petscii_to_screencode_letters:
-        cmp #$41
-        bcc petscii_to_screencode_rts   ; < 'A' -- pass through as-is
-        cmp #$5b
-        bcs petscii_to_screencode_rts   ; > 'Z' -- pass through as-is
-        sec
-        sbc #$40                        ; 'A'-'Z' -> screen code $01-$1a
-petscii_to_screencode_rts:
-        rts
+{include:input_editor.asm}
 
 ; --- Data ---
 
@@ -381,12 +330,8 @@ status_msg:
         byte 0
 {alpha:normal}
 
-; inputbuf: read_input_row's line buffer, one byte per input-row column
-; (ROW_BYTES=40) plus a null terminator.
+; inputbuf: input_editor.asm's line buffer, one byte per input-row
+; column (ROW_BYTES=40) plus a null terminator -- call_sliding_input
+; points strptr at this before every call.
 inputbuf:
         area ROW_BYTES+1, 0
-
-; read_input_row's buffer index, kept in memory rather than X -- see
-; that routine's own header comment (GETIN clobbers X/Y on the 128).
-input_index:
-        byte 0
