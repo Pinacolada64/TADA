@@ -57,12 +57,16 @@ def _settings(has_tab_key: bool = True, tab_width: int = 8) -> ClientSettings:
 class TestExpandTabTokens(unittest.TestCase):
 
     def test_single_tab_expands_to_tab_output(self):
+        # 'A' at column 0 -> next stop at 4 is 3 spaces, not a flat
+        # tab_width repeat -- see formatting._expand_tab_tokens().
         cs = _settings(has_tab_key=False, tab_width=4)
-        self.assertEqual(_expand_tab_tokens('A|tab|B', cs), 'A    B')
+        self.assertEqual(_expand_tab_tokens('A|tab|B', cs), 'A   B')
 
     def test_tab_with_count_repeats_tab_output(self):
+        # col 0 -> stop at 4 (3 sp) -> stop at 8 (4 sp) -> stop at 12
+        # (4 sp) = 11 spaces total, not 3 flat tab_width repeats (12).
         cs = _settings(has_tab_key=False, tab_width=4)
-        self.assertEqual(_expand_tab_tokens('A|tab:3|B', cs), 'A            B')
+        self.assertEqual(_expand_tab_tokens('A|tab:3|B', cs), 'A           B')
 
     def test_real_tab_key_expands_to_literal_tab_char(self):
         cs = _settings(has_tab_key=True)
@@ -76,7 +80,7 @@ class TestExpandTabTokens(unittest.TestCase):
     def test_format_lines_expands_tab_before_wrapping(self):
         cs = _settings(has_tab_key=False, tab_width=4)
         lines = format_lines(['A|tab|B|tab:2|C'], cs)
-        self.assertEqual(lines, ['A    B        C'])
+        self.assertEqual(lines, ['A   B       C'])
 
 
 class TestTokenCountSyntax(unittest.TestCase):
