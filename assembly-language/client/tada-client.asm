@@ -223,6 +223,7 @@ KERNAL_PLOT = $fff0
 {const: DISPLAY_STREAM_CANCEL $58}   ; 'X' -- unrelated to CANVAS_STREAM_CANCEL,
                                        ; different stream, no need to match
 {include:constants.asm}
+{include:keyboard.asm}
 
 ; Zero page pointers
         scr_ptr_lo  = $fb       ; screen write pointer low byte

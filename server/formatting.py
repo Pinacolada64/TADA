@@ -316,17 +316,30 @@ def _petscii_token_strip_replace(match: re.Match) -> str:
 
 
 # Characters that cbmcodecs2's petscii_c64en_lc codec has no mapping for
-# (it maps 0x5E/0x5F to the UPWARDS/LEFTWARDS ARROW glyphs, not '^'/'_'),
-# so a plain .encode(codec_name) errors='replace's them to '?'. Each maps
-# straight to the raw PETSCII byte a real Commodore screen needs instead.
-# '^' is the up-arrow key -- the same physical key/glyph HistoryCommand's
-# '^N' shortcut uses, so this is what makes it round-trip to the C64
-# screen instead of showing as '?'. See _petscii_input_to_ascii in
+# (it maps 0x5E to the UPWARDS ARROW glyph, not '^'), so a plain
+# .encode(codec_name) errors='replace's it to '?'. Maps straight to the
+# raw PETSCII byte a real Commodore screen needs instead. '^' is the
+# up-arrow key -- the same physical key/glyph HistoryCommand's '^N'
+# shortcut uses, so this is what makes it round-trip to the C64 screen
+# instead of showing as '?'. See _petscii_input_to_ascii in
 # network_context.py for the matching keyboard-input (C64 -> server)
 # direction of this same 0x5E mapping.
+#
+# '_' maps to wire/CHROUT byte 0xE4, NOT screen code 0x64 -- screen codes
+# (what you POKE straight into SCREEN_RAM) and PETSCII/CHROUT transmission
+# codes are two different numbering spaces for the same glyph. Screen
+# code 0x64 is genuinely the underline-ish glyph ('▁', confirmed live via
+# POKE 1024,100 in VICE), but sending raw byte 0x64 over the wire (as an
+# earlier version of this mapping did) decodes as 'D' once CHROUT converts
+# it back to a screen code (0x64 -> screen code 0x44 -> 'D') -- that's
+# exactly what rendered as 'D' on Gadget's real hardware. 0xE4 (0x64 +
+# 0x80) is the wire byte that CHROUT itself converts to screen code 0x64.
+# See _petscii_input_to_ascii in network_context.py for the matching
+# keyboard-input (C64 -> server) direction: Shift+Space (0xA0), not this
+# byte or the back-arrow key.
 _PETSCII_RAW_BYTE_OVERRIDES: dict[str, int] = {
-    '_': 0x64,  # underline glyph
     '^': 0x5E,  # up-arrow glyph
+    '_': 0xE4,  # underline-ish glyph (-> screen code 0x64 via CHROUT)
 }
 
 
@@ -341,8 +354,9 @@ def _encode_petscii_segment(text: str, codec_name: str,
     function. Ryan caught the '_' gap live: without this, the fallback
     path (this environment doesn't have cbmcodecs2 installed) sent a raw
     ASCII 0x5F for '_', which isn't underscore on a real Commodore
-    screen -- it happened to render as an unrelated glyph. $64 is the
-    actual PETSCII underline-glyph code.
+    screen -- it happened to render as an unrelated glyph. 0xE4 is the
+    real wire/CHROUT byte for the underline-ish glyph (see
+    _PETSCII_RAW_BYTE_OVERRIDES's comment for why it isn't 0x64).
 
     :param apply_overrides: False for PETSCIINetworkContext's genuine
         Translation.ASCII output (network_context.py's _text_codec_name())
