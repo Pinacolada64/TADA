@@ -1166,12 +1166,55 @@ async def _pick_client_type(ctx) -> None:
     await ctx.send(f'Client type set to: Custom, {cols}x{rows} screen size, {translation.name}.')
 
 
-def _tab_test_line() -> str:
-    """Build a sample line using |tab| so a player can see what their
-    current tab setting actually looks like -- goes through the normal
-    ctx.send() -> format_lines() pipeline, so it expands exactly like any
-    other |tab|/|tab:N| token in game text (see formatting._expand_tab_tokens())."""
-    return 'Tab test:|tab|1|tab|2|tab|3'
+def _tab_token_demo(ctx) -> list[str]:
+    """Borderless table showing the |tab|/!tab! token syntax a player would
+    type versus what it actually renders to for their current tab setting
+    -- plus the ||tab||/!!tab!! escape (see commands/help.py's 'colors'
+    topic, which established this same doubled-delimiter convention) that
+    shows the raw syntax as literal text instead of expanding it. Shown
+    regardless of whether the client has a real Tab key -- the token
+    syntax and its escape don't change either way, only what a real
+    (non-escaped) token expands to.
+
+    'You type:' cells are written pre-escaped (e.g. '!!tab!!') so the
+    single token-resolution pass inside ctx.send() renders them down to
+    the literal single-delimiter text a player would actually type
+    ('!tab!') -- writing the unescaped form directly would make ctx.send()
+    treat it as a real token and expand it instead of displaying it. Both
+    columns wrap the token in 'A'/'B' markers (matching each other) so
+    the tab's effect -- how much space lands between them -- is visible
+    even though the escaped 'You type:' side never actually expands.
+
+    'You get:' cells are pre-expanded here via the real
+    formatting._expand_tab_tokens(), not left as live tokens for
+    ctx.send() to expand later: Table's own column-width math measures
+    cell text via _visible_len(), which doesn't know a live tab token is
+    about to become several real spaces (it's built for zero-width color
+    tokens) -- letting one survive into the table would size the column
+    too narrow, then blow it out once ctx.send() actually expands it.
+    Pre-expanding sidesteps that entirely; the one exception is the escape
+    row's 'You get:' cell, which (like the 'You type:' column) is left in
+    escaped form since resolving an escape only trims two characters --
+    not worth a special case for that little drift.
+    """
+    from table import Table
+    from formatting import codec_for_settings, PETSCIICodec, _expand_tab_tokens
+
+    cs    = ctx.player.client_settings
+    codec = codec_for_settings(cs)
+    # PETSCII's easier-to-type '!' alternate delimiter (see formatting.py's
+    # _PETSCII_TOKEN_RE comment) for real Commodore clients; '|' otherwise.
+    d = '!' if isinstance(codec, PETSCIICodec) else '|'
+
+    def _expanded(token: str) -> str:
+        return _expand_tab_tokens(f'A{token}B', cs, codec)
+
+    t = Table(headers=['You type:', 'You get:'], border=False)
+    t.add_row([f'A{d}{d}tab{d}{d}B',       _expanded(f'{d}tab{d}')])
+    t.add_row([f'A{d}{d}tab:2{d}{d}B',     _expanded(f'{d}tab:2{d}')])
+    t.add_row([f'A{d}{d}tab:3{d}{d}B',     _expanded(f'{d}tab:3{d}')])
+    t.add_row([f'A{d}{d}{d}tab{d}{d}{d}B', f'A{d}{d}tab{d}{d}B'])
+    return t.render(width=cs.screen_columns)
 
 
 def _tab_alignment_demo(tab_width: int) -> list[str]:
@@ -1216,7 +1259,7 @@ async def _pick_tab_settings(ctx) -> None:
             f"Does your client have a Tab key? Currently: "
             f"{'Yes' if tab.has_tab_key else 'No'}.",
             "If not, tabs are simulated with spaces instead.",
-            _tab_test_line(),
+            *_tab_token_demo(ctx),
         ],
     )
     if raw is None or not raw.strip():
@@ -1226,7 +1269,7 @@ async def _pick_tab_settings(ctx) -> None:
     await ctx.send(f"Tab key: {'Yes' if tab.has_tab_key else 'No'}.")
 
     if tab.has_tab_key:
-        await ctx.send(_tab_test_line())
+        await ctx.send(*_tab_token_demo(ctx))
         return
 
     raw_width = await ctx.prompt(
@@ -1242,7 +1285,7 @@ async def _pick_tab_settings(ctx) -> None:
     if 0 <= width <= cs.screen_columns:
         tab.tab_width  = width
         tab.tab_output = ' ' * width
-        await ctx.send(f'Tab width set to {width}.', _tab_test_line(),
+        await ctx.send(f'Tab width set to {width}.', *_tab_token_demo(ctx),
                         *_tab_alignment_demo(width))
     else:
         await ctx.send(f'Tab width unchanged -- must be 0-{cs.screen_columns}.')
