@@ -429,6 +429,16 @@ class ConnectCommand(Command):
             from commands.c64_display import encode_apply_for_player
             await ctx.send_raw(encode_apply_for_player(player))
 
+            # Real Commodore 128 preset only (has_tab is also true for
+            # TADA Client/ANSI/Custom, none of which understand this) --
+            # enable the 128's own hardware tab stops (fixed at 8 columns,
+            # see terminal.py's c128_tab_sync_bytes()) so its real Tab key
+            # actually does something, and keep tab_settings in sync with
+            # what the hardware can actually do.
+            if player.client_settings.has_tab:
+                from terminal import c128_tab_sync_bytes
+                await ctx.send_raw(c128_tab_sync_bytes(player.client_settings))
+
         # --- Aggregate all login text into one send so the C64 terminal
         #     doesn't scroll past the welcome block before the player can read it.
         login_lines: list[str] = []

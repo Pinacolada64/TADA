@@ -206,6 +206,47 @@ class TabSettings:
                 setattr(instance, key, data[key])
         return instance
 
+
+# Real Commodore 128 (native mode) screen-editor escape codes for tab-stop
+# control -- CHR$(27) ('ESC') followed by a literal letter byte, the same
+# "press ESC then a key" mechanism BASIC 7.0's own screen editor uses.
+# Meaningless (and potentially garbage on-screen) sent to anything else --
+# a C64 or a generic ANSI terminal has no such KERNAL feature -- so these
+# are only ever sent over a real PETSCIINetworkContext connection whose
+# Client Type preset is specifically "Commodore 128", never gated on
+# ClientSettings.has_tab alone (that flag is also true for TADA Client/
+# ANSI/Custom clients, none of which are real 128 hardware).
+#
+# Verified against Compute's 128 Programmer's Guide's escape-code table
+# (see assembly-language/client/128_CLIENT_MECHANICS.md for the citation
+# and why a naive PDF-to-text extract of that table can't be trusted --
+# it scrambles the two-column layout and misattributes letters). There is
+# no per-column set/clear like a VT100's HTS/TBC -- just one global
+# on/off, hardcoded to an 8-column grid:
+#   ESC-Y  "Define tab as eight spaces" -- enables tabbing, fixed at 8
+#   ESC-Z  "Clear tab"                  -- disables it
+C128_ESC_DEFINE_TAB: bytes = bytes([27, ord('Y')])
+C128_ESC_CLEAR_TAB:  bytes = bytes([27, ord('Z')])
+
+
+def c128_tab_sync_bytes(client_settings: 'ClientSettings') -> bytes:
+    """Force *client_settings*'s tab_settings to match real 128 hardware
+    (has_tab_key=True, tab_width=8 -- the only grid ESC-Y can produce,
+    no per-column customization exists on this hardware) and return the
+    ESC-Y bytes to send so the client's own Tab key actually enables it.
+
+    Overrides whatever the player answered under PREFS 'K' before this
+    existed, since that answer can't be anything else once they're
+    actually on a Commodore 128 preset.
+    """
+    tab_settings = getattr(client_settings, 'tab_settings', None)
+    if tab_settings is None:
+        tab_settings = TabSettings()
+        client_settings.tab_settings = tab_settings
+    tab_settings.has_tab_key = True
+    tab_settings.tab_width = 8
+    return C128_ESC_DEFINE_TAB
+
 class TerminalColors:
     def __init__(self):
         self.text_color: ColorName = ColorName.WHITE

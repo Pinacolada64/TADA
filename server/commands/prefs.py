@@ -1081,11 +1081,29 @@ async def _pick_client_type(ctx) -> None:
             # doesn't, in either PETSCII or ASCII-terminal mode), and so
             # does any ANSI/TADA client -- set as a side effect of picking
             # this client type, not asked separately.
+            was_c128_preset = cs.has_tab and is_real_petscii
             if label not in ('Commodore 64', 'Commodore 64 (ASCII)'):
                 cs.has_tab  = True
                 cs.tab_char = chr(9)
             else:
                 cs.has_tab = False
+            # Real Commodore 128 preset specifically (not just has_tab --
+            # that's also true for TADA Client/ANSI/Custom, none of which
+            # understand this) -- (de)activate the 128's own hardware tab
+            # stops live, same escape codes/reasoning as connect.py's
+            # login-time sync (terminal.py's c128_tab_sync_bytes()).
+            is_c128_preset = is_real_petscii and label == 'Commodore 128'
+            if is_c128_preset:
+                # Always (re-)send, even if they picked C128 again while
+                # already on it -- harmless, real C128 either way, and
+                # matches connect.py's own unconditional login-time send.
+                from terminal import c128_tab_sync_bytes
+                await ctx.send_raw(c128_tab_sync_bytes(cs))
+            elif was_c128_preset:
+                # Only the actual leaving-C128 transition -- never send
+                # ESC-Z speculatively to a client that was already C64.
+                from terminal import C128_ESC_CLEAR_TAB
+                await ctx.send_raw(C128_ESC_CLEAR_TAB)
             await ctx.send(f'Client type set to: {label}, {cols}x{rows} screen size.')
             return
 
