@@ -277,11 +277,19 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
         if attr == 'food' and item_kind == 'drink':
             item_category = ItemCategory.DRINK
 
+        # rations.json's "price" doubles as survival.ration_restore()'s
+        # quality signal -- a room-found ration needs it carried onto the
+        # Item just like kind above, or EAT/DRINK falls back to the
+        # lowest quality tier (price=10) for every free floor pickup
+        # regardless of what it's actually worth.
+        item_price = raw.get('price') if isinstance(raw, dict) else getattr(raw, 'price', None)
+
         if attr == 'weapon':
             from items import build_weapon_from_raw
             item = build_weapon_from_raw(raw, id_number=item_id)
         else:
-            item = Item(id_number=item_id, name=name, category=item_category, kind=item_kind)
+            item = Item(id_number=item_id, name=name, category=item_category,
+                        kind=item_kind, price=item_price)
         # Preserve objects.json's own "type" field (e.g. "book") as a real
         # ItemType -- read.py's book list keys off this, and without it a
         # room-found book (a scroll, say) would never show up there at all;
