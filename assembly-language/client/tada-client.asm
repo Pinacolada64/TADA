@@ -1031,6 +1031,11 @@ build_msg:
 ; .a = new cursor_blink_mask value -- see JT_SET_BLINK_MASK's own comment.
 set_blink_mask:
         sta cursor_blink_mask
+        lda #0
+        sta cursor_blink_ticks   ; force an immediate reload/toggle at the
+                                  ; new speed next update_cursor call, rather
+                                  ; than finishing out the old speed's
+                                  ; leftover countdown first
         rts
 
 jump_table_template:
@@ -1399,18 +1404,42 @@ sid_service_background_rts:
 cursor_phase:
         byte 0                   ; 0 = currently erased, 1 = currently drawn
 
-; Which single bit of $a2 update_cursor tests -- one bit set picks a
-; blink speed (higher bit = slower, since it takes longer for a
-; higher/slower-changing bit to flip): $08 fast, $10 normal (the
+; Which single value cursor_blink_ticks reloads to on every toggle --
+; also doubles as a blink-speed selector: $08 fast, $10 normal (the
 ; original hardcoded default), $20 slow, $40 very slow. $00 is a
 ; reserved sentinel meaning "solid, no blink" (speed 5) -- see
 ; update_cursor's own comment. Must match commands/c64_display.py's
 ; BLINK_SPEED_MASKS (speed# 1-5 -> mask) and config_menu.asm's own copy
 ; of that table exactly. Set by config_menu.asm's Video Settings popup
 ; when the player picks a speed and applies it live; stays at the
-; default otherwise.
+; default otherwise. Named "_mask" for history/wire-protocol reasons
+; (it used to be AND-ed against a bit of the free-running jiffy clock,
+; see cursor_blink_ticks's own comment for why that changed) -- the
+; numeric values themselves didn't need to change, only how
+; update_cursor uses them.
 cursor_blink_mask:
         byte $10
+
+; Countdown reload from cursor_blink_mask, decremented by
+; irq_task_cursor_blink (the IRQ round-robin task, see irq_task_table)
+; every tick. update_cursor (called from read_line_loop, mainline
+; context) toggles the cursor exactly when this hits 0, then reloads it
+; from cursor_blink_mask -- reusing that byte's existing numeric value
+; directly as the tick count is not a coincidence: bit N of a free-
+; running counter (the old design's mechanism) is 0 for 2^N ticks then
+; 1 for 2^N ticks, the same square wave a decrement-to-zero-and-reload
+; counter with reload=2^N produces, and $08/$10/$20/$40 are exactly
+; 2^3/2^4/2^5/2^6. Kept as a lightweight IRQ-decremented counter (never
+; touching CHROUT/PLOT or the PNT/PNTR pointers cursor_toggle reads)
+; rather than calling update_cursor's actual toggle from IRQ context --
+; the KERNAL screen editor doesn't update PNT/PNTR atomically with
+; respect to interrupts, so a toggle firing mid-CHROUT elsewhere in the
+; client could flip the wrong on-screen byte. Same design as
+; client-128.asm's blinkctr/irq_task_cursor_blink -- ported back here
+; deliberately for parity across both clients, not independently
+; invented twice.
+cursor_blink_ticks:
+        byte 0
 
 rts_state:
         byte 1                   ; 1 = RTS currently asserted (ready), 0 = deasserted
@@ -1420,17 +1449,18 @@ x_save:
 y_save:
         byte 0                   ; scratch for preserving .Y across update_cursor/CHROUT calls
 
-; Call once per read_line poll iteration. Only touches the screen on a
-; phase transition, so it doesn't flicker while sitting in one state.
+; Called directly from read_line_loop every poll iteration (mainline
+; context, same as before this file grew an IRQ task table at all) --
+; only irq_task_cursor_blink's lightweight tick-down runs from IRQ, see
+; cursor_blink_ticks's own comment for why. Only touches the screen on
+; a phase transition, so it doesn't flicker while sitting in one state.
 ; cursor_blink_mask == $00 is a reserved sentinel meaning "solid, no
 ; blink at all" (blink speed 5 -- Ryan's ask: some screen-reader/
 ; accessibility software, e.g. Gadget, doesn't get along with a
-; blinking cursor). AND-ing against a real speed's mask (`$08`/`$10`/
-; `$20`/`$40`, each a single bit) is what makes a 0 mask meaningless as
-; "always show" on its own -- `$a2 AND $00` is always 0, which without
-; this special case would read as "always erased", the opposite of
-; solid. So: mask 0 skips the AND/blink logic entirely and just leaves
-; the cursor drawn once it's on, never toggling it back off.
+; blinking cursor) -- checked first and skips the tick-countdown
+; entirely, since cursor_blink_ticks is never reloaded/consulted in
+; solid mode (irq_task_cursor_blink's own beq-on-zero guard means an
+; always-0 counter just never decrements either, harmless either way).
 update_cursor:
         lda cursor_blink_mask
         bne update_cursor_blink
@@ -1441,20 +1471,14 @@ update_cursor:
         sta cursor_phase
         rts
 update_cursor_blink:
-        lda $a2
-        and cursor_blink_mask
-        beq cursor_want_off
-        lda cursor_phase
-        bne update_cursor_done   ; already on
+        lda cursor_blink_ticks
+        bne update_cursor_done   ; not time yet -- irq_task_cursor_blink is
+                                  ; ticking this down in the background
+        lda cursor_blink_mask
+        sta cursor_blink_ticks   ; reload for the next half-period
         jsr cursor_toggle
-        lda #1
-        sta cursor_phase
-        rts
-cursor_want_off:
         lda cursor_phase
-        beq update_cursor_done   ; already off
-        jsr cursor_toggle
-        lda #0
+        eor #1
         sta cursor_phase
 update_cursor_done:
         rts
@@ -1502,7 +1526,11 @@ read_line_loop:
 
 ;       stx x_save
         sty y_save
-        jsr update_cursor        ; blink the cursor while waiting for a key
+        jsr update_cursor         ; blink the cursor while waiting for a key
+                                   ; -- irq_task_cursor_blink only ticks the
+                                   ; countdown in the background, this is
+                                   ; still what actually toggles it, see
+                                   ; cursor_blink_ticks's own comment
         jsr sid_service_background ; keep draining an in-progress SID stream
                                     ; while the player types -- see its own
                                     ; comment
@@ -2007,6 +2035,8 @@ apply_recv_blink:
                                      ; 0-based index, same convention as
                                      ; config_menu.asm's own blink_masks
         sta cursor_blink_mask
+        lda #0
+        sta cursor_blink_ticks     ; see set_blink_mask's own comment
         rts
 
 ; Gives up on a timed-out apply-confirm byte wait: sid_mode is already 0
@@ -2083,10 +2113,9 @@ handle_recv_byte_start:
         sta sid_byte_count+1
         sta sid_frames_played+0
         sta sid_frames_played+1
-        ; Snapshot the KERNAL jiffy clock ($a0/$a1/$a2, hi/mid/lo -- $a2
-        ; is the fastest-changing byte, same one update_cursor already
-        ; reads) so #stop can print real elapsed time alongside
-        ; sid_frames_played, no stopwatch needed.
+        ; Snapshot the KERNAL jiffy clock ($a0/$a1/$a2, hi/mid/lo -- $a2 is
+        ; the fastest-changing byte) so #stop can print real elapsed time
+        ; alongside sid_frames_played, no stopwatch needed.
         lda $a0
         sta sid_jiffy_start0
         lda $a1
@@ -2567,6 +2596,20 @@ irq_task_heartbeat:
         inc irq_heartbeat
         rts
 
+; Round-robin job that paces the blinking input cursor -- only
+; decrements a plain counter byte, never touches CHROUT/PLOT or the
+; PNT/PNTR pointers cursor_toggle reads, so (unlike a task that called
+; update_cursor's actual toggle directly) it's safe to run
+; unconditionally, whether or not read_line is even active right now.
+; See cursor_blink_ticks's own comment. Same design as
+; client-128.asm's irq_task_cursor_blink/blinkctr.
+irq_task_cursor_blink:
+        lda cursor_blink_ticks
+        beq irq_task_cursor_blink_rts
+        dec cursor_blink_ticks
+irq_task_cursor_blink_rts:
+        rts
+
 ; --- Data ---
 
 ; {alpha:poke} -- update_status_line pokes this straight into SCREEN_RAM,
@@ -2682,7 +2725,8 @@ sid_stream_starts:
 
 irq_task_table:
         word irq_task_heartbeat
-IRQ_TASK_TABLE_LEN = 2          ; entries * 2 -- keep in sync with the table above
+        word irq_task_cursor_blink
+IRQ_TASK_TABLE_LEN = 4          ; entries * 2 -- keep in sync with the table above
 
 align $100      ; align buffers on page boundaries -- c64list wants "$" for
                 ; hex, not "0x" (confirmed against the manual and by
