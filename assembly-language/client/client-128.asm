@@ -90,6 +90,18 @@
         byte $0d,$1c,$0a,$00,$9e,$37,$31,$38,$31,$00,$00,$00
 
 start:
+        ; C128 BASIC 7.0 boots with the lowercase charset active by
+        ; default (unlike the C64, which defaults to uppercase/
+        ; graphics) -- confirmed live in VICE 2026-08-24: without this,
+        ; status_msg/demo_msg/echo_prefix (all encoded assuming the
+        ; uppercase/graphics charset, same convention tada-client.asm
+        ; uses) rendered as garbled lowercase-charset glyphs instead of
+        ; the intended text. CHR$(142) forces charset 1 (uppercase/
+        ; graphics) the same way BASIC's own boot banner would if this
+        ; program hadn't SYS'd straight past it.
+        lda #142
+        jsr KERNAL_CHROUT
+
         lda MMU_MODE_CONFIG
         and #SWITCH_40_COL_MASK
         bne forty_col_mode
@@ -237,16 +249,44 @@ set_window_full:
         clc
         ldx #WIN_TOP
         ldy #0
-        jsr KERNAL_PLOT
+        jsr KERNAL_PLOT           ; row 0 is always in-bounds for any
+                                   ; window, safe regardless of what's
+                                   ; currently active
         lda #27                  ; ESC
         jsr KERNAL_CHROUT
         lda #'T'
         jsr KERNAL_CHROUT
 
-        clc
-        ldx #INPUT_ROW
-        ldy #39
-        jsr KERNAL_PLOT
+        ; Can't PLOT to INPUT_ROW here the way set_window_narrow does --
+        ; confirmed live 2026-08-24 (debug_plot_carry/_x/_y instrumentation,
+        ; since removed): the OLD (narrow, WIN_TOP-WIN_BOTTOM) window is
+        ; still the active constraint until ESC-B completes, since ESC-T
+        ; alone doesn't redefine the window -- so a PLOT trying to move
+        ; to INPUT_ROW (below WIN_BOTTOM) gets rejected outright (carry
+        ; set, X/Y left unchanged at the requested-but-refused position,
+        ; cursor doesn't actually move). This is the actual root cause
+        ; of the "can't type anything" bug Ryan hit live: drwstr's own
+        ; later PLOT(INPUT_ROW,...) calls were failing the exact same
+        ; way, so the whole line editor was drawing wherever the cursor
+        ; was stuck instead of the input row -- GETIN/putchr were
+        ; working correctly the entire time (confirmed via inputbuf
+        ; contents), only the on-screen feedback was broken.
+        ;
+        ; Fix: poke the KERNAL's own cursor-position zero page directly
+        ; instead of calling PLOT, bypassing its boundary check -- ESC-B
+        ; defines the window's bottom-right corner at wherever the
+        ; cursor position claims to be, not specifically wherever the
+        ; immediately-preceding PLOT call put it. $EB (row) / $EC (col)
+        ; are the correct addresses for this on native 128 mode --
+        ; confirmed via Compute's 128 Programmer's Guide's own zero-page
+        ; map ("235 $EB Current cursor line", "236 $EC Current cursor
+        ; column"), NOT the C64's $D6/$D3 (a real difference this file
+        ; almost inherited by assumption the way tada-client.asm's own
+        ; conventions were carried over elsewhere in this port).
+        lda #INPUT_ROW
+        sta $eb
+        lda #39
+        sta $ec
         lda #27                  ; ESC
         jsr KERNAL_CHROUT
         lda #'B'
