@@ -4,7 +4,7 @@ import logging
 
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
-from net_common import hash_password, user_dir, verify_password
+from net_common import hash_password, petscii_unsafe_password_chars, user_dir, verify_password
 
 log = logging.getLogger(__name__)
 
@@ -64,6 +64,15 @@ class PasswordCommand(Command):
                 return CommandResult.ok("Password unchanged.")
             if len(pw1) < 4:
                 await ctx.send("Password must be at least 4 characters.  Try again.")
+                continue
+            unsafe = petscii_unsafe_password_chars(pw1)
+            if unsafe:
+                await ctx.send(
+                    f"Password can't contain: {unsafe}  (some clients, "
+                    "including a real Commodore keyboard, can't type "
+                    "these -- stick to letters, digits, and basic "
+                    "punctuation.)  Try again."
+                )
                 continue
 
             pw2 = await ctx.prompt('Confirm new password')

@@ -1,6 +1,7 @@
 import datetime
 import logging
 import json
+import string
 from dataclasses import dataclass, field, asdict
 from enum import Enum, auto
 from pathlib import Path
@@ -52,6 +53,37 @@ def append_battle_log(entry: str) -> None:
 # credential file's "password" field is a legacy plaintext account created
 # before hashing was added.
 _BCRYPT_PREFIXES = ('$2a$', '$2b$', '$2y$')
+
+# Characters guaranteed to survive identically no matter which client type
+# a password is later typed on. A real C64 keyboard connected on the
+# PETSCII port gets its raw keystrokes decoded by network_context.py's
+# _petscii_input_to_ascii(), which only recognizes space/punctuation/
+# digits (0x20-0x40), letters (case-folded away by hash_password/
+# verify_password below, so either case is fine), and '^'/'_' -- every
+# other byte (brackets, backslash, backtick, braces, pipe, tilde, and any
+# non-ASCII character) is silently discarded there, while a JSON/ANSI
+# client passes those characters through untouched. A password containing
+# any of them therefore hashes differently depending on which client type
+# it was *set* from, and later fails to verify from the other client type
+# -- with no way to recover the dropped bytes after the fact. Kept in
+# manual sync with _petscii_input_to_ascii()'s ranges since the two
+# modules don't share this constant directly.
+PETSCII_SAFE_PASSWORD_CHARS = (
+    frozenset(chr(b) for b in range(0x20, 0x41))
+    | frozenset(string.ascii_letters)
+    | {'^', '_'}
+)
+
+
+def petscii_unsafe_password_chars(password: str) -> str:
+    """Return the distinct characters in *password* outside
+    PETSCII_SAFE_PASSWORD_CHARS, in first-seen order. Empty result means
+    the password is safe to set/type identically from any client type."""
+    seen: list[str] = []
+    for c in password:
+        if c not in PETSCII_SAFE_PASSWORD_CHARS and c not in seen:
+            seen.append(c)
+    return ''.join(seen)
 
 
 def hash_password(password: str) -> str:

@@ -58,7 +58,7 @@ from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from commands.quote import confirm_dollar_quote
 from items import Item, ItemCategory, Weapon
-from net_common import hash_password, user_dir
+from net_common import hash_password, petscii_unsafe_password_chars, user_dir
 from network_context import GameContext
 from starting_equipment import (STARTER_ARMOR_ITEM_NUMBER, STARTER_SHIELD_ITEM_NUMBER,
                                  roll_armor, roll_shield, starter_weapon_number)
@@ -572,6 +572,14 @@ async def _validate_password(ctx: GameContext, pw: str) -> bool:
     password = pw.strip()
     if len(password) < 4:
         await ctx.send("Password must be at least 4 characters.  Try again.")
+        return False
+    unsafe = petscii_unsafe_password_chars(password)
+    if unsafe:
+        await ctx.send(
+            f"Password can't contain: {unsafe}  (some clients, including "
+            "a real Commodore keyboard, can't type these -- stick to "
+            "letters, digits, and basic punctuation.)  Try again."
+        )
         return False
     return True
 
