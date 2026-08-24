@@ -153,6 +153,47 @@ gk1:
         pha             ; save key pressed
         jsr rvsoff      ; turn off cursor
         pla
+
+; CTRL+CRSR-LEFT/CTRL+CRSR-DOWN -> word left/right, checked ahead of
+; the ordinary edkeys table since GETIN's own byte for a cursor key
+; ($9d/$11) doesn't change when CTRL is also held -- CTRL isn't part
+; of the cursor keys' own PETSCII encoding the way it is for letters.
+; $D3 is the KERNAL's live SHIFT/CONTROL/Commodore/ALT status bitmask,
+; updated by the same keyboard scan that fills GETIN's buffer (0=none,
+; 1=SHIFT, 2=Commodore, 4=CONTROL, 8=ALT -- confirmed via Compute's 128
+; Programmer's Guide, Appendix A); bit 2 (value 4) is CONTROL. Reading
+; it here (never writing) is safe regardless of anything else this
+; file does with zero page. F1/F7 used to be word-jump instead --
+; dropped because the 128's KERNAL auto-expands F1-F8 into whole
+; programmed command strings before GETIN ever sees a single
+; distinguishing byte for "F1 was pressed" (confirmed via the same
+; guide: pressing F8 "automatically enters the MONITOR command"),
+; making them unusable as plain single-key shortcuts on this client.
+        cmp #157        ; $9d - cursor left
+        bne gk1_check_ctrl_down
+        pha             ; stash key byte in case CTRL isn't held
+        lda $d3
+        and #4          ; CONTROL bit
+        beq gk1_left_plain
+        pla             ; CTRL held -- discard stashed byte, word-jump instead
+        jsr prev_word
+        jmp getstr
+gk1_left_plain:
+        pla             ; CTRL not held -- restore byte for normal dispatch
+        jmp gk1_dispatch
+gk1_check_ctrl_down:
+        cmp #17          ; $11 - cursor down
+        bne gk1_dispatch
+        pha
+        lda $d3
+        and #4
+        beq gk1_down_plain
+        pla
+        jsr next_word
+        jmp getstr
+gk1_down_plain:
+        pla
+gk1_dispatch:
         ldx numkeys     ; see if key needs special handling
 gk2:
         cmp edkeys,x
@@ -201,8 +242,6 @@ edkeys:
         byte 34  ; $22 - quote
         byte 19  ; $13 - home
         byte 147 ; $93 - clear
-        byte 133 ; $85 - f1
-        byte 136 ; $88 - f7
         byte 10  ; $0a - linefeed (ignored, see linefeed: below)
         byte 145 ; $91 - cursor up (ignored -- not in the original
                   ; upstream table at all, a single-line editor has
@@ -224,8 +263,6 @@ ekaddr:
         word quote
         word home
         word clear
-        word next_word
-        word prev_word
         word linefeed
         word linefeed   ; cursor up -- shares linefeed's no-op
         word linefeed   ; cursor down -- shares linefeed's no-op
