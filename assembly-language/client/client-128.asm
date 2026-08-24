@@ -287,11 +287,27 @@ read_input_done:
 ; ($20-$3F) are already identical byte-for-byte in this charset (same
 ; fact tada-client.asm's status_print_* routines already rely on) -- so
 ; this covers ordinary typing without needing a full translation table
-; yet. Anything outside $20-$5A passes through unconverted (likely wrong
-; on screen, but not handled yet -- no full table exists for this client
-; until the wider translation-table idea from 128_CLIENT_MECHANICS.md's
-; open questions gets built). ---
+; yet. Anything outside $20-$5A/$A0 passes through unconverted (likely
+; wrong on screen, but not handled yet -- no full table exists for this
+; client until the wider translation-table idea from
+; 128_CLIENT_MECHANICS.md's open questions gets built).
+;
+; Shift+Space ($A0, GETIN's own value for that key combo -- see
+; network_context.py's _petscii_input_to_ascii() on the server side,
+; which decodes the same raw byte to '_') maps to screen code $64, the
+; underline-ish glyph ('▁', confirmed live via POKE 1024,100 in VICE) --
+; NOT left unconverted, which would poke $A0 directly as a screen code
+; and show reverse-video space instead. This is deliberate, not a
+; leftover gap: Ryan wants Shift+Space -> underscore kept as the
+; player-facing convention (e.g. `reload commands.some_module`), so the
+; input row's local echo needs to actually look like an underscore
+; rather than a blank reverse block. ---
 petscii_to_screencode:
+        cmp #$a0
+        bne petscii_to_screencode_letters
+        lda #$64                        ; Shift+Space -> underline glyph
+        rts
+petscii_to_screencode_letters:
         cmp #$41
         bcc petscii_to_screencode_rts   ; < 'A' -- pass through as-is
         cmp #$5b
