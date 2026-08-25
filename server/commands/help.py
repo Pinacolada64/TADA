@@ -1921,6 +1921,7 @@ class HelpCommand(Command):
                  "  help <command>: detailed help   |   help #cat: list categories\n"]
 
         current_mode = getattr(processor, "current_mode", None)
+        privileged   = _is_privileged_viewer(ctx)
         all_cmds = [
             cmd for cmd in (processor.get_all_commands().values() if processor else [])
     if current_mode is None or _is_available(cmd, current_mode)
@@ -1929,6 +1930,8 @@ class HelpCommand(Command):
         for cmd in all_cmds:
             help_obj = getattr(cmd, "help", None)
             cat      = getattr(help_obj, "category", HelpCategory.GENERAL)
+            if cat == HelpCategory.ADMINISTRATIVE and not privileged:
+                continue
             by_cat[cat].append(cmd)
 
         for cat in sorted(by_cat, key=lambda c: c.value):
@@ -1961,6 +1964,7 @@ class HelpCommand(Command):
         lines = [f"\n{_heading(title)}"]
 
         current_mode = getattr(processor, "current_mode", None)
+        privileged   = _is_privileged_viewer(ctx)
         all_cmds = [
             cmd for cmd in (processor.get_all_commands().values() if processor else [])
             if current_mode is None or _is_available(cmd, current_mode)
@@ -1969,6 +1973,8 @@ class HelpCommand(Command):
         for cmd in all_cmds:
             help_obj = getattr(cmd, "help", None)
             cat      = getattr(help_obj, "category", HelpCategory.GENERAL)
+            if cat == HelpCategory.ADMINISTRATIVE and not privileged:
+                continue
             by_cat[cat].append(cmd)
 
         for cat in sorted(by_cat, key=lambda c: c.value):
@@ -1995,7 +2001,12 @@ class HelpCommand(Command):
         # which would otherwise mangle manual alignment and treat embedded
         # '\n' characters as just more text instead of line breaks.
         width = self._screen_width(ctx)
-        items = [(cat.value, _CATEGORY_DESCRIPTIONS.get(cat, "")) for cat in HelpCategory]
+        privileged = _is_privileged_viewer(ctx)
+        items = [
+            (cat.value, _CATEGORY_DESCRIPTIONS.get(cat, ""))
+            for cat in HelpCategory
+            if cat != HelpCategory.ADMINISTRATIVE or privileged
+        ]
 
         lines = [_heading("Available categories:"), ""]
         lines.extend(format_two_column(items, width))
@@ -2018,6 +2029,12 @@ class HelpCommand(Command):
             return CommandResult.fail(error="ambiguous_category")
 
         if not matched:
+            await ctx.send(
+                f"Unknown category '{category_name}'. Type 'help #cat' for a list."
+            )
+            return CommandResult.fail(error="unknown_category")
+
+        if matched == HelpCategory.ADMINISTRATIVE and not _is_privileged_viewer(ctx):
             await ctx.send(
                 f"Unknown category '{category_name}'. Type 'help #cat' for a list."
             )
@@ -2065,6 +2082,12 @@ class HelpCommand(Command):
         from commands.base_command import CommandResult
 
         matches = processor.search_commands(term) if processor else []
+        if not _is_privileged_viewer(ctx):
+            matches = [
+                cmd for cmd in matches
+                if getattr(getattr(cmd, "help", None), "category", HelpCategory.GENERAL)
+                != HelpCategory.ADMINISTRATIVE
+            ]
         if not matches:
             await ctx.send(f"No commands found matching '{term}'.")
             return CommandResult.ok()
