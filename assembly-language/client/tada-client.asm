@@ -1614,15 +1614,14 @@ read_line_check_left:
         ; $028D (653 decimal, SFDX) is the KERNAL's live SHIFT/
         ; Commodore/CTRL status (0/1/2/4), the C64 cross-reference
         ; Compute's 128 Programmer's Guide gives for the 128's own $D3
-        ; -- bit 2 (value 4) is CTRL. IMPORTANT: use $028d, not the
-        ; bare decimal literal 653 -- c64list assembles an unprefixed
-        ; number as HEX by default, so `lda 653` silently assembled as
-        ; LDA $0653 (a completely unrelated address), not decimal 653
-        ; ($028d). This was a real bug caught live during testing 2026-
-        ; 08-24 (Ryan spotted it) -- confirmed via live disassembly that
-        ; every `lda 653` in an earlier draft of this dispatch compiled
-        ; to `LDA $0653`, which is why the CTRL bit never appeared to
-        ; be set no matter what was actually held. Same key combo the
+        ; -- bit 2 (value 4) is CTRL. Written as the explicit hex
+        ; literal $028d here (a plain `lda 653` compiles identically --
+        ; confirmed by comparing the raw assembled bytes of both, both
+        ; give AD 8D 02 -- an earlier version of this comment claimed
+        ; otherwise, that c64list assembles unprefixed numbers as hex
+        ; by default; that claim was wrong and has been corrected, see
+        ; project_tada_c64_client.md's memory entry for the full
+        ; correction). Same key combo the
         ; 128 client's input_editor.asm uses (see its own comment
         ; there) for cross-client consistency, chosen there because
         ; the 128's F1/F7 are unusable as plain shortcuts (KERNAL auto-
