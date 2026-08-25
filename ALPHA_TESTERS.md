@@ -180,6 +180,69 @@ here until someone gets a solid repro and either fixes them or rules them out.
   conventions (confirm-prompt delimiter style, inline command-letter
   call-out style in NPC text, etc.) before any cleanup work is planned.
 
+### Possible server echo of typed commands back to non-PETSCII (Gadget ASCII terminal) clients -- UNCONFIRMED, may be client-side
+
+- **Reported by:** tester (Gadget), via Ryan (2026-08-23)
+- **Symptom:** typing a command (e.g. `say hello`) on Gadget's ASCII
+  terminal client (real C64 hardware, `Translation.ASCII`, connected on
+  the ANSI/JSON port per [[project_ascii_c64_terminal_type]]) shows the
+  typed command repeated back before the command's actual output.
+  Gadget attributed this to the server, but Ryan flagged that Gadget's
+  client is her own from-scratch implementation written in Z80 assembly
+  (not this repo's client code), so the repeat could equally be a quirk
+  of her client's input handling -- **not confirmed as a server bug.**
+- **Investigation so far:** grepped every live-code path a command's raw
+  input travels through on the ANSI/JSON port
+  (`GameContext.prompt()`/`send()`/`_send_formatted()` in
+  `network_context.py`, `_game_loop()` in `simple_server.py`,
+  `CommandProcessor.process_input()`/`process_command()` in
+  `commands/command_processor.py`) -- none of them write the raw typed
+  text back to the socket. The one place in this codebase that used to do
+  exactly this (`PETSCIINetworkContext.prompt()`'s post-Enter echo) was
+  already disabled in commit `0e92dafd` (2026-08-17, "Disable redundant
+  post-Enter input echo") for the same "client already shows what you
+  typed, don't double it" reasoning, and that fix is already in `prefs`.
+  That path is also PETSCII-port-only (`simple_server.py:355`'s
+  `is_petscii` routes strictly on which port was connected to), so it
+  wouldn't apply to an ANSI-port ASCII client like Gadget's anyway.
+- **Open question:** no active server-side echo mechanism was found for
+  the ANSI/JSON port in the current checkout, so either (a) Gadget's own
+  Z80 client is echoing/re-rendering the line itself (most likely, given
+  it's an independent implementation), (b) the live server she tested
+  against predates some relevant fix / needs a restart, or (c) something
+  in the JSON message is being mis-rendered as a second copy client-side
+  (e.g. the `prompt` field, or the leading blank line `_send_formatted()`
+  inserts before the next command's output -- see the comment at
+  `network_context.py:186-188`).
+- **ASCII translation path checked specifically (2026-08-23):** per Ryan,
+  Gadget was using `Translation.ASCII`, and her client also has a
+  rudimentary PETSCII renderer of her own, which adds a second code path
+  on her side that could be the actual source of confusion. Audited the
+  server's ASCII-translation pipeline end to end -- `codec_for_settings()`
+  returns a bare `PlainCodec()` for `Translation.ASCII` (`formatting.py`
+  `:1125-1126`); `GameContext.send()` runs that through `format_lines()`
+  (word-wrap + bracket highlighting only, `:1043-1051`) then
+  `plain_encode_lines()`, which just regex-strips `|token|` markup
+  (`:645-653`) -- no step in this pipeline reads, echoes, or duplicates
+  anything from the player's own input, since it only ever operates on
+  server-generated response text, never on `raw` from `ctx.prompt()`.
+  `GameContext.send()` (`:164-167`) does have one latent gap worth noting
+  separately -- it branches on `isinstance(codec, ANSICodec)` /
+  `isinstance(codec, PlainCodec)` but has no `PETSCIICodec` branch, so if
+  a non-real-PETSCII connection's settings ever *did* end up with
+  `Translation.PETSCII` (normally blocked by the guard noted in
+  [[project_ascii_c64_terminal_type]]), raw `|token|` control markup would
+  go out unstripped -- garbled output, not a duplicate line, and not
+  reachable through the guarded ASCII/PETSCII picker as far as could be
+  found, but worth keeping in mind given Gadget is exercising both
+  translation modes from her own client.
+- **Next step:** get a raw wire capture (or Gadget's own client-side log)
+  of one `say hello` round-trip to see whether the server actually sent
+  the text twice before assuming this needs a server-side fix at all --
+  the ASCII pipeline audit above makes a client-side cause (plausibly an
+  interaction between her ASCII and rudimentary-PETSCII rendering code)
+  more likely, not less.
+
 ### Redundant [P]rotection/[A]rmory options in the Shoppe menu (FIXED 2026-08-22)
 
 - **Reported by:** Ryan (2026-08-22)
