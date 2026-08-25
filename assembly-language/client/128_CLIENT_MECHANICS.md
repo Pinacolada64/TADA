@@ -85,6 +85,45 @@ login precedent for the pattern this follows. Also forces
 those can't be anything else on real 128 hardware regardless of what a
 player answered under PREFS 'K' before this existed.
 
+### Raw SCREEN_RAM input-line redraw (tabled, not started)
+
+`input_editor.asm` (the ported `sliding-input.asm` line editor -- see
+its own header comment) currently draws the input line's contents and
+blink cursor (`drwstr`/`rvson`/`rvsoff`) through `PLOT`/`CHROUT`, same
+as any ordinary KERNAL text output. This has already caused two real,
+live-confirmed bugs this session: `PLOT` needing the scroll window
+already widened to reach `INPUT_ROW` (see the window-widen fix,
+commit `31cdde8`), and printing a full-width line auto-wrapping/
+scrolling the window on every single cursor movement (worked around by
+capping `strwin` one column short of the full width rather than fixing
+the underlying cause).
+
+The C64 client's own `redraw_status_row`/`draw_status_row` sidestep
+this entirely by poking `SCREEN_RAM` directly instead of going through
+`CHROUT` at all -- no cursor-advance/wrap logic to trigger, no window-
+boundary check to fail. Converting `drwstr`/`rvson`/`rvsoff` the same
+way would remove this whole bug class (and be faster), and was
+attempted 2026-08-24 -- assembled clean and verified byte-correct via
+py65 disassembly, but live testing found a real, gradual 6502 stack-
+pointer leak (confirmed via temporary instrumentation: SP drifted from
+`$F0` to `$EA` over roughly 124 keystrokes) that eventually corrupted
+state badly enough to crash the whole client back to BASIC. Root cause
+wasn't found before the attempt was reverted -- see
+[[project_c128_client]]'s memory entry for the live-debugging story
+(breakpoints kept wedging VICE's remote monitor, had to fall back to
+SP-snapshot instrumentation instead) and its own suspicion that
+`next_word`/`prev_word`'s nested `jsr cright`/`jsr cleft` loops or
+`exkey`'s self-modified `jsr $ffff` dispatch are the most likely
+places an imbalance could hide, since neither was individually
+re-verified before the revert.
+
+**If this gets picked up again**: budget real time for careful,
+incremental verification (convert one routine at a time, live-test
+between each, rather than rewriting all three together the way the
+first attempt did), and reuse the existing `SCREEN_RAM+INPUT_ROW_OFFSET`
+`{const:}` convention `draw_status_row` already established rather than
+inventing a new addressing approach.
+
 ## Open questions
 
 - Does a real 128-native client want its own `Translation` enum member
