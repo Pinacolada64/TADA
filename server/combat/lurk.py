@@ -91,9 +91,8 @@ async def resolve_swing(ctx: 'GameContext') -> bool:
         p2 -= 1
     p2 = max(p2, 0)
 
-    honor = int(getattr(player, 'honor', 0) or 0)
-    if honor > p2:
-        player.honor = honor - p2
+    if int(getattr(player, 'honor', 0) or 0) > p2:
+        player.adjust_honor(-p2)
 
     if fires:
         await ctx.send("You fire over your ally's head..")

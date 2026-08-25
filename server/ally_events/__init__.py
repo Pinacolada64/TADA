@@ -144,10 +144,8 @@ async def try_hungry_ally(ctx: 'GameContext', item, kind: str) -> bool:
     raw = await ctx.prompt(f'Give it to {hungry.name}? [Y/n]')
     if raw and raw.strip().upper() == 'N':
         # Honor penalty for refusing a hungry ally (SPUR hun.slv2: vk=vk-a)
-        current_honor = getattr(player, 'honor', 0)
-        if current_honor > 2:
-            player.honor = current_honor - 2
-            player.unsaved_changes = True
+        if getattr(player, 'honor', 0) > 2:
+            player.adjust_honor(-2)
             await ctx.send('You feel less honorable.')
         return False
 

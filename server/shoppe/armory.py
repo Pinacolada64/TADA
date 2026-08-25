@@ -217,8 +217,7 @@ async def _sell(ctx: GameContext, player, inv, all_weapons) -> None:
             ])
             honor_loss = min(25, int(getattr(player, 'honor', 0) or 0))
             if honor_loss > 0:
-                player.honor = int(getattr(player, 'honor', 0) or 0) - honor_loss
-                player.unsaved_changes = True
+                player.adjust_honor(-honor_loss)
                 await ctx.send(f'(Honor reduced by {honor_loss}.)')
             continue
 

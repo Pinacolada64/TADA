@@ -72,6 +72,11 @@ def _make_player(allies=None, honor=1000):
     p.party = Party()
     for ally in (allies or []):
         p.party.add_member(p, ally)
+
+    def _adjust_honor(adjustment):
+        p.honor += adjustment
+        p.unsaved_changes = True
+    p.adjust_honor = _adjust_honor
     return p
 
 

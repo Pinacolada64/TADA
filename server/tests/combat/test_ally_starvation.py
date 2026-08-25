@@ -47,6 +47,11 @@ def _make_player(party=None, honor=1000, wisdom=50, intelligence=50):
     player.party = party if party is not None else []
     player.honor = honor
     player.stats = {'Wisdom': wisdom, 'Intelligence': intelligence}
+
+    def _adjust_honor(adjustment):
+        player.honor += adjustment
+        player.unsaved_changes = True
+    player.adjust_honor = _adjust_honor
     return player
 
 

@@ -66,6 +66,11 @@ def _make_player(seen=False, items=(), honor=1000, hit_points=30, stats=None,
     player.query_flag = MagicMock(
         side_effect=lambda f: ring_worn if f == PlayerFlags.RING_WORN else False
     )
+
+    def _adjust_honor(adjustment):
+        player.honor += adjustment
+        player.unsaved_changes = True
+    player.adjust_honor = _adjust_honor
     return player
 
 

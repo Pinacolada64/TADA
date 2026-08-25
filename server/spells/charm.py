@@ -211,9 +211,8 @@ async def try_charm_join_offer(ctx: 'GameContext', *, level: int, room_no: int) 
 
     raw = await ctx.prompt(f'{mdisp} wants to join you! OK? (Y/N)')
     if not raw or raw.strip().upper() != 'Y':
-        honor = int(getattr(player, 'honor', 0) or 0)
-        if honor > _DECLINE_HONOR_PENALTY:
-            player.honor = honor - _DECLINE_HONOR_PENALTY
+        if int(getattr(player, 'honor', 0) or 0) > _DECLINE_HONOR_PENALTY:
+            player.adjust_honor(-_DECLINE_HONOR_PENALTY)
         await ctx.send(f'{mdisp} sadly watches you leave..')
         await ctx.send_room(
             f'{mdisp} sadly watches {player_name} leave..',

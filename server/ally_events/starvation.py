@@ -210,9 +210,8 @@ async def try_encounter(ctx: 'GameContext') -> None:
             f'{ally.name} died in {where}, from lack of nourishment while in service to {name}...'
         )
 
-    honor = int(getattr(player, 'honor', 0) or 0)
-    if honor > _HONOR_FLOOR:
-        player.honor = honor - _HONOR_PENALTY
+    if int(getattr(player, 'honor', 0) or 0) > _HONOR_FLOOR:
+        player.adjust_honor(-_HONOR_PENALTY)
         await ctx.send('You feel less honorable')
 
     wisdom = int(player.stats.get('Wisdom', 0) or 0)

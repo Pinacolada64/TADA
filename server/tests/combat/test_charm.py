@@ -35,6 +35,11 @@ def _make_player(name='Killerella', party=None, charmed_monsters=None,
     player.pending_charm = None
     player.honor = honor
     player.unsaved_changes = False
+
+    def _adjust_honor(adjustment):
+        player.honor += adjustment
+        player.unsaved_changes = True
+    player.adjust_honor = _adjust_honor
     return player
 
 

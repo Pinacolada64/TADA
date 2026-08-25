@@ -149,6 +149,10 @@ class _FakePlayer:
     def query_flag(self, flag):
         return False
 
+    def adjust_honor(self, adjustment):
+        self.honor += adjustment
+        self.unsaved_changes = True
+
 
 class _FakeClient:
     room = 1

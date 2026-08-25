@@ -73,6 +73,11 @@ class _FakePlayer:
         self.ammo_rounds = ammo_rounds
         self.stats = {PlayerStat.STR: 10, PlayerStat.CON: 10, PlayerStat.INT: 10,
                       PlayerStat.EGY: 10, PlayerStat.DEX: 10}
+        self.unsaved_changes = False
+
+    def adjust_honor(self, adjustment):
+        self.honor += adjustment
+        self.unsaved_changes = True
 
 
 class _FakeClient:

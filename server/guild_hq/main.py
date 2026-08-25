@@ -557,8 +557,7 @@ async def _weapons_box(ctx: GameContext, player, state: dict, info: dict) -> Non
         # SPUR: Lurch refuses Excalibur (#17) and deducts honor for it
         if iid == 17:
             honor_loss = min(10, int(getattr(player, 'honor', 0) or 0))
-            player.honor = int(getattr(player, 'honor', 0) or 0) - honor_loss
-            player.unsaved_changes = True
+            player.adjust_honor(-honor_loss)
             await ctx.send("'I will not take that!!'")
             return
 

@@ -293,7 +293,7 @@ async def _sell_servant(ctx: GameContext, master_list: List[Ally]) -> None:
 
     # Honour penalty (t_bar_olaf.lbl :141-142 — 2012 version: lose 50 if >= 50)
     if getattr(player, 'honor', 0) >= _HONOR_SELL_LOSS:
-        player.honor -= _HONOR_SELL_LOSS
+        player.adjust_honor(-_HONOR_SELL_LOSS)
         await ctx.send(f'(You lose {_HONOR_SELL_LOSS} honour points.)')
 
     player.party.remove(chosen)

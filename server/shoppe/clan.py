@@ -153,7 +153,7 @@ async def main(ctx: GameContext) -> None:
         # Honor penalty for deserting an active guild (SPUR: vk=vk-vw)
         if is_guild:
             honor_loss = min(_DESERT_HONOR_PENALTY, int(getattr(player, 'honor', 0) or 0))
-            player.honor = int(getattr(player, 'honor', 0) or 0) - honor_loss
+            player.adjust_honor(-honor_loss)
             await ctx.send(f'({honor_loss} honor penalty for deserting your Guild!)')
 
         # Deduct fee and set new guild (SPUR: gosub sub.gold; vv=...)

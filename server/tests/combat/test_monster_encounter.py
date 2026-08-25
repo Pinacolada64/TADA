@@ -101,6 +101,11 @@ def _make_shadow_ctx(room_flags=(), prompt_reply='Y'):
     ctx.player.honor = 1000
     ctx.player.party = MagicMock()
     ctx.player.party.add = AsyncMock()
+
+    def _adjust_honor(adjustment):
+        ctx.player.honor += adjustment
+        ctx.player.unsaved_changes = True
+    ctx.player.adjust_honor = _adjust_honor
     ctx.client.room = 2
 
     room = MagicMock()

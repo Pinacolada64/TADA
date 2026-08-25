@@ -189,8 +189,7 @@ async def _handle_attack(ctx: 'GameContext') -> None:
     penalty = (_HONOR_ATTACK_PENALTY_KNIGHT if getattr(player, 'char_class', None) == PlayerClass.KNIGHT
                else _HONOR_ATTACK_PENALTY)
     if player.honor > penalty:
-        player.honor -= penalty
-        player.unsaved_changes = True
+        player.adjust_honor(-penalty)
 
     await _reveal_and_attack(ctx)
 
@@ -310,8 +309,7 @@ async def _handle_give(ctx: 'GameContext') -> None:
         player.unsaved_changes = True
 
     if player.honor < _HONOR_CAP:
-        player.honor += _HONOR_GIVE_BONUS
-        player.unsaved_changes = True
+        player.adjust_honor(_HONOR_GIVE_BONUS)
 
     hints = load_hints()
     if hints:

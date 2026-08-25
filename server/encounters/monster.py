@@ -575,9 +575,8 @@ async def try_shadow_ally(ctx: 'GameContext') -> None:
     ])
     raw = await ctx.prompt('Let them join? (Y/N)')
     if not raw or raw.strip().upper() != 'Y':
-        honor = int(getattr(player, 'honor', 0) or 0)
-        if honor >= _SHADOW_DECLINE_HONOR_FLOOR:
-            player.honor = honor - _SHADOW_DECLINE_HONOR_PENALTY
+        if int(getattr(player, 'honor', 0) or 0) >= _SHADOW_DECLINE_HONOR_FLOOR:
+            player.adjust_honor(-_SHADOW_DECLINE_HONOR_PENALTY)
         await ctx.send('"Perhaps later.."')
         return
 
