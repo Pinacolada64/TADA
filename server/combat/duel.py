@@ -164,6 +164,44 @@ _MIN_HP_AFTER_LOSS = 15   # SPUR.DUEL2.S hell/hell2: loser left at hp=15, not de
 _STREAK_LEN = 3           # repeating a tactic this many times running reads as predictable
 _STREAK_PENALTY = 10      # hit-chance penalty for being predictable
 _WIZARD_CAST_CHANCE = 30      # SPUR DUEL.S "if pc=1 ... if z>70 a=1": 30% per swing, once per duel
+
+# SPUR DUEL.S:424-484 "tac.bash" -- the real shield-bash knockdown contest,
+# ported in full below (_resolve_bash). Renamed from SPUR's single-letter
+# BASIC variables to something legible; each comment below cites the exact
+# source line the constant/step replaces.
+_BASH_MIN_SHIELD   =   6   # DUEL.S:32 "(i$="B") and (sh<6)" -- can't even choose Bash below this
+_BASH_SHIELD_COST  =   3   # DUEL.S:434 "sh=sh-3" -- bashing costs the basher shield, win or lose
+_BASH_BASE         = 100   # DUEL.S:429 "a=100"
+_BASH_SIZE_SCALE   =   8   # DUEL.S:438/441 "(zo*8)"/"(yw*8)" -- carrying-capacity (size proxy) differential
+_BASH_STREAK_SCALE =   3   # DUEL.S:443/448 "(xu*3)"/"(zp*3)" -- predictable-streak penalty
+_BASH_TACTIC_MOD   =  10   # DUEL.S:443-453's flat +/-10% per opposing-tactic case
+_BASH_STAT_MOD     =  10   # DUEL.S:456-463's flat +/-10% per EGY/DEX/STR mismatch
+_BASH_STAT_GAP     =   4   # DUEL.S:456 "if ce>(pe+4)" -- gap needed before a stat mismatch counts
+_BASH_CLAMP_LOW    =  60   # DUEL.S:469 "if a<60 a=60"
+_BASH_CLAMP_HIGH   = 140   # DUEL.S:468 "if a>140 a=140"
+_BASH_ROLL_BASE    =  50   # DUEL.S:467 "z=z+50" -- z is rnd.100z (1-100) + this
+_BASH_ROLL_MARGIN  =  20   # DUEL.S:470-471 "z>(a+20)"/"z<(a-20)" -- how far z must clear a to matter
+
+# SPUR LOGON.S:208-212 (player's own "zo") and DUEL.S:376-378 (opponent's
+# "yw", loaded from their race and computed with the identical table) --
+# a flat per-race carrying-capacity rating, reused by tac.bash as a size/
+# bulk proxy for who benefits from a shield shove. Not modeled anywhere
+# else in this port (see combat/resolution.py's own "zo" placeholder,
+# a separate and still-unbuilt monster-combat dodge modifier) -- kept
+# local to this one mechanic rather than promoted to a shared player stat.
+_CARRYING_CAPACITY: dict[str, int] = {
+    'Pixie':    7,
+    'Hobbit':   8,
+    'Gnome':    8,
+    'Elf':      9,
+    'Dwarf':    9,
+    'Orc':      9,
+}
+
+
+def _carrying_capacity(race) -> int:
+    race_str = (race.value if hasattr(race, 'value') else str(race)) if race else ''
+    return _CARRYING_CAPACITY.get(race_str, 10)
 _DRUID_HEAL_CHANCE = 10       # SPUR DUEL.S "if yg=2 ... if z>90": 10% chance to heal instead of taking a hit
 _DRUID_HEAL_HP_CEILING = 26   # SPUR DUEL.S "if h+w1<26": only eligible while not already comfortably healthy
 
@@ -217,6 +255,15 @@ class _DuelSide:
     initiative: int = 0     # SPUR vu -- see _compute_initiative(), flat hit-chance delta for the whole duel
     cast_used: bool = False  # SPUR wx$'s "cast.a"/"cast.b" tag -- a Wizard gets one guaranteed-hit bolt per duel
     history: list = field(default_factory=list)   # last few DuelTactic choices, streak tracking
+    # SPUR DUEL.S's xu/zn/zp: consecutive-repeat counters for Parry/Attack/
+    # Bash respectively, incremented the instant a tactic is chosen and
+    # reset by any other tactic -- unlike `history` above (a capped
+    # last-3 window feeding _is_predictable() for the Attack/Parry grid),
+    # these are uncapped and feed _resolve_bash()'s own predictability
+    # terms (DUEL.S:443,448) directly, matching SPUR's xu*3/zp*3 scaling.
+    parry_streak: int = 0
+    attack_streak: int = 0
+    bash_streak: int = 0
 
 
 @dataclass
@@ -564,6 +611,25 @@ class DuelSession:
         # Snapshot down state before either side's swing mutates it -- both
         # sides' actions are simultaneous this round (see module comment).
         self._was_down = {id(self.a): self.a.down, id(self.b): self.b.down}
+
+        # SPUR DUEL.S's xu/zn/zp streak counters increment the instant a
+        # tactic is chosen (its input handler, DUEL.S:31-36), ahead of
+        # resolution -- so _resolve_bash() below needs this round's own
+        # choice already counted, not just prior rounds'. Reset the other
+        # two on any switch, same as the source's own tactic-input dispatch.
+        for side in (self.a, self.b):
+            if side.tactic == DuelTactic.PARRY:
+                side.parry_streak += 1
+                side.attack_streak = side.bash_streak = 0
+            elif side.tactic == DuelTactic.BASH:
+                side.bash_streak += 1
+                side.parry_streak = side.attack_streak = 0
+            elif side.tactic == DuelTactic.ATTACK:
+                side.attack_streak += 1
+                side.parry_streak = side.bash_streak = 0
+            else:
+                side.parry_streak = side.attack_streak = side.bash_streak = 0
+
         lines = [f'|yellow|--- Round {self.round_num} ---|reset|']
         for side, opp in ((self.a, self.b), (self.b, self.a)):
             if self.done:
@@ -638,52 +704,108 @@ class DuelSession:
         return self._swing(side, opp)
 
     def _resolve_bash(self, side: _DuelSide, opp: _DuelSide) -> str:
+        """SPUR DUEL.S:424-484 "tac.bash", ported in full from the basher's
+        (side's) perspective -- zw=side.tactic (always BASH, the only way
+        this method is reached), zz=opp.tactic. Computes a wide advantage
+        score `a` from shield condition, carrying-capacity ("size") and
+        predictable-streak differentials, EGY/DEX/STR mismatches, and
+        initiative, then rolls a d100+50 against it in three bands: the
+        basher overextends and falls, the defender gets knocked down, or
+        neither (a clean whiff).
+
+        One deliberate scope limit vs. the source: SPUR's tac.bash always
+        falls through into a normal attack/attack1 exchange the same round
+        (DUEL.S:485 "goto attack") -- bash there doesn't cost you your
+        swing, it modifies it (and a just-downed opponent gets auto-hit).
+        This port keeps bash as a mutually-exclusive turn action instead,
+        same shape it already had before this rewrite: a clean knockdown
+        ends your turn, a whiff ends your turn, and a botched bash (you
+        fall) hands the defender a free counter-swing. Also not ported:
+        DUEL.S:450-454's mirror-image modifiers for what the *defender's*
+        own tactic does to a bash aimed at them (stand/attack/parry) --
+        those apply to the defender's own _swing() call, a shared code
+        path used by every duel exchange, and are left as a follow-up
+        rather than risked here.
+        """
         attacker, defender = side.player, opp.player
-        shield     = int(getattr(attacker, 'shield', 0) or 0)
-        opp_shield = int(getattr(defender, 'shield', 0) or 0)
 
-        # Bash beats a Parrying opponent (knocks them down); risky against
-        # a straight Attack (the basher is exposed mid-shove).
+        # Bashing costs the basher shield whether it lands or not
+        # (DUEL.S:434 "sh=sh-3"), so read shield before charging it.
+        attacker_shield = int(getattr(attacker, 'shield', 0) or 0)
+        defender_shield = int(getattr(defender, 'shield', 0) or 0)
+        new_shield = max(0, attacker_shield - _BASH_SHIELD_COST)
+        if new_shield != attacker_shield:
+            from player import apply_equipment_degradation
+            apply_equipment_degradation(attacker, 'shield', attacker_shield - new_shield, False)
+
+        a = _BASH_BASE
+        a += min(attacker_shield, 100) // 3
+        a -= min(defender_shield, 100) // 3
+
+        # Carrying-capacity ("size") differential (DUEL.S:438/441): a
+        # parrying defender rewards the smaller/more agile side, anyone
+        # else rewards the larger/heavier one.
+        my_cap  = _carrying_capacity(getattr(attacker, 'char_race', None))
+        opp_cap = _carrying_capacity(getattr(defender, 'char_race', None))
         if opp.tactic == DuelTactic.PARRY:
-            success_chance = 65
-            # SPUR.DUEL.S:449/454: a parrying defender with the SMALLER
-            # shield is more agile and harder to bash -- (attacker_shield -
-            # defender_shield) / 3 knocked off the bash's success chance.
-            # Only the smaller side benefits; a larger shield grants nothing
-            # here (SPUR's mirror-image checks are each one-directional).
-            if opp_shield < shield:
-                success_chance -= (shield - opp_shield) // 3
-        elif opp.tactic == DuelTactic.ATTACK:
-            success_chance = 35
+            a += (opp_cap - my_cap) * _BASH_SIZE_SCALE
         else:
-            success_chance = 50
-        if _is_predictable(side.history, DuelTactic.BASH):
-            success_chance -= _STREAK_PENALTY
+            a += (my_cap - opp_cap) * _BASH_SIZE_SCALE
 
-        success_chance += shield // 10  # a shield helps you shove, per tips.txt's shield-scaling flavor
-        # TODO: success_chance only factors the shield's condition rating.
-        # A shove-to-the-ground move like this should plausibly also weigh
-        # STR (PlayerStat.STR -- raw shoving power) and DEX (PlayerStat.DEX
-        # -- balance/agility, both attacker's chance to stay upright after
-        # overextending and defender's chance to keep their footing) the
-        # way _absorb_shield_armor()'s shield_thresh above already folds in
-        # shield_proficiency via shield_exp_bonus() (attacker.shield_proficiency,
-        # keyed by attacker.active_shield_id) as a trained-skill bonus. None
-        # of STR/DEX/shield_proficiency are read here yet.
+        # Predictability and opposing-tactic modifiers (DUEL.S:443-449).
+        a += _BASH_TACTIC_MOD  # DUEL.S:444 "if zw=4 a=a+10" -- always true here
+        if opp.tactic == DuelTactic.BASH:
+            a -= _BASH_TACTIC_MOD + side.parry_streak * _BASH_STREAK_SCALE
+        elif opp.tactic == DuelTactic.STAND:
+            a += _BASH_TACTIC_MOD
+        elif opp.tactic == DuelTactic.ATTACK:
+            a += _BASH_TACTIC_MOD
+        elif opp.tactic == DuelTactic.PARRY:
+            a -= _BASH_TACTIC_MOD + side.bash_streak * _BASH_STREAK_SCALE
+            if defender_shield < attacker_shield:
+                a -= (attacker_shield - defender_shield) // 3
 
-        clamped_chance = max(10, min(90, success_chance))
-        roll = random.randint(1, 100)
+        # EGY/DEX/STR mismatches (DUEL.S:455-463): whichever side is ahead
+        # by more than _BASH_STAT_GAP gets a flat swing.
+        from base_classes import PlayerStat
+        my_stats  = getattr(attacker, 'stats', {}) or {}
+        opp_stats = getattr(defender, 'stats', {}) or {}
+        for stat in (PlayerStat.EGY, PlayerStat.DEX, PlayerStat.STR):
+            mine = int(my_stats.get(stat, 0) or 0)
+            theirs = int(opp_stats.get(stat, 0) or 0)
+            if theirs > mine + _BASH_STAT_GAP:
+                a -= _BASH_STAT_MOD
+            elif mine > theirs + _BASH_STAT_GAP:
+                a += _BASH_STAT_MOD
+
+        # Initiative (DUEL.S:464-466) -- reuses the flat +/-10 already
+        # computed once at duel start (_compute_initiative()).
+        a += side.initiative
+        a -= opp.initiative
+
+        a = max(_BASH_CLAMP_LOW, min(_BASH_CLAMP_HIGH, a))
+        roll = random.randint(1, 100) + _BASH_ROLL_BASE
         self._commentary.append(
             f'  [commentary] {attacker.name} bash vs {defender.name} ({opp.tactic.value}): '
-            f'{clamped_chance}% chance, rolled {roll} -> {"SUCCESS" if roll <= clamped_chance else "FAIL"}'
+            f'advantage {a}, rolled {roll}'
         )
-        if roll <= clamped_chance:
+
+        if roll > a + _BASH_ROLL_MARGIN:
+            # DUEL.S:479 "if (yx=13)... zy$=DOWN" -- the basher overextends
+            # and falls, same DOWN state a successful bash inflicts on a
+            # defender. Set before the free counter-swing below (which
+            # only reads self._was_down, last round's frozen snapshot, so
+            # ordering here doesn't affect that swing's own math).
+            side.down = True
+            self._terse_notes.append(f'{attacker.name} overextends bashing {defender.name}!')
+            return f"{attacker.name}'s shield bash fails -- overextended!" + self._swing(
+                opp, side, free=True, hit_bonus=15,
+            )
+        if roll < a - _BASH_ROLL_MARGIN:
             opp.down = True
             self._terse_notes.append(f'{attacker.name} bashes {defender.name} to the ground!')
             return f'{attacker.name} SHIELD BASHES {defender.name} to the ground!'
-        return f"{attacker.name}'s shield bash fails -- overextended!" + self._swing(
-            opp, side, free=True, hit_bonus=15,
-        )
+        return f'{attacker.name} shield bashes -- {defender.name} keeps footing!'
 
     def _swing(self, side: _DuelSide, opp: _DuelSide, *, free: bool = False, hit_bonus: int = 0) -> str:
         """side attacks opp once. free=True skips reading side.tactic
@@ -1186,6 +1308,9 @@ async def _submit_tactic(ctx: GameContext, tactic: DuelTactic) -> CommandResult:
     if not side.down and tactic in _DOWN_TACTICS:
         await ctx.send("You're not down -- nothing to stand up from.")
         return CommandResult.fail('Not down.')
+    if tactic == DuelTactic.BASH and int(getattr(ctx.player, 'shield', 0) or 0) < _BASH_MIN_SHIELD:
+        await ctx.send('Not enough shield!')
+        return CommandResult.fail('Not enough shield.')
     await session.submit(ctx.player, tactic)
     return CommandResult.ok(f'Submitted {tactic.value}.')
 
