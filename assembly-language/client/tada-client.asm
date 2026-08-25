@@ -133,6 +133,18 @@
                                         ; encode_apply_for_player()),
                                         ; no popup involved
 
+; Help/keys/credits popup stream marker -- same idea/reasoning as
+; DISPLAY_STREAM_CONFIRM above, own distinct confirm byte so
+; handle_recv_byte_confirm can tell this apart from every other stream.
+; Matches commands/help_menu.py (server side) exactly. Unlike the display-
+; settings popup, help_menu.asm never sends anything back (nothing to
+; save) -- there's no HELP_STREAM_CANCEL byte, closing the popup just
+; jumps straight to JT_RESUME.
+{const: HELP_STREAM_CONFIRM $08}   ; unused C64 control code -- opens the
+                                     ; help_menu.asm popup (help/keys/
+                                     ; credits pages, player flips between
+                                     ; them locally with CRSR LEFT/RIGHT)
+
 ; KERNAL routines used by load_petscii_editor/load_config_menu to LOAD an
 ; overlay module from disk on demand (see load_petscii_editor's own
 ; comment for why this is a separate on-disk module rather than resident
@@ -474,7 +486,7 @@ init_swiftlink:
 ; $0351 and $0352-$0358) precisely so one copy loop populates both; see
 ; PROTO_TABLE's own comment.
 init_jump_table:
-        ldx #24
+        ldx #25
 init_jump_table_loop:
         lda jump_table_template,x
         sta JT_BASE,x
@@ -1042,7 +1054,7 @@ jump_table_template:
         jmp set_blink_mask
         byte SID_STREAM_START, SID_STREAM_CONFIRM, CANVAS_STREAM_CONFIRM
         byte CANVAS_STREAM_CANCEL, DISPLAY_STREAM_CONFIRM
-        byte DISPLAY_STREAM_CANCEL, APPLY_STREAM_CONFIRM
+        byte DISPLAY_STREAM_CANCEL, APPLY_STREAM_CONFIRM, HELP_STREAM_CONFIRM
 
 ; --- Load the petscii_editor overlay module and hand control to it ---
 ; Called from handle_recv_byte_canvas_confirm once a real canvas stream
@@ -1108,6 +1120,26 @@ load_config_menu:
         bcs load_overlay_error
         jmp OVERLAY_BUF
 
+; --- Load the help_menu overlay module and hand control to it ---
+; Called from handle_recv_byte_help_confirm once a real help/keys/credits
+; stream is confirmed starting. Same LOAD "...",8,1 (secondary address 1)
+; convention as load_petscii_editor/load_config_menu above -- see load_
+; petscii_editor's own comment for the full reasoning (shared here rather
+; than repeated).
+load_help_menu:
+        lda #8                   ; length of "HELP.MNU" below
+        ldx #<help_menu_filename
+        ldy #>help_menu_filename
+        jsr KERNAL_SETNAM
+        lda #1
+        ldx #8
+        ldy #1
+        jsr KERNAL_SETLFS
+        lda #0
+        jsr KERNAL_LOAD
+        bcs load_overlay_error
+        jmp OVERLAY_BUF
+
 ; LOAD failed (either overlay module) -- report the KERNAL error number
 ; and hand control back to the ordinary prompt loop instead of jumping
 ; into unloaded memory.
@@ -1160,6 +1192,8 @@ petscii_editor_filename:
         ascii "PETSCII.ED"
 config_menu_filename:
         ascii "CONFIG.MNU"
+help_menu_filename:
+        ascii "HELP.MNU"
 {alpha:normal}
 
 ; --- Init NMI receive handler ---
@@ -1931,6 +1965,8 @@ handle_recv_byte_confirm:
         beq handle_recv_byte_display_confirm
         cmp #APPLY_STREAM_CONFIRM
         beq handle_recv_byte_apply_confirm
+        cmp #HELP_STREAM_CONFIRM
+        beq handle_recv_byte_help_confirm
         ; False alarm: the earlier $01 wasn't really a stream start.
         ; Display both the swallowed $01 and this byte as ordinary text
         ; instead of silently treating either as SID framing.
@@ -1962,6 +1998,15 @@ handle_recv_byte_display_confirm:
         lda #0
         sta sid_mode
         jmp load_config_menu
+
+; A real help/keys/credits stream is confirmed -- same reasoning as
+; handle_recv_byte_canvas_confirm above, hands off to help_menu.asm
+; entirely. That module reads the length prefix + 1-byte body (which
+; page to open on) itself once it's loaded and running.
+handle_recv_byte_help_confirm:
+        lda #0
+        sta sid_mode
+        jmp load_help_menu
 
 ; A silent-apply stream is confirmed (sent at login/reconnect -- see
 ; commands/connect.py's encode_apply_for_player()). Unlike the canvas/
