@@ -477,7 +477,7 @@ class GetCommand(Command):
                 if other.query_flag(PlayerFlags.UNCONSCIOUS):
                     await ctx.send(f"{pname} won't fit in your sack..")
                 else:
-                    await ctx.send(f'{pname} skuttles out of reach!')
+                    await ctx.send(f'{pname} scuttles out of reach!')
 
         if not matched and target != '*':
             await ctx.send(f'You do not see any "{target}" here.')
