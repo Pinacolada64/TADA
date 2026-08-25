@@ -155,6 +155,8 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Optional
 
+from base_classes import PlayerClass
+from flags import PlayerFlags
 from item_system import weapon_bonus, weapon_sfx
 from combat.resolution import shield_exp_bonus
 
@@ -399,18 +401,48 @@ def _absorb_shield_armor(raw: float, attacker, defender) -> tuple:
     shield_destroyed = False
     shield = int(getattr(defender, 'shield', 0) or 0)
     if shield > 0:
-        block_roll = random.randint(1, 10)
+        # Two-phase SPUR formula (kept in sync with combat/resolution.py's
+        # monster_attacks() -- see module comment above; message #14
+        # "Shields in Monster Combat" is the design doc for this math).
+        shield_trained = bool(defender.query_flag(PlayerFlags.SHIELD_TRAINED))
         active_shield_id = getattr(defender, 'active_shield_id', None)
         prof_dict = getattr(defender, 'shield_proficiency', {}) or {}
         shield_prof = int(prof_dict.get(str(active_shield_id), 0)) if active_shield_id is not None else 0
-        shield_thresh = 2 + (shield // 25) + random.randint(0, 2) + shield_exp_bonus(shield_prof)
-        if block_roll <= shield_thresh:
-            shield_blocked = min(int(raw), shield_thresh)
+        xp_level = int(getattr(defender, 'xp_level', 1) or 1)
+
+        z1 = random.randint(1, 10)
+        if shield_trained:
+            z1 -= 2
+        if ma > 6:
+            z1 += (ma - 6)
+        if ma < 4:
+            z1 -= (4 - ma)
+        z1 -= shield_exp_bonus(shield_prof)
+        yz = min(8, 2 + xp_level)
+
+        if z1 <= yz:
+            z2 = 2 + (shield // 25) + random.randint(0, 2)
+            if getattr(defender, 'char_class', None) == PlayerClass.PALADIN:
+                z2 += 2
+            if shield_trained:
+                z2 += 1
+            shield_blocked = min(int(raw), max(0, z2))
+            raw -= shield_blocked
+
             shield_degraded = 1 + random.randint(0, max(0, 10 - ma))
-            if random.randint(0, 59) < shield_degraded * 2:
+            if shield_trained:
+                shield_degraded = max(0, shield_degraded - 1)
+
+            rip_z = 0
+            if ma < 6:
+                rip_z = 7 - ma
+                if shield_trained:
+                    rip_z -= 1
+            rip_z = max(0, rip_z) * 2
+            if random.randint(0, 59) < rip_z:
                 shield_destroyed = True
                 shield_degraded = shield
-            raw -= shield_blocked
+
             defender.gain_shield_proficiency(active_shield_id)
 
     armor_blocked = armor_degraded = 0

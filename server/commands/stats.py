@@ -287,8 +287,7 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
     _active_shield_id = getattr(player, 'active_shield_id', None)
     _shield_prof      = getattr(player, 'shield_proficiency', {}) or {}
     shield_skill      = int(_shield_prof.get(str(_active_shield_id), 0)) if _active_shield_id is not None else 0
-    shield_flag       = getattr(PlayerFlags, 'SHIELD_TRAINED', None)
-    shield_trained    = ('Yes' if qf(shield_flag) else 'No') if shield_flag else 'No'
+    shield_trained    = 'Yes' if qf(PlayerFlags.SHIELD_TRAINED) else 'No'
     lines += [
         f"Shield skill: {shield_skill} {tier_label(shield_skill)}|reset|, Formal training: {shield_trained}",
         '',
