@@ -926,9 +926,9 @@ class Player:
             self.honor = new_honor
             self.unsaved_changes = True
         if new_honor < current_honor:  # we subtracted something
-            return new_honor, "(You feel less honorable)"
+            return new_honor, f"(You feel less honorable) ({adjustment:+d})"
         if new_honor > current_honor:
-            return new_honor, "(You feel more honorable)"
+            return new_honor, f"(You feel more honorable) ({adjustment:+d})"
         logging.info("Honor score: %i, but no Honor adjustment occurred.", current_honor)
         return None
 

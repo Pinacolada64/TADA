@@ -50,6 +50,16 @@ class TestAdjustHonorReturnValue(unittest.TestCase):
         self.assertEqual(new_honor, 15)
         self.assertIn('more honorable', message)
 
+    def test_negative_adjustment_message_shows_signed_delta(self):
+        player = _new_player(honor=10)
+        _, message = player.adjust_honor(-2)
+        self.assertEqual(message, '(You feel less honorable) (-2)')
+
+    def test_positive_adjustment_message_shows_signed_delta(self):
+        player = _new_player(honor=10)
+        _, message = player.adjust_honor(5)
+        self.assertEqual(message, '(You feel more honorable) (+5)')
+
     def test_zero_adjustment_returns_none_and_does_not_mark_unsaved(self):
         player = _new_player(honor=10)
         player.unsaved_changes = False
