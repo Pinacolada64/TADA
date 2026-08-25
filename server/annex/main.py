@@ -77,8 +77,15 @@ async def _message_board_1(ctx: GameContext) -> None:
 
 
 async def _message_board_2(ctx: GameContext) -> None:
-    """Read message board 2."""
-    await ctx.send('(Message board not yet available.)')
+    """Read message board 2 -- not an actual postable board (see this
+    module's own admin-authored-help-screen note): SPUR.ANNEX.S routes
+    this slot to message #14, "Shields in Monster Combat" (MECHANICS.md's
+    Message Boards note). Wired ahead of the rest of the Annex stubs
+    since it's the in-game readable version of the shield-block formula
+    combat/resolution.py's monster_attacks() implements."""
+    from messages import send_message
+    if not await send_message(ctx, 14):
+        await ctx.send('(Message board not yet available.)')
 
 
 async def _message_board_3(ctx: GameContext) -> None:

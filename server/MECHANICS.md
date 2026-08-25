@@ -36,7 +36,7 @@ and display function directly.
 | 9 | `new` (`SPUR.LOGON.S:50`) | New-player login MOTD/welcome text | Not yet wired in (current login flow has its own welcome text) |
 | 10 | login banner (`SPUR.LOGON.S:27`) | Original BBS-door splash/credits screen | Historical only, not applicable to this port |
 | 11 | `quote` (`SPUR.LOGON.S:619`) | QUOTE command instructions | `commands/quote.py` likely has its own help text already |
-| 13 | shield training confirm (`SPUR.MISC2.S:460`) | Shield training (Odin the Shield Master) result flavor | Not yet documented — new find |
+| 13 | shield training confirm (`SPUR.MISC2.S:460`) | Shield training (Odin the Shield Master) result flavor | ✅ Wired — `shoppe/school.py`'s Formal Shield Training purchase (`SCHOOL` command at the Shoppe) |
 | 16 | duel `H`elp (`SPUR.DUEL.S:26,43`) | Duel help screen text | Duels are implemented (`## Duels (PvP)`); this specific help text not yet ported |
 | 17 | monster #120 death (`SPUR.MISC.S:417`) | Disguised-old-man-monster transform-on-death flavor | Already tracked separately per this session's earlier GOD/GODDESS message work |
 | 18 | room 89 teleport (`SPUR.MISC.S:448`) | ✅ Implemented — level 1 Teleport Room → level 5 | `level_1.json` room 89's `hidden_exit_east.message_number` |
@@ -928,7 +928,8 @@ item numbering, not master's, so it was evidently captured from a skip-era build
   / skip `:105-107`) are not boards of any kind, threaded or otherwise — all three
   dispatch to static admin-authored help screens via the same `rd.msg` mechanism as
   item 2 above: item 10 → Message #15 (guild-membership perks), item 11 → Message #14
-  ("Shields in Monster Combat" probability reference), item 12 → Message #32 ("The
+  ("Shields in Monster Combat" probability reference — ✅ wired, `annex/main.py`'s
+  `_message_board_2()`; items 10/12 still stubbed), item 12 → Message #32 ("The
   EXAMINE command in Spur" help text). There is no multi-author/postable board system
   anywhere in `SPUR.ANNEX.S`; this doc's separate "Threaded Message Boards" section is
   a forward-looking design idea, not a port of an existing SPUR Annex mechanic.
