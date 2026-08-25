@@ -514,7 +514,8 @@ async def _weapons_box(ctx: GameContext, player, state: dict, info: dict) -> Non
             if inv and inv.add(w):
                 state['weapons_box'] = None
                 # SPUR: if vk>5 vk=vk-5 (taking costs a little honor)
-                player.honor = max(0, int(getattr(player, 'honor', 0) or 0) - 5)
+                current_honor = int(getattr(player, 'honor', 0) or 0)
+                player.adjust_honor(-min(5, current_honor))
                 add_log(state, player.name, 'TOOK', box['name'])
                 player.unsaved_changes = True
                 await ctx.send(f"Lurch hands you the {box['name']}.")
@@ -572,7 +573,9 @@ async def _weapons_box(ctx: GameContext, player, state: dict, info: dict) -> Non
                 'weapon_class': str(getattr(item, 'weapon_class', '') or ''),
             }
             # SPUR: if vk<2000 vk=vk+5 (donating a weapon earns a little honor)
-            player.honor = min(2000, int(getattr(player, 'honor', 0) or 0) + 5)
+            current_honor = int(getattr(player, 'honor', 0) or 0)
+            if current_honor < 2000:
+                player.adjust_honor(min(5, 2000 - current_honor))
             add_log(state, player.name, 'GAVE', item.name)
             player.unsaved_changes = True
             await ctx.send(f"Lurch carefully places the {item.name} in the box.")

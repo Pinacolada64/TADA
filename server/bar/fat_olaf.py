@@ -363,7 +363,7 @@ async def _maintain_servant(ctx: GameContext, master_list: List[Ally]) -> None:
     _sync_to_roster(master_list, chosen.name, chosen.status, chosen.owner, chosen.strength)
     # Honour bonus for investing in servant (SPUR.BAR.S: vk=vk+5 if vk<2000)
     if getattr(player, 'honor', 0) < 2000:
-        player.honor = getattr(player, 'honor', 0) + _HONOR_MAINTAIN_GAIN
+        player.adjust_honor(_HONOR_MAINTAIN_GAIN)
     player.unsaved_changes = True
 
     await ctx.send([

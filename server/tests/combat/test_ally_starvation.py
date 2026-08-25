@@ -49,8 +49,12 @@ def _make_player(party=None, honor=1000, wisdom=50, intelligence=50):
     player.stats = {'Wisdom': wisdom, 'Intelligence': intelligence}
 
     def _adjust_honor(adjustment):
+        if adjustment == 0:
+            return None
         player.honor += adjustment
         player.unsaved_changes = True
+        phrase = 'less' if adjustment < 0 else 'more'
+        return player.honor, f'(You feel {phrase} honorable) ({adjustment:+d})'
     player.adjust_honor = _adjust_honor
     return player
 

@@ -233,7 +233,7 @@ class LootCommand(Command):
 
         honor_cost = _HONOR_COST_KNIGHT if getattr(player, 'char_class', None) == PlayerClass.KNIGHT else _HONOR_COST
         honor      = int(getattr(player, 'honor', 0) or 0)
-        player.honor = max(0, honor - honor_cost)
+        player.adjust_honor(-min(honor_cost, honor))
 
         player.loot_count = loot_count + 1
 

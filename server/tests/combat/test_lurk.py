@@ -76,8 +76,12 @@ class _FakePlayer:
         self.unsaved_changes = False
 
     def adjust_honor(self, adjustment):
+        if adjustment == 0:
+            return None
         self.honor += adjustment
         self.unsaved_changes = True
+        phrase = 'less' if adjustment < 0 else 'more'
+        return self.honor, f'(You feel {phrase} honorable) ({adjustment:+d})'
 
 
 class _FakeClient:

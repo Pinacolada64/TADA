@@ -103,8 +103,12 @@ def _make_shadow_ctx(room_flags=(), prompt_reply='Y'):
     ctx.player.party.add = AsyncMock()
 
     def _adjust_honor(adjustment):
+        if adjustment == 0:
+            return None
         ctx.player.honor += adjustment
         ctx.player.unsaved_changes = True
+        phrase = 'less' if adjustment < 0 else 'more'
+        return ctx.player.honor, f'(You feel {phrase} honorable) ({adjustment:+d})'
     ctx.player.adjust_honor = _adjust_honor
     ctx.client.room = 2
 

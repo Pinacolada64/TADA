@@ -37,8 +37,12 @@ def _make_player(name='Killerella', party=None, charmed_monsters=None,
     player.unsaved_changes = False
 
     def _adjust_honor(adjustment):
+        if adjustment == 0:
+            return None
         player.honor += adjustment
         player.unsaved_changes = True
+        phrase = 'less' if adjustment < 0 else 'more'
+        return player.honor, f'(You feel {phrase} honorable) ({adjustment:+d})'
     player.adjust_honor = _adjust_honor
     return player
 

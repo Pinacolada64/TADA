@@ -160,9 +160,9 @@ async def try_hungry_ally(ctx: 'GameContext', item, kind: str) -> bool:
     honor_gain = 5 if ration_restore(item) >= 5 else 2
     current_honor = getattr(player, 'honor', 0)
     if current_honor < 2000:
-        player.honor = min(2000, current_honor + honor_gain)
-        player.unsaved_changes = True
-        await ctx.send(f'You feel more honorable. (+{honor_gain})')
+        result = player.adjust_honor(min(honor_gain, 2000 - current_honor))
+        if result:
+            await ctx.send(result[1])
 
     # This item was consumed straight from the player's own inventory above
     # (never entered hungry.items), so hand _try_body_build a throwaway
