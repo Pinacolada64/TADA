@@ -153,6 +153,12 @@ async def _locker(ctx: GameContext) -> None:
     await locker_main(ctx)
 
 
+async def _school(ctx: GameContext) -> None:
+    """Buy formal shield training (SPUR.MISC2.S's `SCHOOL` command)."""
+    from shoppe.school import main as school_main
+    await school_main(ctx)
+
+
 def _pawn_shop(ctx: GameContext):
     from shoppe.pawn import main as pawn_main
     return pawn_main(ctx)
@@ -243,7 +249,8 @@ async def _show_menu(ctx: GameContext) -> None:
         lines.append('')
     for key, label, _ in _menu_entries(ctx):
         lines.append(f'  [{key}] {label}')
-    lines += ['  [LOCKER] Private Locker', '  [X] Leave the Shoppe', '']
+    lines += ['  [LOCKER] Private Locker', '  [SCHOOL] Formal Shield Training',
+              '  [X] Leave the Shoppe', '']
     await ctx.send(lines)
 
 
@@ -299,6 +306,12 @@ async def _shoppe_session(ctx: GameContext, player) -> None:
         # word before truncating to a single character below.
         if full in ('locker', 'lock'):
             await _locker(ctx)
+            continue
+
+        # SCHOOL is likewise a free-text command word (SPUR.MISC2.S's
+        # `if i$="SCHOOL"`), not a lettered menu option.
+        if full == 'school':
+            await _school(ctx)
             continue
 
         cmd = full[:1]
