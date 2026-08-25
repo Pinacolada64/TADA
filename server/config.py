@@ -205,7 +205,7 @@ class ServerConfig:
         # default) was never actually wired to the running server at all.
         'ansi_port': 34083,
         'petscii_port': 34064,
-        'host': 'localhost',      # Server host, shared by both listeners
+        'host': '0.0.0.0',      # Server host, shared by both listeners
         # The Dwarf (tips.txt / MECHANICS.md "The Dwarf" -- a single,
         # server-wide NPC on a fixed level-1 room who steals silver from
         # every player until killed; killing him awards ALL of it at once).
@@ -482,7 +482,7 @@ class ServerConfig:
     def host(self) -> str:
         """Server listen host/interface, shared by both ports. Changing this
         has no effect until the server restarts."""
-        return str(self.get('host', 'localhost'))
+        return str(self.get('host', '0.0.0.0'))
 
     @host.setter
     def host(self, value: str) -> None:
