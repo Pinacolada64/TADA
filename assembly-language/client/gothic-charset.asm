@@ -125,10 +125,10 @@ gothic_charset:
         bits ........
         bits ...**...
         bits ........
-        bits ...**...
-        bits ...**...
-        bits .*.**.*.
-        bits .******.
+        bits ..***...
+        bits .*.**...
+        bits ...**.*.
+        bits ....**..
         bits ........
 
 ;  10 ($0a) 'j'
@@ -1402,12 +1402,12 @@ gothic_charset:
         bits ********
 
 ; 137 ($89)
-        bits **..****
+        bits ********
         bits ***..***
-        bits ***..***
-        bits ***..***
-        bits ***..***
-        bits ***..***
+        bits ********
+        bits **...***
+        bits *.*..***
+        bits ***..*.*
         bits ****..**
         bits ********
 
