@@ -31,8 +31,18 @@
 ; them in address arithmetic below (same forward-reference gotcha
 ; config_menu.asm's own BOX_TOP_ROW/BOX_ROWS comment documents -- a plain
 ; `=` constant isn't safe to forward-reference the way a label is).
-BOX_TOP_ROW = 3
-BOX_ROWS    = 18
+; Full 25-row screen (not a smaller inset band like config_menu.asm's
+; own popup) -- confirmed live 2026-08-25 that a smaller band left
+; whatever game text was on screen before the popup opened (STATS
+; output, mid-fight text, ...) visibly bleeding through above/below the
+; box, since JT_SAVE_SCREEN/JT_RESTORE_SCREEN back up and restore the
+; WHOLE screen regardless of how much of it draw_static/draw_page
+; actually overwrite. Unlike config_menu.asm (only ever opened from
+; PREFS' own mostly-blank submenu background), guide/keys/credits can
+; be typed from literally any game screen, so there's no safe smaller
+; band to assume is already blank.
+BOX_TOP_ROW = 0
+BOX_ROWS    = 25
 
 ; SCREEN_RAM/COLOR_RAM/CHROUT/GETIN are macro_preprocessor.py built-ins
 ; (C64_CONSTANTS) -- no {const:} needed for those here.
@@ -138,13 +148,16 @@ key_close:
         jmp JT_RESUME
 
 ; --- Draw the static popup box (border/blank rows/nav help text) ---
-; Fills the whole 18-row band's COLOR_RAM to white first (one fill_bytes
+; Fills the whole screen's COLOR_RAM to white first (one fill_bytes
 ; call), then pokes each 40-char row's text over SCREEN_RAM -- same
 ; "poke_line" shape as config_menu.asm's own draw_popup (a separate
 ; copy: this module has no way to share code with that one, they're
-; never resident at the same time). Title (row+1) and content (rows
-; +3..+12) are drawn by draw_page, not here -- this only draws what's
-; the same on every page.
+; never resident at the same time). Title (row 2) and content (rows
+; 4-13) are drawn by draw_page, not here -- this only draws what's the
+; same on every page. Full BOX_TOP_ROW/BOX_ROWS=0/25 (see that comment)
+; means every one of the screen's 25 rows is accounted for between this
+; routine and draw_page -- nothing is left showing whatever was on
+; screen before the popup opened.
 draw_static:
         lda #<(COLOR_RAM+BOX_TOP_ROW*40)
         sta fill_dst_lo
@@ -168,49 +181,21 @@ draw_static:
         sta poke_dst_hi
         jsr poke_line
 
-        lda #<row_blank
-        sta poke_src_lo
-        lda #>row_blank
-        sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+2)*40)
-        sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+2)*40)
-        sta poke_dst_hi
-        jsr poke_line
+        lda #1                     ; row 1 -- blank, above the title
+        ldx #1
+        jsr draw_blank_run
 
-        lda #<row_blank
-        sta poke_src_lo
-        lda #>row_blank
-        sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+13)*40)
-        sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+13)*40)
-        sta poke_dst_hi
-        jsr poke_line
+        lda #3                     ; row 3 -- blank, above the content
+        ldx #1
+        jsr draw_blank_run
+
+        lda #14                    ; rows 14-15 -- blank, below the content
+        ldx #2
+        jsr draw_blank_run
 
         lda #<row_help1
         sta poke_src_lo
         lda #>row_help1
-        sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+14)*40)
-        sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+14)*40)
-        sta poke_dst_hi
-        jsr poke_line
-
-        lda #<row_help2
-        sta poke_src_lo
-        lda #>row_help2
-        sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+15)*40)
-        sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+15)*40)
-        sta poke_dst_hi
-        jsr poke_line
-
-        lda #<row_blank
-        sta poke_src_lo
-        lda #>row_blank
         sta poke_src_hi
         lda #<(SCREEN_RAM+(BOX_TOP_ROW+16)*40)
         sta poke_dst_lo
@@ -218,28 +203,106 @@ draw_static:
         sta poke_dst_hi
         jsr poke_line
 
-        lda #<bottom_border
+        lda #<row_help2
         sta poke_src_lo
-        lda #>bottom_border
+        lda #>row_help2
         sta poke_src_hi
         lda #<(SCREEN_RAM+(BOX_TOP_ROW+17)*40)
         sta poke_dst_lo
         lda #>(SCREEN_RAM+(BOX_TOP_ROW+17)*40)
         sta poke_dst_hi
+        jsr poke_line
+
+        lda #18                    ; rows 18-23 -- blank, filling down to
+        ldx #6                     ; the bottom border
+        jsr draw_blank_run
+
+        lda #<bottom_border
+        sta poke_src_lo
+        lda #>bottom_border
+        sta poke_src_hi
+        lda #<(SCREEN_RAM+(BOX_TOP_ROW+24)*40)
+        sta poke_dst_lo
+        lda #>(SCREEN_RAM+(BOX_TOP_ROW+24)*40)
+        sta poke_dst_hi
         jmp poke_line
 
-; --- Draw the page-specific parts: title (row+1) + 10 content rows
-; (rows+3..+12) -- picked by cur_page. Explicit per-page blocks (not a
+; --- draw_blank_run: pokes row_blank into .x consecutive rows starting
+; at absolute row .a (e.g. .a=18, .x=6 fills rows 18-23) -- used above
+; for the wide blank bands a fixed-position poke_line call per row
+; would otherwise need many near-identical copies of. Recomputes the
+; destination address from scratch each row (same technique as
+; dp_content below) rather than just adding 40 to a running pointer --
+; simpler to read, and cheap enough for a one-off modal-popup draw.
+draw_blank_run:
+        sta dbr_row
+        stx dbr_count
+        lda #<row_blank
+        sta poke_src_lo
+        lda #>row_blank
+        sta poke_src_hi
+dbr_loop:
+        lda #<(SCREEN_RAM+BOX_TOP_ROW*40)
+        sta dbr_dst_lo
+        lda #>(SCREEN_RAM+BOX_TOP_ROW*40)
+        sta dbr_dst_hi
+        ldx dbr_row
+dbr_add_loop:
+        cpx #0
+        beq dbr_add_done
+        lda dbr_dst_lo
+        clc
+        adc #40
+        sta dbr_dst_lo
+        bcc dbr_no_carry
+        inc dbr_dst_hi
+dbr_no_carry:
+        dex
+        jmp dbr_add_loop
+dbr_add_done:
+        lda dbr_dst_lo
+        sta poke_dst_lo
+        lda dbr_dst_hi
+        sta poke_dst_hi
+        jsr poke_line
+        inc dbr_row
+        dec dbr_count
+        bne dbr_loop
+        rts
+
+dbr_row:
+        byte 0
+dbr_count:
+        byte 0
+dbr_dst_lo:
+        byte 0
+dbr_dst_hi:
+        byte 0
+
+; --- Draw the page-specific parts: title (row+2) + 10 content rows
+; (rows+4..+13) -- picked by cur_page. Explicit per-page blocks (not a
 ; runtime address table) so each poke_line call's source is a plain
 ; label, same style as config_menu.asm's draw_popup -- easy to verify by
 ; eye against the row_*_N labels below, no indexed-table arithmetic to
 ; get wrong.
+; beq dp_page1 (a straight `cmp #1 / beq dp_page1`) is out of 6502
+; branch range -- dp_page1 sits ~166 bytes past this point once
+; dp_page0's whole title+10-content-row block is between them, and
+; c64list does NOT validate branch range (assembles clean, no warning,
+; computes a garbage relative offset at runtime -- confirmed live
+; 2026-08-25: a real CPU JAM at $2152, one byte into what should have
+; been this branch's own operand). Same gotcha already hit and fixed
+; this same way elsewhere in this project (see tada-client.asm's
+; read_line_loop's own comment on this) -- invert the test and reach
+; dp_page1 via an unconditional jmp instead, which has no range limit.
 draw_page:
         lda cur_page
         cmp #0
         beq dp_page0
         cmp #1
-        beq dp_page1
+        bne draw_page_page2
+        jmp dp_page1
+draw_page_page2:
         jmp dp_page2
 
 dp_page0:
@@ -252,61 +315,61 @@ dp_page0:
         sta poke_src_lo
         lda #>row_help_0
         sta poke_src_hi
-        lda #3
+        lda #4
         jsr dp_content
         lda #<row_help_1
         sta poke_src_lo
         lda #>row_help_1
         sta poke_src_hi
-        lda #4
+        lda #5
         jsr dp_content
         lda #<row_help_2
         sta poke_src_lo
         lda #>row_help_2
         sta poke_src_hi
-        lda #5
+        lda #6
         jsr dp_content
         lda #<row_help_3
         sta poke_src_lo
         lda #>row_help_3
         sta poke_src_hi
-        lda #6
+        lda #7
         jsr dp_content
         lda #<row_help_4
         sta poke_src_lo
         lda #>row_help_4
         sta poke_src_hi
-        lda #7
+        lda #8
         jsr dp_content
         lda #<row_help_5
         sta poke_src_lo
         lda #>row_help_5
         sta poke_src_hi
-        lda #8
+        lda #9
         jsr dp_content
         lda #<row_help_6
         sta poke_src_lo
         lda #>row_help_6
         sta poke_src_hi
-        lda #9
+        lda #10
         jsr dp_content
         lda #<row_help_7
         sta poke_src_lo
         lda #>row_help_7
         sta poke_src_hi
-        lda #10
+        lda #11
         jsr dp_content
         lda #<row_help_8
         sta poke_src_lo
         lda #>row_help_8
         sta poke_src_hi
-        lda #11
+        lda #12
         jsr dp_content
         lda #<row_help_9
         sta poke_src_lo
         lda #>row_help_9
         sta poke_src_hi
-        lda #12
+        lda #13
         jmp dp_content
 
 dp_page1:
@@ -319,61 +382,61 @@ dp_page1:
         sta poke_src_lo
         lda #>row_keys_0
         sta poke_src_hi
-        lda #3
+        lda #4
         jsr dp_content
         lda #<row_keys_1
         sta poke_src_lo
         lda #>row_keys_1
         sta poke_src_hi
-        lda #4
+        lda #5
         jsr dp_content
         lda #<row_keys_2
         sta poke_src_lo
         lda #>row_keys_2
         sta poke_src_hi
-        lda #5
+        lda #6
         jsr dp_content
         lda #<row_keys_3
         sta poke_src_lo
         lda #>row_keys_3
         sta poke_src_hi
-        lda #6
+        lda #7
         jsr dp_content
         lda #<row_keys_4
         sta poke_src_lo
         lda #>row_keys_4
         sta poke_src_hi
-        lda #7
+        lda #8
         jsr dp_content
         lda #<row_keys_5
         sta poke_src_lo
         lda #>row_keys_5
         sta poke_src_hi
-        lda #8
+        lda #9
         jsr dp_content
         lda #<row_keys_6
         sta poke_src_lo
         lda #>row_keys_6
         sta poke_src_hi
-        lda #9
+        lda #10
         jsr dp_content
         lda #<row_keys_7
         sta poke_src_lo
         lda #>row_keys_7
         sta poke_src_hi
-        lda #10
+        lda #11
         jsr dp_content
         lda #<row_keys_8
         sta poke_src_lo
         lda #>row_keys_8
         sta poke_src_hi
-        lda #11
+        lda #12
         jsr dp_content
         lda #<row_keys_9
         sta poke_src_lo
         lda #>row_keys_9
         sta poke_src_hi
-        lda #12
+        lda #13
         jmp dp_content
 
 dp_page2:
@@ -386,69 +449,69 @@ dp_page2:
         sta poke_src_lo
         lda #>row_credits_0
         sta poke_src_hi
-        lda #3
+        lda #4
         jsr dp_content
         lda #<row_credits_1
         sta poke_src_lo
         lda #>row_credits_1
         sta poke_src_hi
-        lda #4
+        lda #5
         jsr dp_content
         lda #<row_credits_2
         sta poke_src_lo
         lda #>row_credits_2
         sta poke_src_hi
-        lda #5
+        lda #6
         jsr dp_content
         lda #<row_credits_3
         sta poke_src_lo
         lda #>row_credits_3
         sta poke_src_hi
-        lda #6
+        lda #7
         jsr dp_content
         lda #<row_credits_4
         sta poke_src_lo
         lda #>row_credits_4
         sta poke_src_hi
-        lda #7
+        lda #8
         jsr dp_content
         lda #<row_credits_5
         sta poke_src_lo
         lda #>row_credits_5
         sta poke_src_hi
-        lda #8
+        lda #9
         jsr dp_content
         lda #<row_credits_6
         sta poke_src_lo
         lda #>row_credits_6
         sta poke_src_hi
-        lda #9
+        lda #10
         jsr dp_content
         lda #<row_credits_7
         sta poke_src_lo
         lda #>row_credits_7
         sta poke_src_hi
-        lda #10
+        lda #11
         jsr dp_content
         lda #<row_credits_8
         sta poke_src_lo
         lda #>row_credits_8
         sta poke_src_hi
-        lda #11
+        lda #12
         jsr dp_content
         lda #<row_credits_9
         sta poke_src_lo
         lda #>row_credits_9
         sta poke_src_hi
-        lda #12
+        lda #13
         jmp dp_content
 
-; .a = title dest row offset is always BOX_TOP_ROW+1 -- poke_src_lo/hi
+; .a = title dest row offset is always BOX_TOP_ROW+2 -- poke_src_lo/hi
 ; already set by the caller.
 dp_title:
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+1)*40)
+        lda #<(SCREEN_RAM+(BOX_TOP_ROW+2)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+1)*40)
+        lda #>(SCREEN_RAM+(BOX_TOP_ROW+2)*40)
         sta poke_dst_hi
         jmp poke_line
 
