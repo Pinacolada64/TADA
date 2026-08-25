@@ -34,6 +34,7 @@ every terminal type, just without the on-screen box.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import List
 
@@ -100,13 +101,40 @@ def _encode_trigger(page: int) -> bytes:
     return bytes([STREAM_START, HELP_STREAM_CONFIRM, 1, 0, page])
 
 
+LOAD_SETTLE_SECONDS = 2.5  # see this function's own comment below
+
+
 async def show_help_popup(ctx: GameContext, page: int) -> None:
     """Open the native popup on a real Commodore connection (starting on
     *page*); print the equivalent plain text everywhere else. Fire-and-
-    forget on the popup side -- see this module's docstring for why no
-    reply is awaited, unlike commands/c64_display.py's Video Settings."""
+    forget on the popup side -- there's no reply to await, unlike
+    commands/c64_display.py's Video Settings -- but NOT traffic-free:
+    confirmed live 2026-08-25 that tada-client.asm's KERNAL LOAD "HELP.
+    MNU",8,1 (load_help_menu) reliably fails with KERNAL error $05
+    (DEVICE NOT PRESENT) when triggered from the ordinary game-command
+    loop, while the byte-identical LOAD in load_config_menu (Video
+    Settings) does not. Isolated the difference to traffic timing, not
+    the LOAD code itself: invoking load_help_menu directly from the
+    VICE monitor (bypassing the network path) succeeds cleanly every
+    time, and Video Settings' own round trip holds the server silent
+    (awaiting the client's reply) for as long as the popup is open,
+    while this command's execute() previously returned immediately
+    after sending the trigger, letting the normal command loop send the
+    next prompt right away. The KERNAL's serial-bus (IEC) routines
+    bit-bang precisely-timed CIA cycles during LOAD's initial device-
+    presence handshake -- a SwiftLink NMI landing in the middle of that
+    (from the very next prompt line arriving mid-LOAD) is enough to
+    break it. Sleeping here for long enough to cover a real disk LOAD
+    keeps the server quiet through that window, the same way Video
+    Settings' synchronous reply-wait does -- not a guaranteed fix (other
+    game traffic on this connection, e.g. another player's chat message,
+    could still land in the same window), but matches Video Settings'
+    own level of robustness rather than being worse. See project memory
+    (project_c128_client.md's help_menu entry) for the live reproduction
+    that isolated this."""
     if isinstance(ctx, PETSCIINetworkContext):
         await ctx.send_raw(_encode_trigger(page))
+        await asyncio.sleep(LOAD_SETTLE_SECONDS)
         return
     await ctx.send(PAGE_TEXT[page])
 
