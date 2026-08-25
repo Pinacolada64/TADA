@@ -146,14 +146,13 @@ class ConfigCommand(Command):
             ('config require_invites off', 'Stop requiring invites for new players.'),
         ],
         description = (
-            'Reads and writes server_config.json (config.py\'s ServerConfig). '
+            'Reads and writes server-wide settings. '
             'Several settings come from SPUR.CONTROL.S\'s SysOp config screen '
             '-- game_name, session_time_limit_minutes, and the victory_* '
             'trio (what it takes to "win" by escaping via the ladder up). '
             'Others (require_invites, invite_expiry_days, max_players, '
             'ansi_port, petscii_port, host, dwarf_silver) are TADA-specific '
-            'additions. The same settings are also editable offline via '
-            'setup/server_setup.py.'
+            'additions.'
         ),
         notes = [
             'Admin or Dungeon Master only.',
@@ -167,6 +166,11 @@ class ConfigCommand(Command):
             'victory_type/victory_gold_amount/victory_item_number gate the '
             'win check at the level-6 "Ladder Up" room (victory.py) -- see '
             'that module for the exact escape conditions.',
+        ],
+        admin_notes = [
+            'Reads and writes server_config.json (config.py\'s ServerConfig). '
+            'The same settings are also editable offline via '
+            'setup/server_setup.py.',
         ],
     )
 

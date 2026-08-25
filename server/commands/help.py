@@ -488,8 +488,7 @@ register_topic(
         summary="What \"Base damage\" on READY means",
         description=(
             "Base damage is the ceiling on the random damage roll a hit "
-            "draws from -- shown on READY as a score of 3-9 (weapons.json "
-            "stores it as that digit x10, e.g. 60 for a score of 6). "
+            "draws from -- shown on READY as a score of 3-9. "
             "Higher Base damage means a wider range of possible damage per "
             "hit, not a bigger guaranteed number: a hit always rolls "
             "somewhere between a small floor and (Base damage + 2), then "

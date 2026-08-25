@@ -144,7 +144,7 @@ class ListLocationsCommand(Command):
             ('list #a[rmor]',   'List every armor location.'),
             ('list #s[hield]',  'List every shield location.'),
             ('list #i[tems]',   'List every item location (any type).'),
-            ('list #<type>',    'List by a specific objects.json type (book, treasure, etc.).'),
+            ('list #<type>',    'List by a specific item type (book, treasure, etc.).'),
             ('list #m[onsters]', 'List every monster location.'),
             ('list #r[ations]', 'List every ration (food/drink) location.'),
             ('list #<cat> <name>', 'Narrow to entries whose name contains <name>.'),
@@ -155,7 +155,7 @@ class ListLocationsCommand(Command):
                                '"where are all the copies of X" without digging through '
                                "the raw data files. \"list #w\" reports every weapon's "
                                "current room."),
-            ('list #shield',  'Any objects.json "type" works as a switch, not just the '
+            ('list #shield',  'Any item "type" works as a switch, not just the '
                                'shorthand ones -- "list #shield" lists every shield the '
                                'same way.'),
             ('list #m goblin', 'A category also takes an optional substring to search for '
@@ -168,6 +168,10 @@ class ListLocationsCommand(Command):
                                'ration locations for names containing "ale".'),
         ],
         notes = ['Admin or Dungeon Master only.'],
+        admin_notes = [
+            '<type> is any objects.json "type" field value, not just the '
+            'shorthand categories listed above.',
+        ],
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
