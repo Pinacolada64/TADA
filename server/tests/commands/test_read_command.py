@@ -43,6 +43,11 @@ def make_player(*, with_scrap: bool = True, honor: int = 1000, intelligence: int
     p.inventory = Inventory(capacity=10)
     if with_scrap:
         p.inventory.add(Item(number=_SCRAP_ID, name='scrap of paper', type=ItemType.BOOK, price=4))
+
+    def _adjust_honor(adjustment):
+        p.honor += adjustment
+        p.unsaved_changes = True
+    p.adjust_honor = _adjust_honor
     return p
 
 

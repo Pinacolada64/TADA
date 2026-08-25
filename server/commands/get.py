@@ -177,7 +177,7 @@ def _treasure_conversion(player, name: str, price: int) -> list[str]:
     player.unsaved_changes = True
 
     total = player.get_silver(PlayerMoneyTypes.IN_HAND)
-    return [f'({amount:,} sp) You now have {total:,} silver in hand.']
+    return [f'(worth {amount:,} sp) You now have {total:,} silver in hand.']
 
 
 def _monster_in_room(ctx: GameContext) -> dict | None:
@@ -415,7 +415,8 @@ class GetCommand(Command):
         lines.append('')
         await ctx.send(lines)
 
-        raw = await ctx.prompt(f'Get which item (1-{len(available)}, or Enter to cancel)')
+        raw = await ctx.prompt(preamble_lines=f"(1-{len(available)}, or {ctx.player.return_key} to cancel)",
+                               prompt_text=f'Get which item')
         if not raw or not raw.strip():
             return CommandResult.ok()
 
@@ -502,7 +503,7 @@ class GetCommand(Command):
         # else since it's not a real catalog item (no id_number, no price,
         # nothing to add to inventory or convert to gold).
         if getattr(entry.item, 'is_statue', False):
-            await ctx.send('THE STATUE IS MUCH TOO HEAVY!')
+            await ctx.send('The statue is much too heavy!')
             return CommandResult.ok()
 
         # --- Gollum's ring: he won't let it go while he's alive

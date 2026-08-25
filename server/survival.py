@@ -247,6 +247,5 @@ def apply_disease(player) -> None:
 
 def cure_disease(player) -> None:
     from flags import PlayerFlags
-    player.diseased = False
     player.clear_flag(PlayerFlags.DISEASE)
     player.unsaved_changes = True

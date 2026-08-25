@@ -108,7 +108,8 @@ class TakeCommand(Command):
                 lines.append(f'  {i:>2}. {iname:<24}  (carried by {a.name})')
             lines.append('')
             await ctx.send(lines)
-            raw = await ctx.prompt(f'Take which item (1-{len(pool)}, Enter to cancel)')
+            raw = await ctx.prompt(preamble_lines=f'(1-{len(pool)}, {ctx.player.return_key} to cancel)',
+                                   prompt_text="Take which item")
             if not raw or not raw.strip():
                 return CommandResult.ok()
             try:

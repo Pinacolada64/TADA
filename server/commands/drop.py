@@ -182,7 +182,8 @@ class DropCommand(Command):
                     lines.append(f'  {i:>2}. {name}{qty}')
                 lines.append('')
                 await ctx.send(lines)
-                raw = await ctx.prompt(f'Drop which (1-{len(matches)}, or Enter to cancel)')
+                raw = await ctx.prompt(preamble_lines=f'(1-{len(matches)}, or {ctx.player.return_key} to cancel)',
+                                       prompt_text="Drop which")
                 if not raw or not raw.strip():
                     return CommandResult.ok()
                 try:
@@ -204,7 +205,8 @@ class DropCommand(Command):
             lines.append('')
             await ctx.send(lines)
 
-            raw = await ctx.prompt(f'Drop which item (1-{len(entries)}, or Enter to cancel)')
+            raw = await ctx.prompt(preamble_lines=f'(1-{len(entries)}, or {ctx.player.return_key} to cancel)',
+                                   prompt_text="Drop which item")
             if not raw or not raw.strip():
                 return CommandResult.ok()
             try:
