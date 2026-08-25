@@ -521,9 +521,8 @@ register_topic(
         description=(
             "Ease of use is a multiplier applied on top of a hit's random "
             "damage roll ('help basedamage') -- shown on READY as a score "
-            "of 5-9 (weapons.json stores it as that digit x10, e.g. 90 for "
-            "a score of 9). A higher score means more of that roll's raw "
-            "damage actually lands.\n\n"
+            "of 5-9. A higher score means more of that roll's raw damage "
+            "actually lands.\n\n"
             "There's also a hidden perk: on a strong enough attack roll, "
             "\"ease of use helps!\" kicks in and applies this same damage "
             "formula through a faster, slightly more forgiving path -- a "
