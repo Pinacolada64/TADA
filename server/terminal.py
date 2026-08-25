@@ -299,8 +299,23 @@ class ClientSettings:
     # which encodes it to bytes in place of the class's hardcoded default
     # -- only has real bearing there, since ANSI/plain clients receive
     # every line as a separate JSON array element with no terminator byte
-    # for this to control.
-    line_ending: str = LineEnding.LF
+    # for this to control. Defaults to CR (Commodore's own line ending),
+    # not LF -- confirmed live 2026-08-24: a brand-new PETSCII connection
+    # goes through simple_server._negotiate_terminal()'s pre-negotiation
+    # 40/80-column menu (network_context.py's PETSCIINetworkContext,
+    # instantiated fresh for every connection) before any client-type
+    # preset or PREFS 'L' choice has ever been applied, so this bare
+    # dataclass default is what actually goes out for that very first
+    # menu. LF there produces exactly the symptom found: a real
+    # Commodore screen editor doesn't treat LF as a newline at all, so
+    # every line of that menu ran together on-screen. _line_ending_bytes()
+    # already has fallback-to-CR logic for an unset/falsy value, but
+    # this field is never actually unset (a dataclass field always has
+    # this default), so that fallback never engaged -- LF was reaching
+    # PETSCIINetworkContext as a real, deliberate-looking choice every
+    # time. ANSI/JSON clients are genuinely unaffected either way, per
+    # the comment above.
+    line_ending: str = LineEnding.CR
     # Set automatically as a side effect of picking a client type (PREFS
     # 'T') -- true for the Commodore 128, TADA/ANSI, and Custom presets
     # (all have a real Tab key sending chr(9)); false only for the
