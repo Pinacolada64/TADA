@@ -52,6 +52,26 @@ plot    = $fff0
 EDITOR_MAXLEN = 40   ; must match client-128.asm's ROW_BYTES
 EDITOR_ROW    = 24   ; must match client-128.asm's INPUT_ROW
 
+; strwin (drwstr's redraw width) is deliberately set to EDITOR_MAXLEN-1
+; (39), not the full 40-column width -- confirmed live 2026-08-24:
+; drwstr's redraw loop CHROUTs exactly strwin characters starting at
+; column 0; printing a FULL 40-character line (columns 0-39) makes
+; CHROUT auto-wrap to the next screen row once it reaches the edge,
+; which (since strrow is hardcoded to the LAST row of the widened
+; window, EDITOR_ROW) scrolls the entire widened window up by one line
+; instead of just staying put. drwstr reruns on every cursor movement
+; (exkey always falls through to a full getstr/drwstr redraw, not just
+; on RETURN), so each cursor keystroke was scrolling the window and
+; reprinting the same line again, visibly tiling the whole screen with
+; repeated copies of the input line. maxlen (the actual typeable
+; length limit) stays at the full EDITOR_MAXLEN -- only the DISPLAY
+; width needs the one-column margin. (This fix was lost once already,
+; 2026-08-24: made after the last real commit but before an
+; unsuccessful raw-SCREEN_RAM rewrite attempt of drwstr, all
+; uncommitted -- reverting that rewrite via `git checkout` discarded
+; both together since neither was committed separately. Committed on
+; its own this time specifically to avoid a repeat.)
+
 ; --- call_sliding_input: preload the editor's parameters to point at
 ; client-128.asm's inputbuf/INPUT_ROW, then run the blocking editor.
 ; Caller (main_loop) is responsible for widening the window to the full
@@ -67,7 +87,9 @@ call_sliding_input:
         sta inputbuf            ; start from an empty string each call
         lda #EDITOR_MAXLEN
         sta maxlen
-        sta strwin
+        lda #EDITOR_MAXLEN-1
+        sta strwin                ; one column short of the full screen
+                                   ; width, deliberately -- see comment above
         lda #EDITOR_ROW
         sta strrow
         lda #0
