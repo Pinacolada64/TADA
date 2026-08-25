@@ -839,6 +839,7 @@ class TestHelpCommandExecute(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result.success)
         output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
         self.assertIn("Available Commands by Category", output)
+        self.assertIn("command aliases are in parentheses", output)
 
     # --- specific command ---
 

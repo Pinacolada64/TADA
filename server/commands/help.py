@@ -1931,7 +1931,8 @@ class HelpCommand(Command):
         rchar = hrule_char(ctx)
         title = f"{'Available Commands by Category':^{width}}"
         lines = [f"\n{_heading(title)}",
-                 "  help <command>: detailed help   |   help #cat: list categories\n"]
+                 "  help <command>: detailed help   |   help #cat: list categories",
+                 "  (command aliases are in parentheses)\n"]
 
         current_mode = getattr(processor, "current_mode", None)
         privileged   = _is_privileged_viewer(ctx)
