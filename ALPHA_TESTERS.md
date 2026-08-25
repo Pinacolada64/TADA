@@ -1,0 +1,267 @@
+# Alpha Tester Bug Log
+
+Bugs reported by alpha testers that aren't reproduced/confirmed yet, tracked
+here until someone gets a solid repro and either fixes them or rules them out.
+
+## Open
+
+### PREFS 'h<key>' help text needs mixed-case letters to trigger (PETSCII)
+
+- **Reported by:** tester, secondhand via Ryan (2026-08-22)
+- **Symptom:** tester said they needed to type in mixed case (e.g. "hX") to
+  trigger a prefs option's help text at the PREFS 'h<key>' prompt
+  (`server/commands/prefs.py`). No exact repro steps, client, or which case
+  combos worked/failed.
+- **Investigation so far:** audited the PETSCII input path
+  (`server/network_context.py`'s `_petscii_input_to_ascii()`) and
+  `commands/prefs.py`'s `h<key>` matching (and its submenus) --
+  `ans = raw.strip().lower()` is applied before every comparison, so case
+  should already be normalized away. No server-side bug found.
+- **Leading theory:** client-side keyboard scan/rollover quirk on real
+  hardware (shift-transition between two quick keypresses mis-scanned),
+  not a server logic bug -- speculative, not confirmed. Possibly related
+  to the in-progress N-key-rollover work on
+  `feature/c64-prompt-row-status-bar`
+  (`assembly-language/3-key-rollover-source.asm`,
+  `assembly-language/client/tada-client.asm`).
+- **Next step:** get a precise repro from the tester (exact keys/case typed,
+  exact client/hardware, exact prefs option) before investigating further.
+
+### `ctx.prompt()` prompt text needs to stay short or it overflows narrow columns
+
+- **Reported by:** Ryan (2026-08-22)
+- **Symptom:** `ctx.prompt(prompt_text, preamble_lines=...)` calls (e.g. in
+  `server/commands/prefs.py`) don't wrap/truncate `prompt_text` itself --
+  it's appended to `' > '` and written on one line. Anything over ~40
+  characters can run past a narrow client's column width instead of
+  wrapping, unlike `preamble_lines`, which does go through normal line
+  formatting/wrapping.
+- **Rule of thumb going forward:** keep `prompt_text` short (fits well
+  within the narrowest supported width); move any longer explanatory text
+  into `preamble_lines` instead, which wraps properly.
+- **Narrowest supported width:** Ryan's recollection is a 22-column
+  minimum, but `commands/prefs.py`'s `_MIN_COLS` is actually **20**
+  (`_MIN_COLS, _MAX_COLS = 20, 132`, `commands/prefs.py:952`) -- worth
+  double-checking which number is authoritative before relying on either.
+- **Next step:** confirm whether `ctx.prompt()` should gain real wrapping/
+  truncation for `prompt_text` itself, or whether "keep it short" is
+  sufficient going forward; audit existing `ctx.prompt()` call sites for
+  ones already over the limit.
+
+### More Prompt doesn't trigger when output is split across separate `send()` calls
+
+- **Reported by:** Ryan (2026-08-22)
+- **Symptom:** if a command's output comes from two (or more) separate
+  `ctx.send()` calls -- e.g. one function handling a help request, then
+  immediately displaying a menu right after -- and each individual call is,
+  say, 20 lines, More Prompt never triggers even though the *combined*
+  output (40 lines) should exceed the page size and pause.
+- **Root cause (confirmed by reading the code):**
+  `network_context.py`'s `_wants_pagination()` (`:175-181`) checks
+  `len(formatted) > page_size` against the lines passed to *that single*
+  `send()` call only. `send()` (`:149`) and `_wants_pagination()`/
+  `_paginate()` have no memory of previous `send()` calls within the same
+  command, so pagination is decided per-call, not per-command-turn --
+  two 20-line `send()` calls in a row each individually stay under
+  `page_size` and both go out unpaginated even on a `screen_rows` small
+  enough that their sum should have paginated.
+- **Proposed fix direction:** accumulate output across a command's multiple
+  `send()` calls and only decide on/apply pagination once, against the
+  combined total, at the end of the command's dispatch -- semantically
+  sound, and matches how a real terminal's "screenful" concept should work
+  (it's the player's cumulative unread output that matters, not which
+  function happened to emit which lines).
+  - **Recommended approach: buffer inside `GameContext`.** Keep every
+    command's `ctx.send()` call sites exactly as they are today -- no
+    command code changes. `GameContext` itself quietly appends each
+    `send()` call's lines to an internal per-turn buffer instead of
+    sending immediately, then flushes/paginates the combined buffer once
+    at the natural end-of-turn point (next `ctx.prompt()` call, or an
+    explicit end-of-dispatch flush). Lowest-risk option since it's
+    contained entirely inside `network_context.py`.
+  - **Alternative considered: generators.** Command handlers could
+    `yield` lines instead of `await ctx.send(...)`, letting a wrapper one
+    level up collect everything yielded and paginate once. Rejected as
+    the lead approach -- it's a broad, systemic rewrite of every command
+    handler's control flow for no benefit over the buffering approach
+    above, which gets the same combined-pagination result without
+    touching command code at all.
+  - Need to make sure a genuinely long-running command that WANTS
+    incremental output *while it runs* (e.g. combat round-by-round text)
+    doesn't get held back until the very end -- may need an explicit
+    "flush now" escape hatch, or a size/time threshold, rather than
+    buffering unconditionally until the command fully returns.
+- **Next step:** unscoped -- needs a design decision on the buffering
+  approach above before implementation.
+
+### Land Armory sells the ship's late-game/sci-fi gear (not just beginner equipment)
+
+- **Reported by:** Ryan (2026-08-22)
+- **Symptom:** the Merchant Shoppe's regular Armory ("A"/"P" -- reported as
+  "general store", but confirmed via follow-up to mean the Armory, citing
+  "LAW rockets, etc." as an example) shouldn't list high-level/quest-tier
+  items -- it should stick to basic equipment a beginning adventurer would
+  plausibly have access to.
+- **Root cause (confirmed by reading the code):** `shoppe/armory.py`'s
+  `main()`/`protection()` sell from the entire `weapons.json`/`objects.json`
+  catalog whenever no `item_ids` filter is passed -- and the regular land
+  Armory (`shoppe/main.py`'s `_armory`/`_protection`) calls both with no
+  filter. `ship/armory.py`'s own docstring confirms this was known:
+  "shoppe/armory.py, which this port already generalized to sell from the
+  *entire* weapons.json/objects.json catalog everywhere" -- and explicitly
+  restricts itself to `weapons.json` #58-60 and `objects.json` #113-116 for
+  its own sci-fi rack, via an `item_ids` filter the land Armory never
+  passes. Confirmed those items are genuinely late-game/sci-fi and show up
+  unfiltered in the land Armory today:
+  - `weapons.json` #58-60: LIGHT SABRE (100s), HAND PHASER (300s), PLASMA
+    RIFLE (600s)
+  - `objects.json` #113-116: battle armor, battle shield, power armor,
+    lazer shield (type `armor`/`shield`, so they pass `protection()`'s
+    `type in ('armor', 'shield')` filter same as any mundane shield)
+- **Rockets specifically NOT confirmed reachable:** `objects.json` #126-140
+  (TOW/LAW/Redeye/plasma/nuclear rockets) are `type: "treasure"` or
+  `"misc"`, not `"armor"`/`"shield"`, so they don't pass `protection()`'s
+  type filter; they're also outside Olly's Ammo & Traps' `_AMMO_RANGE`
+  (`shoppe/ollys.py`, #98-111) and aren't in `weapons.json` at all, so
+  `_buy()` wouldn't offer them either. Static reading found no current
+  purchase path for these specific items -- flagging the discrepancy
+  rather than assuming; worth double-checking with a live repro (which
+  shop, which menu path) since the sci-fi weapons/armor above are real,
+  confirmed instances of the same underlying bug (no `item_ids` filter on
+  the land Armory) even if rockets aren't literally one of them.
+- **Proposed fix direction:** give `shoppe/main.py`'s `_armory`/`_protection`
+  (the land Armory) their own `item_ids` filter -- excluding at minimum
+  #58-60 and #113-116 -- mirroring how `ship/armory.py` already restricts
+  its own rack, rather than leaving the land Armory as "everything except
+  what the ship variant explicitly carved out."
+- **Next step:** confirm with Ryan the exact intended item range for the
+  land Armory (is it "everything except the ship's sci-fi set," or a
+  tighter explicit allowlist?), and get a live repro for the rocket
+  sighting specifically since it isn't explained by the code as read.
+
+### UI/prompt style is inconsistent across the game (design consistency, not a single bug)
+
+- **Reported by:** alpha tester gsteemso, relayed by Ryan (2026-08-22)
+- **Symptom (tester's words):** "the UI style is very scattered, to the
+  point that it looks like four different teams worked on every individual
+  prompt. You have a menu on one level and the next has a conversational
+  interaction style, with keyletters (command letters) in the flow of NPC
+  verbiage bracketed... except where they are called out with an equals
+  sign or an actual phrase, sometimes all three in the same sentence."
+- **Spot-checked and confirmed real:** a grep across just the Y/N-style
+  confirmation prompts alone turns up at least five different conventions
+  actively in use, no apparent pattern to which command uses which:
+  - `(Y/N)` -- `commands/editplayer.py:129`, `commands/order.py:87`,
+    `shoppe/clan.py:149`, `shoppe/pawn.py:137,201`
+  - `[Y/N]` -- `commands/die.py:24`, `commands/read.py:148`,
+    `commands/quit.py:51`
+  - `(y/n)` lowercase -- `commands/prefs.py:1512,1647`
+  - `Y/N/Q` bare, no delimiter -- `commands/new_player.py:603`
+  - `([Y]es / [R]e-roll)` bracketed-letter-in-word -- `commands/new_player.py:1160`
+  - bare `Y/N` with no delimiter at all -- `shoppe/wizard.py:254`,
+    `commands/order.py:87`
+  This is almost certainly representative, not exhaustive -- the tester's
+  complaint is about the whole game's prompt style, not just Y/N prompts;
+  a full audit would need to cover menu-style prompts (`_MENU`-style
+  `[X] Label` listings), NPC-conversational prompts with inline
+  command-letter call-outs, and the various `h<key>`/`?`-for-help
+  conventions too.
+- **Scope note:** this is a cross-cutting design/consistency question, not
+  a single function to patch -- it likely needs a short style guide (one
+  canonical way to present a binary confirm, one canonical way to call out
+  an inline command letter in NPC dialogue, etc.) agreed on first, then a
+  sweep to bring existing prompts in line, similar in spirit to the
+  gold->silver rename's "fix files you're already touching, don't
+  drive-by sweep the whole repo at once" approach (see `server/CLAUDE.md`)
+  -- except this would need Ryan's sign-off on what the *target* style
+  even is before any sweeping starts, since there's no existing consistent
+  convention to converge on.
+- **Next step:** unscoped -- needs Ryan to decide the canonical
+  conventions (confirm-prompt delimiter style, inline command-letter
+  call-out style in NPC text, etc.) before any cleanup work is planned.
+
+### Possible server echo of typed commands back to non-PETSCII (Gadget ASCII terminal) clients -- UNCONFIRMED, may be client-side
+
+- **Reported by:** tester (Gadget), via Ryan (2026-08-23)
+- **Symptom:** typing a command (e.g. `say hello`) on Gadget's ASCII
+  terminal client (real C64 hardware, `Translation.ASCII`, connected on
+  the ANSI/JSON port per [[project_ascii_c64_terminal_type]]) shows the
+  typed command repeated back before the command's actual output.
+  Gadget attributed this to the server, but Ryan flagged that Gadget's
+  client is her own from-scratch implementation written in Z80 assembly
+  (not this repo's client code), so the repeat could equally be a quirk
+  of her client's input handling -- **not confirmed as a server bug.**
+- **Investigation so far:** grepped every live-code path a command's raw
+  input travels through on the ANSI/JSON port
+  (`GameContext.prompt()`/`send()`/`_send_formatted()` in
+  `network_context.py`, `_game_loop()` in `simple_server.py`,
+  `CommandProcessor.process_input()`/`process_command()` in
+  `commands/command_processor.py`) -- none of them write the raw typed
+  text back to the socket. The one place in this codebase that used to do
+  exactly this (`PETSCIINetworkContext.prompt()`'s post-Enter echo) was
+  already disabled in commit `0e92dafd` (2026-08-17, "Disable redundant
+  post-Enter input echo") for the same "client already shows what you
+  typed, don't double it" reasoning, and that fix is already in `prefs`.
+  That path is also PETSCII-port-only (`simple_server.py:355`'s
+  `is_petscii` routes strictly on which port was connected to), so it
+  wouldn't apply to an ANSI-port ASCII client like Gadget's anyway.
+- **Open question:** no active server-side echo mechanism was found for
+  the ANSI/JSON port in the current checkout, so either (a) Gadget's own
+  Z80 client is echoing/re-rendering the line itself (most likely, given
+  it's an independent implementation), (b) the live server she tested
+  against predates some relevant fix / needs a restart, or (c) something
+  in the JSON message is being mis-rendered as a second copy client-side
+  (e.g. the `prompt` field, or the leading blank line `_send_formatted()`
+  inserts before the next command's output -- see the comment at
+  `network_context.py:186-188`).
+- **ASCII translation path checked specifically (2026-08-23):** per Ryan,
+  Gadget was using `Translation.ASCII`, and her client also has a
+  rudimentary PETSCII renderer of her own, which adds a second code path
+  on her side that could be the actual source of confusion. Audited the
+  server's ASCII-translation pipeline end to end -- `codec_for_settings()`
+  returns a bare `PlainCodec()` for `Translation.ASCII` (`formatting.py`
+  `:1125-1126`); `GameContext.send()` runs that through `format_lines()`
+  (word-wrap + bracket highlighting only, `:1043-1051`) then
+  `plain_encode_lines()`, which just regex-strips `|token|` markup
+  (`:645-653`) -- no step in this pipeline reads, echoes, or duplicates
+  anything from the player's own input, since it only ever operates on
+  server-generated response text, never on `raw` from `ctx.prompt()`.
+  `GameContext.send()` (`:164-167`) does have one latent gap worth noting
+  separately -- it branches on `isinstance(codec, ANSICodec)` /
+  `isinstance(codec, PlainCodec)` but has no `PETSCIICodec` branch, so if
+  a non-real-PETSCII connection's settings ever *did* end up with
+  `Translation.PETSCII` (normally blocked by the guard noted in
+  [[project_ascii_c64_terminal_type]]), raw `|token|` control markup would
+  go out unstripped -- garbled output, not a duplicate line, and not
+  reachable through the guarded ASCII/PETSCII picker as far as could be
+  found, but worth keeping in mind given Gadget is exercising both
+  translation modes from her own client.
+- **Next step:** get a raw wire capture (or Gadget's own client-side log)
+  of one `say hello` round-trip to see whether the server actually sent
+  the text twice before assuming this needs a server-side fix at all --
+  the ASCII pipeline audit above makes a client-side cause (plausibly an
+  interaction between her ASCII and rudimentary-PETSCII rendering code)
+  more likely, not less.
+
+### Redundant [P]rotection/[A]rmory options in the Shoppe menu (FIXED 2026-08-22)
+
+- **Reported by:** Ryan (2026-08-22)
+- **Symptom:** the Merchant Shoppe's top-level menu (`shoppe/main.py`'s
+  `_MENU`) has both `('A', 'Armory', _armory)` and `('P', 'Protection',
+  _protection)`.
+- **Root cause (confirmed by reading the code):** `_armory` is
+  `shoppe.armory.main()`, whose very first prompt is "Wouldst thou be
+  interested in [P]rotection or [W]eaponry?" (`shoppe/armory.py:508`) --
+  choosing P there calls `protection()` (`:515`), the exact same function
+  the top-level menu's `_protection` entry (`shoppe.armory.protection`)
+  calls directly. So the standalone "P" menu entry is a shortcut into
+  behavior already reachable via "A" -> "P", not a distinct feature.
+- **Resolution:** Ryan's call -- drop the standalone "P", since "A" Armory
+  already routes to both Protection and Weaponry. Removed the `('P',
+  'Protection', _protection)` row from `shoppe/main.py`'s `_MENU` and the
+  now-unused `protection as _protection` import. Updated
+  `tests/shoppe/test_shoppe_session.py`'s `_PATCH_STUBS` to drop the
+  matching `_protection` patch target (it patched an attribute that no
+  longer exists in `shoppe.main`, which would otherwise fail every test
+  using that stub). `tests/shoppe/` + `tests/ship/` (270 tests) pass
+  clean after the change.

@@ -267,7 +267,7 @@ class GameContext(BaseContext):
 
     async def prompt(self,
                      prompt_text:    str            = '',
-                     preamble_lines: list[str] | None = None) -> str:
+                     preamble_lines: str| list[str] | None = None) -> str:
         """
         Send optional preamble + a prompt, then await a single-line
         JSON response. Returns the stripped response string.

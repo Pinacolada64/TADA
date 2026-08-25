@@ -35,6 +35,7 @@ else:
     room_players = {}
     players = {}
 
+
 def _get_server_module():
     """Return an available server module that exposes server_lock, room_players, players.
     Prefer simple_server, then net_server, then old_server.
@@ -45,10 +46,11 @@ def _get_server_module():
         return _ns
     return None
 
+
 if TYPE_CHECKING:
     import terminal
     from base_classes import (CombinationTypes, PlayerMoneyTypes, PlayerStat, Gender, compass_txts, Guild, Alignment,
-    InventoryItem)
+                              InventoryItem)
     from base_variables import STAT_DATA
     from items import ItemCategory
     from flags import Flag, new_player_default_flags, PlayerFlags, FlagDisplayTypes
@@ -91,8 +93,8 @@ def set_up_combinations():
     # LOCKER is granted (and its combination handed over) by the locker attendant on a
     # player's first visit to the Shoppe's Private Locker -- see shoppe/locker.py.
     combinations = {combination_type: Combination(combination_type)
-                     for combination_type in CombinationTypes
-                     if combination_type not in (CombinationTypes.ELEVATOR, CombinationTypes.LOCKER)}
+                    for combination_type in CombinationTypes
+                    if combination_type not in (CombinationTypes.ELEVATOR, CombinationTypes.LOCKER)}
     logging.debug(combinations)
     return combinations
 
@@ -297,7 +299,7 @@ class Player:
             self.inventory: Inventory = _raw_inv
         elif isinstance(_raw_inv, list):
             self.inventory = Inventory.from_json(_raw_inv, capacity=self.max_inventory_size,
-                                                  weapons_data=self._weapons_data)
+                                                 weapons_data=self._weapons_data)
         else:
             self.inventory = Inventory(capacity=self.max_inventory_size)
 
@@ -317,8 +319,8 @@ class Player:
         self.hit_points = kwargs.get('hit_points', 10)
         # Survival: food (ps in SPUR) and drink (pe in SPUR), each 0-20.
         # Both deplete over time; starvation kills when both reach 0.
-        self.food     = kwargs.get('food',     20)
-        self.drink    = kwargs.get('drink',    20)
+        self.food = kwargs.get('food', 20)
+        self.drink = kwargs.get('drink', 20)
         self.poisoned = kwargs.get('poisoned', False)
         self.diseased = kwargs.get('diseased', False)
         # the lower the Honor score, the more evil the character has become.
@@ -326,8 +328,8 @@ class Player:
         self.honor = kwargs.get('honor', 1_000)
 
         # Vinny the Loan Shark debt tracking (t_bar_vinney.lbl / SPUR.BAR3.S)
-        self.loan_amount: int = kwargs.get('loan_amount', 0)   # silver owed to Vinny
-        self.loan_days:   int = kwargs.get('loan_days',   0)   # days remaining to repay
+        self.loan_amount: int = kwargs.get('loan_amount', 0)  # silver owed to Vinny
+        self.loan_days: int = kwargs.get('loan_days', 0)  # days remaining to repay
 
         self.shield = kwargs.get('shield')
         self.armor = kwargs.get('armor')
@@ -353,7 +355,7 @@ class Player:
         # Loaded ammo state (set by USE command, consumed by combat).
         self.ammo_rounds: int = kwargs.get('ammo_rounds', 0)
         self.ammo_damage: int = kwargs.get('ammo_damage', 0)
-        self.ammo_max:    int = kwargs.get('ammo_max', 0)    # vl: total rounds when loaded (recovery cap)
+        self.ammo_max: int = kwargs.get('ammo_max', 0)  # vl: total rounds when loaded (recovery cap)
         # Ring of invisibility worn (zu$[2]) lives on PlayerFlags.RING_WORN
         # (query_flag/set_flag/clear_flag), not a plain attribute here --
         # encounters/little_girl.py and commands/stats.py already read it
@@ -529,7 +531,7 @@ class Player:
         # been warned off pestering the Spirit of the Dungeons (the next
         # PRAY after the warning is fatal; see commands/pray.py). Not
         # persisted, same reasoning as last_examined/loot_count above.
-        self.prayed_count    = 0
+        self.prayed_count = 0
         self.prayer_punished = False
 
         # Allow passing an explicit id via kwargs (e.g., player.Player(name=..., id=username)).
@@ -594,7 +596,7 @@ class Player:
             carried_rations = [
                 int(getattr(entry.item, 'id_number', 0) or 0)
                 for entry in self.inventory.entries(category=str(ItemCategory.FOOD))
-                + self.inventory.entries(category=str(ItemCategory.DRINK))
+                             + self.inventory.entries(category=str(ItemCategory.DRINK))
             ]
             self.ration_history = [i for i in carried_rations if i]
         except Exception:
@@ -788,7 +790,8 @@ class Player:
                 kstr = str(kind)
                 for k, v in self.silver.items():
                     try:
-                        if k == kind or str(k) == kstr or (hasattr(k, 'name') and k.name == kstr) or (hasattr(k, 'value') and str(k.value) == kstr):
+                        if k == kind or str(k) == kstr or (hasattr(k, 'name') and k.name == kstr) or (
+                                hasattr(k, 'value') and str(k.value) == kstr):
                             return int(v)
                     except Exception:
                         continue
@@ -905,6 +908,29 @@ class Player:
             logging.exception('Failed to query flag')
             return False
 
+    def adjust_honor(self, adjustment: int) -> tuple[int, str] | None:
+        """
+        Adjust Honor rating, optionally notify player (if they are non-Expert Mode).
+        self.unsaved_changes is set to True if an adjustment did happen.
+
+        :param adjustment: Rating adjustment to apply
+
+        :return: Rating adjustment and string to print, caller handles checking whether to display it
+        based on `.is_expert` attribute. `None` if no adjustment took place.
+        """
+        current_honor = self.honor
+        new_honor = current_honor + adjustment  # this will handle negative numbers too
+        if new_honor != current_honor:
+            logging.info("Adjusting Honor score: %i -> %i", current_honor, new_honor)
+            new_honor = current_honor + adjustment
+            self.honor = new_honor
+            self.unsaved_changes = True
+        if new_honor < current_honor:  # we subtracted something
+            return new_honor, "(You feel less honorable)"
+        if new_honor > current_honor:
+            return new_honor, "(You feel more honorable)"
+        logging.info("Honor score: %i, but no Honor adjustment occurred.", current_honor)
+        return None
 
     def set_stat_absolute(self, stat: "PlayerStat", value: int):
         """
@@ -1096,7 +1122,8 @@ class Player:
                 os.makedirs(parent, exist_ok=True)
             # Build a dict representation but serialize flags minimally (name/status) to keep JSON compact.
             # Exclude session-only attributes that hold live objects and are not restored on load.
-            _SESSION_ONLY = {'readied_weapon', 'storm_servant_bonus', 'skill_potion_bonus', 'compass_active', 'pending_pages',
+            _SESSION_ONLY = {'readied_weapon', 'storm_servant_bonus', 'skill_potion_bonus', 'compass_active',
+                             'pending_pages',
                              'pending_duel_challenge', 'active_duel', '_weapons_data'}
             data_out = {k: v for k, v in self.__dict__.items() if k not in _SESSION_ONLY}
             data_out['party'] = self.party.to_json()
@@ -1122,7 +1149,8 @@ class Player:
                         simple = {}
                         for kk, vv in list(self.flags.items()):
                             try:
-                                name = vv.name if hasattr(vv, 'name') else (kk.value if hasattr(kk, 'value') else str(kk))
+                                name = vv.name if hasattr(vv, 'name') else (
+                                    kk.value if hasattr(kk, 'value') else str(kk))
                                 simple[name] = {'name': name, 'status': bool(getattr(vv, 'status', False))}
                             except Exception:
                                 continue
@@ -1217,7 +1245,8 @@ class Player:
             # 4/4 rounds", QUIT, reconnect, READY again showed "CROSSBOW
             # 0/0 rounds" with no USE in between.
             simple_keys = ('map_room', 'map_level', 'xp_level', 'times_played', 'moves_today', 'hit_points', 'quote',
-                           'shield', 'armor', 'active_shield_id', 'active_armor_id', 'loan_amount', 'loan_days', 'food', 'drink',
+                           'shield', 'armor', 'active_shield_id', 'active_armor_id', 'loan_amount', 'loan_days', 'food',
+                           'drink',
                            '_survival_counter', 'experience', 'honor', 'moves_made', 'wizard_glow',
                            'duel_wins', 'duel_losses', 'ammo_rounds', 'ammo_max', 'ammo_damage', 'defeated_by')
             for k in simple_keys:
@@ -1606,7 +1635,8 @@ class Player:
 
             saved = self.save(force=True)
             if not saved:
-                logging.warning("Player.quit: save returned False for %s (id=%s)" % (getattr(self, 'name', '<unknown>'), getattr(self, 'id', None)))
+                logging.warning("Player.quit: save returned False for %s (id=%s)" % (getattr(self, 'name', '<unknown>'),
+                                                                                     getattr(self, 'id', None)))
             return bool(saved)
         except Exception:
             logging.exception("Exception while forcing save on quit for %s" % getattr(self, 'name', '<unknown>'))
@@ -1674,7 +1704,7 @@ def refresh_equipped_rating(player, slot: str) -> int:
     else:
         from commands.use import _shield_cap
         name_upper = (getattr(entry.item, 'name', '') or '').upper()
-        cap_bonus  = 20 if ('BATTLE' in name_upper or 'LAZER' in name_upper) else 0
+        cap_bonus = 20 if ('BATTLE' in name_upper or 'LAZER' in name_upper) else 0
         cap = _shield_cap(player, cap_bonus)
     value = min(cap, condition)
     setattr(player, slot, value)

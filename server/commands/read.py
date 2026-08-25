@@ -153,8 +153,7 @@ async def _read_scrap_of_paper(ctx: GameContext, player) -> None:
         if (raw or '').strip().upper().startswith('E'):
             honor = int(getattr(player, 'honor', 0) or 0)
             if honor > 2:
-                player.honor = honor - 2
-                player.unsaved_changes = True
+                player.adjust_honor(-2)
 
         combo = Combination(CombinationTypes.ELEVATOR)
         combos[CombinationTypes.ELEVATOR] = combo
@@ -340,7 +339,8 @@ class ReadCommand(Command):
                 lines.append(f'  {i:>2}. {getattr(e.item, "name", "?")}')
             lines.append('')
             await ctx.send(lines)
-            raw = await ctx.prompt(f'Read which Book (1-{len(entries)}, Enter to cancel)')
+            raw = await ctx.prompt(preamble_lines=f'(1-{len(entries)}, {ctx.player.return_key} to cancel)',
+                                   prompt_text="Read which Book")
             if not raw or not raw.strip():
                 return CommandResult.ok()
             try:

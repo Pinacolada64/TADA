@@ -780,8 +780,8 @@ def _weapons_menu(ctx) -> Menu:
         current = getattr(p, 'readied_weapon', None)
         if current is not None:
             raw = await ctx.prompt(
-                f"Currently readied: {getattr(current, 'name', '?')}. "
-                "[C]hange, [U]nready, or Enter to cancel"
+                preamble_lines=f"Currently readied: {getattr(current, 'name', '?')}.",
+                prompt_text=f"[C]hange, [U]nready, or {ctx.player.return_key} to cancel"
             )
             if not raw or not raw.strip():
                 return
@@ -2429,7 +2429,8 @@ async def _pick_recipient(ctx):
     lines.append('')
     await ctx.send(lines)
 
-    raw = await ctx.prompt(f'Give to (0-{len(allies)}, N, Enter for yourself)')
+    raw = await ctx.prompt(preamble_lines=f'(0-{len(allies)}, N, {ctx.player.return_key} for yourself)',
+                           prompt_text="Give to")
     if not raw or not raw.strip():
         return ('player', ctx.player)
     stripped = raw.strip()

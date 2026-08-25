@@ -3,6 +3,7 @@ import random
 
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
+from flags import PlayerFlags
 from network_context import GameContext
 from survival import apply_disease, cure_disease, ration_restore, restore_food
 
@@ -58,7 +59,8 @@ class EatCommand(Command):
                 lines.append(f'  {i:>2}. {getattr(e.item, "name", "?")}')
             lines.append('')
             await ctx.send(lines)
-            raw = await ctx.prompt(f'Eat which item (1-{len(entries)}, Enter to cancel)')
+            raw = await ctx.prompt(preamble_lines=f'(1-{len(entries)}, {ctx.player.return_key} to cancel)',
+                                   prompt_text="Eat which item")
             if not raw or not raw.strip():
                 return CommandResult.ok()
             try:
@@ -87,7 +89,7 @@ class EatCommand(Command):
         if uname.endswith(' MEAT'):
             if getattr(item, 'diseased_meat', False) and random.randint(1, 10) < 3:
                 apply_disease(player)
-                await ctx.send([f'You eat the {name}.', 'YUK!  YOU PICKED UP A DISEASE FROM THE THING!'])
+                await ctx.send([f'You eat the {name}.', 'Yuck! You picked up a disease from the thing!'])
             else:
                 restore_food(player, random.randint(2, 6))
                 await ctx.send(f'You eat the {name}.  (Tastes like chicken.)')
@@ -101,10 +103,10 @@ class EatCommand(Command):
 
         # BLUE PILL — cures disease (SPUR.SUB.S pill subroutine).
         if 'PILL' in uname:
-            cure_disease(player)
             await ctx.send([f'You eat the {name}.', 'Yech, gross!',
-                            'Disease - gone!' if not getattr(player, 'diseased', True)
+                            'Disease - gone!' if not player.query_flag(PlayerFlags.DISEASE)
                             else '(You were not diseased.)'])
+            cure_disease(player)
             return CommandResult.ok()
 
         gs     = ration_restore(item)

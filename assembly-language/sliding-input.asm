@@ -455,13 +455,28 @@ getstr:
 cursor:
 		jsr rvson	; reverse on
 gets10:
-	 	ldx #30		; value for blink time
+	 	lda #30		; value for blink time -- kept in memory
+		sta blinkctr	; (blinkctr), not X. The C128's GETIN clobbers
+					; X and Y (Compute's 128 Programmer's Guide:
+					; "Registers changed: .A, .X, .Y"), unlike the
+					; C64's GETIN (.A only) -- a countdown kept in
+					; X across these repeated getin calls gets
+					; silently reset every poll on a real 128,
+					; making the cursor blink erratically instead
+					; of on a clean cadence. Confirmed live as the
+					; root cause of a much worse version of this
+					; same mistake in client-128.asm's
+					; read_input_row (that one kept its actual
+					; typed-character buffer index in X the same
+					; way, which broke typing outright, not just
+					; blink timing) -- see that file's own comment
+					; on the fix for the full story.
 gekey:
 		jsr getin	; get keypress
 		bne gk1		; if a key pressed
 		ldy #10		; no keypress
 		jsr delyms	; wait 10 milliseconds
-		dex
+		dec blinkctr
 		bne gekey	; not done - loop again
 		lda rvsflg	; time to switch cursor
 		beq getstr	; if rvs off, turn it on
@@ -1011,6 +1026,8 @@ strwin:	byte 0	; width of the input area (number of viewable characters).
 maxlen:	byte 0	; maximum length of the input string (1-254)
 strlen:	byte 0	; current length of string
 rvsflg:	byte 0	; blink flag for cursor
+blinkctr: byte 0	; blink-timer countdown -- kept out of X, see
+			; gets10's own comment (GETIN clobbers X/Y on the C128)
 mode:	byte 0	; $80: c128 mode
 
 msg_help:

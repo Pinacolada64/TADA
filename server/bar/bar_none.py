@@ -120,6 +120,17 @@ async def _mae_session(ctx: GameContext, mae: Bartender) -> None:
                         f"You slide a few coins across the bar for "
                         f"{get_article_and_quantity(selected_item.name.title())}."
                     )
+                    # Mae's menu items are consumed on the spot, same as an
+                    # inventory item drunk/eaten via DRINK/EAT -- route
+                    # through the same survival.py helpers so a purchase
+                    # here restores food/drink exactly like the carried-item
+                    # path does, rather than (as before) doing nothing to
+                    # player.food/player.drink at all.
+                    from survival import serve_drink, serve_food
+                    if selected_item.kind == 'drink':
+                        serve_drink(player, selected_item)
+                    elif selected_item.kind == 'food':
+                        serve_food(player, selected_item)
                 else:
                     await ctx.send(
                         f'{mae.name} shakes {get_pronoun(mae, PronounType.POSSESSIVE_PRONOUN)} '

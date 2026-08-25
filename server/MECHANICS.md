@@ -36,7 +36,7 @@ and display function directly.
 | 9 | `new` (`SPUR.LOGON.S:50`) | New-player login MOTD/welcome text | Not yet wired in (current login flow has its own welcome text) |
 | 10 | login banner (`SPUR.LOGON.S:27`) | Original BBS-door splash/credits screen | Historical only, not applicable to this port |
 | 11 | `quote` (`SPUR.LOGON.S:619`) | QUOTE command instructions | `commands/quote.py` likely has its own help text already |
-| 13 | shield training confirm (`SPUR.MISC2.S:460`) | Shield training (Odin the Shield Master) result flavor | Not yet documented — new find |
+| 13 | shield training confirm (`SPUR.MISC2.S:460`) | Shield training (Odin the Shield Master) result flavor | ✅ Wired — `shoppe/school.py`'s Formal Shield Training purchase (`SCHOOL` command at the Shoppe) |
 | 16 | duel `H`elp (`SPUR.DUEL.S:26,43`) | Duel help screen text | Duels are implemented (`## Duels (PvP)`); this specific help text not yet ported |
 | 17 | monster #120 death (`SPUR.MISC.S:417`) | Disguised-old-man-monster transform-on-death flavor | Already tracked separately per this session's earlier GOD/GODDESS message work |
 | 18 | room 89 teleport (`SPUR.MISC.S:448`) | ✅ Implemented — level 1 Teleport Room → level 5 | `level_1.json` room 89's `hidden_exit_east.message_number` |
@@ -560,6 +560,37 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - ✅ **Territory capture** (Ryan's own extension, no SPUR precedent) — a
   guild-vs-guild duel win flips the room's `RoomAlignment` to the
   winner's guild, except HQ/`FREE_FIRE` rooms (`room_alignment.py`).
+- ✅ **Shield Bash knockdown contest** — full port of `SPUR.DUEL.S:424-484`
+  "tac.bash" (`combat/duel.py`'s `_resolve_bash_contest()`, resolved once
+  per round in `_resolve_round()` ahead of the normal per-side swing
+  loop, whenever either side chose Bash). A wide advantage score
+  (clamped 60-140) built from shield-condition differential,
+  carrying-capacity/"size" differential (`_carrying_capacity()`, the same
+  flat per-race table `SPUR.LOGON.S:208-212` uses for the player's own
+  value), predictability streaks (`_DuelSide.parry_streak`/
+  `attack_streak`/`bash_streak`, SPUR's `xu`/`zn`/`zp` — uncapped, reset
+  on any tactic switch), EGY/DEX/STR mismatches, and initiative, rolled
+  against a d100+50 in three bands (basher overextends and falls,
+  defender falls, clean whiff). Choosing Bash is gated on ≥6% shield
+  (`DUEL.S:32`, `_submit_tactic()`) and always costs the basher 3% shield
+  whether it lands or not (`DUEL.S:434-435`), routed through the same
+  `apply_equipment_degradation()` the rest of combat uses. Covers both
+  `DUEL.S:443-449` (modifiers keyed on the opponent's tactic) and
+  `:450-454` (modifiers keyed on the defending side's own reaction —
+  standing or attacking into a bash costs advantage, parrying cancels
+  the penalty out), evaluated as independent `if`s exactly like the
+  source, which also makes a mutual bash (both sides choose Bash)
+  resolve correctly — the two sides' flat base terms cancel
+  algebraically, leaving only the streak-predictability terms. **One
+  deliberate scope limit vs. source**: SPUR's bash never costs the
+  basher their normal swing — it always falls through into a regular
+  attack/attack1 exchange the same round (`DUEL.S:485`), with a
+  just-downed opponent getting a near-guaranteed follow-up hit. This
+  port keeps Bash as a turn-consuming action instead (the basher's own
+  swing this round is a no-op; a defender who reacted with something
+  else still gets their normal swing unless the contest itself knocked
+  them down) rather than restructuring the shared round-resolution loop
+  every duel tactic depends on.
 
 ### Not Implemented
 - **Autoduel** — offline defender; best weapon auto-selected by `zt+zs` score (`SPUR.DUEL2.S auto.c/opnt.wp:130-158` master / same lines skip, unchanged besides a `dx$`→`dw$` disk-var rename). `PlayerFlags.GUILD_AUTODUEL` exists but has no consuming logic yet. Per `TODO.md`'s existing AUTODUEL entry, this is really a **skip-exclusive command living in `SPUR.MISC5.S`**, not something master's mainline duel flow exposes on its own — worth MECHANICS.md eventually cross-linking that TODO.md entry directly.
@@ -928,7 +959,8 @@ item numbering, not master's, so it was evidently captured from a skip-era build
   / skip `:105-107`) are not boards of any kind, threaded or otherwise — all three
   dispatch to static admin-authored help screens via the same `rd.msg` mechanism as
   item 2 above: item 10 → Message #15 (guild-membership perks), item 11 → Message #14
-  ("Shields in Monster Combat" probability reference), item 12 → Message #32 ("The
+  ("Shields in Monster Combat" probability reference — ✅ wired, `annex/main.py`'s
+  `_message_board_2()`; items 10/12 still stubbed), item 12 → Message #32 ("The
   EXAMINE command in Spur" help text). There is no multi-author/postable board system
   anywhere in `SPUR.ANNEX.S`; this doc's separate "Threaded Message Boards" section is
   a forward-looking design idea, not a port of an existing SPUR Annex mechanic.

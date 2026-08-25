@@ -150,6 +150,33 @@ def ration_restore(item) -> int:
     return max(1, min(9, price // 10))
 
 
+def serve_drink(player, item) -> int:
+    """Restore player.drink for *item*, quality-scaled by its price.
+
+    Single source of truth for "drinking a ration item restores this much"
+    (SPUR.SUB.S) -- the DRINK command and any NPC/vendor that hands a
+    carried-style drink item to a player (e.g. Mae's bar menu) should call
+    this rather than re-deriving the gs/amount formula themselves, so a
+    tuning change to the formula only has to happen in one place. Returns
+    the amount actually restored.
+    """
+    gs     = ration_restore(item)
+    amount = (random.randint(0, gs) % 6) + 1
+    restore_drink(player, amount)
+    return amount
+
+
+def serve_food(player, item) -> int:
+    """Restore player.food for *item*, quality-scaled by its price.
+
+    Food counterpart of serve_drink() -- same rationale.
+    """
+    gs     = ration_restore(item)
+    amount = (random.randint(0, gs) % 6) + 1
+    restore_food(player, amount)
+    return amount
+
+
 def apply_poison(player) -> None:
     from flags import PlayerFlags
     player.poisoned = True
@@ -220,6 +247,5 @@ def apply_disease(player) -> None:
 
 def cure_disease(player) -> None:
     from flags import PlayerFlags
-    player.diseased = False
     player.clear_flag(PlayerFlags.DISEASE)
     player.unsaved_changes = True

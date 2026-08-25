@@ -958,12 +958,23 @@ def _expand_tab_tokens(text: str, settings, codec: 'ColorCodec | None' = None) -
     """
     Replace |tab| / |tab:N| (or, for PETSCII clients only, !tab! / !tab:N! --
     see _TAB_TOKEN_RE_PETSCII's comment) with the player's actual tab
-    output, repeated N times (once, by default) -- see PREFS 'K' (Tab Key),
-    which sets client_settings.tab_settings.tab_output to a real '\\t' if
-    the client has a working Tab key, or N spaces if simulating one. The
-    escaped form ||tab||/!!tab!! (see _TOKEN_RE's comment) is left untouched
-    here -- ansi_encode()/petscii_encode()/plain_encode() resolve it to a
-    literal |tab|/!tab! later.
+    output -- see PREFS 'K' (Tab Key), which sets
+    client_settings.tab_settings.has_tab_key/tab_width.
+
+    If the client has a real Tab key, each token becomes a literal '\\t'
+    (repeated N times) -- the terminal itself handles tab-stop spacing, so
+    no column math is needed here. Otherwise (tabs simulated with spaces)
+    each token advances to the *next actual tab stop* -- a real terminal's
+    Tab key doesn't emit a fixed number of spaces, it emits just enough to
+    reach the next multiple of tab_width from the current column, so a
+    |tab| at column 3 with tab_width 8 emits 5 spaces while one at column 9
+    emits 7 -- not tab_width spaces every time. That requires tracking the
+    running visible column across the line (via _visible_len(), which
+    already knows how to skip color |token|s/[bracket]s/etc.), so this
+    walks the token matches in order rather than using a single blind
+    pattern.sub(). The escaped form ||tab||/!!tab!! (see _TOKEN_RE's
+    comment) is left untouched here -- ansi_encode()/petscii_encode()/
+    plain_encode() resolve it to a literal |tab|/!tab! later.
 
     Unlike color |token|s (a static per-codec substitution table applied
     at ansi_encode()/petscii_encode() time), a tab's rendered width is
@@ -973,14 +984,37 @@ def _expand_tab_tokens(text: str, settings, codec: 'ColorCodec | None' = None) -
     than staying an opaque token until the codec stage.
     """
     tab_settings = getattr(settings, 'tab_settings', None)
+    has_tab_key = getattr(tab_settings, 'has_tab_key', False) if tab_settings else False
     tab_output = getattr(tab_settings, 'tab_output', '\t') if tab_settings else '\t'
-
-    def _replace(match) -> str:
-        count = int(match.group('n')) if match.group('n') else 1
-        return tab_output * count
+    tab_width = getattr(tab_settings, 'tab_width', 0) if tab_settings else 0
 
     pattern = _TAB_TOKEN_RE_PETSCII if isinstance(codec, PETSCIICodec) else _TAB_TOKEN_RE
-    return pattern.sub(_replace, text)
+
+    if has_tab_key or tab_width <= 0:
+        # Real Tab key (or a degenerate 0-width simulated tab): no stop
+        # math to do, just emit the configured output N times.
+        def _replace(match) -> str:
+            count = int(match.group('n')) if match.group('n') else 1
+            return tab_output * count
+        return pattern.sub(_replace, text)
+
+    # Simulated tabs: advance to the next real tab stop from the running
+    # visible column, not a flat tab_width-space repeat every time.
+    out_parts: list[str] = []
+    last_end = 0
+    col = 0
+    for match in pattern.finditer(text):
+        segment = text[last_end:match.start()]
+        out_parts.append(segment)
+        col += _visible_len(segment)
+        count = int(match.group('n')) if match.group('n') else 1
+        for _ in range(count):
+            spaces = tab_width - (col % tab_width)
+            out_parts.append(' ' * spaces)
+            col += spaces
+        last_end = match.end()
+    out_parts.append(text[last_end:])
+    return ''.join(out_parts)
 
 
 def format_lines(lines: list[str],

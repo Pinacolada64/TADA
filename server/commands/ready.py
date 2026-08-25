@@ -154,7 +154,8 @@ class ReadyCommand(Command):
                     lines.append(f'  {orig_i + 1:>2}. {getattr(e.item, "name", "?")}')
                 lines.append('')
                 await ctx.send(lines)
-                raw = await ctx.prompt(f'Ready which (1-{len(matches)}, Enter to cancel)')
+                raw = await ctx.prompt(preamble_lines=f'(1-{len(matches)}, {ctx.player.return_key} to cancel)',
+                                       prompt_text="Ready which")
                 if not raw or not raw.strip():
                     return CommandResult.ok()
                 try:
@@ -176,7 +177,8 @@ class ReadyCommand(Command):
                 lines.append(f'  {i:>2}. {name:<22} {wc_str:<18} {badge}')
             lines.append('')
             await ctx.send(lines)
-            raw = await ctx.prompt(f'Ready which weapon (1-{len(entries)}, Enter to cancel)')
+            raw = await ctx.prompt(preamble_lines=f'(1-{len(entries)}, {ctx.player.return_key} to cancel)',
+                                   prompt_text="Ready which weapon")
             if not raw or not raw.strip():
                 return CommandResult.ok()
             try:

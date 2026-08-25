@@ -68,6 +68,7 @@ class _FakePlayer:
         self.inventory.entries = MagicMock(return_value=[])
         self._gold = gold
         self.expert_mode = False
+        self.return_key = 'Enter'
 
     @property
     def is_expert(self) -> bool:

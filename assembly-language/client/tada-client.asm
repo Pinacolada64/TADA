@@ -36,39 +36,19 @@
 ; (the <XX>/[XX] read_line trace, hex_digits/print_hex_byte helpers, etc).
 {undef: debug}
 
-; SwiftLink ACIA registers
-{const: SL_DATA     $de00}      ; data register
-{const: SL_STATUS   $de01}      ; status register
-{const: SL_COMMAND  $de02}      ; command register
-{const: SL_CONTROL  $de03}      ; control register
+; SwiftLink ACIA registers/constants -- moved to swiftlink.asm (2026-08-24)
+; alongside the routines that use them, since {const:} is
+; macro_preprocessor.py's own textual substitution (resolved only within
+; the file it runs on, unlike a real c64list `NAME = value` symbol) --
+; it doesn't carry across {include:}s the way constants.asm's addresses
+; do, so these had to become plain assignments to be usable from a
+; separate included file at all.
 
-; ACIA status bits
-{const: SL_RDRF     $08}        ; bit 3: receive data register full
-{const: SL_TDRE     $10}        ; bit 4: transmit data register empty
-
-; ACIA command register values
-{const: SL_CMD_INIT    $09}     ; DTR low, RTS low, RxD IRQ on
-{const: SL_CMD_OFF     $0b}     ; RxD/TxD IRQs off, DTR low
-{const: SL_CMD_RTS_OFF $01}     ; DTR low, RTS *high* (deasserted) -- see
-                                 ; nmi_handler's flow-control comment: this
-                                 ; is what makes VICE's ACIA core disable
-                                 ; its RX alarm and genuinely stop draining
-                                 ; the TCP socket, per aciacore.c.
-
-; ACIA control register: 8-bit, 1 stop, internal clock, baud rate in the
-; low nibble. SwiftLink's crystal (not the stock C64 clock) makes these
-; nibble values map differently than a plain 6551 datasheet's own table
-; -- $0e=19200, $0f=38400 here, per Craig Bruce's swiftlib.s slNormBauds
-; table (https://csbruce.com/cbm/swiftlib/swiftlib.s, already the
-; reference for this cartridge elsewhere in this file -- see init_nmi).
-; 38400 is the fastest a *plain* SwiftLink (this cartridge, not the
-; Turbo232 variant) supports without needing its external clock generator
-; register (slRegClock), which values >= $10 require and a plain
-; SwiftLink doesn't have.
-{const: SL_CTRL_38K $1f}
-
-; SID chip base address (25 registers, $D400-$D418)
-{const: SID_BASE $d400}
+; SID chip base address (25 registers, $D400-$D418) -- moved to
+; sid_streaming.asm (2026-08-24) alongside SID_FRAME_END below and the
+; routines that actually use them (sid_stop/sid_play*); nothing left in
+; this file needs it. See swiftlink.asm's header for why {const:}s that
+; cross an {include:} boundary have to become plain `=` assignments.
 
 ; Binary SID-stream start marker -- multiplexed onto the same connection
 ; as the CR-terminated PETSCII text protocol. Followed by a 16-bit
@@ -103,9 +83,6 @@
 {const: SID_STOP           $03}   ; one-byte control signal (not a stream)
                                    ; -- play #stop sends this to silence
                                    ; playback and reset SID state immediately
-{const: SID_FRAME_END    $ff}   ; terminates one tick's (reg,val) pairs --
-                                 ; safe as a sentinel since SID only has
-                                 ; registers 0-24
 
 ; Canvas-editor stream marker -- shares CANVAS_STREAM_START's byte value
 ; with SID_STREAM_START (both are $01; a lone $01 is never trusted by
@@ -279,6 +256,15 @@ KERNAL_PLOT = $fff0
         byte $0a,$08,$0a,$00,$9e,$32,$30,$36,$31,$00,$00,$00
 
 start:
+        jsr switch_to_bank3_with_charset  ; MUST run before init_screen
+                                            ; (needs HIBASE/the VIC bank
+                                            ; already correct) and before
+                                            ; init_nmi/init_swiftlink (see
+                                            ; its own comment -- SwiftLink's
+                                            ; NMI isn't SEI-maskable, and
+                                            ; this briefly banks KERNAL's
+                                            ; NMI vector out to uninitialized
+                                            ; RAM while it runs)
         jsr init_screen
         jsr init_jump_table      ; populate JT_SL_SEND/JT_SL_RECV/JT_RESUME
                                   ; before anything could need them
@@ -296,7 +282,20 @@ start:
         dex
         bne <@
 
-        ; wait for server to send negotiation menu, display it
+        ; wait for server to send negotiation menu, display it.
+        ; prompt_relocate_enabled stays 0 through this specific call --
+        ; the raw SwiftLink negotiation exchange isn't a real interactive
+        ; game prompt (nothing here waits for player input the way a
+        ; genuine ctx.prompt() does), but confirmed live 2026-08-20 its
+        ; own content can coincidentally end in "> ", false-matching
+        ; relocate_prompt_to_row24's heuristic -- and since more
+        ; negotiation bytes keep arriving regardless (nothing here is
+        ; actually waiting on anything relocate parked at PROMPT_ROW),
+        ; ordinary text continues printing from wherever the false
+        ; relocate left the cursor: PROMPT_ROW itself, the one row
+        ; term_chrout does not protect against overflowing (only
+        ; STATUS_ROW triggers its fixup) -- letting KERNAL's own real
+        ; whole-screen scroll fire and corrupt STATUS_ROW.
         jsr wait_for_data
 
         ; respond: 40 columns (C64)
@@ -304,6 +303,9 @@ start:
         jsr sl_send
         lda #$0d                ; CR
         jsr sl_send
+
+        lda #1
+        sta prompt_relocate_enabled ; real game prompts start here on out
 
         ; fall into prompt loop
         jmp prompt_loop
@@ -365,7 +367,8 @@ wait_for_data_poll:
         dex
         bne wait_for_data_poll
         jsr sync_prompt_buf       ; settled -- snapshot the current line as
-        rts                       ; the prompt read_line will redraw around
+        jsr relocate_prompt_to_row24 ; the prompt, pin it to PROMPT_ROW
+        rts                       ; if it looks like a real prompt
 wait_for_data_got_byte:
         jsr handle_recv_byte
         lda sid_mode
@@ -379,8 +382,12 @@ wait_for_data_backgrounding:
 ; --- Init screen ---
 ; Clear screen, draw the status line, set up screen pointer
 init_screen:
-        lda #CHARSET_UPPER_LOWER
-        sta VIC_MEMORY_CONTROL
+        ; VIC_MEMORY_CONTROL is NOT touched here -- switch_to_bank3_with_
+        ; charset (called first, in start:) already set it correctly for
+        ; gothic_charset's char-ptr slot; re-poking CHARSET_UPPER_LOWER's
+        ; old value here would silently point the char generator at $d800
+        ; (COLOR_RAM's own fixed address, not usable as glyph bitmap data)
+        ; instead of $d000 where gothic_charset actually landed.
         lda #VIC_BLACK
         sta VIC_BORDER
         sta VIC_BACKGROUND
@@ -393,28 +400,34 @@ init_screen:
         ldy #>build_msg           ; push_buf's "first message of a fresh
         jsr build_status_line     ; batch" behavior), until the first
                                    ; real SID event replaces it
-        ; set screen pointer to row 2 col 0
-        lda #<(SCREEN_RAM + 80)
+        ; set screen pointer to row 2 col 0 (front buffer -- see set_
+        ; screen_line's own comment on why no low-byte carry is needed)
+        lda #<80
         sta scr_ptr_lo
-        lda #>(SCREEN_RAM + 80)
+        lda front_hi
+        clc
+        adc #>80
         sta scr_ptr_hi
         rts
 
-; --- set_screen_line: scr_ptr_lo/hi = SCREEN_RAM + row*40 ---
+; --- set_screen_line: scr_ptr_lo/hi = CURRENT FRONT BUFFER + row*40 ---
 ; Input: .a = row number (0-24). Reuses scr_ptr_lo/hi -- this file's own
 ; zero-page pointer for indirect screen access (see calc_screen_ptr-style
 ; usage in petscii_editor.asm for the same convention: whichever routine
 ; needs an indirect pointer right now temporarily owns scr_ptr_lo/hi,
-; rather than every routine claiming its own zero-page pair).
+; rather than every routine claiming its own zero-page pair). Uses
+; front_hi (not a fixed SCREEN_RAM constant) since the screen buffer is
+; now double-buffered -- see the "Double-buffered screen + custom
+; charset" section. No low-byte carry needed: both screen buffers are
+; 1K-aligned ($xx00), so front_hi's own low byte is always 0.
 set_screen_line:
         asl                       ; row*2 -- row_offsets is a word table
         tax
         lda row_offsets,x
-        clc
-        adc #<SCREEN_RAM
         sta scr_ptr_lo
         lda row_offsets+1,x
-        adc #>SCREEN_RAM
+        clc
+        adc front_hi
         sta scr_ptr_hi
         rts
 
@@ -453,16 +466,7 @@ usl_pad:
         bne usl_pad
         rts
 
-; --- Init SwiftLink ---
-; Reset ACIA and configure for 38400 baud 8N1
-init_swiftlink:
-        lda #SL_CMD_OFF         ; disable interrupts
-        sta SL_COMMAND
-        lda #SL_CTRL_38K        ; 38400 baud, 8N1, internal clock
-        sta SL_CONTROL
-        lda #SL_CMD_INIT        ; DTR low, RTS low, RxD IRQ on
-        sta SL_COMMAND
-        rts
+{include:swiftlink.asm}
 
 ; --- Init jump table ---
 ; Copies jump_table_template's 25 bytes up into the fixed JT_BASE page
@@ -495,10 +499,17 @@ init_jump_table_loop:
 ; the jump table instead of using its own local copy.
 SCREEN_CELLS = 1000
 
+; save_screen/restore_screen always operate against front_hi (the
+; CURRENT front buffer, not a fixed SCREEN_RAM constant) -- callers are
+; expected to have already run ensure_buffer_a_front first (see that
+; routine's own comment), so in practice this always means buffer A, but
+; reading front_hi directly here rather than assuming that keeps this
+; routine correct on its own terms rather than relying on a caller
+; convention it can't verify.
 save_screen:
-        lda #<SCREEN_RAM
+        lda #0
         sta copy_src_lo
-        lda #>SCREEN_RAM
+        lda front_hi
         sta copy_src_hi
         lda #<BACKUP_CHARS
         sta copy_dst_lo
@@ -520,9 +531,9 @@ restore_screen:
         sta copy_src_lo
         lda #>BACKUP_CHARS
         sta copy_src_hi
-        lda #<SCREEN_RAM
+        lda #0
         sta copy_dst_lo
-        lda #>SCREEN_RAM
+        lda front_hi
         sta copy_dst_hi
         jsr copy_1000
         lda #<BACKUP_COLORS
@@ -590,14 +601,13 @@ copy_1000:
         jmp copy_block
 
 ; term_scroll_advance's 880-byte dialogue-window shift (rows 1-22 into
-; rows 0-21, screen + color) -- see its own comment.
+; rows 0-21). Screen (glyph) data is now double-buffered (see the "Fixed
+; status row + custom scroll" section below) -- shifted straight into the
+; invisible back buffer with a plain, unchunked copy_block call, since
+; nobody's watching it. COLOR_RAM has no such second copy on real
+; hardware (single fixed 1K chip, always live on whichever buffer is
+; CURRENTLY front) -- copy_color_chunked below is what that still needs.
 DIALOGUE_SHIFT_BYTES = 880
-copy_dialogue_block:
-        lda #<DIALOGUE_SHIFT_BYTES
-        sta copy_remaining_lo
-        lda #>DIALOGUE_SHIFT_BYTES
-        sta copy_remaining_hi
-        jmp copy_block
 
 copy_src_lo:
         byte 0
@@ -610,6 +620,67 @@ copy_dst_hi:
 copy_remaining_lo:
         byte 0
 copy_remaining_hi:
+        byte 0
+
+; --- copy_color_chunked ---
+; COLOR_RAM's rows 1-22 -> rows 0-21 shift, split into COLOR_CHUNK_BYTES-
+; sized pieces, each preceded by its own wait_vblank -- the complete fix
+; wait_vblank's own comment used to flag but not implement: an 880-byte
+; copy (~1.75ms) runs longer than one vblank window and can spill into
+; active drawing time. Only color needs this now -- the screen-glyph half
+; moved entirely off-screen into the back buffer (see term_scroll_advance
+; below), so color isn't sharing its vblank budget with a screen copy the
+; way the original chunked-copy fix (2026-08-22, superseded same day by
+; double buffering) had it do. Self-contained (own inline loop, own
+; ccc_chunk_remaining countdown) rather than built from copy_block, same
+; reasoning as that routine's own single-range design.
+; Caller sets copy_src_lo/hi + copy_dst_lo/hi before calling.
+COLOR_CHUNK_BYTES = 220           ; 880 / 4
+copy_color_chunked:
+        lda copy_src_lo
+        sta ccc_load+1
+        lda copy_src_hi
+        sta ccc_load+2
+        lda copy_dst_lo
+        sta ccc_store+1
+        lda copy_dst_hi
+        sta ccc_store+2
+        lda #<DIALOGUE_SHIFT_BYTES
+        sta copy_remaining_lo
+        lda #>DIALOGUE_SHIFT_BYTES
+        sta copy_remaining_hi
+ccc_next_chunk:
+        jsr wait_vblank
+        lda #COLOR_CHUNK_BYTES
+        sta ccc_chunk_remaining
+ccc_loop:
+ccc_load:
+        lda $ffff
+ccc_store:
+        sta $ffff
+        inc ccc_load+1
+        bne ccc_src_ok
+        inc ccc_load+2
+ccc_src_ok:
+        inc ccc_store+1
+        bne ccc_dst_ok
+        inc ccc_store+2
+ccc_dst_ok:
+        lda copy_remaining_lo
+        bne ccc_dec_lo
+        dec copy_remaining_hi
+ccc_dec_lo:
+        dec copy_remaining_lo
+        lda copy_remaining_lo
+        ora copy_remaining_hi
+        beq ccc_done               ; whole 880-byte copy finished
+        dec ccc_chunk_remaining
+        bne ccc_loop                ; more bytes left in this chunk
+        jmp ccc_next_chunk          ; chunk done -- wait for the next vblank
+ccc_done:
+        rts
+
+ccc_chunk_remaining:
         byte 0
 
 ; ============================================================
@@ -638,8 +709,208 @@ copy_remaining_hi:
 ; convention (see its own {const:} comment).
 STATUS_ROW           = 23
 DIALOGUE_LAST_ROW    = 22
+PROMPT_ROW           = 24       ; fixed row the player types on, right
+                                  ; below STATUS_ROW -- see relocate_
+                                  ; prompt_to_row24 (screen-handler.asm)
 ROW_BYTES            = 40
 STATUS_ROW_OFFSET    = 920      ; STATUS_ROW * ROW_BYTES
+PROMPT_ROW_OFFSET    = 960      ; PROMPT_ROW * ROW_BYTES
+
+; ============================================================
+; --- Double-buffered screen + custom charset (VIC bank 3) ---
+; ============================================================
+; 2026-08-22: term_scroll_advance's dialogue-window shift no longer
+; copies live, currently-displayed SCREEN_RAM in chunks -- it shifts into
+; a completely invisible second screen buffer, at total leisure, then
+; flips which one the VIC displays via VIC_MEMORY_CONTROL's screen-
+; pointer bits. This is atomic (a handful of cycles) and structurally
+; eliminates glyph tearing, rather than just keeping each write burst
+; inside a vblank window and hoping. Prototyped first in the standalone
+; tada_screen_blit_test.asm harness (same directory) -- see that file and
+; project memory (async-prompt/status-line project) for the full
+; reasoning trail. COLOR_RAM has no such second copy on real hardware
+; (see copy_color_chunked above), so color tearing is mitigated the same
+; vblank-chunked way as before, just running alone now.
+;
+; Both screen buffers live in VIC bank 3 ($c000-$ffff), selected once at
+; boot and never switched again -- picked over bank 0 to avoid TWO
+; existing reservations: $2000 (OVERLAY_BUF, where petscii_editor.asm/
+; config_menu.asm load and run) and $c000-$c018 (JT_BASE/PROTO_TABLE,
+; constants.asm -- confirmed via grep before picking SCREEN_BUF_A/B's
+; addresses, same discipline constants.asm's own comment used when IT
+; claimed $c000). Character ROM is only VIC-visible in banks 0/2, which
+; would normally force a ROM-image-copy dance to keep the stock font
+; working in bank 3 -- moot here: gothic_charset ({include:}'d below)
+; supplies a complete custom 256-glyph charset of its own, an ordinary
+; assembled label always visible to the CPU, so switch_to_bank3_with_
+; charset only needs one $01=$30 "all RAM" banking window (to make the
+; WRITE side -- the real RAM behind $d000-$dfff -- visible) around one
+; copy_block call, not a ROM-read step first.
+SCREEN_BUF_A    = $c400        ; bank-3-relative slot 1 -- clear of
+                                 ; JT_BASE/PROTO_TABLE (slot 0, $c000)
+SCREEN_BUF_B    = $c800        ; bank-3-relative slot 2
+VIC_BANK_SELECT = $dd00        ; CIA2 port A, bits 0-1 -- INVERTED bank
+                                 ; encoding: 00=bank3, 01=bank2, 10=bank1,
+                                 ; 11=bank0 (KERNAL boot default). Bits
+                                 ; 2-7 drive the serial/IEC bus --
+                                 ; preserved, never touched here.
+VIC_BANK_BASE   = $c000        ; bank 3's absolute base -- flip_screen_
+                                 ; buffer subtracts this out to get the
+                                 ; bank-relative value VIC_MEMORY_CONTROL
+                                 ; actually wants
+HIBASE          = $0288        ; KERNAL's screen-high-byte shadow --
+                                 ; CHROUT/PLOT compute addresses from
+                                 ; this, not from VIC_MEMORY_CONTROL
+                                 ; directly, so a buffer flip has to
+                                 ; update both. Purely a CPU-side
+                                 ; absolute address, unrelated to
+                                 ; VIC_BANK_SELECT.
+CHARGEN_DEST    = $d000        ; bank-3-relative slot 4 (char-ptr value 2,
+                                 ; 2*$800) -- where the VIC will look for
+                                 ; gothic_charset once bank 3 is selected;
+                                 ; real RAM behind $d000-$d7ff, not
+                                 ; visible to the CPU without the $01
+                                 ; trick below
+CHARGEN_SIZE    = 2048
+CHARGEN_RAM_CONFIG = $30       ; LORAM=0, HIRAM=0, CHAREN=0 -- all RAM,
+                                 ; including the cells behind $d000-$dfff
+                                 ; (needed to WRITE there -- the CPU can't
+                                 ; write through the KERNAL/IO view $01
+                                 ; normally leaves mapped)
+VIC_D018_INIT   = $14          ; screen-ptr nibble 1 (buffer A, $c400 --
+                                 ; ($c400-$c000)>>2<<4 = $10) | char-ptr
+                                 ; value 2 ($d000, 2<<1=$04) -- boot value
+
+; --- switch_to_bank3_with_charset ---
+; One-time boot setup, called FIRST in start: (before init_screen even --
+; init_screen's own screen-clear needs HIBASE/the VIC bank already
+; correct). Copies gothic_charset into the RAM VIC bank 3 will read,
+; switches the VIC there, and leaves front_hi/HIBASE/VIC_MEMORY_CONTROL
+; pointing at SCREEN_BUF_A. Runs under SEI -- MUST happen before init_nmi/
+; init_swiftlink (see start:'s own comment): SwiftLink's byte-arrival NMI
+; is not maskable by SEI, and $01=$30 banks KERNAL's own NMI vector
+; ($fffa) out to uninitialized RAM for the duration of the write window --
+; a byte arriving mid-dance, if the cartridge's RxD IRQ were already
+; enabled, would jump through garbage. No such risk this early: nothing
+; has enabled SwiftLink's interrupt yet.
+switch_to_bank3_with_charset:
+        sei
+
+        ; --- 1. Select VIC bank 3 ---
+        lda VIC_BANK_SELECT
+        and #%11111100              ; bits 0-1 = 00 -> bank 3 (inverted
+        sta VIC_BANK_SELECT          ; encoding -- see this const's comment)
+
+        ; --- 2. Write gothic_charset into the RAM behind $d000-$dfff that
+        ; VIC-in-bank-3 will see at its own bank-relative $1000-$17ff ---
+        lda $01
+        pha
+        lda #CHARGEN_RAM_CONFIG
+        sta $01
+        lda #<gothic_charset
+        sta copy_src_lo
+        lda #>gothic_charset
+        sta copy_src_hi
+        lda #<CHARGEN_DEST
+        sta copy_dst_lo
+        lda #>CHARGEN_DEST
+        sta copy_dst_hi
+        lda #<CHARGEN_SIZE
+        sta copy_remaining_lo
+        lda #>CHARGEN_SIZE
+        sta copy_remaining_hi
+        jsr copy_block
+        pla
+        sta $01                     ; restore -- must happen before the
+                                      ; very next jsr CHROUT et al, which
+                                      ; need KERNAL ROM mapped
+
+        ; --- 3. Point the VIC and KERNAL at SCREEN_BUF_A, char-ptr 2 ---
+        lda #VIC_D018_INIT
+        sta VIC_MEMORY_CONTROL
+        lda #>SCREEN_BUF_A
+        sta front_hi
+        sta HIBASE
+
+        cli
+        rts
+
+; --- flip_screen_buffer: atomically swap which 1K page the VIC displays ---
+; Input: .A = the buffer's ABSOLUTE high byte to make the new front
+; (SCREEN_BUF_A's or SCREEN_BUF_B's >, i.e. $c4 or $c8).
+; Updates both:
+;   - VIC_MEMORY_CONTROL bits 4-7, the HARDWARE screen pointer (unit
+;     $0400, VALUE RELATIVE TO THE CURRENT VIC BANK -- both buffers are
+;     bank-3 slots, so the absolute high byte first gets VIC_BANK_BASE
+;     subtracted back out before the shift). new_nibble = relative_hi>>2,
+;     since relative_hi is always a multiple of 4 for a page that's also
+;     1K-aligned; computed via two LSRs then four ASLs (net: clear the
+;     bottom 2 bits, then shift into the top nibble) rather than a lookup
+;     table, since it's a pure bit-shuffle with no data-dependent
+;     branching.
+;   - HIBASE, the KERNAL shadow byte CHROUT/PLOT actually consult to
+;     compute where to poke -- without this, term_chrout's own `jsr
+;     CHROUT` calls would keep printing into the now-hidden buffer instead
+;     of the newly-visible one, invisibly diverging from what's on screen.
+;     Set from the ABSOLUTE high byte (a plain CPU-side address, unrelated
+;     to VIC bank selection), before the relative subtraction below.
+; Existing charset-pointer bits (bits 0-3) are preserved by ANDing them
+; back in from the register's current value, not just overwritten.
+flip_screen_buffer:
+        sta front_hi
+        sta HIBASE
+        sec
+        sbc #>VIC_BANK_BASE
+        lsr
+        lsr
+        asl
+        asl
+        asl
+        asl                         ; .A = (relative_hi >> 2) << 4
+        sta flip_d018_val
+        lda VIC_MEMORY_CONTROL
+        and #$0f                    ; keep charset-pointer bits untouched
+        ora flip_d018_val
+        sta VIC_MEMORY_CONTROL
+        rts
+
+flip_d018_val:
+        byte 0
+front_hi:
+        byte >SCREEN_BUF_A
+back_hi:
+        byte 0
+
+; --- ensure_buffer_a_front ---
+; Called before handing off to any overlay module (load_petscii_editor/
+; load_config_menu) -- those are separately-assembled .prg files with
+; SCREEN_RAM baked in as a compile-time constant matching SCREEN_BUF_A,
+; so they can't know or care which buffer is currently front. Guarantees
+; buffer A both IS front (flips if it wasn't) AND actually holds the true
+; current dialogue content, not stale leftovers from whenever it was last
+; shown -- a bare flip alone would just reveal whatever old screen data
+; happened to still be sitting in buffer A's memory from its last turn as
+; front. COLOR_RAM needs no copy here (unlike the screen/glyph half) --
+; it's a single shared chip, already correct on whichever buffer is
+; live, unaffected by which one that is.
+ensure_buffer_a_front:
+        lda front_hi
+        cmp #>SCREEN_BUF_A
+        beq ensure_buffer_a_front_rts   ; already front -- nothing to do
+        lda #0
+        sta copy_src_lo
+        lda front_hi
+        sta copy_src_hi
+        lda #0
+        sta copy_dst_lo
+        lda #>SCREEN_BUF_A
+        sta copy_dst_hi
+        jsr copy_1000               ; mirror current front's full 1000
+                                      ; cells into buffer A first
+        lda #>SCREEN_BUF_A
+        jsr flip_screen_buffer
+ensure_buffer_a_front_rts:
+        rts
 
 ; --- term_chrout: drop-in CHROUT replacement for dialogue text ---
 ; Use instead of a bare `jsr CHROUT` for anything that can legitimately
@@ -653,13 +924,73 @@ STATUS_ROW_OFFSET    = 920      ; STATUS_ROW * ROW_BYTES
 ; its own loop index across a run of term_chrout calls (e.g. printing a
 ; string char-by-char) would otherwise get that index silently
 ; clobbered by whichever branch fires here.
+; PROMPT_ROW (24) is the TRUE last physical row -- unlike STATUS_ROW
+; (23), a character that needs a new row while sitting there triggers
+; KERNAL's OWN real whole-screen scroll DURING the CHROUT call itself,
+; not after. That can't be caught post-hoc the way STATUS_ROW is: by
+; the time term_chrout reads $d6 back, KERNAL's scroll already ran and
+; already reset the cursor to a perfectly normal-looking row 24 (same
+; as it always leaves it after any scroll) -- nothing about that read
+; distinguishes "a real KERNAL scroll just corrupted STATUS_ROW" from
+; "ordinary printing, still on row 24, nothing happened". Confirmed live
+; 2026-08-20: ordinary text continuing to print after relocate_prompt_
+; to_row24 parked the cursor there (an unanswered/still-arriving
+; response following what looked like, but wasn't reliably, a genuine
+; prompt) corrupted STATUS_ROW exactly this way, and the post-hoc check
+; alone never caught it.
+;
+; So this checks BEFORE calling CHROUT: if already on PROMPT_ROW and
+; this character would need a new row (a CR, or filling the last
+; column), redirect through term_scroll_advance FIRST -- landing safely
+; at DIALOGUE_LAST_ROW instead of letting KERNAL scroll from row 24 at
+; all. Ordinary text that overflows PROMPT_ROW genuinely belongs back
+; in the normal scrolling dialogue area above STATUS_ROW anyway; only
+; the player's own current input belongs pinned at PROMPT_ROW itself.
 term_chrout:
         stx term_saved_x
         sty term_saved_y
+        pha
+        ldx $d6
+        cpx #PROMPT_ROW
+        bne term_chrout_plain
+        cmp #$0d
+        beq term_chrout_prevent_cr
+        ldx $d3
+        cpx #39                     ; about to fill the last column?
+        bne term_chrout_plain
+        ; wrap case: this character would fill PROMPT_ROW's last column,
+        ; and KERNAL's own advance-in-preparation-for-the-next-character
+        ; would need row 25 -- shift first, THEN print this character at
+        ; the now-current (DIALOGUE_LAST_ROW) position, which has a
+        ; full fresh 40 columns to receive it safely.
+        jsr term_scroll_advance
+        jmp term_chrout_plain
+term_chrout_prevent_cr:
+        ; CR has no glyph of its own -- term_scroll_advance's shift +
+        ; reposition-to-DIALOGUE_LAST_ROW-col0 already IS everything a
+        ; CR should do; nothing left to hand to CHROUT.
+        jsr term_scroll_advance
+        pla
+        jmp term_chrout_rts
+term_chrout_plain:
+        pla
         jsr CHROUT
         ldx $d6                    ; TBLX -- physical cursor row
         cpx #STATUS_ROW
-        bcc term_chrout_rts
+        bne term_chrout_rts        ; exact match only -- NOT bcc/"< 23".
+                                     ; Safe to be this precise now that
+                                     ; PROMPT_ROW (24) is a real,
+                                     ; deliberately-PLOTted-to position
+                                     ; text can legitimately sit at and
+                                     ; keep printing from (relocate_
+                                     ; prompt_to_row24) -- bcc would
+                                     ; wrongly fire term_scroll_advance
+                                     ; on every character printed there.
+                                     ; Behaviorally identical to the old
+                                     ; bcc for rows 0-22 (X was never >23
+                                     ; under the old model, so "< 23" and
+                                     ; "== 23" only ever differed for a
+                                     ; row that couldn't occur yet).
         jsr term_scroll_advance
 term_chrout_rts:
         ldx term_saved_x
@@ -711,41 +1042,120 @@ term_cursor_right_rts:
 
 ; --- wait_vblank: busy-wait until the raster beam reaches line 250 ---
 ; Comfortably past the visible area on both PAL (312 lines/frame) and
-; NTSC (262 lines/frame) -- moves the START of the scroll's screen-
-; memory writes to an off-screen moment, rather than however mid-frame
-; the triggering character happened to land. Does NOT fully eliminate
-; tearing on its own: the shift itself (two 880-byte copies, screen +
-; color, ~3.5ms of CPU time) runs longer than a single vblank window
-; (well under 1ms) and can spill back into active drawing time
-; regardless. A complete fix would chunk the copy across several frames
-; instead of doing it atomically; not pursued since checking real frames
-; extracted from a screen recording (see project memory) found no
-; visible tearing with just this cheap version. $d012 alone (without
-; checking $d011 bit 7) is sufficient for line 250 since that's well
-; under 256.
+; NTSC (262 lines/frame) -- moves the START of each copied chunk's
+; screen-memory writes to an off-screen moment, rather than however
+; mid-frame the triggering character happened to land. Originally called
+; once before an 880-byte-times-two atomic copy, which (checking real
+; frames extracted from a screen recording, see project memory) showed
+; no visible tearing in practice despite the copy's ~3.5ms runtime
+; exceeding one vblank window -- but copy_dialogue_block_chunked (2026-08-
+; 22) now calls this once per DIALOGUE_CHUNK_BYTES chunk instead, the
+; complete fix this comment used to defer: every actual write burst stays
+; comfortably inside its own blanking window, full stop, rather than
+; relying on empirically-clean-so-far timing margins. $d012 alone
+; (without checking $d011 bit 7) is sufficient for line 250 since that's
+; well under 256.
 wait_vblank:
         lda $d012
         cmp #250
         bne wait_vblank
         rts
 
-; Shift the dialogue window up, rows 1-22 -> rows 0-21 (screen + color),
-; discarding old row 0, then blank the fresh row 22 and reposition the
-; cursor there. Both of term_chrout's triggers (a bare CR, or a column
-; wrap) reduce to exactly this -- neither ever leaves real new content
-; in STATUS_ROW to preserve (see this section's own header comment).
+; --- term_scroll_advance: double-buffered dialogue-window shift ---
+; Rows 1-22 up into rows 0-21, discarding old row 0, then blank the fresh
+; row 22 and reposition the cursor there. Both of term_chrout's triggers
+; (a bare CR, or a column wrap) reduce to exactly this -- neither ever
+; leaves real new content in STATUS_ROW to preserve (see this section's
+; own header comment).
+;
+; Prepares the BACK buffer completely off-screen, at leisure, then flips:
+;   1. Shift glyphs: front rows 1-22 -> back rows 0-21 (one atomic
+;      copy_block call -- back buffer is invisible, no vblank pressure).
+;   2. Blank back buffer's fresh row 22.
+;   3. Mirror PROMPT_ROW (24) from front into back too -- NOT part of the
+;      row 1-22 shift, so without this the back buffer's prompt row would
+;      still hold whatever was there the LAST time it was front (stale,
+;      possibly several scrolls old) until the next explicit reprint_
+;      input_line/relocate_prompt_to_row24 call caught up -- a real,
+;      if transient, visible-glitch class this closes outright rather
+;      than relying on "probably gets overwritten before anyone notices".
+;   4. Stamp back buffer's STATUS_ROW with the current queued message
+;      (redraw_status_row_to) -- same "unconditional self-healing repaint
+;      every scroll" reasoning the single-buffer version used, still
+;      valid: whichever buffer is about to become front must be correct
+;      BEFORE it's shown, not patched up after.
+;   5. Chunk-shift COLOR_RAM in place (still live/visible the whole
+;      time -- see copy_color_chunked's own comment).
+;   6. One final wait_vblank, then flip: back becomes front, atomically.
 term_scroll_advance:
-        jsr wait_vblank
-        lda #<(SCREEN_RAM+ROW_BYTES)
-        sta copy_src_lo
-        lda #>(SCREEN_RAM+ROW_BYTES)
-        sta copy_src_hi
-        lda #<SCREEN_RAM
-        sta copy_dst_lo
-        lda #>SCREEN_RAM
-        sta copy_dst_hi
-        jsr copy_dialogue_block
+        lda front_hi
+        cmp #>SCREEN_BUF_A
+        beq tsa_back_is_b
+        lda #>SCREEN_BUF_A
+        jmp tsa_back_known
+tsa_back_is_b:
+        lda #>SCREEN_BUF_B
+tsa_back_known:
+        sta back_hi
 
+        ; --- 1. Shift glyphs: front rows 1-22 -> back rows 0-21 ---
+        lda #<ROW_BYTES
+        sta copy_src_lo
+        lda front_hi
+        sta copy_src_hi
+        lda #0
+        sta copy_dst_lo
+        lda back_hi
+        sta copy_dst_hi
+        lda #<DIALOGUE_SHIFT_BYTES
+        sta copy_remaining_lo
+        lda #>DIALOGUE_SHIFT_BYTES
+        sta copy_remaining_hi
+        jsr copy_block
+
+        ; --- 2. Blank back buffer's fresh row 22 ---
+        ; scr_ptr = back_hi:00 + 880 ($0370) -- direct arithmetic since
+        ; DIALOGUE_LAST_ROW is a fixed compile-time row here.
+        lda #<880
+        sta scr_ptr_lo
+        lda back_hi
+        clc
+        adc #>880
+        sta scr_ptr_hi
+        ldy #0
+        lda #$20
+tsa_blank:
+        sta (scr_ptr_lo),y
+        iny
+        cpy #40
+        bne tsa_blank
+
+        ; --- 3. Mirror PROMPT_ROW, front -> back (via copy_block -- reads
+        ; and writes two DIFFERENT buffers at once, so a single scr_ptr_
+        ; lo/hi indirect pointer can't do this, unlike step 2's blank) ---
+        lda #<PROMPT_ROW_OFFSET
+        sta copy_src_lo
+        lda front_hi
+        clc
+        adc #>PROMPT_ROW_OFFSET
+        sta copy_src_hi
+        lda #<PROMPT_ROW_OFFSET
+        sta copy_dst_lo
+        lda back_hi
+        clc
+        adc #>PROMPT_ROW_OFFSET
+        sta copy_dst_hi
+        lda #<ROW_BYTES
+        sta copy_remaining_lo
+        lda #>ROW_BYTES
+        sta copy_remaining_hi
+        jsr copy_block
+
+        ; --- 4. Stamp back buffer's STATUS_ROW before it's ever shown ---
+        lda back_hi
+        jsr redraw_status_row_to
+
+        ; --- 5. Chunk-shift COLOR_RAM (still live the whole time) ---
         lda #<(COLOR_RAM+ROW_BYTES)
         sta copy_src_lo
         lda #>(COLOR_RAM+ROW_BYTES)
@@ -754,22 +1164,18 @@ term_scroll_advance:
         sta copy_dst_lo
         lda #>COLOR_RAM
         sta copy_dst_hi
-        jsr copy_dialogue_block
+        jsr copy_color_chunked
 
-        lda #DIALOGUE_LAST_ROW
-        jsr set_screen_line         ; scr_ptr_lo/hi = row 22 base
-        ldy #0
-        lda #$20
-term_scroll_advance_blank:
-        sta (scr_ptr_lo),y
-        iny
-        cpy #40
-        bne term_scroll_advance_blank
+        ; --- 6. Flip: back becomes front, atomically ---
+        jsr wait_vblank
+        lda back_hi
+        jsr flip_screen_buffer
         ldx #DIALOGUE_LAST_ROW      ; KERNAL_PLOT: X=row, Y=col
         ldy #0
         clc
         jsr KERNAL_PLOT
         rts
+
 
 ; ============================================================
 ; --- Status queue (reverse-video, rotating, fixed row 23) ---
@@ -933,51 +1339,72 @@ status_rotate_redraw:
         sta status_rotate_last_hi
         rts
 
-; --- redraw_status_row: repaint STATUS_ROW with the currently-selected
-; queued message (or an all-blank bar if the queue is empty), reverse
-; video, padded to 40 columns. Pure raw SCREEN_RAM pokes -- no CHROUT,
-; no cursor save/restore, no KERNAL_PLOT at all -- since queue content
-; is pre-encoded screen codes already (same convention update_status_
-; line already uses for row 0's banner). Destination is plain absolute
-; indexed addressing (STATUS_ROW_OFFSET is a compile-time constant)
-; rather than set_screen_line, freeing scr_ptr_lo/hi to be used solely
-; for the source (queue slot) pointer -- a raw copy-with-OR needs two
-; concurrent pointers, and this file's convention is one shared
-; transient pointer, not a second dedicated zero-page pair for
-; something this narrow.
+; --- redraw_status_row: repaint the CURRENT FRONT buffer's STATUS_ROW ---
+; Thin wrapper over redraw_status_row_to for the common case (every call
+; site except term_scroll_advance's own back-buffer pre-paint doesn't
+; care which buffer is front, it just wants "whatever's on screen now").
 redraw_status_row:
+        lda front_hi
+        ; falls through
+
+; --- redraw_status_row_to: repaint an EXPLICIT buffer's STATUS_ROW ---
+; Input: .A = target buffer's high byte.
+; Needed because term_scroll_advance must paint the BACK buffer's status
+; row (the one about to become front) BEFORE flipping, not whichever
+; buffer happens to be front at the moment it's called. Self-modifies
+; only the high byte of each STA operand's absolute address
+; (STATUS_ROW_OFFSET's low byte, $98, is identical in both buffers since
+; both are 1K-aligned; only the page differs) -- target_hi = buffer_hi +
+; 3, since STATUS_ROW_OFFSET (920, $0398) contributes high byte $03.
+; Otherwise unchanged from the single-buffer version: reverse video,
+; padded to 40 columns, pure raw pokes (queue content is pre-encoded
+; real screen codes already, same convention update_status_line uses for
+; row 0's banner). Destination addressing (not set_screen_line) frees
+; scr_ptr_lo/hi to be used solely for the source (queue slot) pointer --
+; a raw copy-with-OR needs two concurrent pointers, and this file's
+; convention is one shared transient pointer, not a second dedicated
+; zero-page pair for something this narrow.
+redraw_status_row_to:
+        clc
+        adc #>STATUS_ROW_OFFSET
+        sta rsrt_store+2
+        sta rsrt_pad_store+2
+        sta rsrt_blank_store+2
         lda status_queue_count
-        beq redraw_status_row_blank
+        beq rsrt_blank
         lda status_queue_read
         jsr status_slot_addr        ; scr_ptr_lo/hi = &status_queue[read]
         ldy #0
-redraw_status_row_copy:
+rsrt_copy:
         cpy #39
-        bcs redraw_status_row_pad
+        bcs rsrt_pad
         lda (scr_ptr_lo),y
-        beq redraw_status_row_pad
+        beq rsrt_pad
         ora #$80                    ; reverse video -- same $80-bit trick
-        sta SCREEN_RAM+STATUS_ROW_OFFSET,y
+rsrt_store:
+        sta STATUS_ROW_OFFSET,y     ; high byte self-modified above
         iny
-        jmp redraw_status_row_copy
-redraw_status_row_pad:
+        jmp rsrt_copy
+rsrt_pad:
         lda #$a0                    ; reverse-video space
-redraw_status_row_pad_loop:
+rsrt_pad_loop:
         cpy #40
-        bcs redraw_status_row_rts
-        sta SCREEN_RAM+STATUS_ROW_OFFSET,y
+        bcs rsrt_rts
+rsrt_pad_store:
+        sta STATUS_ROW_OFFSET,y
         iny
-        jmp redraw_status_row_pad_loop
-redraw_status_row_rts:
+        jmp rsrt_pad_loop
+rsrt_rts:
         rts
-redraw_status_row_blank:
+rsrt_blank:
         ldy #0
         lda #$a0
-redraw_status_row_blank_loop:
-        sta SCREEN_RAM+STATUS_ROW_OFFSET,y
+rsrt_blank_loop:
+rsrt_blank_store:
+        sta STATUS_ROW_OFFSET,y
         iny
         cpy #40
-        bne redraw_status_row_blank_loop
+        bne rsrt_blank_loop
         rts
 
 status_build_buf:
@@ -1085,6 +1512,13 @@ load_petscii_editor:
                                   ; disk error -- executes whatever garbage
                                   ; happened to already be sitting at $2000
                                   ; instead of failing cleanly)
+        jsr ensure_buffer_a_front ; overlay modules hardcode SCREEN_RAM as
+                                  ; a compile-time constant matching
+                                  ; buffer A -- they have no way to know
+                                  ; which buffer is currently front, so
+                                  ; this guarantees it's always A before
+                                  ; handing off (see that routine's own
+                                  ; comment)
         jmp OVERLAY_BUF           ; hand off -- the module returns control
                                   ; via JT_RESUME when it's done, not rts
 
@@ -1106,6 +1540,7 @@ load_config_menu:
         lda #0
         jsr KERNAL_LOAD
         bcs load_overlay_error
+        jsr ensure_buffer_a_front ; see load_petscii_editor's own comment
         jmp OVERLAY_BUF
 
 ; LOAD failed (either overlay module) -- report the KERNAL error number
@@ -1162,214 +1597,13 @@ config_menu_filename:
         ascii "CONFIG.MNU"
 {alpha:normal}
 
-; --- Init NMI receive handler ---
-; The SwiftLink cartridge raises NMI (not IRQ) when a byte arrives --
-; init_swiftlink's SL_CMD_INIT already tells the ACIA to do this. Without
-; a handler installed, those NMIs just go to the stock KERNAL handler,
-; which ignores them: the byte sits in the ACIA's single-byte data
-; register (no FIFO) until *something* reads it, and gets silently
-; overwritten by the next arriving byte if nothing has. That was the
-; real cause of losing the first few characters of each burst -- any
-; time the main loop was off polling the keyboard (read_line) instead
-; of draining the ACIA (sl_recv), bytes that arrived in that window
-; were lost. Buffering every byte the instant it arrives, regardless of
-; what the main loop is doing, fixes that at the root instead of just
-; giving wait_for_data a bigger timing margin to reduce the odds of it.
-;
-; Reference: SwiftLink/Turbo-232 device driver by Craig Bruce (public
-; domain) -- https://csbruce.com/cbm/swiftlib/swiftlib.s -- which does
-; the same NMI-chaining + ring-buffer technique properly (with flow
-; control, error counting, C128 support, etc.). This is a minimal
-; receive-only version of that idea sized for this client's needs.
-init_nmi:
-        sei
-        lda #0
-        sta rx_head
-        sta rx_tail
-        lda $0318                ; save the current (KERNAL) NMI vector
-        sta nmi_orig+0
-        lda $0319
-        sta nmi_orig+1
-        lda #<nmi_handler
-        sta $0318
-        lda #>nmi_handler
-        sta $0319
-        cli
-        rts
-
-; --- NMI handler ---
-; On entry the CPU has already pushed PC and status; A/X are ours to use
-; as long as we save/restore them. If the NMI wasn't caused by a
-; received byte (RDRF clear), it's not ours -- chain to whatever handler
-; was previously installed (KERNAL's, which also covers the RESTORE key)
-; rather than swallowing it.
-nmi_handler:
-        pha
-        lda SL_STATUS
-        and #SL_RDRF
-        beq nmi_not_ours
-        txa
-        pha
-        lda SL_DATA               ; read the byte -- also clears RDRF/NMI
-        ldx rx_head
-        sta rx_buf,x
-        inc rx_head               ; wraps at 256, matching rx_buf's size
-
-        ; Flow control: once rx_buf is getting full, deassert RTS so
-        ; VICE's ACIA core disables its own RX alarm and genuinely stops
-        ; draining the TCP socket (aciacore.c's acia_set_handshake_lines(),
-        ; ACIA_CMD_BITS_TRANSMITTER_NO_RTS case, clears alarm_active_rx --
-        ; that alarm is what schedules the getc()/recv() calls). Once
-        ; VICE stops recv()-ing, the OS's real TCP receive window closes,
-        ; and the server's own write()/drain() will eventually block --
-        ; genuine end-to-end backpressure, not just an emulator-local
-        ; buffer swap. sl_recv (mainline) re-asserts RTS once drained.
-        lda rts_state
-        beq nmi_rts_done          ; already off, nothing to do
-        lda rx_head
-        sec
-        sbc rx_tail                ; A = bytes currently buffered (unsigned, mod 256)
-        cmp #RX_HIGH_WATER
-        bcc nmi_rts_done          ; still comfortably below the high water mark
-        lda #SL_CMD_RTS_OFF
-        sta SL_COMMAND
-        lda #0
-        sta rts_state
-nmi_rts_done:
-
-        pla
-        tax
-        pla
-        rti
-nmi_not_ours:
-        pla
-        jmp (nmi_orig)
-
-; --- SwiftLink send byte ---
-; Input: .A = byte to send
-; Waits for transmit register empty, then sends
-sl_send:
-        pha
-@:      lda SL_STATUS
-        and #SL_TDRE            ; transmit register empty?
-        beq <@                  ; no, keep waiting
-        pla
-        sta SL_DATA             ; send byte
-        rts
-
-; --- Receive byte from the NMI ring buffer ---
-; Output: carry set = byte received, .A = byte
-;         carry clear = no byte waiting
-; The actual ACIA read happens in nmi_handler, asynchronously to
-; whatever the main loop is doing -- this just drains what it buffered.
-sl_recv:
-        lda rx_tail
-        cmp rx_head
-        beq sl_recv_empty        ; head == tail: nothing buffered
-        ldx rx_tail
-        lda rx_buf,x
-        pha                      ; stash the byte -- flow-control check below uses A
-        inc rx_tail
-
-        ; Re-assert RTS once the buffer has drained back down (hysteresis:
-        ; a lower threshold than nmi_handler's pause point avoids rapid
-        ; on/off toggling right at a single boundary).
-        lda rts_state
-        bne sl_recv_rts_done     ; already on, nothing to do
-        lda rx_head
-        sec
-        sbc rx_tail
-        cmp #RX_LOW_WATER
-        bcs sl_recv_rts_done     ; still above the low water mark
-        lda #SL_CMD_INIT
-        sta SL_COMMAND
-        lda #1
-        sta rts_state
-sl_recv_rts_done:
-        pla
-        sec
-        rts
-sl_recv_empty:
-        clc
-        rts
-
-; --- Background SID service, polled from read_line ---
-; Keeps a still-arriving SID stream flowing into SID_BUF (and hence
-; feeding sid_play) while the player is busy typing their next command,
-; instead of it stalling until they submit a line -- see
-; wait_for_data's own comment for why that hand-off happens.
-;
-; Always services a byte while mid-stream (sid_mode != 0) -- stream data
-; never reaches display_char, so there's nothing to protect against yet.
-; Once the stream ends (sid_mode back to 0), also keeps servicing
-; -- but only while linelen is still 0, i.e. the player hasn't typed
-; anything into this line yet. That covers the trailing response text
-; every play command has waiting right behind its raw stream (the
-; command loop's own "main > " prompt, queued up on the wire behind the
-; whole transfer -- always the very next thing to arrive once the stream
-; itself finishes): confirmed live 2026-08-18 that without this, that
-; prompt just sat undisplayed in rx_buf -- cursor blinking, nothing
-; visibly wrong, but no prompt text either -- until the player's next
-; Enter (submitting an empty line) drove a fresh wait_for_data call that
-; finally drained and showed it, one round-trip late. Still refuses to
-; touch rx_buf once linelen is nonzero, i.e. once the player has actually
-; started typing -- unsolicited server text (an ambient room/ally
-; message, unrelated to anything just played) arriving at that point
-; used to be left alone for wait_for_data to show normally on the next
-; round-trip; it's now handed off to service_async_text (player mid-line)
-; or service_async_idle (player hasn't typed anything yet -- an idle
-; flood of ambient messages used to scroll the prompt away with nothing
-; ever redrawing it, confirmed live 2026-08-18 stress-testing 40 rapid
-; pages) instead, both of which display it without losing track of the
-; prompt -- see their own comments. Still unconditionally drains silently
-; whenever sid_mode != 0 (mid-SID-stream interleaving is a separate,
-; already-handled case -- untouched here); that path never touches
-; capture/display/prompt_buf since stream bytes never reach
-; handle_recv_byte_text.
-;
-; Gadget flagged the gap this closes: frames.py's protocol has no in-band
-; end-of-stream marker for a dropped/truncated transfer to fall back on
-; (SID_FRAME_END only delimits one tick's register writes within already-
-; arrived bytes -- see its own comment -- and sid_play_scan already bails
-; safely, frame-by-frame, if it never shows up). But the *reception* side
-; had nothing symmetrical: sid_mode counts down an exact byte length with
-; no timeout, so a connection drop or server crash mid-stream left it
-; stuck in mode 1/2/3/4 forever, silently swallowing every future byte
-; into SID framing instead of text -- and since SID_STOP is only
-; recognized from mode 0 (handle_recv_byte_text), the player couldn't
-; even `#stop` their way out. sid_recv_last_jiffy (restamped on every
-; byte that actually advances the state machine -- see its own comment)
-; lets this branch notice "mid-stream, but no byte at all in
-; SID_RECV_TIMEOUT_JIFFIES" and force the same recovery SID_STOP already
-; does: sid_stop silences the chip and zeroes sid_mode/sid_active, handing
-; the connection back to ordinary text mode same as a real #stop would.
-sid_service_background:
-        jsr status_service        ; rotate the status row's queued
-                                    ; message every ~5s, regardless of
-                                    ; what else this poll iteration does
-        lda sid_mode
-        bne sid_service_background_recv
-        lda linelen
-        beq sid_service_background_idle
-        jmp service_async_text
-sid_service_background_idle:
-        jmp service_async_idle
-sid_service_background_recv:
-        jsr sl_recv
-        bcs sid_service_background_got_byte
-        lda $a2
-        sec
-        sbc sid_recv_last_jiffy
-        cmp #SID_RECV_TIMEOUT_JIFFIES
-        bcc sid_service_background_rts   ; still within the idle window
-        jsr sid_stop                     ; gave up -- same recovery as #stop
-        rts
-sid_service_background_got_byte:
-        jsr handle_recv_byte
-sid_service_background_rts:
-        rts
+{include:sid_streaming.asm}
 
 {include:screen-handler_pp.asm}
+
+; gothic_charset -- no macro-preprocessor directives, so (like
+; constants.asm) included directly, not via a _pp.asm preprocessed copy.
+{include:gothic-charset.asm}
 
 ; --- Blinking input cursor ---
 ; GETIN-driven input (unlike CHRIN) never engages the KERNAL's own
@@ -2179,328 +2413,6 @@ handle_recv_byte_dec_lo:
 handle_recv_byte_store_done:
         rts
 
-; --- SID diagnostics: status-row messages, not scrolling text ---
-; Ported 2026-08-20 from the original CHROUT-based sid_print_* routines
-; (same names, "status_print_" prefix) to build into the status queue
-; instead -- each pushes one reverse-video message onto STATUS_ROW's
-; rotation rather than printing a CR-terminated line into the scrolling
-; dialogue area. Two call sites (handle_recv_byte_stop's 4-message group,
-; handle_recv_byte_store_done's 3-message group) each start their own
-; batch with status_push_reset first. Message text/values are otherwise
-; unchanged from the originals -- see each routine's own history/reasoning
-; comment, preserved below.
-;
-; status_print_hex_byte/nibble mirror sid_print_hex_byte/nibble exactly
-; (same shift-and-mask structure) but write screen codes via status_putc
-; into status_build_buf instead of CHROUT-ing PETSCII -- status_hex_digits
-; is a SEPARATE table from sid_hex_digits (which stays, CHROUT-based, for
-; load_overlay_error's unrelated use): digits 0-9 already match ASCII
-; byte-for-byte in this charset, but letters A-F don't (screen code 'A'
-; is $01, not ASCII $41), so a table meant for direct-poke display can't
-; be shared with one meant for CHROUT.
-status_print_hex_nibble:           ; .A = nibble (0-15)
-        and #$0f
-        tax
-        lda status_hex_digits,x
-        jsr status_putc
-        rts
-
-status_print_hex_byte:              ; .A = byte to print in hex
-        pha
-        lsr
-        lsr
-        lsr
-        lsr
-        jsr status_print_hex_nibble
-        pla
-        jsr status_print_hex_nibble
-        rts
-
-; --- Dump SID_BUF[0..11] as hex ---
-; Ground truth for comparing against the server's own encoded bytes (see
-; sid_engine.frames.encode_stream output) -- confirms whether stored
-; frame data matches what was actually sent, independent of the byte
-; *count* already being verified correct by status_print_byte_count.
-; First 12 bytes only (not the original's 24) -- STATUS_SLOT_LEN caps a
-; message at 39 visible chars, and 12 bytes * 3 chars ("xx ") fits that
-; cleanly where 24 would silently truncate mid-byte.
-status_print_bufdump:
-        lda #0
-        sta sid_dump_idx
-status_print_bufdump_loop:
-        ldx sid_dump_idx
-        lda SID_BUF,x
-        jsr status_print_hex_byte
-        lda #' '
-        jsr status_putc
-        inc sid_dump_idx
-        lda sid_dump_idx
-        cmp #12
-        bne status_print_bufdump_loop
-        jsr status_push_buf
-        rts
-
-; --- "GOT $xxxx BYTES" -- diagnostic for the SID stream pipe ---
-; Prints sid_byte_count (hi byte first) as 4 hex digits. Unconditional
-; (not gated behind {ifdef:debug}) since this answers a real end-to-end
-; question -- did the bytes the server said it sent actually arrive --
-; not a temporary bug hunt.
-status_print_byte_count:
-        ldx #<status_lbl_got
-        ldy #>status_lbl_got
-        jsr status_build_from_table
-        lda sid_byte_count+1
-        jsr status_print_hex_byte
-        lda sid_byte_count+0
-        jsr status_print_hex_byte
-        ldx #<status_lbl_bytes
-        ldy #>status_lbl_bytes
-        jsr status_build_from_table
-        jsr status_push_buf
-        rts
-
-; --- "PLAYED $xxxx FRAMES" ---
-; sid_frames_played counts every frame sid_play has successfully applied
-; since the current stream started (reset in handle_recv_byte_start).
-; Pushed on `play #stop` -- comparing this count against real elapsed
-; (stopwatch) time gives the client's true empirical playback rate,
-; cutting through any PAL/NTSC IRQ-rate guessing.
-status_print_frames_played:
-        ldx #<status_lbl_played
-        ldy #>status_lbl_played
-        jsr status_build_from_table
-        lda sid_frames_played+1
-        jsr status_print_hex_byte
-        lda sid_frames_played+0
-        jsr status_print_hex_byte
-        ldx #<status_lbl_frames
-        ldy #>status_lbl_frames
-        jsr status_build_from_table
-        jsr status_push_buf
-        rts
-
-; --- "ELAPSED $xxxxxx JIFFIES" ---
-; current jiffy clock ($a0/$a1/$a2) minus the snapshot handle_recv_byte_
-; start took when the stream began -- standard 3-byte subtract-with-
-; borrow, low byte first. No BCD involved; the jiffy clock is a plain
-; binary counter.
-status_print_elapsed:
-        sec
-        lda $a2
-        sbc sid_jiffy_start2
-        sta sid_jiffy_elapsed2
-        lda $a1
-        sbc sid_jiffy_start1
-        sta sid_jiffy_elapsed1
-        lda $a0
-        sbc sid_jiffy_start0
-        sta sid_jiffy_elapsed0
-
-        ldx #<status_lbl_elapsed
-        ldy #>status_lbl_elapsed
-        jsr status_build_from_table
-        lda sid_jiffy_elapsed0
-        jsr status_print_hex_byte
-        lda sid_jiffy_elapsed1
-        jsr status_print_hex_byte
-        lda sid_jiffy_elapsed2
-        jsr status_print_hex_byte
-        ldx #<status_lbl_jiffies
-        ldy #>status_lbl_jiffies
-        jsr status_build_from_table
-        jsr status_push_buf
-        rts
-
-; --- "RD=$xx WR=$xx" ---
-; Raw current values of sid_rd/sid_wr at the moment #stop was processed.
-; Ground truth for whether SID_BUF's producer/consumer indices are where
-; they should be (matching sid_byte_count/sid_frames_played) or have
-; drifted -- e.g. sid_wr still growing after "GOT" already pushed would
-; mean more bytes are landing in SID_BUF than accounted for.
-status_print_pointers:
-        ldx #<status_lbl_rd
-        ldy #>status_lbl_rd
-        jsr status_build_from_table
-        lda sid_rd
-        jsr status_print_hex_byte
-        ldx #<status_lbl_wr
-        ldy #>status_lbl_wr
-        jsr status_build_from_table
-        lda sid_wr
-        jsr status_print_hex_byte
-        jsr status_push_buf
-        rts
-
-; --- "STARTS=$xx" ---
-; sid_stream_starts counts every time handle_recv_byte_start fired (a
-; real SID_STREAM_START+SID_STREAM_CONFIRM pair was seen) since the last
-; #stop. A count > 1 when the player only issued one `play` command
-; means something else on this connection is triggering stream starts --
-; ambient/ally/room broadcasts most likely, given this is a live
-; multiplayer server. Ground truth for whether the confirm-byte fix
-; actually stopped spurious triggers or just made them rarer.
-status_print_stream_starts:
-        ldx #<status_lbl_starts
-        ldy #>status_lbl_starts
-        jsr status_build_from_table
-        lda sid_stream_starts
-        jsr status_print_hex_byte
-        jsr status_push_buf
-        rts
-
-; {alpha:pokealt} label fragments for the status_print_* routines above,
-; and the screen-code hex-digit table status_print_hex_nibble reads --
-; see this section's own header comment for why these need pre-encoded
-; screen codes rather than plain ascii. Sentence-case, not the original
-; SPUR-style ALL-CAPS these were first ported as (Ryan's ask, 2026-08-20,
-; once pokealt proved out via the build-date/time message) -- matches
-; this port's own sentence-case convention for player-facing text.
-{alpha:pokealt}
-status_hex_digits:
-        ascii "0123456789ABCDEF"
-status_lbl_played:
-        ascii "Played $"
-        byte 0
-status_lbl_frames:
-        ascii " frames"
-        byte 0
-status_lbl_elapsed:
-        ascii "Elapsed $"
-        byte 0
-status_lbl_jiffies:
-        ascii " jiffies"
-        byte 0
-status_lbl_rd:
-        ascii "Rd=$"
-        byte 0
-status_lbl_wr:
-        ascii " wr=$"
-        byte 0
-status_lbl_starts:
-        ascii "Starts=$"
-        byte 0
-status_lbl_got:
-        ascii "Got $"
-        byte 0
-status_lbl_bytes:
-        ascii " bytes"
-        byte 0
-{alpha:normal}
-
-sid_print_hex_nibble:             ; .A = nibble (0-15)
-        pha
-        and #$0f
-        tax
-        lda sid_hex_digits,x
-        jsr term_chrout
-        pla
-        rts
-
-sid_print_hex_byte:                ; .A = byte to print in hex
-        pha
-        lsr
-        lsr
-        lsr
-        lsr
-        jsr sid_print_hex_nibble
-        pla
-        jsr sid_print_hex_nibble
-        rts
-
-sid_hex_digits:
-        ascii "0123456789ABCDEF"
-
-; --- Silence the SID chip and reset playback state ---
-; Shared by init_sid (startup) and the SID_STOP control byte
-; (handle_recv_byte_stop, for `play #stop`): clears all 25 SID registers
-; -- including MODE_VOL, so anything currently sustaining goes silent
-; immediately, not just "no further updates" -- and turns off sid_active/
-; sid_mode. SID_BUF's indices don't need clearing here -- sid_active is
-; 0 afterward either way, so sid_play won't touch them until a real
-; SID_STREAM_START arrives and resets them itself.
-sid_stop:
-        ldx #24
-        lda #0
-sid_stop_loop:
-        sta SID_BASE,x
-        dex
-        bpl sid_stop_loop
-        sta sid_mode
-        sta sid_active
-        sta sid_stream_starts     ; TEMP diagnostic -- see its own comment
-        rts
-
-init_sid:
-        jmp sid_stop
-
-; --- SID playback (called every IRQ tick, unconditionally) ---
-; Register-write frames arrive as (register-offset, value) byte pairs
-; terminated by SID_FRAME_END ($ff) -- see sid_engine/frames.py. Consumes
-; exactly one frame per call so playback tempo depends only on the IRQ
-; rate, never on how many other jobs share the interrupt.
-;
-; A frame is only applied once it has arrived in full: the first pass
-; (sid_play_scan) just looks for a terminator between sid_rd and sid_wr
-; without touching any registers. If sid_wr is reached first, the frame
-; hasn't fully arrived yet -- hold last tick's sound and try again next
-; tick, rather than reading stale bytes past what's been received or
-; applying only half a frame's writes.
-sid_play:
-        lda sid_active
-        beq sid_play_rts
-
-        ldx sid_rd
-sid_play_scan:
-        cpx sid_wr
-        beq sid_play_rts          ; caught up to writer -- no full frame yet
-        lda SID_BUF,x             ; a register-index byte -- FRAME_END is only
-        inx                       ; ever meaningful here, never at the paired
-        cmp #SID_FRAME_END        ; value byte that follows (see FRAME_END's
-        beq sid_play_scan_found   ; own comment: a real register *value* of
-                                   ; 255 is completely ordinary and must not
-                                   ; be mistaken for end-of-frame -- confirmed
-                                   ; live 2026-08-17: this scan used to check
-                                   ; FRAME_END on *every* byte, index and
-                                   ; value alike, so a genuine $ff value byte
-                                   ; made it stop scanning one byte early --
-                                   ; not at a real frame boundary. sid_play_
-                                   ; apply then re-walked from sid_rd using
-                                   ; correct index/value pairing, ran past
-                                   ; the incomplete frame scan had validated,
-                                   ; and kept reading unarrived/stale SID_BUF
-                                   ; bytes as bogus (reg,val) pairs forever --
-                                   ; this loop never returns on its own, and
-                                   ; since sid_play runs every IRQ tick, that
-                                   ; hung the entire interrupt chain (KERNAL
-                                   ; IRQ never ran again either), which is
-                                   ; what actually caused every "frozen,
-                                   ; cursor stopped, no prompt" symptom this
-                                   ; session -- not the protocol-byte changes.
-        cpx sid_wr                ; skip the paired value byte -- but only if
-        beq sid_play_rts          ; it's actually arrived yet (incomplete
-                                   ; frame otherwise: bail, try again next tick)
-        inx
-        jmp sid_play_scan
-sid_play_scan_found:
-        ldx sid_rd
-sid_play_apply:
-        lda SID_BUF,x
-        cmp #SID_FRAME_END
-        beq sid_play_apply_done
-        tay                       ; .y = SID register offset (0-24)
-        inx
-        lda SID_BUF,x
-        sta SID_BASE,y
-        inx
-        jmp sid_play_apply
-sid_play_apply_done:
-        inx
-        stx sid_rd
-        inc sid_frames_played+0
-        bne sid_play_rts
-        inc sid_frames_played+1
-sid_play_rts:
-        rts
 
 ; --- IRQ dispatcher init ---
 ; Hooks $0314/$0315 the same way init_nmi hooks $0318/$0319: save the
@@ -2638,6 +2550,13 @@ sid_background:
                                   ; 1 = background (read_line) context --
                                   ; gates the TEMP diagnostic prints, see
                                   ; handle_recv_byte_store
+
+prompt_relocate_enabled:
+        byte 0                   ; 0 until the SwiftLink negotiation
+                                  ; exchange finishes -- see start:'s own
+                                  ; comment for why that first wait_for_
+                                  ; data call must not run relocate_
+                                  ; prompt_to_row24
 
 sid_recv_last_jiffy:
         byte 0                   ; $a2 snapshot taken every time a byte

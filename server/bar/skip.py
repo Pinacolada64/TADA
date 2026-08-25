@@ -23,6 +23,7 @@ from debug_tools import debug_toggle_once_per_day
 from flags import PlayerFlags
 from network_context import GameContext
 from presence import broadcast_area
+from survival import restore_drink, restore_food
 from tada_utilities import get_pronoun
 
 log = logging.getLogger(__name__)
@@ -219,8 +220,8 @@ async def main(ctx: GameContext, bar=None) -> None:
 
             # Clear hungry (SPUR: bit.clear v1+65,6 → player.food restored)
             if hasattr(patron, 'food'):
-                patron.food = 20
-                patron.unsaved_changes = True
+                from config import config
+                restore_food(patron, config.survival_max)
 
         elif menu_item == 'c':
             if 'c' in ordered:
@@ -244,7 +245,8 @@ async def main(ctx: GameContext, bar=None) -> None:
             )
 
             # Clear thirsty (SPUR: bit.clear v1+65,3 → player.drink restored)
-            player.drink = 20
+            from config import config
+            restore_drink(player, config.survival_max)
 
             # Clear tired (SPUR: bit.clear v1+65,2)
             if player.query_flag(PlayerFlags.TIRED):

@@ -451,7 +451,7 @@ class TestPickLineEnding(unittest.IsolatedAsyncioTestCase):
         from terminal import LineEnding
         ctx = _FakeCtx([''], Player())
         await _pick_line_ending(ctx)
-        self.assertEqual(ctx.player.client_settings.line_ending, LineEnding.LF)
+        self.assertEqual(ctx.player.client_settings.line_ending, LineEnding.CR)
 
 
 class TestClientTypeLabel(unittest.TestCase):
@@ -480,7 +480,11 @@ class TestClientTypeLabel(unittest.TestCase):
         # identical (40x25 PETSCII) -- the first preset in the table
         # wins, since stored state alone can't tell them apart.
         cs = self._cs(40, 25, Translation.PETSCII)
-        self.assertEqual(_client_type_label(cs), 'Commodore 64')
+        self.assertEqual(_client_type_label(cs), 'Commodore 64 (PETSCII)')
+
+    def test_ascii_c64_preset_matches(self):
+        cs = self._cs(40, 25, Translation.ASCII)
+        self.assertEqual(_client_type_label(cs), 'Commodore 64 (ASCII)')
 
     def test_ascii_c64_preset_matches(self):
         cs = self._cs(40, 25, Translation.ASCII)
