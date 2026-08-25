@@ -1868,6 +1868,19 @@ class HelpCommand(Command):
         token = args[0].lower()
         rest  = args[1:]
 
+        # Multi-word topic phrase (e.g. "help weapon affinity") -- some
+        # topics are registered under a spaced alias (see register_topic()'s
+        # "weapon affinity"/"best weapon"/"class weapon" call below) as well
+        # as a squashed one ("weaponaffinity"), but every other branch here
+        # only ever looks at args[0], so a spaced phrase never reached
+        # _TOPICS without this. Exact full-phrase match only -- no substring
+        # fuzzing, that's _find_topic_by_substring()'s job for the
+        # single-word case in _show_command_help()'s fallback.
+        if rest:
+            full = " ".join(args).lower()
+            if full in _TOPICS:
+                return await self._show_topic_help(ctx, full)
+
         # Category listing
         if token in ("categories", "category", "cat", "#cat", "#c"):
             if rest:

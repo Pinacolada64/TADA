@@ -1119,6 +1119,21 @@ class TestHelpTopics(unittest.IsolatedAsyncioTestCase):
         self.assertIn("No help found", " ".join(
             str(a) for call in ctx.send.await_args_list for a in call.args))
 
+    async def test_spaced_multi_word_topic_alias_resolves(self):
+        # 'help weapon affinity' -- register_topic() registers this topic
+        # under the spaced alias "weapon affinity" as well as the squashed
+        # "weaponaffinity", but execute() previously only ever looked at
+        # args[0] ('weapon') outside the categories/search branches, so the
+        # spaced phrase never reached _TOPICS and fell through to "No help
+        # found for 'weapon'" -- see test_ambiguous_substring_falls_through_
+        # to_no_help_found above for that single-word case, which must
+        # still behave the same way.
+        ctx, _ = _ctx_with_processor()
+        result = await HelpCommand().execute(ctx, "weapon", "affinity")
+        self.assertTrue(result.success)
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("suit your class and race", output)
+
     async def test_topic_works_with_no_processor_state(self):
         # No real commands registered at all -- the LOGIN-mode scenario
         # this topic exists for still needs to work.
