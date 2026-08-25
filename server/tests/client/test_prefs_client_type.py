@@ -451,7 +451,7 @@ class TestPickLineEnding(unittest.IsolatedAsyncioTestCase):
         from terminal import LineEnding
         ctx = _FakeCtx([''], Player())
         await _pick_line_ending(ctx)
-        self.assertEqual(ctx.player.client_settings.line_ending, LineEnding.LF)
+        self.assertEqual(ctx.player.client_settings.line_ending, LineEnding.CR)
 
 
 class TestClientTypeLabel(unittest.TestCase):
