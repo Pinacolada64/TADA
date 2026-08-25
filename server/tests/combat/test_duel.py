@@ -103,6 +103,7 @@ class TestBashKnockdownBands(unittest.TestCase):
         for stat in (PlayerStat.EGY, PlayerStat.DEX, PlayerStat.STR):
             a.stats[stat] = b.stats[stat] = 10
         side_a, side_b = session.side_for(a), session.side_for(b)
+        side_a.tactic = DuelTactic.BASH
         side_b.tactic = DuelTactic.PARRY
         return session, a, b, side_a, side_b
 
@@ -111,21 +112,21 @@ class TestBashKnockdownBands(unittest.TestCase):
         # race), +10 base bash, -10 opp-parries = net 100 (_BASH_BASE).
         session, a, b, side_a, side_b = self._bare()
         with patch('random.randint', return_value=50):  # roll = 100
-            session._resolve_bash(side_a, side_b)
+            session._resolve_bash_contest()
         self.assertFalse(side_b.down)
         self.assertFalse(side_a.down)
 
     def test_high_roll_overextends_the_basher(self):
         session, a, b, side_a, side_b = self._bare()
         with patch('random.randint', return_value=71):  # roll = 121 > 100+20
-            session._resolve_bash(side_a, side_b)
+            session._resolve_bash_contest()
         self.assertTrue(side_a.down)
         self.assertFalse(side_b.down)
 
     def test_low_roll_knocks_down_the_defender(self):
         session, a, b, side_a, side_b = self._bare()
         with patch('random.randint', return_value=29):  # roll = 79 < 100-20
-            session._resolve_bash(side_a, side_b)
+            session._resolve_bash_contest()
         self.assertTrue(side_b.down)
         self.assertFalse(side_a.down)
 
@@ -147,9 +148,10 @@ class TestBashShieldCost(unittest.TestCase):
         _give_shield(a, 30)
         b.shield = 30
         side_a, side_b = session.side_for(a), session.side_for(b)
+        side_a.tactic = DuelTactic.BASH
         side_b.tactic = DuelTactic.ATTACK
         with patch('random.randint', return_value=1):
-            session._resolve_bash(side_a, side_b)
+            session._resolve_bash_contest()
         self.assertEqual(a.shield, 27)
 
     def test_shield_floors_at_zero(self):
@@ -157,9 +159,10 @@ class TestBashShieldCost(unittest.TestCase):
         _give_shield(a, 2)
         b.shield = 0
         side_a, side_b = session.side_for(a), session.side_for(b)
+        side_a.tactic = DuelTactic.BASH
         side_b.tactic = DuelTactic.ATTACK
         with patch('random.randint', return_value=1):
-            session._resolve_bash(side_a, side_b)
+            session._resolve_bash_contest()
         self.assertEqual(a.shield, 0)
 
 
@@ -200,9 +203,10 @@ class TestBashSizeDifferential(unittest.TestCase):
         a.char_race = PlayerRace.HUMAN   # capacity 10
         b.char_race = PlayerRace.PIXIE   # capacity 7
         side_a, side_b = session.side_for(a), session.side_for(b)
+        side_a.tactic = DuelTactic.BASH
         side_b.tactic = DuelTactic.ATTACK
         with patch('random.randint', return_value=1):  # lowest possible roll
-            session._resolve_bash(side_a, side_b)
+            session._resolve_bash_contest()
         self.assertTrue(side_b.down)
 
 
@@ -217,12 +221,13 @@ class TestBashPredictability(unittest.TestCase):
         for stat in (PlayerStat.EGY, PlayerStat.DEX, PlayerStat.STR):
             a.stats[stat] = b.stats[stat] = 10
         side_a, side_b = session.side_for(a), session.side_for(b)
+        side_a.tactic = DuelTactic.BASH
         side_b.tactic = DuelTactic.PARRY
         side_a.bash_streak = 4   # -12 vs. a fresh bash's advantage of 100
         # bare advantage (no streak) is 100; streak drops it to 88, so a
         # roll that would've been a clean whiff at 100 now overextends.
         with patch('random.randint', return_value=59):  # roll = 109 > 88+20
-            session._resolve_bash(side_a, side_b)
+            session._resolve_bash_contest()
         self.assertTrue(side_a.down)
 
 
@@ -236,12 +241,146 @@ class TestBashStatMismatch(unittest.TestCase):
         a.stats[PlayerStat.DEX] = b.stats[PlayerStat.DEX] = 10
         a.stats[PlayerStat.EGY] = b.stats[PlayerStat.EGY] = 10
         side_a, side_b = session.side_for(a), session.side_for(b)
+        side_a.tactic = DuelTactic.BASH
         side_b.tactic = DuelTactic.PARRY
         # bare advantage 100, +10 STR mismatch (18 > 10+4) = 110.
         with patch('random.randint', return_value=61):  # roll = 111 > 110? no -- pick a clean whiff check instead
-            session._resolve_bash(side_a, side_b)
+            session._resolve_bash_contest()
         self.assertFalse(side_a.down)
         self.assertFalse(side_b.down)
+
+
+class TestBashDefenderMirrorModifiers(unittest.TestCase):
+    """DUEL.S:450-454: modifiers keyed on the *defending* side's own
+    reaction to an incoming bash (previously unported -- the old
+    per-basher-only framing could never reach a non-BASH side.tactic).
+    Here self.b bashes and self.a reacts, isolating each reaction's term
+    via the verified advantage values: standing or attacking into a bash
+    both net 80 (100 - 10 opponent-bashed - 10 own-reaction), a bare
+    parry nets a full 100 (the two +/-10 terms cancel)."""
+
+    def _reacting(self, a_tactic, **streaks):
+        from base_classes import PlayerStat
+        session, a, b = _make_session()
+        a.shield = b.shield = 30
+        for stat in (PlayerStat.EGY, PlayerStat.DEX, PlayerStat.STR):
+            a.stats[stat] = b.stats[stat] = 10
+        side_a, side_b = session.side_for(a), session.side_for(b)
+        side_b.tactic = DuelTactic.BASH
+        side_a.tactic = a_tactic
+        for name, value in streaks.items():
+            setattr(side_a, name, value)
+        return session, a, b, side_a, side_b
+
+    def test_standing_into_a_bash_costs_advantage(self):
+        session, a, b, side_a, side_b = self._reacting(DuelTactic.STAND)
+        # advantage 80 (100 - 10 opp-bashed - 10 own-stand); a roll that
+        # would've been a clean whiff at 100 now knocks the standing side
+        # (self.a) down.
+        with patch('random.randint', return_value=51):  # roll = 101 > 80+20
+            session._resolve_bash_contest()
+        self.assertTrue(side_a.down)
+
+    def test_parrying_a_bash_is_safer_than_standing(self):
+        # Same roll as above (101), but reacting with Parry instead of
+        # Stand nets the full 100 (the opponent-bashed/own-parry terms
+        # cancel) -- 101 no longer clears 100+20, so nobody falls.
+        session, a, b, side_a, side_b = self._reacting(DuelTactic.PARRY)
+        with patch('random.randint', return_value=51):
+            session._resolve_bash_contest()
+        self.assertFalse(side_a.down)
+        self.assertFalse(side_b.down)
+
+    def test_predictable_attacker_reacting_into_a_bash_is_worse(self):
+        # Attacking into a bash (advantage 80, same as Stand) gets worse
+        # the more of a habitual attacker self.a has been recently
+        # (DUEL.S:452's zn*3 term) -- a fresh attacker (streak 0) nets 80,
+        # a 2-in-a-row attacker nets 74.
+        session, a, b, side_a, side_b = self._reacting(DuelTactic.ATTACK, attack_streak=2)
+        with patch('random.randint', return_value=45):  # roll = 95 > 74+20, but not > 80+20
+            session._resolve_bash_contest()
+        self.assertTrue(side_a.down)
+
+
+class TestBashMutual(unittest.TestCase):
+    """DUEL.S:443+444 fire as independent `if` statements, not mutually
+    exclusive -- when both sides bash, each side's own always-true +10
+    (444) and the opponent-bashed -10 (443) cancel, leaving only the
+    parry-streak term (there is none to bash-vs-bash, only parry-vs-bash
+    per DUEL.S:448) -- net advantage is the bare 100 baseline, adjusted
+    only by self.a's own parry_streak."""
+
+    def test_mutual_bash_cancels_to_bare_streak_only(self):
+        from base_classes import PlayerStat
+        session, a, b = _make_session()
+        a.shield = b.shield = 30
+        for stat in (PlayerStat.EGY, PlayerStat.DEX, PlayerStat.STR):
+            a.stats[stat] = b.stats[stat] = 10
+        side_a, side_b = session.side_for(a), session.side_for(b)
+        side_a.tactic = side_b.tactic = DuelTactic.BASH
+        side_a.parry_streak = 3
+        # advantage 100 - 3*3 = 91 (both sides' always-true +/-10 terms
+        # cancel on a mutual bash, leaving only self.a's own streak
+        # penalty). A roll of 92 clears neither band (91+-20 = 71-111).
+        with patch('random.randint', return_value=42):  # roll = 92
+            session._resolve_bash_contest()
+        self.assertFalse(side_a.down)
+        self.assertFalse(side_b.down)
+
+    def test_both_bashers_pay_the_shield_cost(self):
+        session, a, b = _make_session()
+        _give_shield(a, 30)   # separate players, separate inventories --
+        _give_shield(b, 30)   # same item id (4) in each is fine.
+        side_a, side_b = session.side_for(a), session.side_for(b)
+        side_a.tactic = side_b.tactic = DuelTactic.BASH
+        with patch('random.randint', return_value=1):
+            session._resolve_bash_contest()
+        self.assertEqual(a.shield, 27)
+        self.assertEqual(b.shield, 27)
+
+
+class TestBashDefenderStillSwings(unittest.IsolatedAsyncioTestCase):
+    """The basher's own _resolve_swing() this round is a no-op (their turn
+    is fully spent on the bash contest, resolved ahead of the per-side
+    loop in _resolve_round()) -- but a defender who reacted with anything
+    else still gets their own ordinary swing afterward unless the contest
+    itself just knocked them down."""
+
+    async def test_defender_reaction_produces_its_own_swing_commentary(self):
+        from base_classes import PlayerStat
+        session, a, b = _make_session()
+        a.shield = b.shield = 30
+        for stat in (PlayerStat.EGY, PlayerStat.DEX, PlayerStat.STR):
+            a.stats[stat] = b.stats[stat] = 10
+        side_a, side_b = session.side_for(a), session.side_for(b)
+        side_a.verbose = True
+        side_b.tactic = DuelTactic.BASH
+        side_a.tactic = DuelTactic.PARRY
+        # advantage 100 (opp-bashed/own-parry terms cancel); roll 100 is a
+        # clean whiff, so self.a survives the contest and reaches its own
+        # _resolve_swing() call this round.
+        with patch('random.randint', return_value=50):
+            await session._resolve_round()
+        self.assertFalse(side_a.down)
+        commentary = '\n'.join(session._commentary)
+        self.assertIn('bash contest', commentary)
+        self.assertIn('strike chance mod', commentary)
+
+    async def test_basher_gets_no_swing_commentary_of_their_own(self):
+        from base_classes import PlayerStat
+        session, a, b = _make_session()
+        a.shield = b.shield = 30
+        for stat in (PlayerStat.EGY, PlayerStat.DEX, PlayerStat.STR):
+            a.stats[stat] = b.stats[stat] = 10
+        side_a, side_b = session.side_for(a), session.side_for(b)
+        side_b.tactic = DuelTactic.BASH
+        side_a.tactic = DuelTactic.PARRY
+        with patch('random.randint', return_value=50):
+            await session._resolve_round()
+        # Only one "strike chance mod" line this round -- self.a's swing.
+        # The basher (self.b) never reaches _swing() on their own turn.
+        strikes = sum('strike chance mod' in line for line in session._commentary)
+        self.assertEqual(strikes, 1)
 
 
 class TestPredictability(unittest.TestCase):
