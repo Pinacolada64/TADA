@@ -72,12 +72,25 @@ TADA IMPLICATIONS
 # CHANCE MOD"/"HIT CHANCE MOD" two-stage system (lines ~188-297), collapsed
 # into one stage -- not a byte-exact port of every percentage, but the same
 # rock-paper-scissors shape SPUR's numbers imply: Attack beats passive
-# Parry-spam less than you'd think (Parry actually *counters* Attack),
-# Bash punishes a Parry stance (knocks the parrier Down) but is risky
-# against a straight Attack, and matched tactics are a rough, lower-damage
-# clash. Repeating the same tactic 3+ times running gets read as
-# predictable (tac.bash's xu/zn/zp streak counters) and costs you a hit-
-# chance penalty, same idea as the original.
+# Parry-spam less than you'd think (Parry actually *counters* Attack), and
+# matched tactics are a rough, lower-damage clash. Repeating ATTACK/PARRY
+# 3+ times running gets read as predictable (_is_predictable(), a capped
+# last-3-tactic window) and costs a hit-chance penalty.
+#
+# Bash is NOT in that simplified table -- it's a full, separate port of
+# DUEL.S:424-484 "tac.bash" (_resolve_bash_contest(), resolved once per
+# round ahead of the normal per-side swing loop, whenever either side
+# chose Bash): shield-condition and carrying-capacity/"size" differentials,
+# EGY/DEX/STR mismatches, initiative, and real uncapped predictability
+# streaks (_DuelSide.parry_streak/attack_streak/bash_streak, SPUR's own
+# xu/zn/zp -- distinct from the capped _is_predictable() window above),
+# rolled in three bands: the basher overextends and falls, the defender
+# falls, or a clean whiff. Covers both the opponent-tactic modifiers
+# (DUEL.S:443-449) and the defending side's own-reaction modifiers
+# (DUEL.S:450-454) as independent conditions, so a mutual bash (both
+# sides choose it) resolves correctly too. See MECHANICS.md's Duels
+# section for the full writeup, including the one deliberate scope limit
+# kept (Bash costs the basher their turn here; SPUR's own bash never did).
 #
 # Shield/armor absorption (_absorb_shield_armor) is copied from combat/
 # resolution.py's monster_attacks() block math rather than imported,

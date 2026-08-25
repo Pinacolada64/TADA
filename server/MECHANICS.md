@@ -560,6 +560,37 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - ✅ **Territory capture** (Ryan's own extension, no SPUR precedent) — a
   guild-vs-guild duel win flips the room's `RoomAlignment` to the
   winner's guild, except HQ/`FREE_FIRE` rooms (`room_alignment.py`).
+- ✅ **Shield Bash knockdown contest** — full port of `SPUR.DUEL.S:424-484`
+  "tac.bash" (`combat/duel.py`'s `_resolve_bash_contest()`, resolved once
+  per round in `_resolve_round()` ahead of the normal per-side swing
+  loop, whenever either side chose Bash). A wide advantage score
+  (clamped 60-140) built from shield-condition differential,
+  carrying-capacity/"size" differential (`_carrying_capacity()`, the same
+  flat per-race table `SPUR.LOGON.S:208-212` uses for the player's own
+  value), predictability streaks (`_DuelSide.parry_streak`/
+  `attack_streak`/`bash_streak`, SPUR's `xu`/`zn`/`zp` — uncapped, reset
+  on any tactic switch), EGY/DEX/STR mismatches, and initiative, rolled
+  against a d100+50 in three bands (basher overextends and falls,
+  defender falls, clean whiff). Choosing Bash is gated on ≥6% shield
+  (`DUEL.S:32`, `_submit_tactic()`) and always costs the basher 3% shield
+  whether it lands or not (`DUEL.S:434-435`), routed through the same
+  `apply_equipment_degradation()` the rest of combat uses. Covers both
+  `DUEL.S:443-449` (modifiers keyed on the opponent's tactic) and
+  `:450-454` (modifiers keyed on the defending side's own reaction —
+  standing or attacking into a bash costs advantage, parrying cancels
+  the penalty out), evaluated as independent `if`s exactly like the
+  source, which also makes a mutual bash (both sides choose Bash)
+  resolve correctly — the two sides' flat base terms cancel
+  algebraically, leaving only the streak-predictability terms. **One
+  deliberate scope limit vs. source**: SPUR's bash never costs the
+  basher their normal swing — it always falls through into a regular
+  attack/attack1 exchange the same round (`DUEL.S:485`), with a
+  just-downed opponent getting a near-guaranteed follow-up hit. This
+  port keeps Bash as a turn-consuming action instead (the basher's own
+  swing this round is a no-op; a defender who reacted with something
+  else still gets their normal swing unless the contest itself knocked
+  them down) rather than restructuring the shared round-resolution loop
+  every duel tactic depends on.
 
 ### Not Implemented
 - **Autoduel** — offline defender; best weapon auto-selected by `zt+zs` score (`SPUR.DUEL2.S auto.c/opnt.wp:130-158` master / same lines skip, unchanged besides a `dx$`→`dw$` disk-var rename). `PlayerFlags.GUILD_AUTODUEL` exists but has no consuming logic yet. Per `TODO.md`'s existing AUTODUEL entry, this is really a **skip-exclusive command living in `SPUR.MISC5.S`**, not something master's mainline duel flow exposes on its own — worth MECHANICS.md eventually cross-linking that TODO.md entry directly.
