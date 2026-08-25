@@ -968,8 +968,14 @@ poke_line:
 poke_line_loop:
 poke_line_load:
         lda $ffff,x
+        beq poke_line_skip        ; 0 = transparent -- leave the dest
+                                    ; cell alone so whatever was behind
+                                    ; the window (the game text
+                                    ; JT_SAVE_SCREEN backed up, still on
+                                    ; screen at this point) keeps showing
 poke_line_store:
         sta $ffff,x
+poke_line_skip:
         inx
         cpx #40
         bne poke_line_loop

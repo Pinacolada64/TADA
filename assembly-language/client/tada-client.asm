@@ -491,7 +491,13 @@ init_jump_table_loop:
 ; including the status row) up into BACKUP_CHARS/BACKUP_COLORS and back,
 ; called through JT_SAVE_SCREEN/JT_RESTORE_SCREEN so any popup-window
 ; overlay module can save what's on screen, paint its own window over it,
-; then restore exactly what was there before -- moved resident (and out
+; then restore exactly what was there before. save_screen also greys the
+; whole screen's COLOR_RAM out (see grey_out_color below) right after
+; backing up the real colors, so game text still visible around/through
+; a popup window (see the 0-byte-in-window-data convention documented
+; on poke_line in each overlay module) reads as dimmed/inactive while
+; the popup has focus; restore_screen puts the real colors straight
+; back from BACKUP_COLORS, which grey_out_color never touches -- moved resident (and out
 ; of petscii_editor.asm, which used to keep a private copy of this exact
 ; mechanism for its own help overlay) so a second popup-style module
 ; (e.g. a config menu) doesn't need to duplicate the 2000-byte buffer
@@ -524,7 +530,46 @@ save_screen:
         sta copy_dst_lo
         lda #>BACKUP_COLORS
         sta copy_dst_hi
-        jmp copy_1000
+        jsr copy_1000
+        jmp grey_out_color
+
+; Greys out the whole screen's text once it's safely backed up in
+; BACKUP_COLORS -- Ryan's ask so whatever game text was showing reads as
+; dimmed/inactive behind a popup window, restored to its real colors by
+; restore_screen's own COLOR_RAM copy below (BACKUP_COLORS still holds
+; the pre-grey values, untouched by this). Self-modified-store loop,
+; same shape as config_menu.asm's own fill_bytes -- not reused directly
+; since that copy is local to config_menu.asm's own overlay and this
+; needs to run resident, from save_screen, before any overlay is even
+; loaded.
+POPUP_GREY_COLOR = 12            ; C64 color 12 -- medium grey
+
+grey_out_color:
+        lda #<COLOR_RAM
+        sta grey_out_store+1
+        lda #>COLOR_RAM
+        sta grey_out_store+2
+        lda #<SCREEN_CELLS
+        sta copy_remaining_lo
+        lda #>SCREEN_CELLS
+        sta copy_remaining_hi
+grey_out_loop:
+        lda #POPUP_GREY_COLOR
+grey_out_store:
+        sta $ffff
+        inc grey_out_store+1
+        bne grey_out_no_carry
+        inc grey_out_store+2
+grey_out_no_carry:
+        lda copy_remaining_lo
+        bne grey_out_dec_lo
+        dec copy_remaining_hi
+grey_out_dec_lo:
+        dec copy_remaining_lo
+        lda copy_remaining_lo
+        ora copy_remaining_hi
+        bne grey_out_loop
+        rts
 
 restore_screen:
         lda #<BACKUP_CHARS
