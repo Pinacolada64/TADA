@@ -315,7 +315,7 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
             else:
                 p.record_item_pickup(iid)
             logging.debug(
-                "%s: recorded %s (id=%s) in %s history",
+                "%s: recorded %i (id=%s) in %s history",
                 p.name, iid, 'ration' if is_ration else 'item',
             )
 
