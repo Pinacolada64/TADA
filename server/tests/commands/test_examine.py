@@ -297,6 +297,23 @@ class TestExamineOrdinaryFallback(unittest.TestCase):
         self.assertEqual(_examine_item(ctx, 'rocks', item),
                           'These rocks are treasures. They look pretty ordinary..')
 
+    def test_reloaded_ration_reports_food_not_an_unrelated_objects_json_type(self):
+        # A ration surviving a save-file round trip (Inventory.from_json())
+        # comes back as a bare Item, never a real Rations instance -- but
+        # its category IS reliably FOOD/DRINK. Regression test for the bug
+        # where examine ignored .category and fell through to matching the
+        # ration's id_number against objects.json instead of rations.json,
+        # e.g. TEA (rations.json #1, a drink) reported as objects.json #1
+        # ("compass") -- "This TEA is a compass."
+        server = _FakeServer(
+            rations=[{'number': 1, 'name': 'TEA', 'kind': 'drink'}],
+            items=[{'number': 1, 'name': 'compass', 'type': 'compass'}],
+        )
+        item = Item(id_number=1, name='TEA', category=ItemCategory.DRINK, kind='drink')
+        ctx = _FakeCtx(_player(), server)
+        self.assertEqual(_examine_item(ctx, 'TEA', item),
+                          'This TEA is a drink. It looks pretty ordinary..')
+
 
 class TestExamineStatue(unittest.TestCase):
     """A room statue (commands/get.py's is_statue pseudo-item, set by
