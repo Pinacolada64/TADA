@@ -118,12 +118,17 @@ class EditPlayerCommand(Command):
         # edit -- ctx.send()/ctx.prompt() format against ctx.player.
         # client_settings, and a freshly-loaded target only has default
         # settings, not the admin's actual screen width/translation/return
-        # key.
+        # key. Must be restored below before any save, or the admin's
+        # settings get persisted into the target's save file (found live:
+        # editing Gadget's inventory clobbered her terminal settings with
+        # the admin's).
+        target_client_settings = target.client_settings
         target.client_settings = admin.client_settings
         try:
             await run_menu(ctx, _build_main_menu(ctx))
         finally:
             ctx.player = admin
+            target.client_settings = target_client_settings
 
         if getattr(target, 'unsaved_changes', False):
             raw = await ctx.prompt(f'Save changes to {target.name}? (Y/N)')
