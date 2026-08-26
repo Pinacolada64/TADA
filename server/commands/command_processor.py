@@ -278,6 +278,11 @@ class CommandProcessor:
         if len(parts[0]) > 1 and parts[0].startswith('"'):
             parts = ['"', parts[0][1:]] + parts[1:]
 
+        # Split ':waves' into [':', 'waves'] so PoseCommand receives the
+        # emote text when the player uses the bare : shortcut without a space.
+        if len(parts[0]) > 1 and parts[0].startswith(':'):
+            parts = [':', parts[0][1:]] + parts[1:]
+
         cmd, _ = self.find_command(parts[0])
         args   = parts[1:]
         if cmd is None:
