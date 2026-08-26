@@ -75,15 +75,19 @@ class TestVerifyPassword(unittest.TestCase):
 
 
 class _FakePlayer:
-    def __init__(self, player_id):
+    def __init__(self, player_id, is_admin=False):
         self.id = player_id
+        self._is_admin = is_admin
+
+    def query_flag(self, flag):
+        return self._is_admin
 
 
 class _FakeCtx:
-    def __init__(self, responses, player_id='rulan'):
+    def __init__(self, responses, player_id='rulan', is_admin=False):
         self._q = list(responses)
         self.sent: list = []
-        self.player = _FakePlayer(player_id)
+        self.player = _FakePlayer(player_id, is_admin=is_admin)
 
     async def send(self, *args):
         for a in args:
@@ -192,6 +196,41 @@ class TestPasswordCommand(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result.success)
         creds = self._read_creds('rulan')
         self.assertTrue(creds['password'].startswith('$2b$'))
+
+    async def test_admin_reset_other_account_skips_current_password_prompt(self):
+        self._write_creds('victim', hash_password('oldpw'))
+        ctx = _FakeCtx(['newpw123', 'newpw123'], player_id='admin1', is_admin=True)
+        result = await PasswordCommand().execute(ctx, 'victim')
+        self.assertTrue(result.success)
+        creds = self._read_creds('victim')
+        matched, _ = verify_password('newpw123', creds['password'])
+        self.assertTrue(matched)
+
+    async def test_admin_reset_unknown_account_fails(self):
+        ctx = _FakeCtx([], player_id='admin1', is_admin=True)
+        result = await PasswordCommand().execute(ctx, 'ghost')
+        self.assertFalse(result.success)
+        self.assertEqual(result.error, 'no_such_account')
+
+    async def test_non_admin_target_argument_ignored_changes_own_password(self):
+        # A regular user passing an argument isn't an admin target -- it's
+        # ignored, and their own current-password prompt still runs.
+        self._write_creds('rulan', hash_password('oldpw'))
+        ctx = _FakeCtx(['oldpw', 'newpw123', 'newpw123'], player_id='rulan', is_admin=False)
+        result = await PasswordCommand().execute(ctx, 'someoneelse')
+        self.assertTrue(result.success)
+        creds = self._read_creds('rulan')
+        matched, _ = verify_password('newpw123', creds['password'])
+        self.assertTrue(matched)
+
+    async def test_admin_changing_own_password_still_prompts_current_password(self):
+        self._write_creds('admin1', hash_password('oldpw'))
+        ctx = _FakeCtx(['oldpw', 'newpw123', 'newpw123'], player_id='admin1', is_admin=True)
+        result = await PasswordCommand().execute(ctx)
+        self.assertTrue(result.success)
+        creds = self._read_creds('admin1')
+        matched, _ = verify_password('newpw123', creds['password'])
+        self.assertTrue(matched)
 
 
 if __name__ == '__main__':
