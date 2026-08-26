@@ -26,6 +26,9 @@ Settings managed here
                       client_settings.colors.highlight_color
   N  News Display     command_settings.news.show_all  (New only / Full directory)
   W  Movement Keys    command_settings.wasd_movement  (Compass / WASD)
+  Y  Say Split        command_settings.say.split      (On / Off) — a ',,'
+                      in a 'say' splits it into a mid-sentence attribution
+                      (commands/say.py)
   T  Client Type      client_settings.screen_columns/screen_rows/translation
                       — presets (C64/C128/TADA client) or a custom size.
                         Available over a real PETSCII connection too (a
@@ -143,6 +146,16 @@ _SETTING_HELP: dict[str, list[str]] = {
         "for north/west/south/east instead (u still means Up). Full "
         "words (north, south, ...) and 'go <direction>' always work "
         "either way.",
+        '',
+    ],
+    'y': [
+        '',
+        '|cyan|Say Split|reset|',
+        "If enabled, a ',,' inside a SAY splits the line into a "
+        'mid-sentence attribution instead of one leading quote: '
+        '\'say This is something,,up with which I will not put!\' shows '
+        'as "This is something," you exclaim, "up with which I will not '
+        'put!" instead of "You exclaim, ...". Off by default.',
         '',
     ],
 }
@@ -424,8 +437,10 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         wasd = getattr(ctx.player.command_settings, 'wasd_movement', False)
         t.add_row(['W', 'Movement Keys',
                    'Inverted T (WASD)' if wasd else 'Compass directions (N/E/S/W)', 'hw'])
+        say_split = getattr(ctx.player.command_settings.say, 'split', False)
+        t.add_row(['Y', 'Say Split', 'On' if say_split else 'Off', 'hy'])
 
-        valid_keys = ['X', 'M', 'P', 'C', 'N', 'T', 'D', 'W']
+        valid_keys = ['X', 'M', 'P', 'C', 'N', 'T', 'D', 'W', 'Y']
         keys_str   = ' '.join(valid_keys)
         return_key = getattr(cs, 'return_key', 'Enter')
         menu = (
@@ -467,6 +482,8 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
                       'format, hourglass clock)'),
                 ('W', 'Toggle Movement Keys (Compass directions / '
                       'Inverted T WASD)'),
+                ('Y', "Toggle Say Split (',,' in a say splits into a "
+                      "mid-sentence attribution)"),
             ]
             help_lines = (
                 ['', '|yellow|PREFS Options|reset|', '']
@@ -533,6 +550,12 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
             cs3 = ctx.player.command_settings
             cs3.wasd_movement = not getattr(cs3, 'wasd_movement', False)
             await ctx.send(f"{option}{'|green|Inverted T (WASD)' if cs3.wasd_movement else '|green|Compass directions (N/E/S/W)'}|reset|")
+
+        elif ans == 'y':
+            option = "|white|Say Split: "
+            say_settings = ctx.player.command_settings.say
+            say_settings.split = not getattr(say_settings, 'split', False)
+            await ctx.send(f"{option}{'|green|On' if say_settings.split else '|red|Off'}|reset|")
 
         else:
             await ctx.send(f'Choose {",".join(valid_keys)}, or press {return_key} to save and exit.')
