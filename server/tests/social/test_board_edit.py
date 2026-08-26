@@ -208,6 +208,37 @@ class TestSigManagement(BoardEditTestCase):
         self.assertNotIn('Board: Alpha', preambles)
         self.assertIn('Board: Beta', preambles)
 
+    def _seed_sig_plus_orphan_board(self):
+        # 'General' holds Alpha only; Beta exists but isn't in any SIG --
+        # the only board 'A<range>' has anything to offer from.
+        board_store.sigs.save_sigs({'sigs': [{'id': 1, 'name': 'General', 'board_ids': [1]}]},
+                                    self.sigs_path)
+        board_store.meta.save_meta({'boards': {
+            '1': {'id': 1, 'name': 'Alpha', 'anonymous_mode': 'ask', 'access': {'type': 'any'}, 'admins': []},
+            '2': {'id': 2, 'name': 'Beta', 'anonymous_mode': 'ask', 'access': {'type': 'any'}, 'admins': []},
+        }}, self.meta_path)
+
+    def test_add_range_adds_existing_board_to_sig(self):
+        self._seed_sig_plus_orphan_board()
+        ctx = make_ctx(prompts=['s', '1', 'A1', '', '', ''])
+        run(edit_board_settings(ctx))
+        saved = board_store.sigs.load_sigs(self.sigs_path)
+        self.assertEqual(saved['sigs'][0]['board_ids'], [1, 2])
+
+    def test_bare_add_lists_candidates_without_adding(self):
+        self._seed_sig_plus_orphan_board()
+        ctx = make_ctx(prompts=['s', '1', 'A', '', '', ''])
+        run(edit_board_settings(ctx))
+        self.assertIn('Beta', str(ctx.send.call_args_list))
+        saved = board_store.sigs.load_sigs(self.sigs_path)
+        self.assertEqual(saved['sigs'][0]['board_ids'], [1])  # unchanged -- bare A doesn't add
+
+    def test_add_when_every_board_already_in_sig(self):
+        self._seed_sig_and_board()  # single board, already in the sole SIG
+        ctx = make_ctx(prompts=['s', '1', 'A', '', '', ''])
+        run(edit_board_settings(ctx))
+        self.assertIn('already in this SIG', str(ctx.send.call_args_list))
+
 
 class TestBoardManagement(BoardEditTestCase):
     def test_rename_board(self):

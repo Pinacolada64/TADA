@@ -202,6 +202,7 @@ async def _sig_detail(ctx, sigs_data: dict, meta_data: dict, sig: dict) -> None:
         lines += [
             '  R  Rename', '  X  Delete (only if it has no boards)',
             '  O  Reorder (move to a new position in the SIG list)',
+            '  A<range>  Add existing board(s) into this SIG, e.g. A1,3-4',
             '  E<range>  Edit board(s) one at a time, e.g. E1, E2-4',
             '  L<range>  List a range of boards, e.g. L1-4',
             f'({ctx.player.return_key} to go back)', '',
@@ -229,12 +230,45 @@ async def _sig_detail(ctx, sigs_data: dict, meta_data: dict, sig: dict) -> None:
                 return
         elif lower == 'o':
             await _move_to_position(ctx, sigs_data['sigs'], sig, name=sig.get('name', '(unnamed)'))
+        elif lower.startswith('a'):
+            await _add_boards_to_sig(ctx, meta_data, sig, choice[1:].strip())
         elif lower.startswith('e'):
             await _edit_boards_in_range(ctx, sigs_data, meta_data, board_ids, choice[1:].strip())
         elif lower.startswith('l'):
             await _list_boards_range(ctx, meta_data, board_ids, choice[1:].strip())
         else:
             await ctx.send(f"Unrecognized choice '{choice}'.")
+
+
+async def _add_boards_to_sig(ctx, meta_data: dict, sig: dict, range_str: str) -> None:
+    """'A<range>' -- add existing board(s) into this SIG (i.e. 'share',
+    same as a board's own [H]are action in _board_detail(), just exposed
+    as a quick range-command from the SIG's own detail screen instead of
+    needing to go find each board individually). Candidates are every
+    board not already in this SIG, numbered fresh each time -- a bare
+    'A' (no range) shows that numbered list without adding anything, so
+    an admin can see what's available before typing a real range,
+    mirroring '.l's own bare-shows-everything convention."""
+    from text_editor import parse_multi_select
+
+    already_in = set(sig.get('board_ids', []))
+    candidates = [bid for bid in sorted(int(k) for k in meta_data.get('boards', {}).keys())
+                  if bid not in already_in]
+    if not candidates:
+        await ctx.send('Every board is already in this SIG.')
+        return
+    if not range_str:
+        lines = [''] + [f'  {i}. {_board_name(meta_data, bid)}' for i, bid in enumerate(candidates, 1)] + ['']
+        await ctx.send(lines)
+        return
+    picks = parse_multi_select(range_str, len(candidates))
+    if not picks:
+        await ctx.send(f"'{range_str}' didn't select any board.")
+        return
+    added_ids = [candidates[i - 1] for i in picks]
+    sig.setdefault('board_ids', []).extend(added_ids)
+    names = ', '.join(_board_name(meta_data, bid) for bid in added_ids)
+    await ctx.send(f'Added: {names}.')
 
 
 def _board_listing_lines(meta_data: dict, board_ids: list[int]) -> list[str]:
