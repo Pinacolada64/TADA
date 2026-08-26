@@ -104,7 +104,13 @@ class SayCommand(Command):
             "Broadcasts a message to all players in your room. "
             "The verb changes based on punctuation: "
             "? = asks, ! = exclaims, ... = mutters, otherwise says. "
-            'The " shortcut works without typing "say" first.'
+            'The " shortcut works without typing "say" first. '
+            "'say #verb=<word>' sets a permanent custom verb instead, "
+            "overriding punctuation entirely -- 'say #verb' previews it, "
+            "'say #verb=off' clears it. With Say Split turned on in PREFS "
+            "('Y'), a ',,' in your message splits it into a mid-sentence "
+            "attribution, and a ',,,' attaches a one-off verb right after "
+            "the quote instead."
         ),
         category = HelpCategory.COMMUNICATION,
         usage    = [
@@ -142,6 +148,11 @@ class SayCommand(Command):
                                     "'say #verb' alone previews the current verb "
                                     "without saying anything, and 'say #verb=off' "
                                     'clears it.'),
+        ],
+        notes = [
+            "Say Split (PREFS 'Y') must be on for ',,' and ',,,' to do "
+            "anything special -- otherwise they're just literal commas.",
+            "'say #verb=off' also accepts 'say #verb=' and 'say #verb=none'.",
         ],
     )
 
