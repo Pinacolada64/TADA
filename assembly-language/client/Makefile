@@ -98,15 +98,19 @@ $(TARGET)-vice-labels: $(TARGET).prg
 	$(CONVERT_LABELS) $(TARGET)_pp.sym $(TARGET)-vice-labels
 
 # Step 4: generate VICE monitor commands to auto-load labels
-# TEMP (2026-08-17, Ryan+Claude live debugging the play-#test SID-stream
-# hang): also auto-arms watchpoints on sid_mode/sid_remaining_lo/hi so
-# they survive killing and relaunching VICE between attempts -- a fresh
-# remote-monitor connection doesn't carry over watchpoints set on a
-# previous VICE process. Revert to just the `ll` line once that bug's
-# found and fixed.
+# The 2026-08-25 "prefs -> t -> v" crash-to-BASIC (config_menu.asm's own
+# loaded code getting overwritten by save_screen's screen/color backup --
+# see tada-client.asm's OVERLAY_BUF comment) is root-caused and fixed
+# (OVERLAY_BUF moved $2000 -> $4000), so the `watch exec $244c` used to
+# bisect it is gone -- that was always a raw address into config_menu.
+# asm's own non-resident overlay, never meant to outlive that one crash.
+# `> $d018 $14` stays: a still-useful live workaround for the separate,
+# still-unresolved char-ptr-drift bug (see [[project_async_prompt_status_
+# line]] in project memory) that otherwise leaves the screen unreadable
+# on launch.
 monitor-commands: $(TARGET)-vice-labels
 	echo "ll \"$(TARGET)-vice-labels\"" > monitor-commands
-	echo "watch store 0314 0319" >> monitor-commands
+	echo "> \$$d018 \$$14" >> monitor-commands
 
 # Default target: build everything
 all: $(TARGET).prg $(TARGET)-vice-labels monitor-commands $(addsuffix .prg,$(MODULES))

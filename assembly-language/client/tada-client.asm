@@ -131,15 +131,33 @@
 ; `=` is a real c64list symbol, resolved globally across {include:}s.
 KERNAL_PLOT = $fff0
 
-; Where the petscii_editor overlay module loads and runs. Chosen well
-; clear of both this resident program's own growth (currently topping
-; out well under $1000 -- see tada-client-vice-labels after a build for
-; the exact current top) and the screen/color RAM/KERNAL-adjacent low
-; page usage below -- leaves the module ~32K of contiguous RAM up to
-; $9fff (BASIC ROM, banked in throughout per this client's design, starts
-; at $a000) to work with, far more than a 2000-byte canvas buffer plus
-; editor code needs.
-{const: OVERLAY_BUF $2000}
+; Where every loadable overlay module (petscii_editor.asm, config_menu.asm,
+; help_menu.asm -- each with its own matching `orig $4000`, hand-kept in
+; sync since none of them {include:} this file) loads and runs.
+; Was $2000 until 2026-08-25, when Ryan+Claude tracked a live "prefs -> t
+; -> v" crash-to-BASIC to exactly this address colliding with this
+; resident program's own trailing buffers: `rx_buf`/`SID_BUF`/
+; `BACKUP_CHARS`/`BACKUP_COLORS` (see save_screen/restore_screen's own
+; comment) had grown to occupy $2000-$29d0, so any popup module big
+; enough to reach into that range got its own loaded code overwritten by
+; save_screen's screen/color backup the moment JT_SAVE_SCREEN ran --
+; confirmed live via a `watch exec` on config_menu.asm's recv_length_
+; prefix landing on stomped memory (repeated $20 space bytes where a JSR
+; opcode should have been). The old comment here claimed this resident
+; program's own growth topped out "well under $1000" -- true when
+; $2000 was first picked, false by the time the SID engine/double-
+; buffering work pushed it past $2000 without anyone re-checking this
+; boundary. $4000 leaves the module ~32K of contiguous RAM up to $9fff
+; (BASIC ROM, banked in throughout per this client's design, starts at
+; $a000) to work with -- far more than any current overlay (largest so
+; far, petscii_editor.prg, is ~4.2K) needs, with real headroom this time
+; for this resident program to keep growing without repeating today's
+; collision. The gothic charset (CHARGEN_DEST, $d000) and both screen
+; double-buffers (SCREEN_BUF_A/B, $c400/$c800) live in bank 3's own RAM,
+; only reachable via the $01=$30 all-RAM trick -- entirely separate
+; address space from ordinary CPU-visible RAM at $4000, so neither one
+; is a collision risk for the new OVERLAY_BUF location.
+{const: OVERLAY_BUF $4000}
 
 ; Fixed low-page jump table the petscii_editor overlay (and any future
 ; loadable module) calls through instead of depending on this resident

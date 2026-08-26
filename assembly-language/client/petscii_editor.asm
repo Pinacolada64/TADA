@@ -87,7 +87,11 @@ SCREEN_CELLS = 1000
 scr_ptr_lo = $fb
 scr_ptr_hi = $fc
 
-        orig $2000
+; Load/run address moved $2000 -> $4000 2026-08-25 -- see tada-client.
+; asm's own OVERLAY_BUF comment for the full story (this module's own
+; loaded code was getting overwritten by save_screen's screen/color
+; backup, which had grown to occupy part of the old $2000 range).
+        orig $4000
 
 module_start:
         jsr recv_length_prefix   ; discarded -- always exactly 1920 for a

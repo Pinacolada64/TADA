@@ -36,7 +36,11 @@ BOX_ROWS    = 12
 ; SCREEN_RAM/COLOR_RAM/CHROUT/GETIN are macro_preprocessor.py built-ins
 ; (C64_CONSTANTS) -- no {const:} needed for those here.
 
-        orig $2000
+; Load/run address moved $2000 -> $4000 2026-08-25 -- see tada-client.
+; asm's own OVERLAY_BUF comment for the full story (this module's own
+; loaded code was getting overwritten by save_screen's screen/color
+; backup, which had grown to occupy part of the old $2000 range).
+        orig $4000
 
 module_start:
         jsr JT_SAVE_SCREEN        ; back up whatever's on screen right now
