@@ -105,12 +105,12 @@ class SayCommand(Command):
             "The verb changes based on punctuation: "
             "? = asks, ! = exclaims, ... = mutters, otherwise says. "
             'The " shortcut works without typing "say" first. '
+            "With Say Split turned on in PREFS ('Y'), a ',,' in your "
+            "message splits it into a mid-sentence attribution, and a "
+            "',,,' attaches a one-off verb right after the quote instead.\n\n"
             "'say #verb=<word>' sets a permanent custom verb instead, "
             "overriding punctuation entirely -- 'say #verb' previews it, "
-            "'say #verb=off' clears it. With Say Split turned on in PREFS "
-            "('Y'), a ',,' in your message splits it into a mid-sentence "
-            "attribution, and a ',,,' attaches a one-off verb right after "
-            "the quote instead."
+            "'say #verb=off' clears it."
         ),
         category = HelpCategory.COMMUNICATION,
         usage    = [
