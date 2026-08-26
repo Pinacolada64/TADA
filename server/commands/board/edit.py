@@ -197,7 +197,7 @@ async def _sig_detail(ctx, sigs_data: dict, meta_data: dict, sig: dict) -> None:
         lines = [
             '', f"|yellow|SIG: {sig.get('name', '(unnamed)')}|reset|", '',
             '  R  Rename', '  X  Delete (only if it has no boards)',
-            '  U  Move up', '  D  Move down', '',
+            '  O  Reorder (move to a new position in the SIG list)', '',
         ]
         raw = await ctx.prompt(f'Change which (or {ctx.player.return_key} to go back)', preamble_lines=lines)
         if raw is None or not raw.strip():
@@ -219,17 +219,33 @@ async def _sig_detail(ctx, sigs_data: dict, meta_data: dict, sig: dict) -> None:
                 sigs_data['sigs'].remove(sig)
                 await ctx.send(f"SIG '{sig.get('name', '(unnamed)')}' deleted.")
                 return
-        elif choice in ('u', 'd'):
-            _reorder(sigs_data['sigs'], sig, up=(choice == 'u'))
+        elif choice == 'o':
+            await _move_to_position(ctx, sigs_data['sigs'], sig, name=sig.get('name', '(unnamed)'))
         else:
             await ctx.send(f"Unrecognized choice '{choice}'.")
 
 
-def _reorder(items: list, item, *, up: bool) -> None:
-    i = items.index(item)
-    j = i - 1 if up else i + 1
-    if 0 <= j < len(items):
-        items[i], items[j] = items[j], items[i]
+async def _move_to_position(ctx, items: list, item, *, name: str) -> None:
+    """ImageBBS-style reorder (Ryan's call, over an up/down nudge):
+    'Move <name> before which? (1-N)', N being *items*' own current
+    length (item included) so the numbering matches what the caller's
+    own numbered listing just showed. Inserting at position N (the last
+    slot) means "after everything else", same as ed-style range clamping
+    elsewhere in this game (see text_editor.py's process_line_range_string).
+    *items* can hold anything (SIG dicts, or plain board-id ints for
+    reordering within a SIG's board_ids) -- *name* is passed in rather
+    than pulled off *item* since a plain int has no .get('name')."""
+    raw = await ctx.prompt(f'Move {name} before which? (1-{len(items)})')
+    if raw is None or not raw.strip() or not raw.strip().isdigit():
+        await ctx.send('Cancelled.')
+        return
+    target = int(raw.strip())
+    if not (1 <= target <= len(items)):
+        await ctx.send(f'Not a valid position (1-{len(items)}).')
+        return
+    items.remove(item)
+    items.insert(min(target - 1, len(items)), item)
+    await ctx.send(f'Moved {name}.')
 
 
 # ---------------------------------------------------------------------
@@ -267,7 +283,7 @@ async def _board_detail(ctx, sigs_data: dict, meta_data: dict, board_id: int) ->
             f"  Admins: {', '.join(board.get('admins', [])) or '(none)'}",
             '',
             '  R  Rename', '  M  Move to another SIG', '  H  Share into another SIG',
-            '  U  Move up (within its SIG)', '  D  Move down (within its SIG)',
+            '  O  Reorder (move to a new position within its SIG)',
             '  A  Set anonymous-posting mode', '  G  Set access gate',
             '  P  Manage admins', '  X  Delete (only if it has no threads)',
             '',
@@ -283,8 +299,8 @@ async def _board_detail(ctx, sigs_data: dict, meta_data: dict, board_id: int) ->
             await _move_board(ctx, sigs_data, meta_data, board_id)
         elif choice == 'h':
             await _share_board(ctx, sigs_data, meta_data, board_id)
-        elif choice in ('u', 'd'):
-            await _reorder_board(ctx, sigs_data, board_id, up=(choice == 'u'))
+        elif choice == 'o':
+            await _reorder_board(ctx, sigs_data, meta_data, board_id)
         elif choice == 'a':
             await _edit_anonymous_mode(ctx, meta_data, board_id)
         elif choice == 'g':
@@ -354,7 +370,7 @@ async def _share_board(ctx, sigs_data: dict, meta_data: dict, board_id: int) -> 
     await ctx.send(f"Shared '{_board_name(meta_data, board_id)}' into: {names}.")
 
 
-async def _reorder_board(ctx, sigs_data: dict, board_id: int, *, up: bool) -> None:
+async def _reorder_board(ctx, sigs_data: dict, meta_data: dict, board_id: int) -> None:
     containing = _sigs_containing(sigs_data, board_id)
     if not containing:
         await ctx.send("This board isn't in any SIG.")
@@ -368,7 +384,7 @@ async def _reorder_board(ctx, sigs_data: dict, board_id: int, *, up: bool) -> No
             await ctx.send('Pick exactly one SIG.')
             return
         sig = picks[0]
-    _reorder(sig['board_ids'], board_id, up=up)
+    await _move_to_position(ctx, sig['board_ids'], board_id, name=_board_name(meta_data, board_id))
 
 
 async def _edit_anonymous_mode(ctx, meta_data: dict, board_id: int) -> None:

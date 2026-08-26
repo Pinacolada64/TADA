@@ -138,10 +138,23 @@ class TestSigManagement(BoardEditTestCase):
             {'id': 1, 'name': 'First', 'board_ids': []},
             {'id': 2, 'name': 'Second', 'board_ids': []},
         ]}, self.sigs_path)
-        ctx = make_ctx(prompts=['s', '2', 'u', '', '', ''])
+        # ImageBBS-style "Move <name> before which?" prompt, not an
+        # up/down nudge -- move Second to position 1.
+        ctx = make_ctx(prompts=['s', '2', 'o', '1', '', '', ''])
         run(edit_board_settings(ctx))
         saved = board_store.sigs.load_sigs(self.sigs_path)
         self.assertEqual([s['name'] for s in saved['sigs']], ['Second', 'First'])
+
+    def test_reorder_sig_out_of_range_position_rejected(self):
+        board_store.sigs.save_sigs({'sigs': [
+            {'id': 1, 'name': 'First', 'board_ids': []},
+            {'id': 2, 'name': 'Second', 'board_ids': []},
+        ]}, self.sigs_path)
+        ctx = make_ctx(prompts=['s', '1', 'o', '99', '', '', ''])
+        run(edit_board_settings(ctx))
+        self.assertIn('Not a valid position', str(ctx.send.call_args_list))
+        saved = board_store.sigs.load_sigs(self.sigs_path)
+        self.assertEqual([s['name'] for s in saved['sigs']], ['First', 'Second'])
 
 
 class TestBoardManagement(BoardEditTestCase):
@@ -249,7 +262,7 @@ class TestBoardManagement(BoardEditTestCase):
             '1': {'id': 1, 'name': 'Alpha', 'anonymous_mode': 'ask', 'access': {'type': 'any'}, 'admins': []},
             '2': {'id': 2, 'name': 'Beta', 'anonymous_mode': 'ask', 'access': {'type': 'any'}, 'admins': []},
         }}, self.meta_path)
-        ctx = make_ctx(prompts=['b', '2', 'u', '', '', ''])
+        ctx = make_ctx(prompts=['b', '2', 'o', '1', '', '', ''])
         run(edit_board_settings(ctx))
         saved = board_store.sigs.load_sigs(self.sigs_path)
         self.assertEqual(saved['sigs'][0]['board_ids'], [2, 1])
