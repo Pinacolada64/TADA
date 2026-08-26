@@ -194,18 +194,25 @@ async def _add_sig(ctx, sigs_data: dict) -> None:
 
 async def _sig_detail(ctx, sigs_data: dict, meta_data: dict, sig: dict) -> None:
     while True:
+        board_ids = sig.get('board_ids', [])
         lines = [
             '', f"|yellow|SIG: {sig.get('name', '(unnamed)')}|reset|", '',
+        ]
+        lines += _board_listing_lines(meta_data, board_ids) if board_ids else ['  (no boards)', '']
+        lines += [
             '  R  Rename', '  X  Delete (only if it has no boards)',
             '  O  Reorder (move to a new position in the SIG list)',
+            '  E<range>  Edit board(s) one at a time, e.g. E1, E2-4',
+            '  L<range>  List a range of boards, e.g. L1-4',
             f'({ctx.player.return_key} to go back)', '',
         ]
         raw = await ctx.prompt('Change which', preamble_lines=lines)
         if raw is None or not raw.strip():
             return
-        choice = raw.strip().lower()
+        choice = raw.strip()
+        lower = choice.lower()
 
-        if choice == 'r':
+        if lower == 'r':
             raw_name = await ctx.prompt('New name')
             new_name = (raw_name or '').strip()
             if new_name:
@@ -213,17 +220,63 @@ async def _sig_detail(ctx, sigs_data: dict, meta_data: dict, sig: dict) -> None:
                 await ctx.send(f"Renamed to '{new_name}'.")
             else:
                 await ctx.send('Cancelled.')
-        elif choice == 'x':
+        elif lower == 'x':
             if sig.get('board_ids'):
                 await ctx.send('That SIG still has boards in it -- move or delete them first.')
             else:
                 sigs_data['sigs'].remove(sig)
                 await ctx.send(f"SIG '{sig.get('name', '(unnamed)')}' deleted.")
                 return
-        elif choice == 'o':
+        elif lower == 'o':
             await _move_to_position(ctx, sigs_data['sigs'], sig, name=sig.get('name', '(unnamed)'))
+        elif lower.startswith('e'):
+            await _edit_boards_in_range(ctx, sigs_data, meta_data, board_ids, choice[1:].strip())
+        elif lower.startswith('l'):
+            await _list_boards_range(ctx, meta_data, board_ids, choice[1:].strip())
         else:
             await ctx.send(f"Unrecognized choice '{choice}'.")
+
+
+def _board_listing_lines(meta_data: dict, board_ids: list[int]) -> list[str]:
+    return [f'  {i}. {_board_name(meta_data, bid)}' for i, bid in enumerate(board_ids, 1)] + ['']
+
+
+async def _edit_boards_in_range(ctx, sigs_data: dict, meta_data: dict,
+                                 board_ids: list[int], range_str: str) -> None:
+    """'E<range>' -- mirrors text_editor.py's own '.e' dot-command: a
+    blank range defaults to just the last board (DefaultLineRange.
+    LAST_LINE, same as '.e' with no argument), and each selected board
+    is opened one at a time via _board_detail(), not as a bulk-edit
+    across all of them at once."""
+    from text_editor import parse_multi_select
+
+    if not board_ids:
+        await ctx.send('This SIG has no boards.')
+        return
+    if not range_str:
+        picks = [len(board_ids)]
+    else:
+        picks = parse_multi_select(range_str, len(board_ids))
+        if not picks:
+            await ctx.send(f"'{range_str}' didn't select any board.")
+            return
+    for i in picks:
+        await _board_detail(ctx, sigs_data, meta_data, board_ids[i - 1])
+
+
+async def _list_boards_range(ctx, meta_data: dict, board_ids: list[int], range_str: str) -> None:
+    """'L<range>' -- mirrors text_editor.py's own '.l' dot-command: a
+    blank range lists every board (DefaultLineRange.ALL_LINES)."""
+    from text_editor import Buffer, DefaultLineRange, Line, process_line_range_string
+
+    if not board_ids:
+        await ctx.send('This SIG has no boards.')
+        return
+    buffer = Buffer(lines=[Line() for _ in board_ids])
+    line_range = process_line_range_string(range_str, buffer, DefaultLineRange.ALL_LINES)
+    indices = buffer.line_slice(line_range)
+    lines = [''] + [f'  {i + 1}. {_board_name(meta_data, board_ids[i])}' for i in indices] + ['']
+    await ctx.send(lines)
 
 
 async def _move_to_position(ctx, items: list, item, *, name: str) -> None:

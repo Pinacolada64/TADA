@@ -156,6 +156,58 @@ class TestSigManagement(BoardEditTestCase):
         saved = board_store.sigs.load_sigs(self.sigs_path)
         self.assertEqual([s['name'] for s in saved['sigs']], ['First', 'Second'])
 
+    def _seed_sig_with_two_boards(self):
+        board_store.sigs.save_sigs({'sigs': [{'id': 1, 'name': 'General', 'board_ids': [1, 2]}]},
+                                    self.sigs_path)
+        board_store.meta.save_meta({'boards': {
+            '1': {'id': 1, 'name': 'Alpha', 'anonymous_mode': 'ask', 'access': {'type': 'any'}, 'admins': []},
+            '2': {'id': 2, 'name': 'Beta', 'anonymous_mode': 'ask', 'access': {'type': 'any'}, 'admins': []},
+        }}, self.meta_path)
+
+    def test_sig_detail_lists_its_boards(self):
+        self._seed_sig_with_two_boards()
+        ctx = make_ctx(prompts=['s', '1', '', '', ''])
+        run(edit_board_settings(ctx))
+        preambles = str(ctx.prompt.call_args_list)
+        self.assertIn('Alpha', preambles)
+        self.assertIn('Beta', preambles)
+
+    def test_list_range_shows_only_that_range(self):
+        # 'L1-1' -- text_editor.py's own '.l' dot-command convention,
+        # a blank range instead lists everything (see the next test).
+        self._seed_sig_with_two_boards()
+        ctx = make_ctx(prompts=['s', '1', 'L1-1', '', '', ''])
+        run(edit_board_settings(ctx))
+        listed = str(ctx.send.call_args_list)
+        self.assertIn('Alpha', listed)
+        self.assertNotIn('Beta', listed)
+
+    def test_bare_list_shows_every_board(self):
+        self._seed_sig_with_two_boards()
+        ctx = make_ctx(prompts=['s', '1', 'L', '', '', ''])
+        run(edit_board_settings(ctx))
+        listed = str(ctx.send.call_args_list)
+        self.assertIn('Alpha', listed)
+        self.assertIn('Beta', listed)
+
+    def test_edit_range_opens_each_board_detail_one_at_a_time(self):
+        self._seed_sig_with_two_boards()
+        ctx = make_ctx(prompts=['s', '1', 'E1-2', '', '', '', '', ''])
+        run(edit_board_settings(ctx))
+        preambles = str(ctx.prompt.call_args_list)
+        self.assertIn('Board: Alpha', preambles)
+        self.assertIn('Board: Beta', preambles)
+
+    def test_bare_edit_defaults_to_last_board(self):
+        # Mirrors text_editor.py's own '.e' with no range: edits just
+        # the last item, not everything.
+        self._seed_sig_with_two_boards()
+        ctx = make_ctx(prompts=['s', '1', 'E', '', '', '', ''])
+        run(edit_board_settings(ctx))
+        preambles = str(ctx.prompt.call_args_list)
+        self.assertNotIn('Board: Alpha', preambles)
+        self.assertIn('Board: Beta', preambles)
+
 
 class TestBoardManagement(BoardEditTestCase):
     def test_rename_board(self):
