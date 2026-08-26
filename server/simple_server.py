@@ -64,6 +64,17 @@ _WILD_HORSE_MONSTER_NUMBER = 136
 # wild_horse_events.py's own copy of _WILD_HORSE_MONSTER_NUMBER).
 _DWARF_MONSTER_NUMBER = 137
 
+# How long an unauthenticated connection may go without answering a terminal-
+# negotiation prompt before it's dropped. A real client (C64/SwiftLink or any
+# ANSI terminal) auto-responds almost instantly, so this only ever fires on a
+# connection that's dead/stuck at the socket level -- one that accepted the
+# TCP handshake but never got (or sent) another byte. Without this, such a
+# connection sits in server.clients forever showing as a bare "Guest" (found
+# live 2026-08-25: a stalled connection sat at this exact prompt for 44
+# minutes before finally erroring out), visible via 'who' as a phantom guest
+# alongside whatever connection the same player used to actually log in.
+_NEGOTIATION_TIMEOUT_SECONDS = 90
+
 # Terminal-negotiation 'H<letter>' help text (Server._negotiate_terminal()) --
 # an alpha tester reported being unsure which option to pick, so 'HA'/'HP'/
 # 'HQ' explain each one, matching the h<key> convention used elsewhere
@@ -439,7 +450,13 @@ class Server:
         try:
             await self.send_message(ctx.writer, self.server_init)
 
-            data = await self.receive_message(ctx.reader)
+            try:
+                data = await asyncio.wait_for(
+                    self.receive_message(ctx.reader), timeout=_NEGOTIATION_TIMEOUT_SECONDS)
+            except asyncio.TimeoutError:
+                logging.info('%s: handshake timed out waiting for client Init',
+                             getattr(ctx.client, 'addr', '?'))
+                data = None
             if not data:
                 logging.warning('no Init received')
                 logging.debug('EXIT False (no Init received)')
@@ -505,6 +522,16 @@ class Server:
         logging.debug('ENTER')
         translation = ctx.player.client_settings.translation
 
+        async def _prompt(*args, **kwargs):
+            """ctx.prompt(), but drop the connection if nothing comes back
+            within _NEGOTIATION_TIMEOUT_SECONDS -- see that constant."""
+            try:
+                return await asyncio.wait_for(
+                    ctx.prompt(*args, **kwargs), timeout=_NEGOTIATION_TIMEOUT_SECONDS)
+            except asyncio.TimeoutError:
+                logging.info('%s: terminal negotiation timed out', getattr(ctx.client, 'addr', '?'))
+                return None
+
         if translation == Translation.PETSCII:
             while True:
                 await ctx.send(
@@ -522,7 +549,7 @@ class Server:
                     # TODO: in case client connected to wrong port or user's terminal in wrong mode,
                     #  offer option to switch to ASCII/ANSI
                 )
-                raw = await ctx.prompt('Screen width [4/8]')
+                raw = await _prompt('Screen width [4/8]')
                 if raw is None:
                     logging.debug('EXIT False (disconnect)')
                     return False
@@ -559,7 +586,7 @@ class Server:
                 '',
             )
             while True:
-                raw = await ctx.prompt('Terminal type [A/P/C/Q]')
+                raw = await _prompt('Terminal type [A/P/C/Q]')
                 if raw is None:
                     logging.debug('EXIT False (disconnect)')
                     return False
@@ -593,7 +620,7 @@ class Server:
                         '|blue|This line should be BLUE.|reset|',
                         '',
                     )
-                    color_raw = await ctx.prompt('Did you see color above? (Y/N)')
+                    color_raw = await _prompt('Did you see color above? (Y/N)')
                     if color_raw is None:
                         logging.debug('EXIT False (disconnect)')
                         return False

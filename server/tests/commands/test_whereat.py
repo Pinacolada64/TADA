@@ -316,7 +316,7 @@ class TestWhereatListing(unittest.IsolatedAsyncioTestCase):
         out = _sent_text(ctx)
         self.assertLess(out.index('Alice'), out.index('Zara'))
 
-    async def test_guest_players_excluded(self):
+    async def test_guest_players_included(self):
         alice  = make_player('Alice')
         guest  = GuestPlayer()
         cg     = MagicMock()
@@ -328,7 +328,7 @@ class TestWhereatListing(unittest.IsolatedAsyncioTestCase):
         await WhereatCommand().execute(ctx)
         out = _sent_text(ctx)
         self.assertIn('Alice', out)
-        self.assertNotIn('Guest', out)
+        self.assertIn('Guest', out)
 
     async def test_hidden_player_shows_hidden_to_normal(self):
         alice  = make_player('Alice')
