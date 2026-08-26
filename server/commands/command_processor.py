@@ -333,6 +333,10 @@ class CommandProcessor:
                 player = getattr(effective_ctx, 'player', None)
                 if player is not None:
                     player.moves_today = int(getattr(player, 'moves_today', 0) or 0) + 1
+                # Also flags this result for simple_server.py's game loop,
+                # which only runs the hunger/thirst tick (survival.py) on
+                # moves/attacks -- not on every command -- see survival.py.
+                result.data['counts_as_move'] = True
             return result
         except Exception as exc:
             log.exception("Error executing command %r", cmd.name)

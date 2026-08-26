@@ -6,14 +6,17 @@ player.food/player.drink both run 0-config.survival_max (default 20,
 sysop-tunable -- see config.py's SETTINGS_METADATA). (Note: SPUR's own
 `ps`/`pe` are player Strength/Energy, not food/drink -- corrected here
 after an earlier wrong guess.)
-Every config.survival_tick_interval commands each depletes by 1 (also
-sysop-tunable -- Ryan felt the shipped default of 10 was too aggressive;
-rather than pick new hardcoded values for either, both are CONFIG
-settings). Setting survival_tick_interval to -1 disables depletion
-entirely (Ryan's call, for a sysop who doesn't want this feature at
-all) -- food/drink stay wherever they are; poison/disease/starvation
-checks below are unaffected, since those are independent of the passive
-depletion step.
+Each qualifying action (a command with counts_as_move=True -- compass
+movement, attack, flee, cast, lasso, lurk; see base_command.py) depletes
+food/drink by 1. Non-move commands (help, look, inventory, chat, etc.)
+never deplete either meter, so a player who stops to read help text or
+socialize isn't punished for it (redesigned 2026-08-25 -- the previous
+scheme depleted on every command, qualifying or not, which made survival
+feel arbitrary rather than tied to player action). Setting
+config.survival_tick_interval to -1 disables depletion entirely (Ryan's
+call, for a sysop who doesn't want this feature at all) -- food/drink
+stay wherever they are; poison/disease/starvation checks below are
+unaffected, since those are independent of the passive depletion step.
 Poison deals -2 HP per tick (30% chance); disease deals -1 HP per tick
 (30% chance).  Warnings are shown whenever either drops below threshold
 -- those thresholds (3/7/4) are still fixed absolute numbers, not scaled
@@ -32,13 +35,15 @@ import random
 
 
 def survival_tick(player) -> list[str]:
-    """Decrement food/drink on schedule; apply poison/disease; return warnings.
+    """Decrement food/drink by 1; apply poison/disease; return warnings.
 
-    Call once per command in the game loop.  Returns a (possibly empty)
-    list of strings to send to the player.  Sets player.hit_points = 0
-    and appends a death line when the player starves or is killed by poison.
-    Admins/DMs are immune -- see module docstring -- and return [] without
-    touching food/drink/hit_points or advancing the counter at all.
+    Call once per qualifying action (counts_as_move=True commands --
+    movement/attack/flee/cast/lasso/lurk; see simple_server.py's game
+    loop, gated on CommandResult.data['counts_as_move']). Returns a
+    (possibly empty) list of strings to send to the player.  Sets
+    player.hit_points = 0 and appends a death line when the player
+    starves or is killed by poison. Admins/DMs are immune -- see module
+    docstring -- and return [] without touching food/drink/hit_points.
     """
     from config import config
     from flags import PlayerFlags
@@ -46,15 +51,9 @@ def survival_tick(player) -> list[str]:
     if player.query_flag(PlayerFlags.ADMIN) or player.query_flag(PlayerFlags.DUNGEON_MASTER):
         return []
 
-    # Persisted on the player (player.py's simple_keys) so logging out and
-    # back in doesn't reset the countdown.
-    counter = getattr(player, '_survival_counter', 0) + 1
-    player._survival_counter = counter
-
     max_value = config.survival_max
-    interval  = config.survival_tick_interval
 
-    if interval != -1 and counter % interval == 0:
+    if config.survival_tick_interval != -1:
         player.food  = max(0, getattr(player, 'food',  max_value) - 1)
         player.drink = max(0, getattr(player, 'drink', max_value) - 1)
         player.unsaved_changes = True

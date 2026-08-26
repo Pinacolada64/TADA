@@ -437,40 +437,13 @@ class TestPartyPersistence(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# _survival_counter
-# ---------------------------------------------------------------------------
-
-class TestSurvivalCounterPersistence(unittest.TestCase):
-    """player._survival_counter (survival.py's survival_tick() command
-    counter) used to be session-only, resetting to 0 on every login --
-    Ryan pointed out that let a player dodge hunger/thirst indefinitely by
-    just logging out and back in right before the next depletion step.
-    Same gap food/drink had before an earlier fix -- now a plain
-    Player.__init__/simple_keys field like everything else in this file."""
-
-    def test_survival_counter_survives_save_and_load(self):
-        import net_common
-
-        with tempfile.TemporaryDirectory() as tmp:
-            net_common.run_server_dir = tmp
-            player = Player(id='survivalcountertest', name='Survivalcountertest')
-            player._survival_counter = 7
-            player.unsaved_changes = True
-            self.assertTrue(player.save(force=True))
-
-            reloaded = Player(id='survivalcountertest', name='Survivalcountertest')
-            self.assertTrue(reloaded._load())
-            self.assertEqual(reloaded._survival_counter, 7)
-
-
-# ---------------------------------------------------------------------------
 # duel_wins / duel_losses
 # ---------------------------------------------------------------------------
 
 class TestDuelRecordPersistence(unittest.TestCase):
     """player.duel_wins/duel_losses (combat/duel.py's DuelSession._end(),
     the personal SPORT DUEL win/loss record) -- same simple_keys pattern
-    as _survival_counter above; written by save() via the full __dict__
+    as food/drink above; written by save() via the full __dict__
     dump, so it must also be listed in _load()'s simple_keys tuple or it
     silently resets to 0 on every relogin."""
 

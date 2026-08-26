@@ -521,12 +521,14 @@ class TestSurvivalCounterAction(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ctx.player.food, 0)
 
     async def test_food_can_be_set_to_max(self):
-        ctx = _MockCtx(responses=['20'])
+        from config import config
+        ctx = _MockCtx(responses=[str(config.survival_max)])
         await self._invoke(ctx, 'Food (Hunger)')
-        self.assertEqual(ctx.player.food, 20)
+        self.assertEqual(ctx.player.food, config.survival_max)
 
     async def test_out_of_range_value_rejected_and_unchanged(self):
-        ctx = _MockCtx(responses=['21', ''])
+        from config import config
+        ctx = _MockCtx(responses=[str(config.survival_max + 1), ''])
         ctx.player.food = 15
         await self._invoke(ctx, 'Food (Hunger)')
         self.assertEqual(ctx.player.food, 15)

@@ -810,18 +810,21 @@ class Server:
                 # lifetime total spread across an otherwise normal session.
                 ctx.client.unknown_command_count = 0
 
-            # Hunger/thirst tick (SPUR.COMBAT.S:12-20).
-            from survival import survival_tick
-            warnings = survival_tick(ctx.player)
-            if warnings:
-                await ctx.send(warnings)
-            logging.debug('survival tick: hp=%r food=%r drink=%r',
-                          getattr(ctx.player, 'hit_points', '?'),
-                          getattr(ctx.player, 'food', '?'),
-                          getattr(ctx.player, 'drink', '?'))
-            if getattr(ctx.player, 'hit_points', 1) <= 0:
-                logging.debug('death triggered')
-                await self._player_dies(ctx)
+            # Hunger/thirst tick (SPUR.COMBAT.S:12-20) -- only on moves/
+            # attacks (counts_as_move), not every command, so reading help
+            # or chatting doesn't burn food/drink (see survival.py).
+            if result.data.get('counts_as_move'):
+                from survival import survival_tick
+                warnings = survival_tick(ctx.player)
+                if warnings:
+                    await ctx.send(warnings)
+                logging.debug('survival tick: hp=%r food=%r drink=%r',
+                              getattr(ctx.player, 'hit_points', '?'),
+                              getattr(ctx.player, 'food', '?'),
+                              getattr(ctx.player, 'drink', '?'))
+                if getattr(ctx.player, 'hit_points', 1) <= 0:
+                    logging.debug('death triggered')
+                    await self._player_dies(ctx)
 
     # -----------------------------------------------------------------------
     # Unknown-command help offer
