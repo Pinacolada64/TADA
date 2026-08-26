@@ -119,16 +119,22 @@ async def _resume_news_post(ctx, rest: str, body: list) -> Optional[str]:
 
 
 async def _resume_board_post(ctx, rest: str, body: list) -> Optional[str]:
-    """rest is 'title\\x1fanonymous_flag' -- see commands/board.py's
-    _post() for the other end of this encoding."""
+    """rest is 'title\\x1fanonymous_flag\\x1fboard_id' -- see
+    commands/board/board.py's _post() for the other end of this
+    encoding. board_id defaults to 1 (the only board that existed
+    before this field was added) so a recovery file saved before this
+    change still resumes cleanly."""
     import datetime
     import board as board_store
-    title, _, anon_flag = rest.partition('\x1f')
+    title, _, remainder = rest.partition('\x1f')
+    anon_flag, _, board_id_str = remainder.partition('\x1f')
     if not title:
         return None
+    board_id = int(board_id_str) if board_id_str.isdigit() else board_store.meta.DEFAULT_BOARD_ID
     threads = board_store.load_board()
     thread = {
         'id':        board_store.next_id(threads),
+        'board_id':  board_id,
         'title':     title,
         'author':    ctx.player.name,
         'anonymous': anon_flag == '1',

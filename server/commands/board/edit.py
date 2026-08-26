@@ -1,19 +1,19 @@
-"""commands/board_edit.py — 'board #edit': admin-only, board-wide
+"""commands/board/edit.py — 'board #edit': admin-only, board-wide
 threaded-board settings menu.
 
-Split out of commands/board.py (Ryan's call, matching commands/
-board_reply.py's own precedent) rather than nesting a commands/board/
-subpackage -- commands/ has ~60 files and no subdirectories anywhere
-in this codebase even for larger multi-file features (bar/, shoppe/),
-so flat files stay the convention regardless of how many board_*.py
-modules there end up being.
-
 Currently one setting: the anonymous-posting default (board.py's
-load_config()/save_config(), read by commands/board.py's own
-resolve_anonymous(), shared with commands/board_reply.py's reply flow).
-Ask/Yes/No, board-wide -- not a per-player preference like
-command_settings.board.last_date is, since an admin is choosing site
-policy here, not their own reading habits.
+load_config()/save_config() -- a back-compat shim over board/meta.py's
+per-board storage for now, see that module's docstring -- read by
+commands/board/board.py's own resolve_anonymous(), shared with
+commands/board/reply.py's reply flow). Ask/Yes/No, board-wide -- not a
+per-player preference like command_settings.board.last_date is, since
+an admin is choosing site policy here, not their own reading habits.
+
+Phase 1 of the sig-editor project (see the approved plan): this stays
+exactly what it was as commands/board_edit.py -- just moved into the
+new commands/board/ package alongside board.py/reply.py. Phase 2 grows
+this into the full SIG/board structural editor (rename, move/share
+between SIGs, reorder, access gating, admin list).
 """
 from __future__ import annotations
 

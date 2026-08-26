@@ -227,6 +227,12 @@ class Server:
         self._place_wild_horse()
         self._place_dwarf()
 
+        try:
+            from board.migration import migrate_if_needed
+            migrate_if_needed()
+        except Exception:
+            logging.exception('Failed to migrate board data')
+
         def _try_load(cls, filename, method='read'):
             try:
                 result = getattr(cls, method)(str(script_dir / filename))

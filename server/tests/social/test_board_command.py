@@ -68,12 +68,12 @@ def make_ctx(player=None, prompts=None, screen_columns=80):
 class BoardCommandTestCase(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
-        self.path = Path(self._tmp.name) / 'board.json'
-        self.config_path = Path(self._tmp.name) / 'board_config.json'
-        patcher = patch.object(board_store, 'BOARD_FILE', self.path)
+        self.path = Path(self._tmp.name) / 'board_threads.json'
+        self.config_path = Path(self._tmp.name) / 'board_meta.json'
+        patcher = patch.object(board_store.threads, 'BOARD_FILE', self.path)
         patcher.start()
         self.addCleanup(patcher.stop)
-        config_patcher = patch.object(board_store, 'CONFIG_FILE', self.config_path)
+        config_patcher = patch.object(board_store.meta, 'META_FILE', self.config_path)
         config_patcher.start()
         self.addCleanup(config_patcher.stop)
         self.addCleanup(self._tmp.cleanup)
@@ -315,14 +315,14 @@ class TestResolveAnonymous(BoardCommandTestCase):
     setting existed."""
 
     def test_ask_mode_prompts(self):
-        from commands.board import resolve_anonymous
+        from commands.board.board import resolve_anonymous
         ctx = make_ctx(prompts=['y'])
         result = run(resolve_anonymous(ctx))
         self.assertTrue(result)
         ctx.prompt.assert_awaited_once()
 
     def test_yes_mode_skips_the_prompt(self):
-        from commands.board import resolve_anonymous
+        from commands.board.board import resolve_anonymous
         board_store.save_config({'anonymous_mode': 'yes'}, self.config_path)
         ctx = make_ctx(prompts=[])
         result = run(resolve_anonymous(ctx))
@@ -330,7 +330,7 @@ class TestResolveAnonymous(BoardCommandTestCase):
         ctx.prompt.assert_not_awaited()
 
     def test_no_mode_skips_the_prompt(self):
-        from commands.board import resolve_anonymous
+        from commands.board.board import resolve_anonymous
         board_store.save_config({'anonymous_mode': 'no'}, self.config_path)
         ctx = make_ctx(prompts=[])
         result = run(resolve_anonymous(ctx))

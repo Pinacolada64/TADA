@@ -1,7 +1,7 @@
-"""commands/board_reply.py — Interactive, one-message-at-a-time reader
+"""commands/board/reply.py — Interactive, one-message-at-a-time reader
 for the threaded message board, gated behind PlayerFlags.PROMPT_MODE.
 
-commands/board.py's `board <id>` normally dumps a whole thread flat
+commands/board/board.py's `board <id>` normally dumps a whole thread flat
 (board.format_thread()) and returns straight to the listing. When a
 player has PROMPT_MODE on, `_read_one()` delegates here instead: each
 post (the thread root, then each reply in order) is shown one at a
@@ -34,7 +34,7 @@ than assuming the whole message (board.py's simpler `board reply <id>`
 command still does that -- this is the richer, opt-in experience).
 
 Split into its own module (Ryan's call) rather than folded into
-commands/board.py, since the interactive reader/quote-preview/mail
+commands/board/board.py, since the interactive reader/quote-preview/mail
 flow is a distinct, sizable piece of UI logic from board.py's listing/
 post/admin surface.
 """
@@ -115,8 +115,8 @@ async def _list_thread_messages(ctx, thread: dict, privileged: bool) -> None:
 async def read_thread_interactive(ctx, thread: dict) -> None:
     """Walk *thread* one message at a time (root, then each reply in
     posted order). Only called when PlayerFlags.PROMPT_MODE is on --
-    commands/board.py's _read_one() gates on that; this assumes it. The
-    root header's own "Number: x of y" line shows this message's
+    commands/board/board.py's _read_one() gates on that; this assumes it.
+    The root header's own "Number: x of y" line shows this message's
     position within *this* thread (1 of however many messages it has),
     not this thread's place among every thread on the board -- Ryan's
     call, so it reads as "which message you're on," matching the
@@ -171,7 +171,7 @@ async def read_thread_interactive(ctx, thread: dict) -> None:
         elif low == 'l':
             await _list_thread_messages(ctx, thread, privileged)
         elif low in ('pm', 'promptmode'):
-            from commands.board import toggle_prompt_mode
+            from commands.board.board import toggle_prompt_mode
             await toggle_prompt_mode(ctx)
             # deliberately doesn't advance -- same as [M]ail poster above.
         elif low == 'q':
@@ -232,7 +232,7 @@ async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: b
         # anything else -- loop back and ask for a range again, rather
         # than silently posting with no quote at all.
 
-    from commands.board import resolve_anonymous, prompt_reply_title
+    from commands.board.board import resolve_anonymous, prompt_reply_title
     anonymous = await resolve_anonymous(ctx)
     if anonymous is None:
         await ctx.send('Cancelled.')

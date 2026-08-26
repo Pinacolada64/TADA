@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import board as board_store
-from commands.board_reply import read_thread_interactive
+from commands.board.reply import read_thread_interactive
 from flags import PlayerFlags
 
 
@@ -258,8 +258,8 @@ class TestSteppedNavigation(unittest.TestCase):
 class BoardReplyTestCase(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
-        self.path = Path(self._tmp.name) / 'board.json'
-        patcher = patch.object(board_store, 'BOARD_FILE', self.path)
+        self.path = Path(self._tmp.name) / 'board_threads.json'
+        patcher = patch.object(board_store.threads, 'BOARD_FILE', self.path)
         patcher.start()
         self.addCleanup(patcher.stop)
         self.addCleanup(self._tmp.cleanup)

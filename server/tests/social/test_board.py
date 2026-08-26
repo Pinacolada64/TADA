@@ -72,21 +72,26 @@ class TestLoadSave(unittest.TestCase):
 
 
 class TestConfig(unittest.TestCase):
+    """load_config()/save_config() are a back-compat shim over
+    board/meta.py's per-board storage (board_meta.json) -- see that
+    module's docstring -- so 'the config file' here means the default
+    board's (id 1) own meta entry, not a standalone flat file anymore."""
+
     def test_missing_file_returns_defaults(self):
-        config = load_config(Path('/nonexistent/board_config.json'))
+        config = load_config(Path('/nonexistent/board_meta.json'))
         self.assertEqual(config, {'anonymous_mode': 'ask'})
 
     def test_round_trip(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / 'board_config.json'
+            path = Path(tmp) / 'board_meta.json'
             save_config({'anonymous_mode': 'yes'}, path)
             self.assertEqual(load_config(path), {'anonymous_mode': 'yes'})
 
-    def test_partial_saved_config_still_fills_in_defaults(self):
-        # e.g. a config file saved before some future second setting
+    def test_partial_saved_meta_still_fills_in_defaults(self):
+        # e.g. a meta file saved before some future second setting
         # existed -- missing keys should still resolve to their default.
         with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / 'board_config.json'
+            path = Path(tmp) / 'board_meta.json'
             path.write_text('{}')
             self.assertEqual(load_config(path), {'anonymous_mode': 'ask'})
 

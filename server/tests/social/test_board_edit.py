@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import board as board_store
-from commands.board_edit import edit_board_settings
+from commands.board.edit import edit_board_settings
 from flags import PlayerFlags
 
 
@@ -43,8 +43,8 @@ def make_ctx(player=None, prompts=None):
 class BoardEditTestCase(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
-        self.config_path = Path(self._tmp.name) / 'board_config.json'
-        patcher = patch.object(board_store, 'CONFIG_FILE', self.config_path)
+        self.config_path = Path(self._tmp.name) / 'board_meta.json'
+        patcher = patch.object(board_store.meta, 'META_FILE', self.config_path)
         patcher.start()
         self.addCleanup(patcher.stop)
         self.addCleanup(self._tmp.cleanup)

@@ -1,9 +1,8 @@
-"""commands/board.py — The BOARD command: threaded message board.
+"""commands/board/board.py — The BOARD command: threaded message board.
 
-Design per MECHANICS.md's "Threaded Message Boards" section, porting
-the `threaded_messages.py` prototype into this codebase's real
-architecture. See board.py (top-level) for storage/rendering; this
-module is just the in-game command surface:
+Design per MECHANICS.md's "Threaded Message Boards" section. See
+board/ (top-level package) for storage/rendering; this module is just
+the in-game command surface:
 
   board                 — list all threads (id, title, author, replies)
   board rn               — list only threads with activity since your
@@ -17,14 +16,20 @@ module is just the in-game command surface:
   board delete <id>       — (admin) remove a thread
   board #edit              — (admin) board-wide settings menu, e.g. the
                             anonymous-posting default -- see
-                            commands/board_edit.py
+                            commands/board/edit.py
 
 Post/reply authoring uses text_editor.run_editor() -- same as NEWS
 (commands/news.py). Any logged-in player can post/reply (this isn't
 admin-gated, unlike NEWS, since a message board is meant to be
-conversational/multi-author -- see MECHANICS.md's "Convergence with
-News & Mail" note); only 'board delete'/'board #edit' require
+conversational/multi-author); only 'board delete'/'board #edit' require
 PlayerFlags.ADMIN.
+
+Phase 1 of the sig-editor project (see the approved plan): storage now
+lives in the board/ package (SIG/board-aware), but there's still only
+ever one board (_DEFAULT_BOARD_ID below) -- no SIG/board picker yet.
+Every thread this command shows/creates is scoped to that one board id,
+so player-facing behavior is unchanged from before this split. Phase 2
+replaces the hardcoded id with real board selection.
 """
 from __future__ import annotations
 
@@ -40,6 +45,9 @@ from formatting import deserialize_lines, hrule_char, make_rule
 log = logging.getLogger(__name__)
 
 _DATE_COL_WIDTH = 13
+
+# Phase 1: only one board exists -- see this module's own docstring.
+_DEFAULT_BOARD_ID = board_store.meta.DEFAULT_BOARD_ID
 
 
 def _is_privileged(player) -> bool:
@@ -63,7 +71,7 @@ async def toggle_prompt_mode(ctx) -> None:
     underlying toggle as the standalone 'pm' command (commands/
     prompt_mode.py), reachable here too so a player can turn Prompt Mode
     on/off without leaving the BOARD listing prompt or the interactive
-    reader's end-of-bulletin prompt (commands/board_reply.py)."""
+    reader's end-of-bulletin prompt (commands/board/reply.py)."""
     new_state, _ = ctx.player.toggle_flag(PlayerFlags.PROMPT_MODE)
     ctx.player.unsaved_changes = True
     await ctx.send(f"Prompt Mode: {'On' if new_state else 'Off'}.")
@@ -75,7 +83,7 @@ async def resolve_anonymous(ctx) -> bool | None:
     'board #edit') -- 'yes'/'no' skip the prompt entirely; 'ask' (the
     default) prompts as before. Returns None if the player disconnected
     mid-prompt. Shared by this module's own _post()/_reply() and
-    commands/board_reply.py's interactive reply flow, so both paths
+    commands/board/reply.py's interactive reply flow, so both paths
     honor the same admin setting instead of each hardcoding their own
     always-ask prompt."""
     mode = board_store.load_config().get('anonymous_mode', 'ask')
@@ -96,7 +104,7 @@ async def prompt_reply_title(ctx, default_title: str) -> str | None:
     the [L]ist index/reader header just reading "Reply #3". Doesn't
     double up "Re: Re: ..." when replying to something already titled
     that way. Returns None if the player disconnected mid-prompt.
-    Shared by this module's own _reply() and commands/board_reply.py's
+    Shared by this module's own _reply() and commands/board/reply.py's
     interactive reply flow."""
     raw = await ctx.prompt(f'Enter title of reply, [{ctx.player.return_key} keeps same]')
     if raw is None:
@@ -105,6 +113,14 @@ async def prompt_reply_title(ctx, default_title: str) -> str | None:
     if raw:
         return raw
     return default_title if default_title.startswith('Re: ') else f'Re: {default_title}'
+
+
+def _threads_for_board(all_threads: list[dict], board_id: int) -> list[dict]:
+    """Threads belonging to *board_id* -- missing 'board_id' (threads
+    seeded/created before this split, or in tests that don't bother
+    setting it) counts as the default board, so nothing pre-existing
+    silently vanishes from the listing."""
+    return [t for t in all_threads if t.get('board_id', _DEFAULT_BOARD_ID) == board_id]
 
 
 class BoardCommand(Command):
@@ -144,11 +160,11 @@ class BoardCommand(Command):
         admin_notes = [
             "Prompt Mode is PlayerFlags.PROMPT_MODE -- also toggleable "
             "(for any player, not just yourself) via EditPlayer's Flags "
-            "-> Option Toggles menu. See commands/board_reply.py for the "
+            "-> Option Toggles menu. See commands/board/reply.py for the "
             "interactive reader itself.",
             "'board #edit' opens a small settings menu (currently just "
             "the anonymous-posting default: Ask/Yes/No) -- see "
-            "commands/board_edit.py.",
+            "commands/board/edit.py.",
         ],
     )
 
@@ -158,7 +174,7 @@ class BoardCommand(Command):
         if switches:
             switch = switches[0].lstrip('#').lower()
             if switch == 'edit':
-                from commands.board_edit import edit_board_settings
+                from commands.board.edit import edit_board_settings
                 return await edit_board_settings(ctx)
             await ctx.send(f"Unknown option '{switches[0]}'.")
             return CommandResult.fail('Unknown option.', error='bad_args')
@@ -196,7 +212,7 @@ class BoardCommand(Command):
         ctx.client.virtual_location = 'Reading board'
         try:
             while True:
-                threads = board_store.load_board()
+                threads = _threads_for_board(board_store.load_board(), _DEFAULT_BOARD_ID)
                 if new_only:
                     threads = [t for t in threads if board_store.is_new_since(t, since)]
                 if not threads:
@@ -229,8 +245,9 @@ class BoardCommand(Command):
             ctx.client.virtual_location = previous_location
 
     async def _read_one(self, ctx, thread_id: int) -> CommandResult:
-        threads = board_store.load_board()
-        thread = next((t for t in threads if t.get('id') == thread_id), None)
+        all_threads = board_store.load_board()
+        board_threads = _threads_for_board(all_threads, _DEFAULT_BOARD_ID)
+        thread = next((t for t in all_threads if t.get('id') == thread_id), None)
         if thread is None:
             await ctx.send('No such thread.')
             return CommandResult.fail('Unknown thread.', error='not_found')
@@ -238,14 +255,14 @@ class BoardCommand(Command):
         if ctx.player.query_flag(PlayerFlags.PROMPT_MODE):
             # One message at a time with an end-of-message [R]eply/[M]ail/
             # <#>/Enter menu, quote-with-preview on reply -- see
-            # commands/board_reply.py's own module docstring.
-            from commands.board_reply import read_thread_interactive
+            # commands/board/reply.py's own module docstring.
+            from commands.board.reply import read_thread_interactive
             await read_thread_interactive(ctx, thread)
             return CommandResult.ok('Displayed thread.')
 
         privileged = _is_privileged(ctx.player)
         await ctx.send([''] + board_store.format_thread(
-            thread, ctx, privileged, total_threads=len(threads)) + [''])
+            thread, ctx, privileged, total_threads=len(board_threads)) + [''])
         return CommandResult.ok('Displayed thread.')
 
     # ------------------------------------------------------------------
@@ -297,10 +314,10 @@ class BoardCommand(Command):
             return CommandResult.fail('Cancelled.', error='cancelled')
 
         await ctx.send('Enter the thread body.')
-        # \x1f (unit separator) joins title+anonymous into activity_id's
-        # single rest-of-string slot -- see commands/edit.py's
-        # _resume_board_post() for the other end of this.
-        activity_id = f'board_post:{title}\x1f{int(anonymous)}'
+        # \x1f (unit separator) joins title+anonymous+board_id into
+        # activity_id's single rest-of-string slot -- see commands/
+        # edit.py's _resume_board_post() for the other end of this.
+        activity_id = f'board_post:{title}\x1f{int(anonymous)}\x1f{_DEFAULT_BOARD_ID}'
         body = await run_editor(ctx, activity_id=activity_id,
                                  activity_label=f'posting board thread "{title}"')
         if body is None:
@@ -310,6 +327,7 @@ class BoardCommand(Command):
         threads = board_store.load_board()
         thread = {
             'id':        board_store.next_id(threads),
+            'board_id':  _DEFAULT_BOARD_ID,
             'title':     title,
             'author':    ctx.player.name,
             'anonymous': anonymous,
