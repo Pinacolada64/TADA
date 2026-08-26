@@ -41,11 +41,13 @@ from .listing import (
     render_message_lines,
 )
 from .meta import load_config, save_config
-from .threads import is_new_since, load_board, next_id, save_board
+from .threads import is_new_since, load_board, new_status, next_id, save_board
+from .access import is_board_admin
 
 __all__ = [
     'meta', 'sigs', 'threads', 'migration',
     'MessageHeader', 'build_quote_preamble', 'display_author', 'format_thread',
     'format_thread_listing', 'format_thread_summary', 'render_message_lines',
-    'load_config', 'save_config', 'is_new_since', 'load_board', 'next_id', 'save_board',
+    'load_config', 'save_config', 'is_new_since', 'new_status', 'load_board', 'next_id', 'save_board',
+    'is_board_admin',
 ]

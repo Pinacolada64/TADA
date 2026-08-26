@@ -262,6 +262,10 @@ class BoardReplyTestCase(unittest.TestCase):
         patcher = patch.object(board_store.threads, 'BOARD_FILE', self.path)
         patcher.start()
         self.addCleanup(patcher.stop)
+        self.meta_path = Path(self._tmp.name) / 'board_meta.json'
+        meta_patcher = patch.object(board_store.meta, 'META_FILE', self.meta_path)
+        meta_patcher.start()
+        self.addCleanup(meta_patcher.stop)
         self.addCleanup(self._tmp.cleanup)
         board_store.save_board([_thread()], self.path)
 
@@ -525,6 +529,58 @@ class TestMailPoster(BoardReplyTestCase):
             ctx = make_ctx(prompts=['m', '', '', '', ''])
             run(read_thread_interactive(ctx, _thread()))
             MockPageCommand.assert_not_called()
+
+
+class TestOverAndFreeze(BoardReplyTestCase):
+    def test_over_redisplays_current_message_without_advancing(self):
+        ctx = make_ctx(prompts=['o', '', '', ''])
+        run(read_thread_interactive(ctx, _thread()))
+        text = _sent_text(ctx)
+        self.assertEqual(text.count('root line one'), 2)
+
+    def test_poster_can_freeze(self):
+        ctx = make_ctx(player=_FakePlayer(name='bob'), prompts=['f', 'q'])
+        run(read_thread_interactive(ctx, _thread()))
+        self.assertIn('Bulletin frozen.', _sent_text(ctx))
+        threads = board_store.load_board(self.path)
+        self.assertTrue(threads[0]['frozen'])
+
+    def test_board_admin_can_freeze(self):
+        board_store.meta.save_meta({'boards': {'1': {
+            'id': 1, 'name': 'General', 'anonymous_mode': 'ask',
+            'access': {'type': 'any'}, 'admins': ['alexa'],
+        }}}, self.meta_path)
+        ctx = make_ctx(prompts=['f', 'q'])  # default player name is 'alexa'
+        run(read_thread_interactive(ctx, _thread()))
+        self.assertIn('Bulletin frozen.', _sent_text(ctx))
+
+    def test_global_admin_can_freeze(self):
+        ctx = make_ctx(player=_FakePlayer(name='someone_else', admin=True), prompts=['f', 'q'])
+        run(read_thread_interactive(ctx, _thread()))
+        self.assertIn('Bulletin frozen.', _sent_text(ctx))
+
+    def test_random_player_cannot_freeze(self):
+        ctx = make_ctx(prompts=['f', 'q'])  # 'alexa' -- neither poster ('bob') nor admin
+        run(read_thread_interactive(ctx, _thread()))
+        self.assertIn("don't have permission", _sent_text(ctx))
+        threads = board_store.load_board(self.path)
+        self.assertFalse(threads[0].get('frozen', False))
+
+    def test_freeze_then_unfreeze_toggles(self):
+        ctx = make_ctx(player=_FakePlayer(name='bob'), prompts=['f', 'f', 'q'])
+        run(read_thread_interactive(ctx, _thread()))
+        text = _sent_text(ctx)
+        self.assertIn('Bulletin frozen.', text)
+        self.assertIn('Bulletin unfrozen.', text)
+        threads = board_store.load_board(self.path)
+        self.assertFalse(threads[0]['frozen'])
+
+    def test_frozen_bulletin_blocks_new_reply(self):
+        thread = _thread(frozen=True)
+        ctx = make_ctx(prompts=['r'])
+        run(read_thread_interactive(ctx, thread))
+        self.assertIn('frozen -- no new responses', _sent_text(ctx))
+        self.assertEqual(thread['replies'], _thread()['replies'])
 
 
 if __name__ == '__main__':

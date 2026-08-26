@@ -258,6 +258,17 @@ class TestPostAndReply(BoardCommandTestCase):
         self.assertIn('Quoting bob', sent)
         self.assertIn('original text', sent)
 
+    def test_reply_blocked_when_thread_frozen(self):
+        self._seed([{'id': 1, 'title': 'Original', 'author': 'bob', 'anonymous': False,
+                      'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'original text'}],
+                      'replies': [], 'frozen': True}])
+        ctx = make_ctx()
+        result = run(BoardCommand().execute(ctx, 'reply', '1'))
+        self.assertFalse(result.success)
+        self.assertEqual(result.error, 'frozen')
+        threads = board_store.load_board(self.path)
+        self.assertEqual(threads[0]['replies'], [])
+
     def test_blank_reply_title_defaults_to_re_thread_title(self):
         self._seed([{'id': 1, 'title': 'Original', 'author': 'bob', 'anonymous': False,
                       'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'original text'}],

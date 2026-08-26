@@ -87,8 +87,21 @@ def is_new_since(thread: dict, since: Optional[datetime.date]) -> bool:
     thread as a whole -- 'board rn' just filters which threads show up;
     reading one via 'board <id>' still shows the full thread, same
     simplicity news.py's own is_new_since() settles for."""
+    return new_status(thread, since) is not None
+
+
+def new_status(thread: dict, since: Optional[datetime.date]) -> Optional[str]:
+    """'NEW' if *thread*'s own root post is new since *since*, 'NRB'
+    ("new response to bulletin", ImageBBS's own term) if only a reply
+    is, None if nothing about it is new. Root takes priority over a
+    reply, matching ImageBBS's own listing-stat precedence (see
+    board/listing.py's _stat_code(), which layers '*FZN*' frozen-status
+    on top of this). since=None counts the root as new, same convention
+    as is_new_since()."""
     if since is None:
-        return True
+        return 'NEW'
     if _posted_after(thread.get('posted_at', ''), since):
-        return True
-    return any(_posted_after(r.get('posted_at', ''), since) for r in thread.get('replies', []))
+        return 'NEW'
+    if any(_posted_after(r.get('posted_at', ''), since) for r in thread.get('replies', [])):
+        return 'NRB'
+    return None

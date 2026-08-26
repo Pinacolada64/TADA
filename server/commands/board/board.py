@@ -303,7 +303,7 @@ class BoardCommand(Command):
                     '', '|yellow|Message Board|reset|', '',
                     make_rule(rule_width, hrule_char(ctx)),
                 ]
-                lines += board_store.format_thread_listing(threads, rule_width, _is_petscii(ctx))
+                lines += board_store.format_thread_listing(threads, rule_width, _is_petscii(ctx), since=since)
                 lines.append(f"(# to read, {ctx.player.return_key} to exit, 'pm' toggles Prompt Mode)")
                 lines.append('')
 
@@ -420,6 +420,7 @@ class BoardCommand(Command):
             'posted_at': datetime.datetime.now().isoformat(),
             'body':      body,
             'replies':   [],
+            'frozen':    False,
         }
         threads.append(thread)
         board_store.save_board(threads)
@@ -439,6 +440,9 @@ class BoardCommand(Command):
         if thread is None:
             await ctx.send('No such thread.')
             return CommandResult.fail('Unknown thread.', error='not_found')
+        if thread.get('frozen'):
+            await ctx.send('This bulletin is frozen -- no new responses.')
+            return CommandResult.fail('Bulletin frozen.', error='frozen')
 
         anonymous = await resolve_anonymous(ctx, thread.get('board_id', _DEFAULT_BOARD_ID))
         if anonymous is None:

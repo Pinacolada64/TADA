@@ -226,12 +226,43 @@ class TestFormatThreadSummary(unittest.TestCase):
 
 
 class TestFormatThreadListing(unittest.TestCase):
-    def test_header_row_has_the_three_column_titles(self):
+    def test_header_row_has_the_four_column_titles(self):
         threads = [{'id': 1, 'title': 'Hello', 'replies': []}]
         lines = format_thread_listing(threads, width=40)
         self.assertIn('##', lines[0])
+        self.assertIn('Stat', lines[0])
+        self.assertIn('Resp', lines[0])
         self.assertIn('Title', lines[0])
-        self.assertIn('Replies', lines[0])
+
+    def test_new_root_shows_new_stat(self):
+        import datetime
+        threads = [{'id': 1, 'title': 'Hello', 'replies': [],
+                    'posted_at': '2026-01-05T00:00:00'}]
+        lines = format_thread_listing(threads, width=40, since=datetime.date(2026, 1, 1))
+        self.assertIn('*NEW*', lines[1])
+
+    def test_new_reply_only_shows_nrb_stat(self):
+        import datetime
+        threads = [{'id': 1, 'title': 'Hello', 'posted_at': '2025-12-01T00:00:00',
+                    'replies': [{'posted_at': '2026-01-05T00:00:00'}]}]
+        lines = format_thread_listing(threads, width=40, since=datetime.date(2026, 1, 1))
+        self.assertIn('*NRB*', lines[1])
+
+    def test_frozen_shows_fzn_stat_even_if_new(self):
+        import datetime
+        threads = [{'id': 1, 'title': 'Hello', 'replies': [], 'frozen': True,
+                    'posted_at': '2026-01-05T00:00:00'}]
+        lines = format_thread_listing(threads, width=40, since=datetime.date(2026, 1, 1))
+        self.assertIn('*FZN*', lines[1])
+        self.assertNotIn('*NEW*', lines[1])
+
+    def test_nothing_new_shows_no_stat_code(self):
+        import datetime
+        threads = [{'id': 1, 'title': 'Hello', 'replies': [], 'posted_at': '2025-01-01T00:00:00'}]
+        lines = format_thread_listing(threads, width=40, since=datetime.date(2026, 1, 1))
+        self.assertNotIn('*NEW*', lines[1])
+        self.assertNotIn('*NRB*', lines[1])
+        self.assertNotIn('*FZN*', lines[1])
 
     def test_row_shows_id_and_reply_count(self):
         threads = [{'id': 7, 'title': 'Hello', 'replies': [{}, {}]}]

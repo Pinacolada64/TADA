@@ -13,9 +13,12 @@ Dungeon Masters.
 """
 from __future__ import annotations
 
+import datetime
 from dataclasses import dataclass
+from typing import Optional
 
 from formatting import deserialize_lines, render_lines, titled_box
+from .threads import new_status
 
 
 def display_author(entry: dict, viewer_is_privileged: bool) -> str:
@@ -102,18 +105,35 @@ def format_thread_summary(thread: dict, viewer_is_privileged: bool) -> str:
     return f"{thread['id']:>3}. {thread.get('title', '(untitled)')}  -- {author}, {replies}"
 
 
-def format_thread_listing(threads: list[dict], width: int, is_petscii: bool = False) -> list[str]:
-    """Render the thread listing as three columns -- '##', 'Title'
-    (elided if it doesn't fit the column -- a real ellipsis character on
-    ANSI/plain, or '...' on PETSCII, since real Commodore font ROMs don't
-    have one), and 'Replies' -- sized to *width*. Mirrors
+_STAT_WIDTH = len('*NEW*')  # every code (*NEW*/*NRB*/*FZN*) is this width
+
+
+def _stat_code(thread: dict, since: Optional[datetime.date]) -> str:
+    """ImageBBS's own listing-stat precedence: a frozen bulletin shows
+    '*FZN*' regardless of new/old status (frozen takes priority -- a
+    SIGop froze it for a reason, that's the thing worth flagging first);
+    otherwise '*NEW*' (the root post itself is new) beats '*NRB*' ("new
+    response to bulletin", i.e. only a reply is new); '' if neither."""
+    if thread.get('frozen'):
+        return '*FZN*'
+    status = new_status(thread, since)
+    return f'*{status}*' if status else ''
+
+
+def format_thread_listing(threads: list[dict], width: int, is_petscii: bool = False,
+                           since: Optional[datetime.date] = None) -> list[str]:
+    """Render the thread listing as four columns -- '##', 'Stat'
+    ('*NEW*'/'*NRB*'/'*FZN*', see _stat_code()), 'Resp' (reply count),
+    and 'Title' (elided if it doesn't fit the column -- a real ellipsis
+    character on ANSI/plain, or '...' on PETSCII, since real Commodore
+    font ROMs don't have one) -- sized to *width*. Mirrors
     commands/whereat.py's plain ljust/rjust column style rather than
     table.py's bordered Table, since a long title should be elided to
     one line here, not word-wrapped across several."""
     id_w = max(len('##'), *(len(str(t.get('id', 0))) for t in threads))
     reply_counts = [len(t.get('replies', [])) for t in threads]
-    replies_w = max(len('Replies'), *(len(str(c)) for c in reply_counts))
-    title_w = max(width - id_w - replies_w - 4, 10)
+    replies_w = max(len('Resp'), *(len(str(c)) for c in reply_counts))
+    title_w = max(width - id_w - _STAT_WIDTH - replies_w - 6, 10)
     ellipsis = '...' if is_petscii else '…'
     ellipsis_w = len(ellipsis)
 
@@ -124,10 +144,13 @@ def format_thread_listing(threads: list[dict], width: int, is_petscii: bool = Fa
             return text[:title_w]
         return text[:title_w - ellipsis_w] + ellipsis
 
-    lines = [f"{'##'.rjust(id_w)}  {'Title'.ljust(title_w)}  {'Replies'.rjust(replies_w)}"]
+    lines = [f"{'##'.rjust(id_w)}  {'Stat'.ljust(_STAT_WIDTH)}  "
+             f"{'Resp'.rjust(replies_w)}  Title"]
     for t, count in zip(threads, reply_counts):
         title = _elide(t.get('title', '(untitled)'))
-        lines.append(f"{str(t.get('id', 0)).rjust(id_w)}  {title.ljust(title_w)}  {str(count).rjust(replies_w)}")
+        stat = _stat_code(t, since)
+        lines.append(f"{str(t.get('id', 0)).rjust(id_w)}  {stat.ljust(_STAT_WIDTH)}  "
+                      f"{str(count).rjust(replies_w)}  {title}")
     return lines
 
 

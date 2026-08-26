@@ -13,6 +13,12 @@ time, followed by an "End of bulletin option>" prompt with this menu:
                             live-or-offline delivery, not reimplemented)
     [L]ist               — numbered index of every message in the
                             thread (same numbering <#> jump accepts)
+    [O]ver                — redisplay the current message again
+    [F]reeze              — freeze/unfreeze this bulletin (ImageBBS's own
+                            term): frozen blocks new replies until
+                            unfrozen. Poster, this board's own admin list
+                            (SIGop/SubOp), or global ADMIN/DUNGEON_MASTER
+                            only -- see board/access.py's is_board_admin()
     <#>                  — jump straight to reply #<#>
     {return_key}          — advance to the next message
     'pm'                 — toggle Prompt Mode (see commands/prompt_mode.py)
@@ -68,6 +74,8 @@ def _menu_options_lines(ctx) -> list[str]:
     t.add_row(['[R]eply', 'reply to this message'])
     t.add_row(['[M]ail poster', 'send the author a private mail'])
     t.add_row(['[L]ist', 'list every message in this thread'])
+    t.add_row(['[O]ver', 'redisplay this message again'])
+    t.add_row(['[F]reeze', 'freeze/unfreeze this bulletin'])
     t.add_row(['<#>', 'jump straight to reply #'])
     t.add_row([ctx.player.return_key, 'read the next message'])
     t.add_row(["'pm'", 'toggle Prompt Mode'])
@@ -170,6 +178,11 @@ async def read_thread_interactive(ctx, thread: dict) -> None:
             # reply to or keep reading the same message.
         elif low == 'l':
             await _list_thread_messages(ctx, thread, privileged)
+        elif low == 'o':
+            pass  # redisplay this same message -- loop back without advancing
+        elif low == 'f':
+            await _toggle_freeze(ctx, thread)
+            # deliberately doesn't advance -- same as [M]ail poster above.
         elif low in ('pm', 'promptmode'):
             from commands.board.board import toggle_prompt_mode
             await toggle_prompt_mode(ctx)
@@ -186,6 +199,36 @@ async def read_thread_interactive(ctx, thread: dict) -> None:
             await ctx.send(f"Unrecognized choice '{choice}'.")
 
 
+async def _toggle_freeze(ctx, thread: dict) -> None:
+    """[F]reeze / unfreeze this bulletin (ImageBBS's own term). Frozen
+    blocks new replies (see this module's own _reply_with_quote() and
+    commands/board/board.py's _reply()) until unfrozen again. Permission:
+    the original poster, this board's own admin list (board/access.py's
+    is_board_admin(), i.e. a SIGop/SubOp), or global ADMIN/DUNGEON_MASTER
+    -- ImageBBS's own "poster or SIGop or subop" rule."""
+    board_id = thread.get('board_id', board_store.meta.DEFAULT_BOARD_ID)
+    board_meta = board_store.meta.get_board(board_store.meta.load_meta(), board_id)
+    is_poster = thread.get('author') == ctx.player.name
+    if not (is_poster or board_store.is_board_admin(ctx.player, board_meta)):
+        await ctx.send("You don't have permission to freeze/unfreeze this bulletin.")
+        return
+
+    # Reload fresh rather than trust this reader's own possibly-stale
+    # 'thread' -- same race-safety reasoning as _reply_with_quote()'s own
+    # reload before appending a reply.
+    threads = board_store.load_board()
+    fresh = next((t for t in threads if t.get('id') == thread.get('id')), None)
+    if fresh is None:
+        await ctx.send('That thread no longer exists.')
+        return
+    fresh['frozen'] = not fresh.get('frozen', False)
+    thread['frozen'] = fresh['frozen']  # keep this reader's in-memory copy in sync
+    board_store.save_board(threads)
+    await ctx.send(f"Bulletin {'frozen' if fresh['frozen'] else 'unfrozen'}.")
+    log.info('BOARD FREEZE: %s %s thread #%s', ctx.player.name,
+             'froze' if fresh['frozen'] else 'unfroze', fresh.get('id'))
+
+
 async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: bool) -> None:
     """[R]eply: pick how much (if any) of *quoted_entry* to quote, preview
     it, confirm, then open the line editor for the reply body."""
@@ -193,6 +236,10 @@ async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: b
         Border, BorderRole, Buffer, DefaultLineRange, Line, LineFlag,
         process_line_range_string, run_editor,
     )
+
+    if thread.get('frozen'):
+        await ctx.send('This bulletin is frozen -- no new responses.')
+        return
 
     width = _screen_width(ctx)
     quoted_lines = board_store.render_message_lines(quoted_entry, ctx, width)
