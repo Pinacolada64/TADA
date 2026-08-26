@@ -372,8 +372,9 @@ class TestReplyWithQuote(BoardReplyTestCase):
         prompts = ['r', 'all', 'y', 'n', '', 'my reply', '.s', '', '', '']
         ctx = make_ctx(prompts=prompts)
         run(read_thread_interactive(ctx, _thread()))
-        prompt_args = [c.args[0] for c in ctx.prompt.await_args_list]
-        self.assertIn('Enter title of reply, [Enter keeps same]', prompt_args)
+        self.assertIn('Reply title', [c.args[0] for c in ctx.prompt.await_args_list])
+        preambles = [str(c.kwargs.get('preamble_lines')) for c in ctx.prompt.await_args_list]
+        self.assertTrue(any('Enter keeps' in p for p in preambles))
 
     def test_reply_header_shows_its_own_title_when_read_back(self):
         # read_thread_interactive() snapshots 'messages' once at the top

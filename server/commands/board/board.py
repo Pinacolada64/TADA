@@ -107,7 +107,10 @@ async def prompt_reply_title(ctx, default_title: str) -> str | None:
     that way. Returns None if the player disconnected mid-prompt.
     Shared by this module's own _reply() and commands/board/reply.py's
     interactive reply flow."""
-    raw = await ctx.prompt(f'Enter title of reply, [{ctx.player.return_key} keeps same]')
+    raw = await ctx.prompt(
+        'Reply title',
+        preamble_lines=['', f'({ctx.player.return_key} keeps "{default_title}")', ''],
+    )
     if raw is None:
         return None
     raw = raw.strip()
@@ -142,8 +145,9 @@ async def _pick_from_numbered_list(ctx, items: list[dict], *, noun: str) -> dict
     player backed out) or an out-of-range/non-numeric one (reported and
     treated as backing out, rather than looping forever)."""
     lines = [''] + [f'  {i}. {item.get("name", "(unnamed)")}' for i, item in enumerate(items, 1)]
+    lines.append(f'({ctx.player.return_key} to cancel)')
     lines.append('')
-    raw = await ctx.prompt(f'Which {noun} (# or {ctx.player.return_key} to cancel)', preamble_lines=lines)
+    raw = await ctx.prompt(f'Which {noun}', preamble_lines=lines)
     if raw is None or not raw.strip():
         return None
     choice = raw.strip()
@@ -300,12 +304,10 @@ class BoardCommand(Command):
                     make_rule(rule_width, hrule_char(ctx)),
                 ]
                 lines += board_store.format_thread_listing(threads, rule_width, _is_petscii(ctx))
+                lines.append(f"(# to read, {ctx.player.return_key} to exit, 'pm' toggles Prompt Mode)")
                 lines.append('')
 
-                raw = await ctx.prompt(
-                    f"Read which (# or {ctx.player.return_key} to exit, 'pm' toggles Prompt Mode)",
-                    preamble_lines=lines,
-                )
+                raw = await ctx.prompt('Read which', preamble_lines=lines)
                 if raw is None or not raw.strip():
                     return CommandResult.ok('Exited board.')
 

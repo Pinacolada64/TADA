@@ -198,6 +198,14 @@ class TestBoardManagement(BoardEditTestCase):
         saved = board_store.meta.load_meta(self.meta_path)
         self.assertEqual(saved['boards']['1']['access'], {'type': 'flag', 'value': 'ADMIN'})
 
+    def test_flag_gate_question_mark_lists_known_flags_and_reprompts(self):
+        self._seed_sig_and_board()
+        ctx = make_ctx(prompts=['b', '1', 'g', 'f', '?', 'admin', '', '', ''])
+        run(edit_board_settings(ctx))
+        self.assertIn('DUNGEON_MASTER', str(ctx.send.call_args_list))
+        saved = board_store.meta.load_meta(self.meta_path)
+        self.assertEqual(saved['boards']['1']['access'], {'type': 'flag', 'value': 'ADMIN'})
+
     def test_set_access_gate_any_of(self):
         self._seed_sig_and_board()
         ctx = make_ctx(prompts=['b', '1', 'g', 'o', '2', 'dungeon_master', '', '', ''])

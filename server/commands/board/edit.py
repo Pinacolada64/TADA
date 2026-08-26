@@ -91,13 +91,17 @@ async def _prompt_multi_select(ctx, items: list[dict], *, noun: str, prompt: str
     """Numbered listing of *items* + a parse_multi_select()-driven pick
     (e.g. '1,3-5'). [] on a blank/disconnected answer or an all-invalid
     one (reported and treated as "picked nothing" rather than looping
-    forever -- this is a nested submenu step, not the whole editor)."""
+    forever -- this is a nested submenu step, not the whole editor).
+    *prompt* should be short (see CLAUDE.md's ctx.prompt() length note)
+    -- the range-syntax hint is appended to the preamble here, once,
+    rather than every caller repeating it inline."""
     from text_editor import parse_multi_select
 
     if not items:
         await ctx.send(f'No {noun}s to choose from.')
         return []
     lines = [''] + [f'  {i}. {item.get("name", "(unnamed)")}' for i, item in enumerate(items, 1)]
+    lines.append('(# or e.g. 1,3-5)')
     lines.append('')
     raw = await ctx.prompt(prompt, preamble_lines=lines)
     if raw is None or not raw.strip():
@@ -130,12 +134,10 @@ async def edit_board_settings(ctx) -> CommandResult:
             f"  S  Manage SIGs ...................... ({len(sigs_data.get('sigs', []))})",
             f"  B  Manage Boards .................... ({len(meta_data.get('boards', {}))})",
             '  N  New board',
+            f'({ctx.player.return_key} saves and exits)',
             '',
         ]
-        raw = await ctx.prompt(
-            f'Change which (or {ctx.player.return_key} to save and exit)',
-            preamble_lines=lines,
-        )
+        raw = await ctx.prompt('Change which', preamble_lines=lines)
         if raw is None or not raw.strip():
             board_store.sigs.save_sigs(sigs_data)
             board_store.meta.save_meta(meta_data)
@@ -165,11 +167,9 @@ async def _manage_sigs(ctx, sigs_data: dict, meta_data: dict) -> None:
         for i, sig in enumerate(sig_list, 1):
             lines.append(f"  {i}. {sig.get('name', '(unnamed)')} "
                           f"({len(sig.get('board_ids', []))} board(s))")
+        lines.append(f'(# to edit, A to add, {ctx.player.return_key} to go back)')
         lines.append('')
-        raw = await ctx.prompt(
-            f'# to edit, A to add, or {ctx.player.return_key} to go back',
-            preamble_lines=lines,
-        )
+        raw = await ctx.prompt('Which SIG', preamble_lines=lines)
         if raw is None or not raw.strip():
             return
         choice = raw.strip()
@@ -197,9 +197,10 @@ async def _sig_detail(ctx, sigs_data: dict, meta_data: dict, sig: dict) -> None:
         lines = [
             '', f"|yellow|SIG: {sig.get('name', '(unnamed)')}|reset|", '',
             '  R  Rename', '  X  Delete (only if it has no boards)',
-            '  O  Reorder (move to a new position in the SIG list)', '',
+            '  O  Reorder (move to a new position in the SIG list)',
+            f'({ctx.player.return_key} to go back)', '',
         ]
-        raw = await ctx.prompt(f'Change which (or {ctx.player.return_key} to go back)', preamble_lines=lines)
+        raw = await ctx.prompt('Change which', preamble_lines=lines)
         if raw is None or not raw.strip():
             return
         choice = raw.strip().lower()
@@ -235,7 +236,10 @@ async def _move_to_position(ctx, items: list, item, *, name: str) -> None:
     *items* can hold anything (SIG dicts, or plain board-id ints for
     reordering within a SIG's board_ids) -- *name* is passed in rather
     than pulled off *item* since a plain int has no .get('name')."""
-    raw = await ctx.prompt(f'Move {name} before which? (1-{len(items)})')
+    raw = await ctx.prompt(
+        f'Move {name} before which',
+        preamble_lines=['', f'(1-{len(items)})', ''],
+    )
     if raw is None or not raw.strip() or not raw.strip().isdigit():
         await ctx.send('Cancelled.')
         return
@@ -259,8 +263,9 @@ async def _manage_boards(ctx, sigs_data: dict, meta_data: dict) -> None:
         for i, board_id in enumerate(board_ids, 1):
             sig_names = ', '.join(s.get('name', '(unnamed)') for s in _sigs_containing(sigs_data, board_id))
             lines.append(f"  {i}. {_board_name(meta_data, board_id)}  (in: {sig_names or 'no SIG'})")
+        lines.append(f'(# to edit, {ctx.player.return_key} to go back)')
         lines.append('')
-        raw = await ctx.prompt(f'# to edit, or {ctx.player.return_key} to go back', preamble_lines=lines)
+        raw = await ctx.prompt('Which board', preamble_lines=lines)
         if raw is None or not raw.strip():
             return
         choice = raw.strip()
@@ -286,9 +291,9 @@ async def _board_detail(ctx, sigs_data: dict, meta_data: dict, board_id: int) ->
             '  O  Reorder (move to a new position within its SIG)',
             '  A  Set anonymous-posting mode', '  G  Set access gate',
             '  P  Manage admins', '  X  Delete (only if it has no threads)',
-            '',
+            f'({ctx.player.return_key} to go back)', '',
         ]
-        raw = await ctx.prompt(f'Change which (or {ctx.player.return_key} to go back)', preamble_lines=lines)
+        raw = await ctx.prompt('Change which', preamble_lines=lines)
         if raw is None or not raw.strip():
             return
         choice = raw.strip().lower()
@@ -338,14 +343,14 @@ async def _move_board(ctx, sigs_data: dict, meta_data: dict, board_id: int) -> N
         source = containing[0]
     else:
         picks = await _prompt_multi_select(
-            ctx, containing, noun='SIG', prompt='Remove from which SIG? (pick one)')
+            ctx, containing, noun='SIG', prompt='Remove from which SIG')
         if len(picks) != 1:
             await ctx.send('Pick exactly one SIG to move from.')
             return
         source = picks[0]
 
     targets = [s for s in sigs_data.get('sigs', []) if s is not source]
-    picks = await _prompt_multi_select(ctx, targets, noun='SIG', prompt='Move to which SIG? (pick one)')
+    picks = await _prompt_multi_select(ctx, targets, noun='SIG', prompt='Move to which SIG')
     if len(picks) != 1:
         await ctx.send('Pick exactly one destination SIG.')
         return
@@ -360,8 +365,7 @@ async def _move_board(ctx, sigs_data: dict, meta_data: dict, board_id: int) -> N
 async def _share_board(ctx, sigs_data: dict, meta_data: dict, board_id: int) -> None:
     already_in = {s.get('id') for s in _sigs_containing(sigs_data, board_id)}
     targets = [s for s in sigs_data.get('sigs', []) if s.get('id') not in already_in]
-    picks = await _prompt_multi_select(
-        ctx, targets, noun='SIG', prompt="Share into which SIG(s)? (e.g. 1,3)")
+    picks = await _prompt_multi_select(ctx, targets, noun='SIG', prompt='Share into which SIG(s)')
     if not picks:
         return
     for sig in picks:
@@ -379,7 +383,7 @@ async def _reorder_board(ctx, sigs_data: dict, meta_data: dict, board_id: int) -
         sig = containing[0]
     else:
         picks = await _prompt_multi_select(
-            ctx, containing, noun='SIG', prompt='Reorder within which SIG? (pick one)')
+            ctx, containing, noun='SIG', prompt='Reorder within which SIG')
         if len(picks) != 1:
             await ctx.send('Pick exactly one SIG.')
             return
@@ -388,7 +392,8 @@ async def _reorder_board(ctx, sigs_data: dict, meta_data: dict, board_id: int) -
 
 
 async def _edit_anonymous_mode(ctx, meta_data: dict, board_id: int) -> None:
-    raw = await ctx.prompt('[A]sk / [Y]es / [N]o')
+    raw = await ctx.prompt(
+        'Anonymous posting', preamble_lines=['', '[A]sk / [Y]es / [N]o', ''])
     choice = (raw or '').strip().lower()[:1]
     new_mode = _ANON_MODE_CHOICES.get(choice)
     if new_mode is None:
@@ -401,7 +406,10 @@ async def _edit_anonymous_mode(ctx, meta_data: dict, board_id: int) -> None:
 
 
 async def _edit_access_gate(ctx, meta_data: dict, board_id: int) -> None:
-    raw = await ctx.prompt('[A]nyone / [G]uild / [F]lag / [O]r (guild or flag)')
+    raw = await ctx.prompt(
+        'Access gate',
+        preamble_lines=['', '[A]nyone / [G]uild / [F]lag / [O]r (guild or flag)', ''],
+    )
     choice = (raw or '').strip().lower()[:1]
 
     if choice == 'a':
@@ -445,10 +453,20 @@ async def _pick_guild_gate(ctx) -> dict | None:
 
 
 async def _pick_flag_gate(ctx) -> dict | None:
-    raw = await ctx.prompt("Which flag (e.g. 'ADMIN', 'DUNGEON_MASTER')")
-    name = (raw or '').strip().upper()
-    if not name:
-        return None
+    """Ryan's call: a '?' option lists every known PlayerFlags name,
+    since that enum isn't something a player-facing admin would have
+    memorized -- redisplays the list and reprompts rather than treating
+    '?' as a (nonexistent) flag name."""
+    while True:
+        raw = await ctx.prompt(
+            'Which flag', preamble_lines=['', "(name, e.g. ADMIN -- '?' lists all)", ''])
+        name = (raw or '').strip().upper()
+        if not name:
+            return None
+        if name == '?':
+            await ctx.send([''] + [f'  {f.name}' for f in PlayerFlags] + [''])
+            continue
+        break
     try:
         PlayerFlags[name]
     except KeyError:
@@ -463,11 +481,9 @@ async def _manage_admins(ctx, meta_data: dict, board_id: int) -> None:
         admins = board.get('admins', [])
         lines = ['', f"|yellow|Admins for {board.get('name', '(unnamed)')}|reset|", '']
         lines += [f'  {i}. {name}' for i, name in enumerate(admins, 1)] or ['  (none)']
+        lines.append(f'(A to add, R<range> to remove e.g. R1,3, {ctx.player.return_key} back)')
         lines.append('')
-        raw = await ctx.prompt(
-            f"A to add, R<range> to remove (e.g. R1,3), or {ctx.player.return_key} to go back",
-            preamble_lines=lines,
-        )
+        raw = await ctx.prompt('Change which', preamble_lines=lines)
         if raw is None or not raw.strip():
             return
         choice = raw.strip()
@@ -530,8 +546,7 @@ async def _new_board(ctx, sigs_data: dict, meta_data: dict) -> None:
         await ctx.send(f"A board named '{name}' already exists.")
         return
 
-    picks = await _prompt_multi_select(
-        ctx, sig_list, noun='SIG', prompt='Add to which SIG(s)? (e.g. 1,3)')
+    picks = await _prompt_multi_select(ctx, sig_list, noun='SIG', prompt='Add to which SIG(s)')
     if not picks:
         await ctx.send('Cancelled -- a new board needs at least one SIG.')
         return
