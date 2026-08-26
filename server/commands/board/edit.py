@@ -505,27 +505,32 @@ async def _pick_guild_gate(ctx) -> dict | None:
     return {'type': 'guild', 'value': guilds[idx - 1].value}
 
 
+# PlayerFlags has ~30 entries total, most of which are transient world/
+# health/item state (HUNGER, MOUNTED, WRAITH_KING_ALIVE, ...) that make
+# no sense as a board access gate. This curated subset is the
+# role/permission-like ones actually worth gating on -- Ryan's call,
+# a numbered pick (matching _pick_guild_gate()'s shape) rather than
+# requiring an admin to type/remember an exact flag name.
+_GATE_FLAG_CHOICES = (
+    PlayerFlags.ADMIN,
+    PlayerFlags.DUNGEON_MASTER,
+    PlayerFlags.ARCHITECT,
+    PlayerFlags.GUILD_MEMBER,
+    PlayerFlags.ORATOR,
+)
+
+
 async def _pick_flag_gate(ctx) -> dict | None:
-    """Ryan's call: a '?' option lists every known PlayerFlags name,
-    since that enum isn't something a player-facing admin would have
-    memorized -- redisplays the list and reprompts rather than treating
-    '?' as a (nonexistent) flag name."""
-    while True:
-        raw = await ctx.prompt(
-            'Which flag', preamble_lines=['', "(name, e.g. ADMIN -- '?' lists all)", ''])
-        name = (raw or '').strip().upper()
-        if not name:
-            return None
-        if name == '?':
-            await ctx.send([''] + [f'  {f.name}' for f in PlayerFlags] + [''])
-            continue
-        break
-    try:
-        PlayerFlags[name]
-    except KeyError:
-        await ctx.send(f"'{name}' isn't a known flag.")
+    lines = [''] + [f'  {i}. {f.value}' for i, f in enumerate(_GATE_FLAG_CHOICES, 1)]
+    lines.append('')
+    raw = await ctx.prompt('Which flag', preamble_lines=lines)
+    if raw is None or not raw.strip() or not raw.strip().isdigit():
         return None
-    return {'type': 'flag', 'value': name}
+    idx = int(raw.strip())
+    if not (1 <= idx <= len(_GATE_FLAG_CHOICES)):
+        await ctx.send('Not a valid flag number.')
+        return None
+    return {'type': 'flag', 'value': _GATE_FLAG_CHOICES[idx - 1].name}
 
 
 async def _manage_admins(ctx, meta_data: dict, board_id: int) -> None:

@@ -245,22 +245,25 @@ class TestBoardManagement(BoardEditTestCase):
 
     def test_set_access_gate_flag(self):
         self._seed_sig_and_board()
-        ctx = make_ctx(prompts=['b', '1', 'g', 'f', 'admin', '', '', ''])
+        # 1 = ADMIN in _GATE_FLAG_CHOICES's curated, numbered order.
+        ctx = make_ctx(prompts=['b', '1', 'g', 'f', '1', '', '', ''])
         run(edit_board_settings(ctx))
         saved = board_store.meta.load_meta(self.meta_path)
         self.assertEqual(saved['boards']['1']['access'], {'type': 'flag', 'value': 'ADMIN'})
 
-    def test_flag_gate_question_mark_lists_known_flags_and_reprompts(self):
+    def test_flag_gate_shows_a_numbered_list(self):
         self._seed_sig_and_board()
-        ctx = make_ctx(prompts=['b', '1', 'g', 'f', '?', 'admin', '', '', ''])
+        ctx = make_ctx(prompts=['b', '1', 'g', 'f', '1', '', '', ''])
         run(edit_board_settings(ctx))
-        self.assertIn('DUNGEON_MASTER', str(ctx.send.call_args_list))
-        saved = board_store.meta.load_meta(self.meta_path)
-        self.assertEqual(saved['boards']['1']['access'], {'type': 'flag', 'value': 'ADMIN'})
+        preambles = str(ctx.prompt.call_args_list)
+        self.assertIn('Dungeon Master', preambles)
+        self.assertIn('Guild Member', preambles)
 
     def test_set_access_gate_any_of(self):
         self._seed_sig_and_board()
-        ctx = make_ctx(prompts=['b', '1', 'g', 'o', '2', 'dungeon_master', '', '', ''])
+        # 2 = FIST in the Guild enum's order; 2 = DUNGEON_MASTER in
+        # _GATE_FLAG_CHOICES's order.
+        ctx = make_ctx(prompts=['b', '1', 'g', 'o', '2', '2', '', '', ''])
         run(edit_board_settings(ctx))
         saved = board_store.meta.load_meta(self.meta_path)
         self.assertEqual(saved['boards']['1']['access'], {
@@ -269,11 +272,11 @@ class TestBoardManagement(BoardEditTestCase):
                        {'type': 'flag', 'value': 'DUNGEON_MASTER'}],
         })
 
-    def test_unknown_flag_rejected(self):
+    def test_out_of_range_flag_number_rejected(self):
         self._seed_sig_and_board()
-        ctx = make_ctx(prompts=['b', '1', 'g', 'f', 'not_a_real_flag', '', '', ''])
+        ctx = make_ctx(prompts=['b', '1', 'g', 'f', '99', '', '', ''])
         run(edit_board_settings(ctx))
-        self.assertIn("isn't a known flag", str(ctx.send.call_args_list))
+        self.assertIn('Not a valid flag number', str(ctx.send.call_args_list))
         saved = board_store.meta.load_meta(self.meta_path)
         self.assertEqual(saved['boards']['1']['access'], {'type': 'any'})
 
