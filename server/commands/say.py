@@ -25,6 +25,10 @@ that line (doesn't touch command_settings.say.verb):
   →  Rulan grumbles, "Hello"
 'say #verb=off' (or '#verb='/'#verb=none') clears it. Bare 'say #verb'
 previews the current verb without broadcasting anything.
+
+'say #split' is the inline equivalent of PREFS 'Y': bare 'say #split'
+reports the current on/off state, 'say #split on'/'say #split off' sets
+it explicitly, and 'say #unsplit' is shorthand for 'say #split off'.
 """
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
@@ -42,6 +46,9 @@ _VERB_MAP = [
     ('...', ('mutters',  'mutter')),
 ]
 _DEFAULT_VERB = ('says', 'say')
+
+_TRUTHY = {'on', 'true', '1', 'yes'}
+_FALSY  = {'off', 'false', '0', 'no'}
 
 
 def _choose_verb(text: str):
@@ -115,6 +122,8 @@ class SayCommand(Command):
             ('say #verb=<word>',     'Always use <word> as your say verb'),
             ('say #verb',            'Preview your current say verb'),
             ('say #verb=off',        'Clear the custom verb'),
+            ('say #split [on|off]',  "Report, or set, Say Split (same as PREFS 'Y')"),
+            ('say #unsplit',         "Shorthand for 'say #split off'"),
         ],
         examples = [
             ('say Hello there!',   'SAY broadcasts a message to everyone in your room, '
@@ -143,6 +152,12 @@ class SayCommand(Command):
                                     'verb without saying anything (or tells you none '
                                     "is set). 'say #verb=off' clears it, back to "
                                     'punctuation-based selection.'),
+            ('say #split',          "Inline equivalent of PREFS 'Y' -- bare "
+                                    "'say #split' reports Say split is On. or "
+                                    "Say split is Off. without saying anything; "
+                                    "'say #split on'/'say #split off' sets it "
+                                    "directly, and 'say #unsplit' is shorthand "
+                                    "for 'say #split off'."),
         ],
         notes = [
             "Say Split (PREFS 'Y') must be on for ',,' and ',,,' to do "
@@ -157,6 +172,11 @@ class SayCommand(Command):
         verb_switch = next((s for s in switches if s == '#verb' or s.startswith('#verb=')), None)
         if verb_switch is not None:
             return await self._handle_verb_switch(ctx, verb_switch)
+
+        if '#split' in switches:
+            return await self._handle_split_switch(ctx, args)
+        if '#unsplit' in switches:
+            return await self._handle_split_switch(ctx, ['off'])
 
         # Reconstruct the message; strip a leading " if the shortcut was used
         text = ' '.join(args).lstrip('"').strip()
@@ -218,4 +238,22 @@ class SayCommand(Command):
         third = _third_person(value)
         await ctx.send(f'Say verb set to "{value}" -- '
                         f'{ctx.player.name} {third}, "..."')
+        return CommandResult.ok()
+
+    async def _handle_split_switch(self, ctx: GameContext, args: list) -> CommandResult:
+        """'say #split' (bare: preview; with on/off: set) and
+        'say #unsplit' (routed here with a synthetic 'off' arg)."""
+        say_settings = ctx.player.command_settings.say
+
+        if args:
+            value = args[0].lower()
+            if value in _TRUTHY:
+                say_settings.split = True
+            elif value in _FALSY:
+                say_settings.split = False
+            else:
+                await ctx.send(f"Say split unchanged -- \"{args[0]}\" isn't on/off.")
+                return CommandResult.ok()
+
+        await ctx.send(f"Say split is {'On' if say_settings.split else 'Off'}.")
         return CommandResult.ok()
