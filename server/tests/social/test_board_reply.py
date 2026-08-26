@@ -252,7 +252,9 @@ class TestSteppedNavigation(unittest.TestCase):
         ctx = make_ctx(player=_FakePlayer(expert=False), prompts=['', '', ''])
         run(read_thread_interactive(ctx, _thread()))
         preambles = [c.kwargs.get('preamble_lines') for c in ctx.prompt.await_args_list]
-        self.assertTrue(any("'pm'" in line for line in preambles[0]))
+        # Highlighted (reverse video) and unquoted -- see CLAUDE.md/this
+        # menu's own reverse_on markup around 'pm', <#>, and the return key.
+        self.assertTrue(any('pm' in line and 'reverse_on' in line for line in preambles[0]))
 
 
 class BoardReplyTestCase(unittest.TestCase):
