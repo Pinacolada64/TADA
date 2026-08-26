@@ -417,10 +417,22 @@ class Inventory:
                 ration = _rations_by_number().get(d.get('item_id'))
                 if ration and str(ration.get('name', '')).lower() == item_name.lower():
                     item_kind = ration.get('kind')
-                    if item_kind == 'food':
-                        category = ItemCategory.FOOD
-                    elif item_kind == 'drink':
-                        category = ItemCategory.DRINK
+
+            # item_kind (food/drink) always wins over item_category here,
+            # not just when it was just backfilled above -- items.py's
+            # Rations class didn't set .category until 2026-08-25, so
+            # every ration saved before that fix has item_category=""
+            # and would otherwise permanently deserialize as generic
+            # ItemCategory.ITEM forever, even after the fix landed. That
+            # mismatched a freshly-bought ration's now-correct FOOD/DRINK
+            # category and broke Inventory.add()'s stacking match (found
+            # live: Railbender's pre-existing loaf of bread never stacked
+            # with a newly bought one). item_kind is reliably persisted
+            # already, so it's the authoritative source for rations.
+            if item_kind == 'food':
+                category = ItemCategory.FOOD
+            elif item_kind == 'drink':
+                category = ItemCategory.DRINK
 
             item_price = d.get('item_price')
             if item_price is None:
