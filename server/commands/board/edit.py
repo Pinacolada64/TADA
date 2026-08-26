@@ -1,25 +1,38 @@
-"""commands/board/edit.py — 'board #edit': admin-only, board-wide
-threaded-board settings menu.
+"""commands/board/edit.py — 'board #edit': admin-only SIG/board
+structural editor.
 
-Currently one setting: the anonymous-posting default (board.py's
-load_config()/save_config() -- a back-compat shim over board/meta.py's
-per-board storage for now, see that module's docstring -- read by
-commands/board/board.py's own resolve_anonymous(), shared with
-commands/board/reply.py's reply flow). Ask/Yes/No, board-wide -- not a
-per-player preference like command_settings.board.last_date is, since
-an admin is choosing site policy here, not their own reading habits.
+Phase 2 of the sig-editor project (see the approved plan) grows this
+from the old single anonymous-posting-mode toggle into the full editor:
 
-Phase 1 of the sig-editor project (see the approved plan): this stays
-exactly what it was as commands/board_edit.py -- just moved into the
-new commands/board/ package alongside board.py/reply.py. Phase 2 grows
-this into the full SIG/board structural editor (rename, move/share
-between SIGs, reorder, access gating, admin list).
+  [S]IG management  — add/rename/delete a SIG, reorder SIGs
+  [B]oard management — pick a board (across every SIG) then rename it,
+                        move/share it between SIGs, reorder it within
+                        its SIG, set its anonymous-posting mode, set its
+                        access gate, manage its admin list, delete it
+  [N]ew board        — create a board, choose which SIG(s) hold it
+
+Same loop/submenu/mutate-in-memory/save-on-exit shape as the old
+board_edit.py (see git history), generalized to two files instead of
+one: board_sigs.json/board_meta.json are each loaded once on entry and
+only written back to disk on the final top-level Enter -- nested
+submenus mutate the same in-memory sigs_data/meta_data dicts and return
+up a level on their own blank/Enter, never saving early. Every field
+this editor can set (access gate, admins, anonymous_mode) already has
+a place in board/meta.py's per-board dict from Phase 1 -- this phase
+adds the UI to set it; nothing here enforces it yet (Phase 3).
+
+Multi-select prompts (picking which SIG(s) a new/shared board lands in,
+removing more than one admin at once) use text_editor.py's own
+parse_multi_select() -- ed-style comma/range picks like '1,3-5' -- so
+this editor's input style matches the text editor's rather than
+inventing a second one-at-a-time-only picker (Ryan's call).
 """
 from __future__ import annotations
 
 import logging
 
 import board as board_store
+from base_classes import Guild
 from commands.base_command import CommandResult
 from flags import PlayerFlags
 
@@ -28,20 +41,95 @@ log = logging.getLogger(__name__)
 _ANON_MODE_LABELS = {'ask': 'Ask', 'yes': 'Yes', 'no': 'No'}
 _ANON_MODE_CHOICES = {'a': 'ask', 'y': 'yes', 'n': 'no'}
 
+_ACCESS_LABELS = {
+    'any':     'Anyone',
+    'guild':   'Guild',
+    'flag':    'Flag',
+    'any_of':  'Guild or flag',
+}
+
+
+# ---------------------------------------------------------------------
+# Small shared helpers
+# ---------------------------------------------------------------------
+
+def _sig_by_id(sigs_data: dict, sig_id: int) -> dict | None:
+    return next((s for s in sigs_data.get('sigs', []) if s.get('id') == sig_id), None)
+
+
+def _sigs_containing(sigs_data: dict, board_id: int) -> list[dict]:
+    return [s for s in sigs_data.get('sigs', []) if board_id in s.get('board_ids', [])]
+
+
+def _board_name(meta_data: dict, board_id: int) -> str:
+    return board_store.meta.get_board(meta_data, board_id).get('name', f'Board {board_id}')
+
+
+def _access_label(access: dict) -> str:
+    kind = access.get('type', 'any')
+    if kind == 'guild':
+        return f"Guild: {access.get('value', '?')}"
+    if kind == 'flag':
+        return f"Flag: {access.get('value', '?')}"
+    if kind == 'any_of':
+        parts = [f"{v.get('type')}={v.get('value')}" for v in access.get('values', [])]
+        return f"Any of: {', '.join(parts) or '(none)'}"
+    return _ACCESS_LABELS.get(kind, kind)
+
+
+def _board_name_taken(meta_data: dict, name: str, exclude_id: int | None = None) -> bool:
+    target = name.strip().lower()
+    for board in meta_data.get('boards', {}).values():
+        if board.get('id') == exclude_id:
+            continue
+        if board.get('name', '').strip().lower() == target:
+            return True
+    return False
+
+
+async def _prompt_multi_select(ctx, items: list[dict], *, noun: str, prompt: str) -> list[dict]:
+    """Numbered listing of *items* + a parse_multi_select()-driven pick
+    (e.g. '1,3-5'). [] on a blank/disconnected answer or an all-invalid
+    one (reported and treated as "picked nothing" rather than looping
+    forever -- this is a nested submenu step, not the whole editor)."""
+    from text_editor import parse_multi_select
+
+    if not items:
+        await ctx.send(f'No {noun}s to choose from.')
+        return []
+    lines = [''] + [f'  {i}. {item.get("name", "(unnamed)")}' for i, item in enumerate(items, 1)]
+    lines.append('')
+    raw = await ctx.prompt(prompt, preamble_lines=lines)
+    if raw is None or not raw.strip():
+        return []
+    picks = parse_multi_select(raw.strip(), len(items))
+    if not picks:
+        await ctx.send(f"'{raw.strip()}' didn't select any {noun}.")
+        return []
+    return [items[i - 1] for i in picks]
+
+
+# ---------------------------------------------------------------------
+# Top level
+# ---------------------------------------------------------------------
 
 async def edit_board_settings(ctx) -> CommandResult:
-    """The 'board #edit' menu itself -- loops showing current settings
-    until the admin presses Enter to save and exit."""
+    """The 'board #edit' menu itself -- loops until the admin presses
+    Enter at the top level, which is the only point either file actually
+    gets written to disk."""
     if not ctx.player.query_flag(PlayerFlags.ADMIN):
         await ctx.send('You lack the authority to do that.')
         return CommandResult.fail('Permission denied.', error='permission_denied')
 
-    config = board_store.load_config()
+    sigs_data = board_store.sigs.load_sigs()
+    meta_data = board_store.meta.load_meta()
+
     while True:
-        mode_label = _ANON_MODE_LABELS.get(config.get('anonymous_mode', 'ask'), 'Ask')
         lines = [
-            '', '|yellow|Board Settings|reset|', '',
-            f'  A  Anonymous posting default ....... {mode_label}',
+            '', '|yellow|Board & SIG Editor|reset|', '',
+            f"  S  Manage SIGs ...................... ({len(sigs_data.get('sigs', []))})",
+            f"  B  Manage Boards .................... ({len(meta_data.get('boards', {}))})",
+            '  N  New board',
             '',
         ]
         raw = await ctx.prompt(
@@ -49,24 +137,398 @@ async def edit_board_settings(ctx) -> CommandResult:
             preamble_lines=lines,
         )
         if raw is None or not raw.strip():
-            board_store.save_config(config)
+            board_store.sigs.save_sigs(sigs_data)
+            board_store.meta.save_meta(meta_data)
             await ctx.send('Board settings saved.')
-            log.info('ADMIN BOARD EDIT: %s saved board settings %r', ctx.player.name, config)
+            log.info('ADMIN BOARD EDIT: %s saved SIG/board settings', ctx.player.name)
             return CommandResult.ok('Saved board settings.')
 
         choice = raw.strip().lower()
-        if choice == 'a':
-            await _edit_anonymous_mode(ctx, config)
+        if choice == 's':
+            await _manage_sigs(ctx, sigs_data, meta_data)
+        elif choice == 'b':
+            await _manage_boards(ctx, sigs_data, meta_data)
+        elif choice == 'n':
+            await _new_board(ctx, sigs_data, meta_data)
         else:
             await ctx.send(f"Unrecognized choice '{choice}'.")
 
 
-async def _edit_anonymous_mode(ctx, config: dict) -> None:
+# ---------------------------------------------------------------------
+# [S] SIG management
+# ---------------------------------------------------------------------
+
+async def _manage_sigs(ctx, sigs_data: dict, meta_data: dict) -> None:
+    while True:
+        sig_list = sigs_data.get('sigs', [])
+        lines = ['', '|yellow|SIGs|reset|', '']
+        for i, sig in enumerate(sig_list, 1):
+            lines.append(f"  {i}. {sig.get('name', '(unnamed)')} "
+                          f"({len(sig.get('board_ids', []))} board(s))")
+        lines.append('')
+        raw = await ctx.prompt(
+            f'# to edit, A to add, or {ctx.player.return_key} to go back',
+            preamble_lines=lines,
+        )
+        if raw is None or not raw.strip():
+            return
+        choice = raw.strip()
+        if choice.lower() == 'a':
+            await _add_sig(ctx, sigs_data)
+        elif choice.isdigit() and 1 <= int(choice) <= len(sig_list):
+            await _sig_detail(ctx, sigs_data, meta_data, sig_list[int(choice) - 1])
+        else:
+            await ctx.send(f"'{choice}' is not a valid choice.")
+
+
+async def _add_sig(ctx, sigs_data: dict) -> None:
+    raw = await ctx.prompt('New SIG name')
+    name = (raw or '').strip()
+    if not name:
+        await ctx.send('Cancelled.')
+        return
+    new_sig = {'id': board_store.sigs.next_sig_id(sigs_data), 'name': name, 'board_ids': []}
+    sigs_data.setdefault('sigs', []).append(new_sig)
+    await ctx.send(f"SIG '{name}' added.")
+
+
+async def _sig_detail(ctx, sigs_data: dict, meta_data: dict, sig: dict) -> None:
+    while True:
+        lines = [
+            '', f"|yellow|SIG: {sig.get('name', '(unnamed)')}|reset|", '',
+            '  R  Rename', '  X  Delete (only if it has no boards)',
+            '  U  Move up', '  D  Move down', '',
+        ]
+        raw = await ctx.prompt(f'Change which (or {ctx.player.return_key} to go back)', preamble_lines=lines)
+        if raw is None or not raw.strip():
+            return
+        choice = raw.strip().lower()
+
+        if choice == 'r':
+            raw_name = await ctx.prompt('New name')
+            new_name = (raw_name or '').strip()
+            if new_name:
+                sig['name'] = new_name
+                await ctx.send(f"Renamed to '{new_name}'.")
+            else:
+                await ctx.send('Cancelled.')
+        elif choice == 'x':
+            if sig.get('board_ids'):
+                await ctx.send('That SIG still has boards in it -- move or delete them first.')
+            else:
+                sigs_data['sigs'].remove(sig)
+                await ctx.send(f"SIG '{sig.get('name', '(unnamed)')}' deleted.")
+                return
+        elif choice in ('u', 'd'):
+            _reorder(sigs_data['sigs'], sig, up=(choice == 'u'))
+        else:
+            await ctx.send(f"Unrecognized choice '{choice}'.")
+
+
+def _reorder(items: list, item, *, up: bool) -> None:
+    i = items.index(item)
+    j = i - 1 if up else i + 1
+    if 0 <= j < len(items):
+        items[i], items[j] = items[j], items[i]
+
+
+# ---------------------------------------------------------------------
+# [B] Board management
+# ---------------------------------------------------------------------
+
+async def _manage_boards(ctx, sigs_data: dict, meta_data: dict) -> None:
+    while True:
+        board_ids = sorted(int(k) for k in meta_data.get('boards', {}).keys())
+        lines = ['', '|yellow|Boards|reset|', '']
+        for i, board_id in enumerate(board_ids, 1):
+            sig_names = ', '.join(s.get('name', '(unnamed)') for s in _sigs_containing(sigs_data, board_id))
+            lines.append(f"  {i}. {_board_name(meta_data, board_id)}  (in: {sig_names or 'no SIG'})")
+        lines.append('')
+        raw = await ctx.prompt(f'# to edit, or {ctx.player.return_key} to go back', preamble_lines=lines)
+        if raw is None or not raw.strip():
+            return
+        choice = raw.strip()
+        if choice.isdigit() and 1 <= int(choice) <= len(board_ids):
+            await _board_detail(ctx, sigs_data, meta_data, board_ids[int(choice) - 1])
+        else:
+            await ctx.send(f"'{choice}' is not a valid choice.")
+
+
+async def _board_detail(ctx, sigs_data: dict, meta_data: dict, board_id: int) -> None:
+    while True:
+        board = board_store.meta.get_board(meta_data, board_id)
+        containing = _sigs_containing(sigs_data, board_id)
+        sig_names = ', '.join(s.get('name', '(unnamed)') for s in containing) or 'no SIG'
+        lines = [
+            '', f"|yellow|Board: {board.get('name', '(unnamed)')}|reset|", '',
+            f'  In SIG(s): {sig_names}',
+            f"  Anonymous posting: {_ANON_MODE_LABELS.get(board.get('anonymous_mode', 'ask'), 'Ask')}",
+            f"  Access: {_access_label(board.get('access', {'type': 'any'}))}",
+            f"  Admins: {', '.join(board.get('admins', [])) or '(none)'}",
+            '',
+            '  R  Rename', '  M  Move to another SIG', '  H  Share into another SIG',
+            '  U  Move up (within its SIG)', '  D  Move down (within its SIG)',
+            '  A  Set anonymous-posting mode', '  G  Set access gate',
+            '  P  Manage admins', '  X  Delete (only if it has no threads)',
+            '',
+        ]
+        raw = await ctx.prompt(f'Change which (or {ctx.player.return_key} to go back)', preamble_lines=lines)
+        if raw is None or not raw.strip():
+            return
+        choice = raw.strip().lower()
+
+        if choice == 'r':
+            await _rename_board(ctx, meta_data, board_id)
+        elif choice == 'm':
+            await _move_board(ctx, sigs_data, meta_data, board_id)
+        elif choice == 'h':
+            await _share_board(ctx, sigs_data, meta_data, board_id)
+        elif choice in ('u', 'd'):
+            await _reorder_board(ctx, sigs_data, board_id, up=(choice == 'u'))
+        elif choice == 'a':
+            await _edit_anonymous_mode(ctx, meta_data, board_id)
+        elif choice == 'g':
+            await _edit_access_gate(ctx, meta_data, board_id)
+        elif choice == 'p':
+            await _manage_admins(ctx, meta_data, board_id)
+        elif choice == 'x':
+            if await _delete_board(ctx, sigs_data, meta_data, board_id):
+                return
+        else:
+            await ctx.send(f"Unrecognized choice '{choice}'.")
+
+
+async def _rename_board(ctx, meta_data: dict, board_id: int) -> None:
+    raw = await ctx.prompt('New name')
+    new_name = (raw or '').strip()
+    if not new_name:
+        await ctx.send('Cancelled.')
+        return
+    if _board_name_taken(meta_data, new_name, exclude_id=board_id):
+        await ctx.send(f"A board named '{new_name}' already exists.")
+        return
+    board = board_store.meta.get_board(meta_data, board_id)
+    board['name'] = new_name
+    board_store.meta.set_board(meta_data, board_id, board)
+    await ctx.send(f"Renamed to '{new_name}'.")
+
+
+async def _move_board(ctx, sigs_data: dict, meta_data: dict, board_id: int) -> None:
+    containing = _sigs_containing(sigs_data, board_id)
+    if not containing:
+        await ctx.send("This board isn't in any SIG -- use Share instead.")
+        return
+    if len(containing) == 1:
+        source = containing[0]
+    else:
+        picks = await _prompt_multi_select(
+            ctx, containing, noun='SIG', prompt='Remove from which SIG? (pick one)')
+        if len(picks) != 1:
+            await ctx.send('Pick exactly one SIG to move from.')
+            return
+        source = picks[0]
+
+    targets = [s for s in sigs_data.get('sigs', []) if s is not source]
+    picks = await _prompt_multi_select(ctx, targets, noun='SIG', prompt='Move to which SIG? (pick one)')
+    if len(picks) != 1:
+        await ctx.send('Pick exactly one destination SIG.')
+        return
+    target = picks[0]
+
+    source['board_ids'].remove(board_id)
+    if board_id not in target.setdefault('board_ids', []):
+        target['board_ids'].append(board_id)
+    await ctx.send(f"Moved '{_board_name(meta_data, board_id)}' to '{target.get('name')}'.")
+
+
+async def _share_board(ctx, sigs_data: dict, meta_data: dict, board_id: int) -> None:
+    already_in = {s.get('id') for s in _sigs_containing(sigs_data, board_id)}
+    targets = [s for s in sigs_data.get('sigs', []) if s.get('id') not in already_in]
+    picks = await _prompt_multi_select(
+        ctx, targets, noun='SIG', prompt="Share into which SIG(s)? (e.g. 1,3)")
+    if not picks:
+        return
+    for sig in picks:
+        sig.setdefault('board_ids', []).append(board_id)
+    names = ', '.join(s.get('name', '(unnamed)') for s in picks)
+    await ctx.send(f"Shared '{_board_name(meta_data, board_id)}' into: {names}.")
+
+
+async def _reorder_board(ctx, sigs_data: dict, board_id: int, *, up: bool) -> None:
+    containing = _sigs_containing(sigs_data, board_id)
+    if not containing:
+        await ctx.send("This board isn't in any SIG.")
+        return
+    if len(containing) == 1:
+        sig = containing[0]
+    else:
+        picks = await _prompt_multi_select(
+            ctx, containing, noun='SIG', prompt='Reorder within which SIG? (pick one)')
+        if len(picks) != 1:
+            await ctx.send('Pick exactly one SIG.')
+            return
+        sig = picks[0]
+    _reorder(sig['board_ids'], board_id, up=up)
+
+
+async def _edit_anonymous_mode(ctx, meta_data: dict, board_id: int) -> None:
     raw = await ctx.prompt('[A]sk / [Y]es / [N]o')
     choice = (raw or '').strip().lower()[:1]
     new_mode = _ANON_MODE_CHOICES.get(choice)
     if new_mode is None:
         await ctx.send(f"Unrecognized choice '{raw}'. Use A, Y, or N.")
         return
-    config['anonymous_mode'] = new_mode
+    board = board_store.meta.get_board(meta_data, board_id)
+    board['anonymous_mode'] = new_mode
+    board_store.meta.set_board(meta_data, board_id, board)
     await ctx.send(f'Anonymous posting default: {_ANON_MODE_LABELS[new_mode]}.')
+
+
+async def _edit_access_gate(ctx, meta_data: dict, board_id: int) -> None:
+    raw = await ctx.prompt('[A]nyone / [G]uild / [F]lag / [O]r (guild or flag)')
+    choice = (raw or '').strip().lower()[:1]
+
+    if choice == 'a':
+        access = {'type': 'any'}
+    elif choice == 'g':
+        access = await _pick_guild_gate(ctx)
+    elif choice == 'f':
+        access = await _pick_flag_gate(ctx)
+    elif choice == 'o':
+        guild_gate = await _pick_guild_gate(ctx)
+        flag_gate = await _pick_flag_gate(ctx)
+        if guild_gate is None or flag_gate is None:
+            access = None
+        else:
+            access = {'type': 'any_of', 'values': [guild_gate, flag_gate]}
+    else:
+        await ctx.send(f"Unrecognized choice '{raw}'. Use A, G, F, or O.")
+        return
+
+    if access is None:
+        await ctx.send('Cancelled.')
+        return
+    board = board_store.meta.get_board(meta_data, board_id)
+    board['access'] = access
+    board_store.meta.set_board(meta_data, board_id, board)
+    await ctx.send(f'Access gate: {_access_label(access)}.')
+
+
+async def _pick_guild_gate(ctx) -> dict | None:
+    guilds = list(Guild)
+    lines = [''] + [f'  {i}. {g.value}' for i, g in enumerate(guilds, 1)]
+    lines.append('')
+    raw = await ctx.prompt('Which guild', preamble_lines=lines)
+    if raw is None or not raw.strip() or not raw.strip().isdigit():
+        return None
+    idx = int(raw.strip())
+    if not (1 <= idx <= len(guilds)):
+        await ctx.send('Not a valid guild number.')
+        return None
+    return {'type': 'guild', 'value': guilds[idx - 1].value}
+
+
+async def _pick_flag_gate(ctx) -> dict | None:
+    raw = await ctx.prompt("Which flag (e.g. 'ADMIN', 'DUNGEON_MASTER')")
+    name = (raw or '').strip().upper()
+    if not name:
+        return None
+    try:
+        PlayerFlags[name]
+    except KeyError:
+        await ctx.send(f"'{name}' isn't a known flag.")
+        return None
+    return {'type': 'flag', 'value': name}
+
+
+async def _manage_admins(ctx, meta_data: dict, board_id: int) -> None:
+    while True:
+        board = board_store.meta.get_board(meta_data, board_id)
+        admins = board.get('admins', [])
+        lines = ['', f"|yellow|Admins for {board.get('name', '(unnamed)')}|reset|", '']
+        lines += [f'  {i}. {name}' for i, name in enumerate(admins, 1)] or ['  (none)']
+        lines.append('')
+        raw = await ctx.prompt(
+            f"A to add, R<range> to remove (e.g. R1,3), or {ctx.player.return_key} to go back",
+            preamble_lines=lines,
+        )
+        if raw is None or not raw.strip():
+            return
+        choice = raw.strip()
+
+        if choice.lower() == 'a':
+            raw_names = await ctx.prompt('Name(s) to add (comma separated)')
+            new_names = [n.strip() for n in (raw_names or '').split(',') if n.strip()]
+            added = [n for n in new_names if n not in admins]
+            admins.extend(added)
+            board['admins'] = admins
+            board_store.meta.set_board(meta_data, board_id, board)
+            await ctx.send(f"Added: {', '.join(added) or '(nothing new)'}.")
+        elif choice[:1].lower() == 'r':
+            from text_editor import parse_multi_select
+
+            picks = parse_multi_select(choice[1:], len(admins))
+            if not picks:
+                await ctx.send(f"'{choice}' didn't select any admin.")
+                continue
+            removed = [admins[i - 1] for i in picks]
+            board['admins'] = [n for i, n in enumerate(admins, 1) if i not in picks]
+            board_store.meta.set_board(meta_data, board_id, board)
+            await ctx.send(f"Removed: {', '.join(removed)}.")
+        else:
+            await ctx.send(f"Unrecognized choice '{choice}'.")
+
+
+async def _delete_board(ctx, sigs_data: dict, meta_data: dict, board_id: int) -> bool:
+    """True if deletion actually happened (caller should stop showing
+    this board's now-gone detail menu)."""
+    threads = [t for t in board_store.load_board() if t.get('board_id') == board_id]
+    if threads:
+        await ctx.send(f'That board still has {len(threads)} thread(s) on it -- delete those first.')
+        return False
+    name = _board_name(meta_data, board_id)
+    meta_data.get('boards', {}).pop(str(board_id), None)
+    for sig in sigs_data.get('sigs', []):
+        if board_id in sig.get('board_ids', []):
+            sig['board_ids'].remove(board_id)
+    await ctx.send(f"Board '{name}' deleted.")
+    return True
+
+
+# ---------------------------------------------------------------------
+# [N] New board
+# ---------------------------------------------------------------------
+
+async def _new_board(ctx, sigs_data: dict, meta_data: dict) -> None:
+    sig_list = sigs_data.get('sigs', [])
+    if not sig_list:
+        await ctx.send('Create a SIG first ([S]IG management -> A to add).')
+        return
+
+    raw_name = await ctx.prompt('New board name')
+    name = (raw_name or '').strip()
+    if not name:
+        await ctx.send('Cancelled.')
+        return
+    if _board_name_taken(meta_data, name):
+        await ctx.send(f"A board named '{name}' already exists.")
+        return
+
+    picks = await _prompt_multi_select(
+        ctx, sig_list, noun='SIG', prompt='Add to which SIG(s)? (e.g. 1,3)')
+    if not picks:
+        await ctx.send('Cancelled -- a new board needs at least one SIG.')
+        return
+
+    board_id = board_store.meta.next_board_id(meta_data)
+    board_store.meta.set_board(meta_data, board_id, {
+        'id': board_id,
+        'name': name,
+        'anonymous_mode': 'ask',
+        'access': {'type': 'any'},
+        'admins': [],
+    })
+    for sig in picks:
+        sig.setdefault('board_ids', []).append(board_id)
+    sig_names = ', '.join(s.get('name', '(unnamed)') for s in picks)
+    await ctx.send(f"Board '{name}' created in: {sig_names}.")

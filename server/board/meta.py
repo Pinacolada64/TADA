@@ -90,6 +90,14 @@ def set_board(meta: dict, board_id: int, board: dict) -> None:
     meta.setdefault('boards', {})[str(board_id)] = board
 
 
+def next_board_id(meta: dict) -> int:
+    """Phase 2: the SIG/board editor (commands/board/edit.py) uses this
+    to mint an id for a newly-created board -- same "max existing + 1"
+    convention as threads.next_id()."""
+    ids = [int(k) for k in meta.get('boards', {}).keys()]
+    return max(ids, default=0) + 1
+
+
 def load_config(path: Optional[Path] = None) -> dict:
     """Back-compat shim: the old board.py's load_config() returned just
     `{'anonymous_mode': ...}` for the one board that existed. Reads that

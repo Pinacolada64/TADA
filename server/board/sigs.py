@@ -57,3 +57,10 @@ def save_sigs(sigs: dict, path: Optional[Path] = None) -> None:
     path = path or SIGS_FILE
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(sigs, indent=2))
+
+
+def next_sig_id(sigs: dict) -> int:
+    """Phase 2: the SIG/board editor (commands/board/edit.py) uses this
+    to mint an id for a newly-created SIG -- same "max existing + 1"
+    convention as threads.next_id()/meta.next_board_id()."""
+    return max((s.get('id', 0) for s in sigs.get('sigs', [])), default=0) + 1

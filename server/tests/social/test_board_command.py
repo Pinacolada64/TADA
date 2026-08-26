@@ -70,12 +70,16 @@ class BoardCommandTestCase(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.path = Path(self._tmp.name) / 'board_threads.json'
         self.config_path = Path(self._tmp.name) / 'board_meta.json'
+        self.sigs_path = Path(self._tmp.name) / 'board_sigs.json'
         patcher = patch.object(board_store.threads, 'BOARD_FILE', self.path)
         patcher.start()
         self.addCleanup(patcher.stop)
         config_patcher = patch.object(board_store.meta, 'META_FILE', self.config_path)
         config_patcher.start()
         self.addCleanup(config_patcher.stop)
+        sigs_patcher = patch.object(board_store.sigs, 'SIGS_FILE', self.sigs_path)
+        sigs_patcher.start()
+        self.addCleanup(sigs_patcher.stop)
         self.addCleanup(self._tmp.cleanup)
 
     def _seed(self, threads):
@@ -356,7 +360,7 @@ class TestEditSwitch(BoardCommandTestCase):
         ctx = make_ctx(player=_FakePlayer(admin=True), prompts=[''])
         result = run(BoardCommand().execute(ctx, '#edit'))
         self.assertTrue(result.success)
-        self.assertIn('Board Settings', str(ctx.prompt.call_args))
+        self.assertIn('Board & SIG Editor', str(ctx.prompt.call_args))
 
     def test_unknown_switch_reports_error(self):
         ctx = make_ctx()
@@ -380,6 +384,81 @@ class TestDelete(BoardCommandTestCase):
         result = run(BoardCommand().execute(ctx, 'delete', '1'))
         self.assertTrue(result.success)
         self.assertEqual(board_store.load_board(self.path), [])
+
+
+class TestTwoLevelPicker(BoardCommandTestCase):
+    """Phase 2: pick_board() -- 'board' degrades to today's single-list
+    UX with 0 or 1 SIG/board, and shows a SIG-then-board numbered picker
+    once more than one exists."""
+
+    def _seed_two_boards(self):
+        # One SIG (General) holding two boards, plus a second SIG (Off
+        # Topic) with just one -- so picking General is where the
+        # second-level board picker actually shows up.
+        board_store.sigs.save_sigs({'sigs': [
+            {'id': 1, 'name': 'General', 'board_ids': [1, 2]},
+            {'id': 2, 'name': 'Off Topic', 'board_ids': [3]},
+        ]}, self.sigs_path)
+        board_store.meta.save_meta({'boards': {
+            '1': {'id': 1, 'name': 'Alpha', 'anonymous_mode': 'ask', 'access': {'type': 'any'}, 'admins': []},
+            '2': {'id': 2, 'name': 'Beta', 'anonymous_mode': 'ask', 'access': {'type': 'any'}, 'admins': []},
+            '3': {'id': 3, 'name': 'Gamma', 'anonymous_mode': 'ask', 'access': {'type': 'any'}, 'admins': []},
+        }}, self.config_path)
+        self._seed([
+            {'id': 1, 'board_id': 1, 'title': 'In Alpha', 'author': 'a', 'anonymous': False,
+             'posted_at': '2026-01-01T00:00:00', 'body': [], 'replies': []},
+            {'id': 2, 'board_id': 2, 'title': 'In Beta', 'author': 'a', 'anonymous': False,
+             'posted_at': '2026-01-01T00:00:00', 'body': [], 'replies': []},
+        ])
+
+    def test_no_sigs_at_all_goes_straight_to_listing(self):
+        # Fresh install, board #edit never touched: no picker shown.
+        self._seed([{'id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,
+                      'posted_at': '2026-01-01T00:00:00', 'body': [], 'replies': []}])
+        ctx = make_ctx(prompts=[''])
+        run(BoardCommand().execute(ctx))
+        self.assertEqual(ctx.prompt.await_count, 1)
+        self.assertIn('Hello', str(ctx.prompt.call_args))
+
+    def test_single_sig_single_board_goes_straight_to_listing(self):
+        board_store.sigs.save_sigs({'sigs': [{'id': 1, 'name': 'General', 'board_ids': [1]}]}, self.sigs_path)
+        self._seed([{'id': 1, 'board_id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,
+                      'posted_at': '2026-01-01T00:00:00', 'body': [], 'replies': []}])
+        ctx = make_ctx(prompts=[''])
+        run(BoardCommand().execute(ctx))
+        self.assertEqual(ctx.prompt.await_count, 1)
+        self.assertIn('Hello', str(ctx.prompt.call_args))
+
+    def test_multiple_boards_shows_sig_then_board_picker(self):
+        self._seed_two_boards()
+        ctx = make_ctx(prompts=['1', '2', ''])
+        run(BoardCommand().execute(ctx))
+        # 1st prompt: pick a SIG. 2nd: pick a board within it. 3rd: the
+        # thread listing itself (Enter to leave).
+        self.assertEqual(ctx.prompt.await_count, 3)
+        sig_prompt, board_prompt, listing_prompt = ctx.prompt.call_args_list
+        self.assertIn('General', str(sig_prompt))
+        self.assertIn('Off Topic', str(sig_prompt))
+        self.assertIn('Alpha', str(board_prompt))
+        self.assertIn('Beta', str(board_prompt))
+        self.assertIn('In Beta', str(listing_prompt))
+
+    def test_backing_out_of_sig_picker_cancels(self):
+        self._seed_two_boards()
+        ctx = make_ctx(prompts=[''])
+        result = run(BoardCommand().execute(ctx))
+        self.assertTrue(result.success)
+        self.assertEqual(ctx.prompt.await_count, 1)
+
+    def test_reading_a_thread_by_id_bypasses_the_picker_entirely(self):
+        # Thread ids are globally unique -- 'board <id>' never needs
+        # pick_board(), even with multiple boards/SIGs around.
+        self._seed_two_boards()
+        ctx = make_ctx()
+        run(BoardCommand().execute(ctx, '2'))
+        self.assertEqual(ctx.prompt.await_count, 0)
+        sent = str(ctx.send.call_args_list)
+        self.assertIn('In Beta', sent)
 
 
 if __name__ == '__main__':

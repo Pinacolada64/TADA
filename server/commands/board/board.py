@@ -77,16 +77,17 @@ async def toggle_prompt_mode(ctx) -> None:
     await ctx.send(f"Prompt Mode: {'On' if new_state else 'Off'}.")
 
 
-async def resolve_anonymous(ctx) -> bool | None:
-    """Whether a post/reply should be anonymous, per the board-wide
-    anonymous_mode admin setting (board.load_config(), changed via
-    'board #edit') -- 'yes'/'no' skip the prompt entirely; 'ask' (the
-    default) prompts as before. Returns None if the player disconnected
-    mid-prompt. Shared by this module's own _post()/_reply() and
-    commands/board/reply.py's interactive reply flow, so both paths
-    honor the same admin setting instead of each hardcoding their own
-    always-ask prompt."""
-    mode = board_store.load_config().get('anonymous_mode', 'ask')
+async def resolve_anonymous(ctx, board_id: int = _DEFAULT_BOARD_ID) -> bool | None:
+    """Whether a post/reply should be anonymous, per *board_id*'s own
+    anonymous_mode setting (board.meta, changed per-board via
+    'board #edit' since Phase 2) -- 'yes'/'no' skip the prompt entirely;
+    'ask' (the default) prompts as before. Returns None if the player
+    disconnected mid-prompt. Shared by this module's own _post()/_reply()
+    and commands/board/reply.py's interactive reply flow, so both paths
+    honor the same per-board setting instead of each hardcoding their
+    own always-ask prompt."""
+    board = board_store.meta.get_board(board_store.meta.load_meta(), board_id)
+    mode = board.get('anonymous_mode', 'ask')
     if mode == 'yes':
         return True
     if mode == 'no':
@@ -121,6 +122,71 @@ def _threads_for_board(all_threads: list[dict], board_id: int) -> list[dict]:
     setting it) counts as the default board, so nothing pre-existing
     silently vanishes from the listing."""
     return [t for t in all_threads if t.get('board_id', _DEFAULT_BOARD_ID) == board_id]
+
+
+def _single_board_shortcut(sig_list: list[dict]) -> bool:
+    """True when there's nothing to pick between: no SIGs at all (a
+    fresh install that's never touched 'board #edit'), or exactly one
+    SIG holding at most one board -- i.e. the state migration.py always
+    produces. In either case, 'board'/'board post'/'board rn' go
+    straight to _DEFAULT_BOARD_ID exactly like before Phase 2, instead
+    of showing a picker with nothing to pick."""
+    if not sig_list:
+        return True
+    return len(sig_list) == 1 and len(sig_list[0].get('board_ids', [])) <= 1
+
+
+async def _pick_from_numbered_list(ctx, items: list[dict], *, noun: str) -> dict | None:
+    """Show a 1-based numbered list of *items* (each needs a 'name' key)
+    and prompt for a pick. None on a blank/disconnected answer (the
+    player backed out) or an out-of-range/non-numeric one (reported and
+    treated as backing out, rather than looping forever)."""
+    lines = [''] + [f'  {i}. {item.get("name", "(unnamed)")}' for i, item in enumerate(items, 1)]
+    lines.append('')
+    raw = await ctx.prompt(f'Which {noun} (# or {ctx.player.return_key} to cancel)', preamble_lines=lines)
+    if raw is None or not raw.strip():
+        return None
+    choice = raw.strip()
+    if not choice.isdigit() or not (1 <= int(choice) <= len(items)):
+        await ctx.send(f"'{choice}' is not a valid {noun} number.")
+        return None
+    return items[int(choice) - 1]
+
+
+async def pick_board(ctx) -> int | None:
+    """Which board_id a bare 'board'/'board post'/'board rn' should act
+    on: _DEFAULT_BOARD_ID with no picker shown at all when there's only
+    one board to choose from (see _single_board_shortcut -- keeps
+    today's single-board UX exactly unchanged for every install that
+    hasn't touched 'board #edit' yet), otherwise a two-level SIG-then-
+    board numbered picker (decision 8 in the sig-editor plan: menu-
+    driven navigation only, no 'board 2.3' shorthand). Threads
+    themselves (board <id>/reply <id>/delete <id>) are found by their
+    own globally-unique id regardless of board, so they never need this.
+    None if the player backs out of either level."""
+    sig_data = board_store.sigs.load_sigs()
+    sig_list = sig_data.get('sigs', [])
+    if _single_board_shortcut(sig_list):
+        return _DEFAULT_BOARD_ID
+
+    if len(sig_list) == 1:
+        chosen_sig = sig_list[0]
+    else:
+        chosen_sig = await _pick_from_numbered_list(ctx, sig_list, noun='SIG')
+        if chosen_sig is None:
+            return None
+
+    board_ids = chosen_sig.get('board_ids', [])
+    if not board_ids:
+        await ctx.send(f"{chosen_sig.get('name', '(unnamed)')} has no boards yet.")
+        return None
+    if len(board_ids) == 1:
+        return board_ids[0]
+
+    meta_data = board_store.meta.load_meta()
+    boards = [board_store.meta.get_board(meta_data, bid) for bid in board_ids]
+    chosen_board = await _pick_from_numbered_list(ctx, boards, noun='board')
+    return chosen_board['id'] if chosen_board else None
 
 
 class BoardCommand(Command):
@@ -205,14 +271,23 @@ class BoardCommand(Command):
         redisplays the listing -- until the player presses Enter to leave.
         While active, the player's virtual location (commands/whereat.py)
         reads 'Reading board'. With new_only, filters to threads with
-        activity since the player's own board_last_date threshold."""
+        activity since the player's own board_last_date threshold.
+
+        Picks which board via pick_board() -- a no-op picker (returns
+        _DEFAULT_BOARD_ID straight away) until more than one board
+        exists. None means the player backed out of the SIG/board
+        picker without choosing anything."""
+        board_id = await pick_board(ctx)
+        if board_id is None:
+            return CommandResult.ok('Cancelled.')
+
         since = self._last_date(ctx)
 
         previous_location = getattr(ctx.client, 'virtual_location', None)
         ctx.client.virtual_location = 'Reading board'
         try:
             while True:
-                threads = _threads_for_board(board_store.load_board(), _DEFAULT_BOARD_ID)
+                threads = _threads_for_board(board_store.load_board(), board_id)
                 if new_only:
                     threads = [t for t in threads if board_store.is_new_since(t, since)]
                 if not threads:
@@ -246,11 +321,16 @@ class BoardCommand(Command):
 
     async def _read_one(self, ctx, thread_id: int) -> CommandResult:
         all_threads = board_store.load_board()
-        board_threads = _threads_for_board(all_threads, _DEFAULT_BOARD_ID)
         thread = next((t for t in all_threads if t.get('id') == thread_id), None)
         if thread is None:
             await ctx.send('No such thread.')
             return CommandResult.fail('Unknown thread.', error='not_found')
+        # Total-count context is "how many threads on *this* thread's own
+        # board" -- found by its own board_id, not the picker/listing's
+        # (a bare 'board <id>' can jump straight to a thread on any
+        # board, bypassing pick_board() entirely, since ids are globally
+        # unique -- see this module's own docstring).
+        board_threads = _threads_for_board(all_threads, thread.get('board_id', _DEFAULT_BOARD_ID))
 
         if ctx.player.query_flag(PlayerFlags.PROMPT_MODE):
             # One message at a time with an end-of-message [R]eply/[M]ail/
@@ -302,13 +382,17 @@ class BoardCommand(Command):
     async def _post(self, ctx) -> CommandResult:
         from text_editor import run_editor
 
+        board_id = await pick_board(ctx)
+        if board_id is None:
+            return CommandResult.ok('Cancelled.')
+
         title = await ctx.prompt('Title')
         if not title or not title.strip():
             await ctx.send('Cancelled — no title given.')
             return CommandResult.fail('No title.', error='missing_title')
         title = title.strip()
 
-        anonymous = await resolve_anonymous(ctx)
+        anonymous = await resolve_anonymous(ctx, board_id)
         if anonymous is None:
             await ctx.send('Cancelled.')
             return CommandResult.fail('Cancelled.', error='cancelled')
@@ -317,7 +401,7 @@ class BoardCommand(Command):
         # \x1f (unit separator) joins title+anonymous+board_id into
         # activity_id's single rest-of-string slot -- see commands/
         # edit.py's _resume_board_post() for the other end of this.
-        activity_id = f'board_post:{title}\x1f{int(anonymous)}\x1f{_DEFAULT_BOARD_ID}'
+        activity_id = f'board_post:{title}\x1f{int(anonymous)}\x1f{board_id}'
         body = await run_editor(ctx, activity_id=activity_id,
                                  activity_label=f'posting board thread "{title}"')
         if body is None:
@@ -327,7 +411,7 @@ class BoardCommand(Command):
         threads = board_store.load_board()
         thread = {
             'id':        board_store.next_id(threads),
-            'board_id':  _DEFAULT_BOARD_ID,
+            'board_id':  board_id,
             'title':     title,
             'author':    ctx.player.name,
             'anonymous': anonymous,
@@ -354,7 +438,7 @@ class BoardCommand(Command):
             await ctx.send('No such thread.')
             return CommandResult.fail('Unknown thread.', error='not_found')
 
-        anonymous = await resolve_anonymous(ctx)
+        anonymous = await resolve_anonymous(ctx, thread.get('board_id', _DEFAULT_BOARD_ID))
         if anonymous is None:
             await ctx.send('Cancelled.')
             return CommandResult.fail('Cancelled.', error='cancelled')

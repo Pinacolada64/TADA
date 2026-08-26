@@ -233,7 +233,7 @@ async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: b
         # than silently posting with no quote at all.
 
     from commands.board.board import resolve_anonymous, prompt_reply_title
-    anonymous = await resolve_anonymous(ctx)
+    anonymous = await resolve_anonymous(ctx, thread.get('board_id', board_store.meta.DEFAULT_BOARD_ID))
     if anonymous is None:
         await ctx.send('Cancelled.')
         return

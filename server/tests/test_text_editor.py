@@ -13,7 +13,7 @@ from formatting import deserialize_lines, render_lines
 from text_editor import (
     Border, BorderRole, Buffer, DefaultLineRange, Editor, Justification, Line,
     LineFlag, _sanitize_filename, find_recovery_file, load_recovery_file,
-    process_line_range_string, run_editor,
+    parse_multi_select, process_line_range_string, run_editor,
 )
 
 
@@ -88,6 +88,39 @@ class TestProcessLineRangeString(unittest.TestCase):
         empty = Buffer(lines=[])
         r = process_line_range_string('', empty, DefaultLineRange.ALL_LINES)
         self.assertEqual((r.start, r.end), (1, 1))
+
+
+class TestParseMultiSelect(unittest.TestCase):
+    """Comma-separated multi-select layered on process_line_range_string()
+    -- e.g. commands/board/edit.py's SIG/board pick prompts."""
+
+    def test_single_number(self):
+        self.assertEqual(parse_multi_select('2', 5), [2])
+
+    def test_comma_list(self):
+        self.assertEqual(parse_multi_select('1,3,5', 5), [1, 3, 5])
+
+    def test_range(self):
+        self.assertEqual(parse_multi_select('2-4', 5), [2, 3, 4])
+
+    def test_mixed_comma_and_range(self):
+        self.assertEqual(parse_multi_select('1,3-5', 8), [1, 3, 4, 5])
+
+    def test_out_of_range_clamps(self):
+        self.assertEqual(parse_multi_select('99', 5), [5])
+
+    def test_duplicates_deduplicated(self):
+        self.assertEqual(parse_multi_select('2,2,1-3', 5), [1, 2, 3])
+
+    def test_blank_spec_selects_nothing(self):
+        self.assertEqual(parse_multi_select('', 5), [])
+        self.assertEqual(parse_multi_select('   ', 5), [])
+
+    def test_zero_count_selects_nothing(self):
+        self.assertEqual(parse_multi_select('1,2', 0), [])
+
+    def test_whitespace_and_blank_segments_ignored(self):
+        self.assertEqual(parse_multi_select(' 1 , , 3 ', 5), [1, 3])
 
 
 class TestRelativeLineRange(unittest.TestCase):
