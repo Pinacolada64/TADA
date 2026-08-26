@@ -80,6 +80,26 @@ class TeleportSettings:
 
 
 @dataclass
+class SaySettings:
+    """commands/say.py preferences.
+
+    split: False (default) shows the whole line as one quote. True: a
+    ',,' in the text splits it into a mid-sentence attribution, e.g.
+    'say This is something,,up with which I will not put!' becomes
+    '"This is something," you exclaim, "up with which I will not put!"'
+
+    verb: None (default) picks the verb from trailing punctuation (says/
+    asks/exclaims/mutters). Set via 'say #verb=<word>' to always use that
+    word instead (e.g. verb='grumble' -> 'Rulan grumbles, "..."');
+    'say #verb=off' (or '#verb=' / '#verb=none') clears it back to
+    punctuation-based selection. 'say #verb' (bare) previews the current
+    verb without broadcasting anything.
+    """
+    split: bool = False
+    verb: Optional[str] = None
+
+
+@dataclass
 class CommandSettings:
     """Player-controlled command preferences."""
     whereat_hidden: bool = False
@@ -103,6 +123,9 @@ class CommandSettings:
     # False (default): bare movement letters are n/s/e/w (compass).
     # True: w/a/s/d instead, mapped to north/west/south/east (commands/movement.py).
     wasd_movement: bool = False
+    # 'say' preferences: comma-split dialogue attribution, custom verb
+    # override (commands/say.py)
+    say: SaySettings = field(default_factory=SaySettings)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -114,6 +137,7 @@ class CommandSettings:
         board_data = known.pop('board', None)
         news_data = known.pop('news', None)
         teleport_data = known.pop('teleport', None)
+        say_data = known.pop('say', None)
         instance = cls(**known)
         if isinstance(tips_data, dict):
             instance.tips = TipsSettings(**{
@@ -137,4 +161,9 @@ class CommandSettings:
             instance.teleport = TeleportSettings(
                 destinations={k: tuple(v) for k, v in destinations.items()}
             )
+        if isinstance(say_data, dict):
+            instance.say = SaySettings(**{
+                k: v for k, v in say_data.items()
+                if k in SaySettings.__dataclass_fields__
+            })
         return instance
