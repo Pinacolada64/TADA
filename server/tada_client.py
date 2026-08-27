@@ -31,7 +31,7 @@ from prompt_toolkit.document import Document
 from prompt_toolkit.filters import is_done
 from prompt_toolkit.formatted_text import ANSI, to_formatted_text
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.layout.containers import HSplit, Window, ConditionalContainer
+from prompt_toolkit.layout.containers import HSplit, VSplit, Window, WindowAlign, ConditionalContainer
 from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.layout.dimension import Dimension
 from prompt_toolkit.layout.layout import Layout
@@ -53,10 +53,11 @@ log = logging.getLogger(__name__)
 _WELCOME_RE = re.compile(r'^Welcome, ([^,!]+)')
 
 _STYLE = Style.from_dict({
-    'output-field': 'bg:#1a1a2e #e0e0e0',
-    'status-bar':   'bg:#16213e #a0c4ff bold',
-    'input-field':  'bg:#0f3460 #e0e0e0',
-    'prompt-mark':  '#f0a500 bold',
+    'output-field':        'bg:#1a1a2e #e0e0e0',
+    'status-bar':          'bg:#16213e #a0c4ff bold',
+    'status-bar-logging':  'bg:#16213e #f0a500 bold',
+    'input-field':         'bg:#0f3460 #e0e0e0',
+    'prompt-mark':         '#f0a500 bold',
 })
 
 # ---------------------------------------------------------------------------
@@ -154,6 +155,13 @@ _SCROLLBACK = 2000   # maximum lines kept in the output buffer
 # is all logging.basicConfig's filename= arg alone ever captured -- found
 # live 2026-08-27, Ryan expected --log to be a full session transcript).
 _transcript_fp = None
+
+def _logging_indicator_fragments():
+    """Status bar's right-edge "Logging" indicator -- visible only while
+    --log has a transcript file open. A trailing space keeps it off the
+    pane's hard right edge. A plain function (not a closure over
+    _build_app's locals) so it's unit-testable on its own."""
+    return [('class:status-bar-logging', 'Logging ' if _transcript_fp is not None else '')]
 
 def _append_output(output_buffer: Buffer, lines: list[str]) -> None:
     """Append lines to the output buffer, trimming old content if needed."""
@@ -279,11 +287,11 @@ def _build_app(state: ClientState) -> tuple[Application, Buffer, Buffer]:
     def _status_text():
         return [('class:status-bar', state.status_text)]
 
-    status_window = Window(
-        content=FormattedTextControl(_status_text),
-        height=1,
-        style='class:status-bar',
-    )
+    status_window = VSplit([
+        Window(content=FormattedTextControl(_status_text), height=1, style='class:status-bar'),
+        Window(content=FormattedTextControl(_logging_indicator_fragments), height=1,
+               style='class:status-bar', align=WindowAlign.RIGHT, dont_extend_width=True),
+    ], height=1, style='class:status-bar')
 
     # --- input area ---
     input_buffer = Buffer(name='input', multiline=False)

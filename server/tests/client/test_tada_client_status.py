@@ -56,6 +56,25 @@ class TestStatusTextFormat(unittest.TestCase):
         self.assertIn('app', state.status_text)
 
 
+class TestLoggingIndicator(unittest.TestCase):
+    """Status bar's right-edge "Logging" indicator, shown only while
+    --log has a transcript file open (see tada_client.py's
+    _transcript_fp/_append_output())."""
+
+    def setUp(self):
+        self.addCleanup(setattr, tc, '_transcript_fp', tc._transcript_fp)
+        tc._transcript_fp = None
+
+    def test_hidden_when_not_logging(self):
+        fragments = tc._logging_indicator_fragments()
+        self.assertEqual(fragments, [('class:status-bar-logging', '')])
+
+    def test_shown_when_logging(self):
+        tc._transcript_fp = object()  # any truthy-for-"is not None" sentinel
+        fragments = tc._logging_indicator_fragments()
+        self.assertEqual(fragments, [('class:status-bar-logging', 'Logging ')])
+
+
 class TestWelcomeLineParsing(unittest.IsolatedAsyncioTestCase):
 
     async def _feed_and_run(self, lines: list[str]):
