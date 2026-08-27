@@ -146,8 +146,20 @@ def _force_quit(app: 'Application', writer: asyncio.StreamWriter | None = None) 
 
 _SCROLLBACK = 2000   # maximum lines kept in the output buffer
 
+# Set by main() when --log is passed. Every line that ever reaches the
+# output buffer (server output, disconnect notices, and the '> <text>'
+# echo of what the player typed -- see _append_output()'s callers) is
+# also written here, so --log captures the actual gameplay session, not
+# just this module's own internal logging.warning()/error() calls (which
+# is all logging.basicConfig's filename= arg alone ever captured -- found
+# live 2026-08-27, Ryan expected --log to be a full session transcript).
+_transcript_fp = None
+
 def _append_output(output_buffer: Buffer, lines: list[str]) -> None:
     """Append lines to the output buffer, trimming old content if needed."""
+    if _transcript_fp is not None and lines:
+        _transcript_fp.write('\n'.join(lines) + '\n')
+        _transcript_fp.flush()
     text = output_buffer.text
     existing = text.split('\n') if text else []
     existing.extend(lines)
@@ -613,8 +625,9 @@ def main() -> int:
     parser.add_argument('--guest',      action='store_true')
     parser.add_argument('--debug',      action='store_true')
     parser.add_argument('--log',        action='store_true',
-                         help="Log to a timestamped file (tada_client_<timestamp>.log) "
-                              "instead of always overwriting the shared tada_client.log")
+                         help="Save the full gameplay session (everything shown "
+                              "on screen, plus what you typed) to a timestamped "
+                              "file, tada_client_<timestamp>.log")
     args = parser.parse_args()
 
     log_filename = (f'tada_client_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
@@ -623,6 +636,19 @@ def main() -> int:
         level=logging.DEBUG if args.debug else logging.WARNING,
         filename=log_filename,
     )
+
+    if args.log:
+        # See _append_output()'s _transcript_fp comment -- this is the
+        # actual gameplay transcript (server output + your own typed
+        # input), independent of the internal logging.basicConfig() call
+        # above, which by itself only ever wrote this module's own
+        # logging.warning()/error() calls (there's no log.debug()/info()
+        # anywhere in this file), so plain --log alone produced an
+        # effectively empty file.
+        global _transcript_fp
+        _transcript_fp = open(log_filename, 'a', encoding='utf-8')
+        _transcript_fp.write(f'\n=== session start {datetime.now().isoformat()} ===\n')
+        _transcript_fp.flush()
 
     if args.guest:
         user_id  = 'guest'
