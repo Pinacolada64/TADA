@@ -17,7 +17,8 @@ import datetime
 from dataclasses import dataclass
 from typing import Optional
 
-from formatting import deserialize_lines, render_lines, titled_box
+from formatting import (deserialize_lines, render_lines, titled_box,
+                         format_player_datetime, format_player_time, format_player_weekday)
 from .threads import new_status
 
 
@@ -41,6 +42,38 @@ _HEADER_COLORS_BY_POSITION = ('cyan', 'light_green')
 _HEADER_FALLBACK_COLOR = 'yellow'
 
 
+def _parse_posted_at(posted_at: str) -> Optional[datetime.datetime]:
+    """Parse a stored 'posted_at' ISO string (board/threads.py's own
+    format -- naive datetime.now().isoformat()) -- None on anything
+    that doesn't parse, so callers can fall back cleanly."""
+    if not posted_at:
+        return None
+    try:
+        return datetime.datetime.fromisoformat(posted_at)
+    except ValueError:
+        return None
+
+
+def _format_entry_date(posted_at: str, player) -> str:
+    """Render *posted_at* as 'Weekday, <PREFS date format> <PREFS time
+    format>' (e.g. 'Thursday, January 01, 2026 10:00 PM') using
+    *player*'s PREFS date-format/time-format/timezone choice
+    (formatting.format_player_weekday/format_player_datetime/
+    format_player_time -- the 12/24-hour choice is the 'F' Time Format
+    PREFS row, same one the Hourglass clock uses; unrelated to the 'H'
+    Hourglass on/off toggle itself). Falls back to the old bare
+    YYYY-MM-DD truncation, with no weekday/time, when *player* is None
+    (a caller not yet threading one through) or posted_at doesn't parse
+    -- never raises."""
+    dt = _parse_posted_at(posted_at) if player is not None else None
+    if dt is None:
+        return posted_at[:10]
+    weekday = format_player_weekday(dt, player)
+    date = format_player_datetime(dt, player)
+    time = format_player_time(dt, player)
+    return f'{weekday}, {date} {time}'
+
+
 @dataclass
 class MessageHeader:
     """A post/reply's Number/From/Date/Title(/Replies) block -- one
@@ -51,7 +84,13 @@ class MessageHeader:
     reader, which used to each build this same block by hand."""
     title: str
     author: str
-    date: str  # already truncated to YYYY-MM-DD
+    date: str  # already resolved to its final display form (weekday +
+               # PREFS date format + PREFS time format, e.g. 'Thursday,
+               # January 01, 2026 10:00 PM') -- see for_entry()'s
+               # *player* param and _format_entry_date()'s no-player
+               # fallback (bare YYYY-MM-DD truncation, no weekday/time).
+               # display() itself just renders whatever string ends up
+               # here.
     reply_count: int = 0    # thread root only -- a reply has no replies of its own
     thread_number: int = 0  # feeds the "Number: x of y" line -- meaning is
     total_threads: int = 0  # caller-defined (format_thread() uses this
@@ -82,14 +121,17 @@ class MessageHeader:
 
     @classmethod
     def for_entry(cls, entry: dict, title: str, viewer_is_privileged: bool,
-                  reply_count: int = 0, thread_number: int = 0,
+                  player=None, reply_count: int = 0, thread_number: int = 0,
                   total_threads: int = 0) -> 'MessageHeader':
         """Build from a thread/reply dict -- resolves author display
-        (anonymous/privileged-reveal rule) and truncates posted_at."""
+        (anonymous/privileged-reveal rule) and formats posted_at
+        (weekday + date + time) for display. *player* is optional
+        (keyword-only in practice, every real caller passes ctx.player)
+        -- see _format_entry_date()."""
         return cls(
             title=title,
             author=display_author(entry, viewer_is_privileged),
-            date=entry.get('posted_at', '')[:10],
+            date=_format_entry_date(entry.get('posted_at', ''), player),
             reply_count=reply_count,
             thread_number=thread_number,
             total_threads=total_threads,
@@ -174,7 +216,7 @@ def format_thread(thread: dict, ctx, viewer_is_privileged: bool, total_threads: 
 
     reply_count = len(thread.get('replies', []))
     lines = MessageHeader.for_entry(
-        thread, thread.get('title', '(untitled)'), viewer_is_privileged,
+        thread, thread.get('title', '(untitled)'), viewer_is_privileged, ctx.player,
         reply_count=reply_count, thread_number=thread.get('id', 0),
         total_threads=total_threads).display()
     lines.append('')
@@ -183,7 +225,7 @@ def format_thread(thread: dict, ctx, viewer_is_privileged: bool, total_threads: 
     for i, reply in enumerate(thread.get('replies', []), start=1):
         lines.append('')
         lines += MessageHeader.for_entry(
-            reply, reply.get('title') or f'Reply #{i}', viewer_is_privileged).display()
+            reply, reply.get('title') or f'Reply #{i}', viewer_is_privileged, ctx.player).display()
         lines.append('')
         lines += render_message_lines(reply, ctx, width)
 

@@ -294,6 +294,8 @@ _DATE_FORMAT_PRESETS = [
     ('3', 'DD/MM/YYYY',      '%d/%m/%Y'),
     ('4', 'YYYY-MM-DD',      '%Y-%m-%d'),
     ('5', 'Day Month Year',  '%d %B %Y'),
+    ('6', 'Mon Day, Year',   '%b %d, %Y'),  # short-month twins of 1/5,
+    ('7', 'Day Mon Year',    '%d %b %Y'),   # for a shorter board header
 ]
 _DATE_FORMAT_NAMES = {fmt: name for _, name, fmt in _DATE_FORMAT_PRESETS}
 

@@ -1228,6 +1228,14 @@ def format_player_time(dt, player) -> str:
         return dt.strftime('%H:%M')
 
 
+def format_player_weekday(dt, player) -> str:
+    """Render *dt*'s day-of-week name (e.g. 'Monday'), localized to
+    *player*'s PREFS timezone choice same as format_player_datetime/
+    format_player_time -- there's no separate PREFS row for this, it's
+    always the full weekday name. See _localize_for_player()."""
+    return _localize_for_player(dt, player).strftime('%A')
+
+
 _HRULE_CHAR: dict[str, str] = {
     'single':  '─',   # U+2500 box drawings light horizontal
     'double':  '═',   # U+2550 box drawings double horizontal

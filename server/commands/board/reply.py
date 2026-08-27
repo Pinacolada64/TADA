@@ -141,7 +141,7 @@ async def read_thread_interactive(ctx, thread: dict) -> None:
         reply_count = len(thread.get('replies', []))
         title = thread.get('title', '(untitled)') if is_root else (entry.get('title') or f'Reply #{idx}')
         header = board_store.MessageHeader.for_entry(
-            entry, title, privileged, reply_count=reply_count if is_root else 0,
+            entry, title, privileged, ctx.player, reply_count=reply_count if is_root else 0,
             thread_number=1 if is_root else 0,
             total_threads=len(messages) if is_root else 0).display()
         header.append('')

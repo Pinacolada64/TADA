@@ -39,6 +39,13 @@ class _FakePlayer:
         self.return_key = 'Enter'
         self.client_settings = MagicMock()
         self.client_settings.screen_columns = 80
+        # Unset PREFS date/time/timezone -- format_player_datetime()/
+        # format_player_time() fall back to their own defaults
+        # ('%B %d, %Y' / '%H:%M', source-timezone-as-is) rather than
+        # choking on a MagicMock auto-attribute.
+        self.client_settings.date_format = ''
+        self.client_settings.time_format = ''
+        self.client_settings.timezone = ''
         self.unsaved_changes = False
 
     def query_flag(self, flag):
@@ -134,7 +141,10 @@ class TestSteppedNavigation(unittest.TestCase):
         # Title/Replies, width = len('Replies') = 7.
         self.assertIn(_expected_header_line('Number', '1 of 3', 0, 7), text)
         self.assertIn(_expected_header_line('From', 'bob', 1, 7), text)
-        self.assertIn(_expected_header_line('Date', '2026-01-01', 2, 7), text)
+        # Weekday + PREFS date-format default ('%B %d, %Y') + PREFS
+        # time-format default ('%H:%M'), all one Date line -- not a raw
+        # YYYY-MM-DD passthrough.
+        self.assertIn(_expected_header_line('Date', 'Thursday, January 01, 2026 00:00', 2, 7), text)
         self.assertIn(_expected_header_line('Title', 'Hello', 3, 7), text)
         self.assertIn(_expected_header_line('Replies', '2', 4, 7), text)
         self.assertNotIn('From: bob  (2026-01-01)', text)
