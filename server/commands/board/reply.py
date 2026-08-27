@@ -102,7 +102,7 @@ def _quote_option_lines(ctx) -> list[str]:
     from table import Table
     t = Table(headers=['', ''], show_header=False, border=False)
     t.add_row(['[L]ist lines', 'line ranges accepted'])
-    t.add_row(['Line range', 'e.g., 3-, 1-3, -6, 6-+6'])
+    t.add_row(['Line range', 'e.g., [3-], [1-3], [-6], [6-+6]'])
     t.add_row([ctx.player.return_key, 'no quote'])
     return t.render(width=_screen_width(ctx))
 
@@ -252,7 +252,7 @@ async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: b
         # not baked into the prompt text itself -- ctx.prompt()'s prompt
         # string becomes a client's single-line input prefix (see
         # tada_client.py's input_window), which has nowhere to wrap a
-        # long line on an 80-column terminal.
+        # long line on an 40-column terminal.
         preamble = None if ctx.player.is_expert else _quote_option_lines(ctx)
         raw = await ctx.prompt('Quote which lines?', preamble_lines=preamble)
         if raw is None:

@@ -327,7 +327,7 @@ class TestQuoteRangeListLines(BoardReplyTestCase):
         self.assertIn('[L]ist lines', preamble)
         self.assertIn('line ranges accepted', preamble)
         self.assertIn('Line range', preamble)
-        self.assertIn('3-, 1-3, -6, 6-+6', preamble)
+        self.assertIn('[3-], [1-3], [-6], [6-+6]', preamble)
         self.assertIn('Enter', preamble)
         self.assertIn('no quote', preamble)
 
