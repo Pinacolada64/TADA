@@ -180,7 +180,7 @@ class TestMorePromptCommand(unittest.IsolatedAsyncioTestCase):
 
     def test_name_and_alias(self):
         self.assertEqual(MorePromptCommand.name, 'mp')
-        self.assertIn('moreprompt', MorePromptCommand.aliases)
+        self.assertIn('more', MorePromptCommand.aliases)
 
 
 if __name__ == '__main__':
