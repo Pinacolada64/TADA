@@ -8,9 +8,13 @@ is just a list splice, no separate 'position' field:
 
     {
       "sigs": [
-        {"id": 1, "name": "General", "board_ids": [1]}
+        {"id": 1, "name": "General", "board_ids": [1], "admins": []}
       ]
     }
+
+"admins" is the SIG-level operator list (names), the SIG counterpart to
+board/meta.py's per-board "admins" -- absent on SIGs written before that
+field existed, so read it as `sig.get('admins', [])`.
 
 A board_id can appear in more than one SIG's board_ids list -- that's
 "share between SIGs" (Ryan's call): one board object, referenced from

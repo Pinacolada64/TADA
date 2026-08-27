@@ -53,6 +53,18 @@ _ACCESS_LABELS = {
 # Small shared helpers
 # ---------------------------------------------------------------------
 
+def _screen_width(ctx) -> int:
+    """Client's screen width for Table.render(), same lookup as
+    commands/board/board.py's thread-listing rule width."""
+    return getattr(getattr(ctx.player, 'client_settings', None), 'screen_columns', 80)
+
+
+def _board_count(n: int) -> str:
+    """'0 boards' / '1 board' / '2 boards' ... -- proper singular/plural
+    for the per-SIG board tally, not '1 board(s)'."""
+    return f'{n} board' if n == 1 else f'{n} boards'
+
+
 def _sig_by_id(sigs_data: dict, sig_id: int) -> dict | None:
     return next((s for s in sigs_data.get('sigs', []) if s.get('id') == sig_id), None)
 
@@ -166,7 +178,7 @@ async def _manage_sigs(ctx, sigs_data: dict, meta_data: dict) -> None:
         lines = ['', '|yellow|SIGs|reset|', '']
         for i, sig in enumerate(sig_list, 1):
             lines.append(f"  {i}. {sig.get('name', '(unnamed)')} "
-                          f"({len(sig.get('board_ids', []))} board(s))")
+                          f"({_board_count(len(sig.get('board_ids', [])))})")
         lines.append(f'(# to edit, A to add, {ctx.player.return_key} to go back)')
         lines.append('')
         raw = await ctx.prompt('Which SIG', preamble_lines=lines)
@@ -187,7 +199,8 @@ async def _add_sig(ctx, sigs_data: dict) -> None:
     if not name:
         await ctx.send('Cancelled.')
         return
-    new_sig = {'id': board_store.sigs.next_sig_id(sigs_data), 'name': name, 'board_ids': []}
+    new_sig = {'id': board_store.sigs.next_sig_id(sigs_data), 'name': name,
+               'board_ids': [], 'admins': []}
     sigs_data.setdefault('sigs', []).append(new_sig)
     await ctx.send(f"SIG '{name}' added.")
 
@@ -202,6 +215,7 @@ async def _sig_detail(ctx, sigs_data: dict, meta_data: dict, sig: dict) -> None:
         lines += [
             '  R  Rename', '  X  Delete (only if it has no boards)',
             '  O  Reorder (move to a new position in the SIG list)',
+            '  P  Manage SIG operators',
             '  A<range>  Add existing board(s) into this SIG, e.g. A1,3-4',
             '  E<range>  Edit board(s) one at a time, e.g. E1, E2-4',
             '  L<range>  List a range of boards, e.g. L1-4',
@@ -230,6 +244,8 @@ async def _sig_detail(ctx, sigs_data: dict, meta_data: dict, sig: dict) -> None:
                 return
         elif lower == 'o':
             await _move_to_position(ctx, sigs_data['sigs'], sig, name=sig.get('name', '(unnamed)'))
+        elif lower == 'p':
+            await _manage_sig_admins(ctx, sig)
         elif lower.startswith('a'):
             await _add_boards_to_sig(ctx, meta_data, sig, choice[1:].strip())
         elif lower.startswith('e'):
@@ -344,12 +360,22 @@ async def _move_to_position(ctx, items: list, item, *, name: str) -> None:
 # ---------------------------------------------------------------------
 
 async def _manage_boards(ctx, sigs_data: dict, meta_data: dict) -> None:
+    from table import Table
     while True:
         board_ids = sorted(int(k) for k in meta_data.get('boards', {}).keys())
         lines = ['', '|yellow|Boards|reset|', '']
-        for i, board_id in enumerate(board_ids, 1):
-            sig_names = ', '.join(s.get('name', '(unnamed)') for s in _sigs_containing(sigs_data, board_id))
-            lines.append(f"  {i}. {_board_name(meta_data, board_id)}  (in: {sig_names or 'no SIG'})")
+        if board_ids:
+            # Borderless two-column table, same convention as the
+            # thread-listing '?' menu in commands/board/board.py.
+            t = Table(headers=['', ''], show_header=False, border=False)
+            for i, board_id in enumerate(board_ids, 1):
+                sig_names = ', '.join(
+                    s.get('name', '(unnamed)') for s in _sigs_containing(sigs_data, board_id))
+                t.add_row([f'{i}. {_board_name(meta_data, board_id)}',
+                           f"in: {sig_names or 'no SIG'}"])
+            lines += t.render(width=_screen_width(ctx))
+        else:
+            lines.append('  (no boards)')
         lines.append(f'(# to edit, {ctx.player.return_key} to go back)')
         lines.append('')
         raw = await ctx.prompt('Which board', preamble_lines=lines)
@@ -598,6 +624,42 @@ async def _manage_admins(ctx, meta_data: dict, board_id: int) -> None:
             removed = [admins[i - 1] for i in picks]
             board['admins'] = [n for i, n in enumerate(admins, 1) if i not in picks]
             board_store.meta.set_board(meta_data, board_id, board)
+            await ctx.send(f"Removed: {', '.join(removed)}.")
+        else:
+            await ctx.send(f"Unrecognized choice '{choice}'.")
+
+
+async def _manage_sig_admins(ctx, sig: dict) -> None:
+    """SIG-level operator list -- the SIG counterpart to _manage_admins()'s
+    per-board list. *sig* is the live dict inside sigs_data['sigs'], so
+    edits land in place (same as _sig_detail()'s rename); no set_* call
+    like the board version needs (get_board() hands back a copy)."""
+    while True:
+        admins = sig.setdefault('admins', [])
+        lines = ['', f"|yellow|Operators for SIG {sig.get('name', '(unnamed)')}|reset|", '']
+        lines += [f'  {i}. {name}' for i, name in enumerate(admins, 1)] or ['  (none)']
+        lines.append(f'(A to add, R<range> to remove e.g. R1,3, {ctx.player.return_key} back)')
+        lines.append('')
+        raw = await ctx.prompt('Change which', preamble_lines=lines)
+        if raw is None or not raw.strip():
+            return
+        choice = raw.strip()
+
+        if choice.lower() == 'a':
+            raw_names = await ctx.prompt('Name(s) to add (comma separated)')
+            new_names = [n.strip() for n in (raw_names or '').split(',') if n.strip()]
+            added = [n for n in new_names if n not in admins]
+            admins.extend(added)
+            await ctx.send(f"Added: {', '.join(added) or '(nothing new)'}.")
+        elif choice[:1].lower() == 'r':
+            from text_editor import parse_multi_select
+
+            picks = parse_multi_select(choice[1:], len(admins))
+            if not picks:
+                await ctx.send(f"'{choice}' didn't select any operator.")
+                continue
+            removed = [admins[i - 1] for i in picks]
+            sig['admins'] = [n for i, n in enumerate(admins, 1) if i not in picks]
             await ctx.send(f"Removed: {', '.join(removed)}.")
         else:
             await ctx.send(f"Unrecognized choice '{choice}'.")

@@ -175,6 +175,23 @@ async def _pick_from_numbered_list(ctx, items: list[dict], *, noun: str) -> dict
     return items[int(choice) - 1]
 
 
+def _welcome_lines(kind: str, name: str, admins: list[str]) -> list[str]:
+    """Greeting shown on entering a SIG or a board (see pick_board()).
+    *kind* is used verbatim -- 'SIG' (acronym stays capped) or 'board'.
+    One named operator reads as "your <kind> administrator here"; several
+    read as "<kind> operators here are ..." (Ryan's wording); none says
+    the SIG/board is currently unadministered."""
+    from tada_utilities import oxford_comma_list
+
+    if not admins:
+        who = f'This {kind} currently has no administrator.'
+    elif len(admins) == 1:
+        who = f'Your {kind} administrator here is {admins[0]}.'
+    else:
+        who = f'The {kind} operators here are {oxford_comma_list(admins)}.'
+    return [f'Welcome to the {name} {kind}!', who]
+
+
 async def pick_board(ctx) -> int | None:
     """Which board_id a bare 'board'/'board post'/'board rn' should act
     on: _DEFAULT_BOARD_ID with no picker shown at all when there's only
@@ -197,18 +214,25 @@ async def pick_board(ctx) -> int | None:
         chosen_sig = await _pick_from_numbered_list(ctx, sig_list, noun='SIG')
         if chosen_sig is None:
             return None
+    await ctx.send(_welcome_lines('SIG', chosen_sig.get('name', '(unnamed)'),
+                                  chosen_sig.get('admins', [])))
 
     board_ids = chosen_sig.get('board_ids', [])
     if not board_ids:
         await ctx.send(f"{chosen_sig.get('name', '(unnamed)')} has no boards yet.")
         return None
-    if len(board_ids) == 1:
-        return board_ids[0]
 
     meta_data = board_store.meta.load_meta()
-    boards = [board_store.meta.get_board(meta_data, bid) for bid in board_ids]
-    chosen_board = await _pick_from_numbered_list(ctx, boards, noun='board')
-    return chosen_board['id'] if chosen_board else None
+    if len(board_ids) == 1:
+        chosen_board = board_store.meta.get_board(meta_data, board_ids[0])
+    else:
+        boards = [board_store.meta.get_board(meta_data, bid) for bid in board_ids]
+        chosen_board = await _pick_from_numbered_list(ctx, boards, noun='board')
+        if chosen_board is None:
+            return None
+    await ctx.send(_welcome_lines('board', chosen_board.get('name', '(unnamed)'),
+                                  chosen_board.get('admins', [])))
+    return chosen_board['id']
 
 
 class BoardCommand(Command):

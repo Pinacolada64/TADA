@@ -96,6 +96,7 @@ def migrate_if_needed(
         'id': _MIGRATED_SIG_ID,
         'name': _MIGRATED_NAME,
         'board_ids': [_MIGRATED_BOARD_ID],
+        'admins': [],
     }]}
 
     threads.save_board(new_threads, threads_path)
