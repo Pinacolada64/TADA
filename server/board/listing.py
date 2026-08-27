@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from formatting import (deserialize_lines, render_lines, titled_box,
-                         format_player_datetime, format_player_time, format_player_weekday)
+                         format_player_datetime, format_player_time)
 from .threads import new_status
 
 
@@ -55,23 +55,26 @@ def _parse_posted_at(posted_at: str) -> Optional[datetime.datetime]:
 
 
 def _format_entry_date(posted_at: str, player) -> str:
-    """Render *posted_at* as 'Weekday, <PREFS date format> <PREFS time
-    format>' (e.g. 'Thursday, January 01, 2026 10:00 PM') using
-    *player*'s PREFS date-format/time-format/timezone choice
-    (formatting.format_player_weekday/format_player_datetime/
-    format_player_time -- the 12/24-hour choice is the 'F' Time Format
-    PREFS row, same one the Hourglass clock uses; unrelated to the 'H'
-    Hourglass on/off toggle itself). Falls back to the old bare
-    YYYY-MM-DD truncation, with no weekday/time, when *player* is None
-    (a caller not yet threading one through) or posted_at doesn't parse
-    -- never raises."""
+    """Render *posted_at* as '<PREFS date format> <PREFS time format>'
+    (e.g. 'Thursday, January 01, 2026 10:00 PM') using *player*'s PREFS
+    date-format/time-format/timezone choice (formatting.
+    format_player_datetime/format_player_time -- the 12/24-hour choice
+    is the 'F' Time Format PREFS row, same one the Hourglass clock uses;
+    unrelated to the 'H' Hourglass on/off toggle itself). Whether a
+    weekday shows up at all -- and whether it's abbreviated -- is
+    entirely up to which date-format preset the player picked
+    (commands/prefs.py's _DATE_FORMAT_PRESETS pairs a plain and a
+    "Weekday, ..." variant of each format); it's baked into
+    format_player_datetime's own output, not a separate step here.
+    Falls back to the old bare YYYY-MM-DD truncation, with no weekday/
+    time, when *player* is None (a caller not yet threading one through)
+    or posted_at doesn't parse -- never raises."""
     dt = _parse_posted_at(posted_at) if player is not None else None
     if dt is None:
         return posted_at[:10]
-    weekday = format_player_weekday(dt, player)
     date = format_player_datetime(dt, player)
     time = format_player_time(dt, player)
-    return f'{weekday}, {date} {time}'
+    return f'{date} {time}'
 
 
 @dataclass

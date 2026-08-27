@@ -288,16 +288,34 @@ _DATE_TIME_HELP: dict[str, list[str]] = {
 # stored format shows its friendly name instead of the raw strftime
 # pattern; anything else (a value never set through this picker) shows
 # as 'Custom'.
+# Two columns, same 7 formats each: plain (no weekday) on the left,
+# a "Weekday, ..." twin of each on the right -- picking whether a
+# weekday shows up at all is otherwise nowhere in PREFS (it used to be
+# unconditionally prepended in board headers regardless of this choice;
+# Ryan's call 2026-08-27 was to fold it into the date format itself
+# instead, so a player can turn it off entirely). Column-8's weekday is
+# abbreviated for the abbreviated-month presets (13/14, matching 6/7)
+# and full otherwise, mirroring each row's own month style. Preset 8 is
+# the actual default (terminal.py's ClientSettings.date_format) --
+# matches what every date display looked like before this split.
 _DATE_FORMAT_PRESETS = [
-    ('1', 'Month Day, Year', '%B %d, %Y'),
-    ('2', 'MM/DD/YYYY',      '%m/%d/%Y'),
-    ('3', 'DD/MM/YYYY',      '%d/%m/%Y'),
-    ('4', 'YYYY-MM-DD',      '%Y-%m-%d'),
-    ('5', 'Day Month Year',  '%d %B %Y'),
-    ('6', 'Mon Day, Year',   '%b %d, %Y'),  # short-month twins of 1/5,
-    ('7', 'Day Mon Year',    '%d %b %Y'),   # for a shorter board header
+    ('1',  'Month Day, Year',           '%B %d, %Y'),
+    ('2',  'MM/DD/YYYY',                '%m/%d/%Y'),
+    ('3',  'DD/MM/YYYY',                '%d/%m/%Y'),
+    ('4',  'YYYY-MM-DD',                '%Y-%m-%d'),
+    ('5',  'Day Month Year',            '%d %B %Y'),
+    ('6',  'Mon Day, Year',             '%b %d, %Y'),  # short-month twins of 1/5,
+    ('7',  'Day Mon Year',              '%d %b %Y'),   # for a shorter board header
+    ('8',  'Weekday, Month Day, Year',  '%A, %B %d, %Y'),  # default -- see terminal.py
+    ('9',  'Weekday, MM/DD/YYYY',       '%A, %m/%d/%Y'),
+    ('10', 'Weekday, DD/MM/YYYY',       '%A, %d/%m/%Y'),
+    ('11', 'Weekday, YYYY-MM-DD',       '%A, %Y-%m-%d'),
+    ('12', 'Weekday, Day Month Year',   '%A, %d %B %Y'),
+    ('13', 'Weekday, Mon Day, Year',    '%a, %b %d, %Y'),
+    ('14', 'Weekday, Day Mon Year',     '%a, %d %b %Y'),
 ]
 _DATE_FORMAT_NAMES = {fmt: name for _, name, fmt in _DATE_FORMAT_PRESETS}
+_DATE_FORMAT_COLUMNS = len(_DATE_FORMAT_PRESETS) // 2  # rows per column (7)
 
 # Named strftime presets offered by the 'F' (Time Format) picker. Labels
 # are bracket-highlighted on their own option number ('[1]2-hour',
@@ -1372,16 +1390,26 @@ async def _pick_timezone(ctx) -> None:
 
 async def _pick_date_format(ctx) -> None:
     """Choose a date display format from a few common presets, previewed
-    against today's date."""
+    against today's date. Two stacked groups of the same 7 formats:
+    plain (1-7) first, then a "Weekday, ..." twin of each (8-14) --
+    see _DATE_FORMAT_PRESETS. Stacked rather than a wide side-by-side
+    table: this game's default screen width is 40 columns (real C64),
+    which mangles long labels ('Weekday, Month Day, Year') across
+    several table cells if they're squeezed into half the screen."""
     import datetime
 
     cs = ctx.player.client_settings
-    current = getattr(cs, 'date_format', '') or '%B %d, %Y'
+    current = getattr(cs, 'date_format', '') or '%A, %B %d, %Y'
     sample  = datetime.datetime.now()
 
     lines = ['', '|yellow|Date Format:|reset|', '']
-    for num, label, fmt in _DATE_FORMAT_PRESETS:
+    plain, with_weekday = (_DATE_FORMAT_PRESETS[:_DATE_FORMAT_COLUMNS],
+                            _DATE_FORMAT_PRESETS[_DATE_FORMAT_COLUMNS:])
+    for num, label, fmt in plain:
         lines.append(f'  {num}. {label:<16} {sample.strftime(fmt)}')
+    lines.append('')
+    for num, label, fmt in with_weekday:
+        lines.append(f'  {num}. {label:<25} {sample.strftime(fmt)}')
     # current may be a raw, unrecognized strftime pattern rather than a
     # friendly preset name -- escape '%' so ctx.send()'s %-token
     # substitution (tada_utilities.substitute_tokens) doesn't mistake a

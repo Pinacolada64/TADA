@@ -1197,17 +1197,22 @@ def _localize_for_player(dt, player):
 def format_player_datetime(dt, player) -> str:
     """Render *dt* using *player*'s PREFS timezone/date-format choice
     (commands/prefs.py's 'Z'/'D' rows, ClientSettings.timezone/
-    date_format -- New in TADA). See _localize_for_player() for how the
-    timezone conversion works."""
+    date_format -- New in TADA). Whether a weekday name appears at all,
+    and whether it's abbreviated, is entirely up to which preset the
+    player picked (commands/prefs.py's _DATE_FORMAT_PRESETS pairs a
+    plain and a "Weekday, ..." variant of each format, e.g. 'Month Day,
+    Year' vs. 'Weekday, Month Day, Year') -- there's no separate weekday
+    step here, unlike before 2026-08-27. See _localize_for_player() for
+    how the timezone conversion works."""
     cs          = getattr(player, 'client_settings', None)
-    date_format = getattr(cs, 'date_format', '') or '%B %d, %Y'
+    date_format = getattr(cs, 'date_format', '') or '%A, %B %d, %Y'
     dt          = _localize_for_player(dt, player)
 
     try:
         return dt.strftime(date_format)
     except (ValueError, TypeError):
         logging.warning("format_player_datetime: bad date_format %r", date_format)
-        return dt.strftime('%B %d, %Y')
+        return dt.strftime('%A, %B %d, %Y')
 
 
 def format_player_time(dt, player) -> str:
@@ -1226,22 +1231,6 @@ def format_player_time(dt, player) -> str:
     except (ValueError, TypeError):
         logging.warning("format_player_time: bad time_format %r", time_format)
         return dt.strftime('%H:%M')
-
-
-def format_player_weekday(dt, player) -> str:
-    """Render *dt*'s day-of-week name, localized to *player*'s PREFS
-    timezone choice same as format_player_datetime/format_player_time --
-    there's no separate PREFS row for this, it rides along with the
-    'D' Date Format choice instead: an abbreviated-month preset ('%b',
-    e.g. 'Mon Day, Year') gets an abbreviated weekday too ('Thu'), a
-    full-month or numeric preset gets the full name ('Thursday') --
-    Ryan's call 2026-08-27, so picking a short date format actually
-    reads short end to end instead of just abbreviating the month.
-    See _localize_for_player()."""
-    cs          = getattr(player, 'client_settings', None)
-    date_format = getattr(cs, 'date_format', '') or '%B %d, %Y'
-    weekday_fmt = '%a' if '%b' in date_format else '%A'
-    return _localize_for_player(dt, player).strftime(weekday_fmt)
 
 
 _HRULE_CHAR: dict[str, str] = {
