@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from player import Player
 from commands.prefs import _pick_timezone, _pick_date_format, _pick_time_format
-from formatting import format_player_datetime, format_player_time
+from formatting import format_player_datetime, format_player_time, format_player_weekday
 from terminal import ClientSettings, ColorName
 
 
@@ -174,6 +174,44 @@ class TestFormatPlayerDatetime(unittest.TestCase):
         player = self._player(date_format='%Q')  # not a real strftime directive combo
         result = format_player_datetime(dt, player)
         self.assertIsInstance(result, str)  # must not raise
+
+
+class TestFormatPlayerWeekday(unittest.TestCase):
+    """Regression 2026-08-27: the weekday name used to always render in
+    full ('%A') regardless of PREFS date format -- Ryan's call was that
+    an abbreviated-month date format ('Mon Day, Year'/'Day Mon Year',
+    presets 6/7) should abbreviate the weekday too ('Thu' not
+    'Thursday'), so picking a short date format reads short end to end."""
+
+    def _player(self, date_format=''):
+        p = Player()
+        if date_format:
+            p.client_settings.date_format = date_format
+        return p
+
+    def test_default_format_uses_full_weekday(self):
+        dt = datetime.datetime(2026, 8, 27)  # a Thursday
+        self.assertEqual(format_player_weekday(dt, self._player()), 'Thursday')
+
+    def test_full_month_preset_uses_full_weekday(self):
+        dt = datetime.datetime(2026, 8, 27)
+        player = self._player(date_format='%d %B %Y')  # preset 5
+        self.assertEqual(format_player_weekday(dt, player), 'Thursday')
+
+    def test_abbreviated_month_preset_uses_abbreviated_weekday(self):
+        dt = datetime.datetime(2026, 8, 27)
+        player = self._player(date_format='%b %d, %Y')  # preset 6
+        self.assertEqual(format_player_weekday(dt, player), 'Thu')
+
+    def test_other_abbreviated_month_preset_uses_abbreviated_weekday(self):
+        dt = datetime.datetime(2026, 8, 27)
+        player = self._player(date_format='%d %b %Y')  # preset 7
+        self.assertEqual(format_player_weekday(dt, player), 'Thu')
+
+    def test_numeric_preset_uses_full_weekday(self):
+        dt = datetime.datetime(2026, 8, 27)
+        player = self._player(date_format='%Y-%m-%d')  # preset 4, no month name
+        self.assertEqual(format_player_weekday(dt, player), 'Thursday')
 
 
 class TestClientSettingsPersistence(unittest.TestCase):

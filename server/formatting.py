@@ -1229,11 +1229,19 @@ def format_player_time(dt, player) -> str:
 
 
 def format_player_weekday(dt, player) -> str:
-    """Render *dt*'s day-of-week name (e.g. 'Monday'), localized to
-    *player*'s PREFS timezone choice same as format_player_datetime/
-    format_player_time -- there's no separate PREFS row for this, it's
-    always the full weekday name. See _localize_for_player()."""
-    return _localize_for_player(dt, player).strftime('%A')
+    """Render *dt*'s day-of-week name, localized to *player*'s PREFS
+    timezone choice same as format_player_datetime/format_player_time --
+    there's no separate PREFS row for this, it rides along with the
+    'D' Date Format choice instead: an abbreviated-month preset ('%b',
+    e.g. 'Mon Day, Year') gets an abbreviated weekday too ('Thu'), a
+    full-month or numeric preset gets the full name ('Thursday') --
+    Ryan's call 2026-08-27, so picking a short date format actually
+    reads short end to end instead of just abbreviating the month.
+    See _localize_for_player()."""
+    cs          = getattr(player, 'client_settings', None)
+    date_format = getattr(cs, 'date_format', '') or '%B %d, %Y'
+    weekday_fmt = '%a' if '%b' in date_format else '%A'
+    return _localize_for_player(dt, player).strftime(weekday_fmt)
 
 
 _HRULE_CHAR: dict[str, str] = {
