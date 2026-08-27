@@ -139,6 +139,24 @@ def _single_board_shortcut(sig_list: list[dict]) -> bool:
     return len(sig_list) == 1 and len(sig_list[0].get('board_ids', [])) <= 1
 
 
+def _listing_menu_lines(ctx, width: int) -> list[str]:
+    """'?' at the bare thread-listing prompt -- full key rundown, same
+    borderless-two-column-table convention as commands/board/reply.py's
+    own _menu_options_lines() for the end-of-bulletin prompt one level
+    down. Not hidden for experts here (unlike that one) -- this listing
+    doesn't show its own hint every time by default the way that reader
+    does, so there's no separate "already visible" state to spare an
+    expert from."""
+    from table import Table
+    t = Table(headers=['', ''], show_header=False, border=False)
+    t.add_row(['[<#>]', 'read that thread'])
+    t.add_row([f'[{ctx.player.return_key}]', 'read the next thread'])
+    t.add_row(['[Q]uit', 'leave the message board'])
+    t.add_row(['[pm]', 'toggle Prompt Mode'])
+    t.add_row(["'?'", 'show this list again'])
+    return [''] + t.render(width=width) + ['']
+
+
 async def _pick_from_numbered_list(ctx, items: list[dict], *, noun: str) -> dict | None:
     """Show a 1-based numbered list of *items* (each needs a 'name' key)
     and prompt for a pick. None on a blank/disconnected answer (the
@@ -286,6 +304,7 @@ class BoardCommand(Command):
             return CommandResult.ok('Cancelled.')
 
         since = self._last_date(ctx)
+        position = -1  # index into this pass's 'threads' of the last-read one; -1 = none read yet
 
         previous_location = getattr(ctx.client, 'virtual_location', None)
         ctx.client.virtual_location = 'Reading board'
@@ -304,18 +323,47 @@ class BoardCommand(Command):
                     make_rule(rule_width, hrule_char(ctx)),
                 ]
                 lines += board_store.format_thread_listing(threads, rule_width, _is_petscii(ctx), since=since)
-                lines.append(f"(# to read, {ctx.player.return_key} to exit, 'pm' toggles Prompt Mode)")
+                lines.append(f"([<#>] read, [{ctx.player.return_key}] next, [Q]uit, [pm], '?' for help)")
                 lines.append('')
 
                 raw = await ctx.prompt('Read which', preamble_lines=lines)
-                if raw is None or not raw.strip():
-                    return CommandResult.ok('Exited board.')
+                if raw is None:
+                    return CommandResult.ok('Exited board.')  # disconnected mid-prompt
 
                 choice = raw.strip()
-                if choice.isdigit():
-                    await self._read_one(ctx, int(choice))
-                elif choice.lower() in ('pm', 'promptmode'):
+                low = choice.lower()
+
+                if not choice:
+                    # Advance to the next thread in this same listing --
+                    # Ryan's call, replacing the old "blank = leave"
+                    # behavior (that's 'Q' now) so a player can walk the
+                    # whole board with bare Enter, same shape as the
+                    # end-of-bulletin reader's own Enter-advances feel
+                    # (commands/board/reply.py), just one level up.
+                    position += 1
+                    if position >= len(threads):
+                        # Wrap to the first thread rather than dead-ending
+                        # on a repeated "No more threads." -- bare Enter
+                        # should always do something, never just sit
+                        # there re-printing the same notice.
+                        position = 0
+                        await ctx.send('Back to the first thread.')
+                    await self._read_one(ctx, threads[position].get('id'))
+                elif low == 'q':
+                    return CommandResult.ok('Exited board.')
+                elif choice == '?':
+                    await ctx.send(_listing_menu_lines(ctx, rule_width))
+                elif low in ('pm', 'promptmode'):
                     await toggle_prompt_mode(ctx)
+                elif choice.isdigit():
+                    target = int(choice)
+                    # Keep 'next' in sync with whichever thread was just
+                    # read by number, so a bare Enter afterward continues
+                    # from there instead of restarting at the top.
+                    idx = next((i for i, t in enumerate(threads) if t.get('id') == target), None)
+                    if idx is not None:
+                        position = idx
+                    await self._read_one(ctx, target)
                 else:
                     await ctx.send(f"'{choice}' is not a valid thread id.")
         finally:

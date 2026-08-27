@@ -32,10 +32,11 @@ def _expected_header_line(label: str, value: str, position: int, width: int) -> 
 
 
 class _FakePlayer:
-    def __init__(self, name='alexa', admin=False, prompt_mode=False):
+    def __init__(self, name='alexa', admin=False, prompt_mode=False, expert=False):
         self.name = name
         self._admin = admin
         self._prompt_mode = prompt_mode
+        self._expert = expert
         self.return_key = 'Enter'
         self.command_settings = CommandSettings()
         self.client_settings = MagicMock()
@@ -46,6 +47,8 @@ class _FakePlayer:
             return self._admin
         if flag == PlayerFlags.PROMPT_MODE:
             return self._prompt_mode
+        if flag == PlayerFlags.EXPERT_MODE:
+            return self._expert
         return False
 
     def toggle_flag(self, flag):
@@ -53,6 +56,10 @@ class _FakePlayer:
             self._prompt_mode = not self._prompt_mode
             return self._prompt_mode, None
         return False, None
+
+    @property
+    def is_expert(self) -> bool:
+        return self._expert
 
 
 def make_ctx(player=None, prompts=None, screen_columns=80):
@@ -96,7 +103,7 @@ class TestList(BoardCommandTestCase):
     def test_lists_threads(self):
         self._seed([{'id': 1, 'title': 'Hello World', 'author': 'bob', 'anonymous': False,
                       'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []}])
-        ctx = make_ctx(prompts=[''])
+        ctx = make_ctx(prompts=['q'])
         run(BoardCommand().execute(ctx))
         sent = str(ctx.prompt.call_args)
         self.assertIn('Hello World', sent)
@@ -105,7 +112,7 @@ class TestList(BoardCommandTestCase):
         self._seed([{'id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,
                       'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'thread body'}],
                       'replies': []}])
-        ctx = make_ctx(prompts=['1', ''])
+        ctx = make_ctx(prompts=['1', 'q'])
         run(BoardCommand().execute(ctx))
         self.assertEqual(ctx.prompt.await_count, 2)
         sent = str(ctx.send.call_args_list)
@@ -115,7 +122,7 @@ class TestList(BoardCommandTestCase):
         self._seed([{'id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,
                       'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'thread body'}],
                       'replies': []}])
-        ctx = make_ctx(prompts=['1', ''])
+        ctx = make_ctx(prompts=['1', 'q'])
         run(BoardCommand().execute(ctx))
         lines = [l for call in ctx.send.call_args_list for l in
                  (call.args[0] if isinstance(call.args[0], list) else [call.args[0]])]
@@ -132,7 +139,7 @@ class TestList(BoardCommandTestCase):
             {'id': 5, 'title': 'Fifth', 'author': 'carol', 'anonymous': False,
              'posted_at': '2026-01-02T00:00:00', 'body': [{'text': 'y'}], 'replies': []},
         ])
-        ctx = make_ctx(prompts=['5', ''])
+        ctx = make_ctx(prompts=['5', 'q'])
         run(BoardCommand().execute(ctx))
         sent = str(ctx.send.call_args_list)
         # thread id 5 is used verbatim (not its position in the list),
@@ -143,12 +150,12 @@ class TestList(BoardCommandTestCase):
         self._seed([{'id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,
                       'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []}])
         player = _FakePlayer(prompt_mode=False)
-        ctx = make_ctx(player=player, prompts=['pm', ''])
+        ctx = make_ctx(player=player, prompts=['pm', 'q'])
         run(BoardCommand().execute(ctx))
         self.assertIn('Prompt Mode: On.', str(ctx.send.call_args_list))
         self.assertTrue(player._prompt_mode)
         # 'pm' redisplays the listing rather than exiting -- two prompts
-        # were needed (the 'pm' itself, then the blank Enter to exit).
+        # were needed (the 'pm' itself, then 'q' to exit).
         self.assertEqual(ctx.prompt.await_count, 2)
 
     def test_virtual_location_set_while_listing(self):
@@ -158,7 +165,9 @@ class TestList(BoardCommandTestCase):
 
         async def _prompt(*a, **kw):
             seen_location['during'] = ctx.client.virtual_location
-            return ''
+            # Blank advances (reads the one thread) rather than exiting
+            # now -- 'q' on the second call is what actually leaves.
+            return '' if 'during' not in seen_location else 'q'
 
         ctx = make_ctx()
         ctx.prompt = _prompt
@@ -167,12 +176,65 @@ class TestList(BoardCommandTestCase):
         self.assertEqual(seen_location['during'], 'Reading board')
         self.assertIsNone(ctx.client.virtual_location)
 
+    def test_enter_advances_through_threads_in_order(self):
+        self._seed([
+            {'id': 1, 'title': 'First', 'author': 'bob', 'anonymous': False,
+             'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []},
+            {'id': 2, 'title': 'Second', 'author': 'bob', 'anonymous': False,
+             'posted_at': '2026-01-02T00:00:00', 'body': [{'text': 'y'}], 'replies': []},
+        ])
+        ctx = make_ctx(prompts=['', '', 'q'])
+        run(BoardCommand().execute(ctx))
+        sent = str(ctx.send.call_args_list)
+        self.assertIn('x', sent)
+        self.assertIn('y', sent)
+
+    def test_enter_wraps_to_first_thread_after_the_last(self):
+        self._seed([{'id': 1, 'title': 'First', 'author': 'bob', 'anonymous': False,
+                      'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []}])
+        ctx = make_ctx(prompts=['', '', 'q'])
+        run(BoardCommand().execute(ctx))
+        self.assertIn('Back to the first thread.', str(ctx.send.call_args_list))
+
+    def test_question_mark_shows_key_menu(self):
+        self._seed([{'id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,
+                      'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []}])
+        ctx = make_ctx(prompts=['?', 'q'])
+        run(BoardCommand().execute(ctx))
+        sent = str(ctx.send.call_args_list)
+        self.assertIn('[<#>]', sent)
+        self.assertIn('read that thread', sent)
+        self.assertIn('[Q]uit', sent)
+
+    def test_q_quits_the_board(self):
+        self._seed([{'id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,
+                      'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []}])
+        ctx = make_ctx(prompts=['q'])
+        result = run(BoardCommand().execute(ctx))
+        self.assertTrue(result.success)
+        self.assertEqual(ctx.prompt.await_count, 1)
+
+    def test_reading_by_number_syncs_position_for_the_next_enter(self):
+        self._seed([
+            {'id': 1, 'title': 'First', 'author': 'bob', 'anonymous': False,
+             'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []},
+            {'id': 2, 'title': 'Second', 'author': 'bob', 'anonymous': False,
+             'posted_at': '2026-01-02T00:00:00', 'body': [{'text': 'y'}], 'replies': []},
+            {'id': 3, 'title': 'Third', 'author': 'bob', 'anonymous': False,
+             'posted_at': '2026-01-03T00:00:00', 'body': [{'text': 'z'}], 'replies': []},
+        ])
+        ctx = make_ctx(prompts=['2', '', 'q'])
+        run(BoardCommand().execute(ctx))
+        # Reading #2 by number, then bare Enter, advances to #3 --
+        # not back to #1, and not re-reading #2.
+        self.assertIn('z', str(ctx.send.call_args_list))
+
 
 class TestReadNew(BoardCommandTestCase):
     def test_rn_with_no_threshold_shows_everything(self):
         self._seed([{'id': 1, 'title': 'Old', 'author': 'bob', 'anonymous': False,
                       'posted_at': '2020-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []}])
-        ctx = make_ctx(prompts=[''])
+        ctx = make_ctx(prompts=['q'])
         run(BoardCommand().execute(ctx, 'rn'))
         sent = str(ctx.prompt.call_args)
         self.assertIn('Old', sent)
@@ -186,7 +248,7 @@ class TestReadNew(BoardCommandTestCase):
         ])
         player = _FakePlayer()
         player.command_settings.board.last_date = '2026-01-01'
-        ctx = make_ctx(player=player, prompts=[''])
+        ctx = make_ctx(player=player, prompts=['q'])
         run(BoardCommand().execute(ctx, 'rn'))
         sent = str(ctx.prompt.call_args)
         self.assertIn('New Thread', sent)
@@ -427,7 +489,7 @@ class TestTwoLevelPicker(BoardCommandTestCase):
         # Fresh install, board #edit never touched: no picker shown.
         self._seed([{'id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,
                       'posted_at': '2026-01-01T00:00:00', 'body': [], 'replies': []}])
-        ctx = make_ctx(prompts=[''])
+        ctx = make_ctx(prompts=['q'])
         run(BoardCommand().execute(ctx))
         self.assertEqual(ctx.prompt.await_count, 1)
         self.assertIn('Hello', str(ctx.prompt.call_args))
@@ -436,17 +498,17 @@ class TestTwoLevelPicker(BoardCommandTestCase):
         board_store.sigs.save_sigs({'sigs': [{'id': 1, 'name': 'General', 'board_ids': [1]}]}, self.sigs_path)
         self._seed([{'id': 1, 'board_id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,
                       'posted_at': '2026-01-01T00:00:00', 'body': [], 'replies': []}])
-        ctx = make_ctx(prompts=[''])
+        ctx = make_ctx(prompts=['q'])
         run(BoardCommand().execute(ctx))
         self.assertEqual(ctx.prompt.await_count, 1)
         self.assertIn('Hello', str(ctx.prompt.call_args))
 
     def test_multiple_boards_shows_sig_then_board_picker(self):
         self._seed_two_boards()
-        ctx = make_ctx(prompts=['1', '2', ''])
+        ctx = make_ctx(prompts=['1', '2', 'q'])
         run(BoardCommand().execute(ctx))
         # 1st prompt: pick a SIG. 2nd: pick a board within it. 3rd: the
-        # thread listing itself (Enter to leave).
+        # thread listing itself ('q' to leave).
         self.assertEqual(ctx.prompt.await_count, 3)
         sig_prompt, board_prompt, listing_prompt = ctx.prompt.call_args_list
         self.assertIn('General', str(sig_prompt))
