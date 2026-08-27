@@ -248,8 +248,23 @@ async def perform_login(reader, writer, username: str, password: str,
                          timeout: float = 3.0) -> bool:
     """Complete handshake + terminal negotiation, then log in with real credentials.
 
-    Returns True once the server confirms the login (its 'Welcome, <name>!' line).
+    Returns True once the server confirms the login (its 'Welcome, <name>!' line)
+    AND any post-login banner pagination (the welcome/tip/status block --
+    commands/connect.py) has been fully drained.
+
+    Same class of bug _skip_login_banner_pagination() exists for on the
+    *pre*-login banner: once the post-login content is long enough to
+    paginate, whatever the caller sends next (e.g. a movement command)
+    gets silently consumed as a page-continue keystroke instead of
+    reaching the real game loop -- found live 2026-08-27 when a longer
+    default PREFS date format (one more line in "You last connected on
+    ...") pushed the post-login block over a page boundary that used to
+    fit in one page, breaking tests/movement/test_move_south_room1.py's
+    's' (south) with no exception anywhere -- the server was still
+    sitting in _login()'s own pagination wait, never having reached
+    _game_loop()'s command prompt at all.
     """
+    import asyncio
     import time
     from simple_client import perform_handshake, send_message, receive_message
     from net_common import Message, Mode
@@ -260,13 +275,45 @@ async def perform_login(reader, writer, username: str, password: str,
     await send_message(writer, Message(lines=[f'connect {username} {password}'], mode=Mode.login))
 
     start = time.time()
+    seen_welcome = False
     while time.time() - start < timeout:
         msg = await receive_message(reader)
         if not msg:
             break
         lines = msg.get('lines') if isinstance(msg, dict) else None
+        prompt = msg.get('prompt') if isinstance(msg, dict) else None
         if lines and any(isinstance(ln, str) and ln.startswith(f'Welcome, {username}')
                           for ln in lines):
-            return True
+            seen_welcome = True
+        if isinstance(prompt, str) and ('-- More' in prompt or '-- End' in prompt):
+            await send_message(writer, Message(lines=[''], mode=Mode.app))
+            continue
+        if not seen_welcome:
+            continue
+        # Seen Welcome, and this particular message isn't itself a pager
+        # cue -- but network_context.py's _paginate() sends the page's
+        # own content and its '-- More'/'-- End' status as two SEPARATE
+        # messages (content first, with the login-phase's own stored
+        # prompt; the pager cue second, blocking server-side on a reply).
+        # Returning right here would race that second message, which is
+        # still in flight -- settle briefly and drain anything that
+        # actually shows up before declaring done -- keep draining until a
+        # full settle window passes with nothing further arriving, not
+        # just until the first non-pager message (there can be several
+        # content/pager-cue pairs in a row, e.g. commands/connect.py's
+        # welcome block AND _game_loop()'s own first _show_room(), both
+        # part of the same 'connect ...' round trip from the client's
+        # point of view).
+        while True:
+            try:
+                msg = await asyncio.wait_for(receive_message(reader), timeout=0.3)
+            except asyncio.TimeoutError:
+                break
+            if not msg:
+                break
+            prompt = msg.get('prompt') if isinstance(msg, dict) else None
+            if isinstance(prompt, str) and ('-- More' in prompt or '-- End' in prompt):
+                await send_message(writer, Message(lines=[''], mode=Mode.app))
+        return True
     return False
 
