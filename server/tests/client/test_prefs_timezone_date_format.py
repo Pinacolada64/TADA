@@ -82,6 +82,17 @@ class TestPickTimezone(unittest.IsolatedAsyncioTestCase):
         await _pick_timezone(ctx)
         self.assertEqual(ctx.player.client_settings.timezone, 'America/Los_Angeles')
 
+    async def test_marks_unsaved_changes(self):
+        # Regression: a real pick that never flags unsaved_changes never
+        # gets past Player.save()'s early-return guard on an abrupt
+        # disconnect (only a clean quit/graceful-shutdown force-saves
+        # regardless of the flag) -- found live 2026-08-27, a player's
+        # date-format choice reverted to default after their session
+        # ended without a clean quit.
+        ctx = _FakeCtx(['3'], Player())
+        await _pick_timezone(ctx)
+        self.assertTrue(ctx.player.unsaved_changes)
+
 
 class TestPickDateFormat(unittest.IsolatedAsyncioTestCase):
     async def test_numbered_preset(self):
@@ -119,6 +130,12 @@ class TestPickDateFormat(unittest.IsolatedAsyncioTestCase):
         self.assertIn('DD/MM/YYYY', text)
         self.assertIn('YYYY-MM-DD', text)
         self.assertIn('Day Month Year', text)
+
+    async def test_marks_unsaved_changes(self):
+        # See TestPickTimezone.test_marks_unsaved_changes for why this matters.
+        ctx = _FakeCtx(['4'], Player())
+        await _pick_date_format(ctx)
+        self.assertTrue(ctx.player.unsaved_changes)
 
 
 class TestFormatPlayerDatetime(unittest.TestCase):
@@ -235,6 +252,12 @@ class TestPickTimeFormat(unittest.IsolatedAsyncioTestCase):
         ctx = _FakeCtx(['2'], Player())
         await _pick_time_format(ctx)
         self.assertEqual(ctx.player.client_settings.time_format, '%H:%M')
+
+    async def test_marks_unsaved_changes(self):
+        # See TestPickTimezone.test_marks_unsaved_changes for why this matters.
+        ctx = _FakeCtx(['1'], Player())
+        await _pick_time_format(ctx)
+        self.assertTrue(ctx.player.unsaved_changes)
 
     async def test_menu_shows_bracket_highlighted_digit_in_label(self):
         ctx = _FakeCtx([''], Player())

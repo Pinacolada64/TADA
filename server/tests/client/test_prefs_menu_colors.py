@@ -71,6 +71,16 @@ class TestPickMenuColorsNamedPresets(unittest.IsolatedAsyncioTestCase):
                            mc.dot_leader, mc.dot_value),
                           ('green',) * 6)
 
+    async def test_picking_a_named_preset_marks_unsaved_changes(self):
+        # Regression: see test_prefs_border_style.py's own copy of this
+        # test for the bug this guards against.
+        player = Player()
+        idx = next(i for i, (name, _) in enumerate(MENU_COLOR_PRESETS, 1)
+                   if name == 'Monochrome Green')
+        ctx = _FakeCtx([str(idx), 'y'], player)
+        await _pick_menu_colors(ctx)
+        self.assertTrue(player.unsaved_changes)
+
     async def test_picking_a_named_preset_stores_a_copy_not_the_shared_instance(self):
         player = Player()
         idx = next(i for i, (name, _) in enumerate(MENU_COLOR_PRESETS, 1)

@@ -67,6 +67,16 @@ class TestPickTableColorsNamedPresets(unittest.IsolatedAsyncioTestCase):
         tc = player.client_settings.table_colors
         self.assertEqual((tc.stripe_a, tc.stripe_b), ('blue', 'light_blue'))
 
+    async def test_picking_a_named_preset_marks_unsaved_changes(self):
+        # Regression: see test_prefs_border_style.py's own copy of this
+        # test for the bug this guards against.
+        player = Player()
+        idx = next(i for i, (name, _) in enumerate(ZEBRA_COLOR_PRESETS, 1)
+                   if name == 'Ocean')
+        ctx = _FakeCtx([str(idx), 'y'], player)
+        await _pick_table_colors(ctx)
+        self.assertTrue(player.unsaved_changes)
+
     async def test_picking_a_named_preset_stores_a_copy_not_the_shared_instance(self):
         player = Player()
         idx = next(i for i, (name, _) in enumerate(ZEBRA_COLOR_PRESETS, 1)

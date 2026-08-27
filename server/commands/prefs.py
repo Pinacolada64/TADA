@@ -808,6 +808,7 @@ async def _pick_border_style(ctx, codec) -> None:
     for num, letter, style_key, label in options:
         if ans in (num, letter, style_key, label.lower()):
             cs.border_style = style_key
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Border style set to {label}.')
             return
     await ctx.send('Border style unchanged.')
@@ -942,6 +943,7 @@ async def _pick_colors(ctx) -> None:
                 chosen = palette[idx]
                 if colors:
                     setattr(colors, attr, chosen)
+                    ctx.player.unsaved_changes = True
                 await ctx.send(f'{label} color set to {chosen.value}.')
             else:
                 await ctx.send(f'{label} color unchanged - number out of range.')
@@ -1055,6 +1057,7 @@ async def _pick_client_type(ctx) -> None:
         if ans == num:
             cs.screen_columns = cols
             cs.screen_rows    = rows
+            ctx.player.unsaved_changes = True
             if encoding == Translation.PETSCII and not is_real_petscii:
                 # Apply the screen size, but never switch a non-PETSCII
                 # transport's translation to PETSCII -- that's what
@@ -1118,6 +1121,7 @@ async def _pick_client_type(ctx) -> None:
 
     cs.screen_columns = cols
     cs.screen_rows    = rows
+    ctx.player.unsaved_changes = True
 
     if is_real_petscii:
         # Same guard as the preset branch above -- a real Commodore
@@ -1268,6 +1272,7 @@ async def _pick_tab_settings(ctx) -> None:
         await ctx.send('Tab settings unchanged.')
         return
     tab.has_tab_key = raw.strip().lower().startswith('y')
+    ctx.player.unsaved_changes = True
     await ctx.send(f"Tab key: {'Yes' if tab.has_tab_key else 'No'}.")
 
     if tab.has_tab_key:
@@ -1287,6 +1292,7 @@ async def _pick_tab_settings(ctx) -> None:
     if 0 <= width <= cs.screen_columns:
         tab.tab_width  = width
         tab.tab_output = ' ' * width
+        ctx.player.unsaved_changes = True
         await ctx.send(f'Tab width set to {width}.', *_tab_token_demo(ctx),
                         *_tab_alignment_demo(width))
     else:
@@ -1319,6 +1325,7 @@ async def _pick_line_ending(ctx) -> None:
     for num, label, val, _desc in options:
         if ans == num or ans.lower() == label.lower():
             cs.line_ending = val
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Line ending set to {label}.')
             return
     await ctx.send('Line ending unchanged.')
@@ -1350,11 +1357,13 @@ async def _pick_timezone(ctx) -> None:
     for num, zone, label in _TIMEZONE_PRESETS:
         if ans == num or ans.lower() == label.lower():
             cs.timezone = zone
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Timezone set to {label}.')
             return
 
     if ans in zoneinfo.available_timezones():
         cs.timezone = ans
+        ctx.player.unsaved_changes = True
         await ctx.send(f'Timezone set to {ans}.')
         return
 
@@ -1388,6 +1397,7 @@ async def _pick_date_format(ctx) -> None:
     for num, label, fmt in _DATE_FORMAT_PRESETS:
         if ans == num or ans.lower() == label.lower():
             cs.date_format = fmt
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Date format set to {label} ({sample.strftime(fmt)}).')
             return
     await ctx.send(f'Date format unchanged -- enter a number between 1 and {len(_DATE_FORMAT_PRESETS)}.')
@@ -1422,6 +1432,7 @@ async def _pick_time_format(ctx) -> None:
         plain = label.replace('[', '').replace(']', '')
         if ans == num or ans.lower() == plain.lower():
             cs.time_format = fmt
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Time format set to {plain} ({sample.strftime(fmt)}).')
             return
     await ctx.send(f'Time format unchanged -- enter a number between 1 and {len(_TIME_FORMAT_PRESETS)}.')
@@ -1587,6 +1598,7 @@ async def _pick_menu_colors(ctx) -> None:
         confirm = await ctx.prompt('Are these colors satisfactory? (y/n)')
         if confirm is not None and confirm.strip().lower().startswith('y'):
             cs.menu_colors = candidate
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Menu colors set to {label}.')
             return
         # 'n' (or anything else, or a blank) -- loop back to the picker
@@ -1722,6 +1734,7 @@ async def _pick_table_colors(ctx) -> None:
         confirm = await ctx.prompt('Are these colors satisfactory? (y/n)')
         if confirm is not None and confirm.strip().lower().startswith('y'):
             cs.table_colors = candidate
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Table colors set to {label}.')
             return
         # 'n' (or anything else, or a blank) -- loop back to the picker
