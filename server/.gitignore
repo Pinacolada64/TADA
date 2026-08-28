@@ -2,6 +2,12 @@
 __pycache__/
 run/
 .venv/
+# PyInstaller output for the standalone client (see tada-client.spec);
+# rebuilt locally with `pyinstaller tada-client.spec`, and in CI by
+# .github/workflows/build-client.yml
+build/
+dist/
+tada-client-*.zip
 # auto-created by config.py's ServerConfig on first instantiation if
 # missing (sysop-editable server settings; local runtime data, not
 # checked in)
