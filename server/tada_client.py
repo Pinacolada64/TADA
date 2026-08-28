@@ -600,7 +600,11 @@ async def run(host: str, port: int, user_id: str, password: str, debug: bool = F
 
 def main() -> int:
     parser = argparse.ArgumentParser(description='TADA prompt_toolkit client')
-    parser.add_argument('host',         nargs='?', default='localhost')
+    # Default to the public alpha server so a freshly-downloaded standalone
+    # build (see tada-client.spec) connects with no arguments. Pass a host
+    # (and optionally port) to point somewhere else, e.g. `tada-client
+    # localhost` during local development.
+    parser.add_argument('host',         nargs='?', default='tada.servegame.com')
     parser.add_argument('port',         nargs='?', type=int, default=34083)
     parser.add_argument('--username',   default='', help='Auto-login username')
     parser.add_argument('--password',   default='',
