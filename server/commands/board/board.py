@@ -127,6 +127,15 @@ def _threads_for_board(all_threads: list[dict], board_id: int) -> list[dict]:
     return [t for t in all_threads if t.get('board_id', _DEFAULT_BOARD_ID) == board_id]
 
 
+def _title_taken(board_threads: list[dict], title: str) -> bool:
+    """Case-insensitive check for an existing thread with this exact
+    title on the same board -- Ryan's call, so 'board post' rejects an
+    accidental duplicate up front rather than leaving two same-titled
+    threads sitting side by side in the listing."""
+    target = title.strip().lower()
+    return any(t.get('title', '').strip().lower() == target for t in board_threads)
+
+
 def _single_board_shortcut(sig_list: list[dict]) -> bool:
     """True when there's nothing to pick between: no SIGs at all (a
     fresh install that's never touched 'board #edit'), or exactly one
@@ -151,6 +160,7 @@ def _listing_menu_lines(ctx, width: int) -> list[str]:
     t = Table(headers=['', ''], show_header=False, border=False)
     t.add_row(['[<#>]', 'read that thread'])
     t.add_row([f'[{ctx.player.return_key}]', 'read the next thread'])
+    t.add_row(['[P]ost', 'start a new thread'])
     t.add_row(['[Q]uit', 'leave the message board'])
     t.add_row(['[pm]', 'toggle Prompt Mode'])
     t.add_row(["'?'", 'show this list again'])
@@ -347,7 +357,7 @@ class BoardCommand(Command):
                     make_rule(rule_width, hrule_char(ctx)),
                 ]
                 lines += board_store.format_thread_listing(threads, rule_width, _is_petscii(ctx), since=since)
-                lines.append(f"([<#>] read, [{ctx.player.return_key}] next, [Q]uit, [pm], '?' for help)")
+                lines.append(f"([<#>] read, [{ctx.player.return_key}] next, [P]ost, [Q]uit, '?' for help)")
                 lines.append('')
 
                 raw = await ctx.prompt('Read which', preamble_lines=lines)
@@ -375,6 +385,8 @@ class BoardCommand(Command):
                     await self._read_one(ctx, threads[position].get('id'))
                 elif low == 'q':
                     return CommandResult.ok('Exited board.')
+                elif low == 'p':
+                    await self._post(ctx, board_id=board_id)
                 elif choice == '?':
                     await ctx.send(_listing_menu_lines(ctx, rule_width))
                 elif low in ('pm', 'promptmode'):
@@ -453,23 +465,31 @@ class BoardCommand(Command):
     # Posting / replying (any logged-in player)
     # ------------------------------------------------------------------
 
-    async def _post(self, ctx) -> CommandResult:
+    async def _post(self, ctx, board_id: int | None = None) -> CommandResult:
         from text_editor import run_editor
 
-        board_id = await pick_board(ctx)
         if board_id is None:
-            return CommandResult.ok('Cancelled.')
-
-        title = await ctx.prompt('Title')
-        if not title or not title.strip():
-            await ctx.send('Cancelled — no title given.')
-            return CommandResult.fail('No title.', error='missing_title')
-        title = title.strip()
+            board_id = await pick_board(ctx)
+            if board_id is None:
+                return CommandResult.ok('Cancelled.')
 
         anonymous = await resolve_anonymous(ctx, board_id)
         if anonymous is None:
             await ctx.send('Cancelled.')
             return CommandResult.fail('Cancelled.', error='cancelled')
+
+        board_threads = _threads_for_board(board_store.load_board(), board_id)
+        while True:
+            title = await ctx.prompt('Title')
+            if not title or not title.strip():
+                await ctx.send('Cancelled — no title given.')
+                return CommandResult.fail('No title.', error='missing_title')
+            title = title.strip()
+            if _title_taken(board_threads, title):
+                await ctx.send(f'A thread titled "{title}" already exists on this board — '
+                                'choose a different title.')
+                continue
+            break
 
         await ctx.send('Enter the thread body.')
         # \x1f (unit separator) joins title+anonymous+board_id into

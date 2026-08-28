@@ -156,6 +156,26 @@ class TestList(BoardCommandTestCase):
         # against the board-wide total of 2 threads.
         self.assertIn('Number: 5 of 2', sent)
 
+    def test_p_at_listing_prompt_posts_without_reselecting_board(self):
+        # Regression: 'p' should reuse the board already being viewed --
+        # not re-run pick_board() and, on a multi-board install, ask
+        # again which board to post to.
+        self._seed([{'id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,
+                      'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []}])
+        ctx = make_ctx(prompts=['p', 'n', 'New Title', 'new body', '.s', 'q'])
+        run(BoardCommand().execute(ctx))
+        threads = board_store.load_board(self.path)
+        self.assertEqual(len(threads), 2)
+        self.assertIn('New Title', [t['title'] for t in threads])
+
+    def test_p_key_shown_in_key_menu_and_inline_hint(self):
+        self._seed([{'id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,
+                      'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []}])
+        ctx = make_ctx(prompts=['?', 'q'])
+        run(BoardCommand().execute(ctx))
+        sent = str(ctx.send.call_args_list)
+        self.assertIn('[P]ost', sent)
+
     def test_pm_at_listing_prompt_toggles_and_stays_in_listing(self):
         self._seed([{'id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,
                       'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []}])
@@ -297,7 +317,7 @@ class TestSetLastDate(BoardCommandTestCase):
 
 class TestPostAndReply(BoardCommandTestCase):
     def test_post_creates_thread(self):
-        ctx = make_ctx(prompts=['My Title', 'n', 'hello there', '.s'])
+        ctx = make_ctx(prompts=['n', 'My Title', 'hello there', '.s'])
         result = run(BoardCommand().execute(ctx, 'post'))
         self.assertTrue(result.success)
         threads = board_store.load_board(self.path)
@@ -308,11 +328,40 @@ class TestPostAndReply(BoardCommandTestCase):
         self.assertEqual(threads[0]['replies'], [])
 
     def test_post_anonymous(self):
-        ctx = make_ctx(prompts=['Title', 'y', 'body', '.s'])
+        ctx = make_ctx(prompts=['y', 'Title', 'body', '.s'])
         run(BoardCommand().execute(ctx, 'post'))
         threads = board_store.load_board(self.path)
         self.assertTrue(threads[0]['anonymous'])
         self.assertEqual(threads[0]['author'], 'alexa')  # real name always stored
+
+    def test_post_asks_anonymous_before_title(self):
+        # Ryan's ask 2026-08-27: check the board's anonymous setting
+        # (prompting if it's 'ask') *before* asking for a title.
+        self._seed([])
+        ctx = make_ctx(prompts=['n', 'My Title', 'body', '.s'])
+        run(BoardCommand().execute(ctx, 'post'))
+        prompt_texts = [call.args[0] if call.args else call.kwargs.get('prompt_text', '')
+                        for call in ctx.prompt.call_args_list]
+        anon_idx  = next(i for i, p in enumerate(prompt_texts) if 'anonymous' in p.lower())
+        title_idx = next(i for i, p in enumerate(prompt_texts) if p == 'Title')
+        self.assertLess(anon_idx, title_idx)
+
+    def test_duplicate_title_on_same_board_rejected(self):
+        self._seed([{'id': 1, 'title': 'Existing Thread', 'author': 'bob', 'anonymous': False,
+                      'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []}])
+        ctx = make_ctx(prompts=['n', 'Existing Thread', 'Different Title', 'body', '.s'])
+        run(BoardCommand().execute(ctx, 'post'))
+        self.assertIn('already exists', str(ctx.send.call_args_list))
+        threads = board_store.load_board(self.path)
+        self.assertEqual(len(threads), 2)
+        self.assertIn('Different Title', [t['title'] for t in threads])
+
+    def test_duplicate_title_check_is_case_insensitive(self):
+        self._seed([{'id': 1, 'title': 'Existing Thread', 'author': 'bob', 'anonymous': False,
+                      'posted_at': '2026-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []}])
+        ctx = make_ctx(prompts=['n', 'EXISTING thread', 'New Title', 'body', '.s'])
+        run(BoardCommand().execute(ctx, 'post'))
+        self.assertIn('already exists', str(ctx.send.call_args_list))
 
     def test_reply_appends_to_thread_and_shows_quote(self):
         self._seed([{'id': 1, 'title': 'Original', 'author': 'bob', 'anonymous': False,
