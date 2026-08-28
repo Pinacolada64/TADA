@@ -21,28 +21,15 @@ an explicit later phase.
 """
 from __future__ import annotations
 
-import asyncio
 import logging
 
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from flags import PlayerFlags
-from network_context import PETSCIINetworkContext
-from petscii_editor import canvas as canvas_wire
 from petscii_editor import store as canvas_store
-from petscii_editor.canvas import Canvas
+from petscii_editor.session import stream_canvas_edit
 
 log = logging.getLogger(__name__)
-
-# How long to wait for the client to upload its edited canvas back.
-# There's no clean cancel signal from the client yet (see this feature's
-# plan notes) -- an admin who just walks away from an open editor
-# shouldn't hang the connection forever, so this is a generous but
-# finite backstop rather than a real abort mechanism. Revisit if a
-# RUN/STOP-triggered cancel byte gets added client-side.
-UPLOAD_TIMEOUT_SECONDS = 15 * 60
-
-HEADER_LEN = 4  # STREAM_START, STREAM_CONFIRM, len_lo, len_hi
 
 
 class BannerEditCommand(Command):
@@ -94,47 +81,12 @@ class BannerEditCommand(Command):
         return CommandResult.ok(f'Listed {len(names)} banner(s).')
 
     async def _edit(self, ctx, name: str) -> CommandResult:
-        if not isinstance(ctx, PETSCIINetworkContext):
-            await ctx.send("Your connection can't run the visual banner editor -- it needs a real Commodore screen.")
-            return CommandResult.fail('No PETSCII display available.', error='no_petscii_display')
-
         path = canvas_store.path_for(name)
-        loaded = canvas_store.load(path)
-        cv = loaded if isinstance(loaded, Canvas) else Canvas()
-
-        await ctx.send(f'|cyan|[[c64]]|white| opening banner editor for "{name}"...')
-        await ctx.send_raw(canvas_wire.encode_download(cv))
-
-        try:
-            header = await asyncio.wait_for(ctx.reader.readexactly(HEADER_LEN), UPLOAD_TIMEOUT_SECONDS)
-        except asyncio.TimeoutError:
-            await ctx.send('Banner editor timed out waiting for a save.')
-            return CommandResult.fail('Upload timed out.', error='upload_timeout')
-        except (asyncio.IncompleteReadError, ConnectionError):
-            log.warning('banner edit %r: connection dropped mid-upload for %s', name, ctx.player.name)
-            return CommandResult.fail('Connection lost during upload.', error='connection_lost')
-
-        if header[1] == canvas_wire.STREAM_CANCEL:
-            await ctx.send(f'Banner edit for "{name}" cancelled.')
-            return CommandResult.ok('Cancelled.')
-
-        try:
-            body_len = header[2] | (header[3] << 8)
-            body = await asyncio.wait_for(ctx.reader.readexactly(body_len), UPLOAD_TIMEOUT_SECONDS)
-        except asyncio.TimeoutError:
-            await ctx.send('Banner editor timed out waiting for a save.')
-            return CommandResult.fail('Upload timed out.', error='upload_timeout')
-        except (asyncio.IncompleteReadError, ConnectionError):
-            log.warning('banner edit %r: connection dropped mid-upload for %s', name, ctx.player.name)
-            return CommandResult.fail('Connection lost during upload.', error='connection_lost')
-
-        try:
-            uploaded = canvas_wire.decode_upload(header + body)
-        except ValueError as exc:
-            await ctx.send(f'Banner upload rejected: {exc}')
-            return CommandResult.fail(str(exc), error='bad_upload')
-
-        canvas_store.save(path, uploaded)
-        log.info('ADMIN BANNER EDIT: %s saved banner %r', ctx.player.name, name)
-        await ctx.send(f'Banner "{name}" saved.')
-        return CommandResult.ok(f'Saved banner {name!r}.')
+        return await stream_canvas_edit(
+            ctx, path,
+            opening_msg=f'|cyan|[[c64]]|white| opening banner editor for "{name}"...',
+            timeout_msg='Banner editor timed out waiting for a save.',
+            cancelled_msg=f'Banner edit for "{name}" cancelled.',
+            saved_msg=f'Banner "{name}" saved.',
+            log_label=f'banner {name!r}',
+        )

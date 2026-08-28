@@ -36,6 +36,7 @@ from __future__ import annotations
 import datetime
 import logging
 
+import banner
 import board as board_store
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
@@ -202,6 +203,23 @@ def _welcome_lines(kind: str, name: str, admins: list[str]) -> list[str]:
     return [f'Welcome to the {name} {kind}!', who]
 
 
+async def _show_intro_screen(ctx, path) -> None:
+    """Show *path*'s SIG/board intro screen, if one has been saved there
+    (see board/intro.py) -- skipped entirely for PlayerFlags.EXPERT_MODE
+    players (Ryan's call: this is an onboarding/flavor extra shown right
+    after the plain-text _welcome_lines() greeting, not something an
+    experienced player needs re-shown every time they switch SIGs/
+    boards). A missing file is the expected common case (most SIGs/
+    boards never get one) rather than a misconfiguration, so this checks
+    existence itself instead of leaning on banner.load_banner()'s own
+    "not found" warning log."""
+    if ctx.player.is_expert or not path.exists():
+        return
+    lines = banner.load_banner(str(path))
+    if lines:
+        await ctx.send(lines)
+
+
 async def pick_board(ctx) -> int | None:
     """Which board_id a bare 'board'/'board post'/'board rn' should act
     on: _DEFAULT_BOARD_ID with no picker shown at all when there's only
@@ -226,6 +244,7 @@ async def pick_board(ctx) -> int | None:
             return None
     await ctx.send(_welcome_lines('SIG', chosen_sig.get('name', '(unnamed)'),
                                   chosen_sig.get('admins', [])))
+    await _show_intro_screen(ctx, board_store.sig_intro_path(chosen_sig['id']))
 
     board_ids = chosen_sig.get('board_ids', [])
     if not board_ids:
@@ -242,6 +261,7 @@ async def pick_board(ctx) -> int | None:
             return None
     await ctx.send(_welcome_lines('board', chosen_board.get('name', '(unnamed)'),
                                   chosen_board.get('admins', [])))
+    await _show_intro_screen(ctx, board_store.board_intro_path(chosen_board['id']))
     return chosen_board['id']
 
 

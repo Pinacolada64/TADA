@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import board as board_store
 from commands.board.edit import edit_board_settings
 from flags import PlayerFlags
+from board.intro import board_intro_path, sig_intro_path
 
 
 def run(coro):
@@ -117,6 +118,16 @@ class TestSigManagement(BoardEditTestCase):
         run(edit_board_settings(ctx))
         saved = board_store.sigs.load_sigs(self.sigs_path)
         self.assertEqual(saved['sigs'][0]['name'], 'Renamed')
+
+    def test_intro_option_opens_editor_for_the_right_sig_path(self):
+        self._seed_sig_and_board()
+        ctx = make_ctx(prompts=['s', '1', 'i', '', '', ''])
+        with patch('commands.board.edit._edit_intro_screen', new=AsyncMock()) as mock_edit:
+            run(edit_board_settings(ctx))
+        mock_edit.assert_awaited_once()
+        (called_ctx, called_path), kwargs = mock_edit.call_args
+        self.assertEqual(called_path, sig_intro_path(1))
+        self.assertEqual(kwargs['subject'], 'the General SIG')
 
     def test_delete_sig_with_boards_refused(self):
         self._seed_sig_and_board()
@@ -259,6 +270,16 @@ class TestBoardManagement(BoardEditTestCase):
         self.assertIn('already exists', str(ctx.send.call_args_list))
         saved = board_store.meta.load_meta(self.meta_path)
         self.assertEqual(saved['boards']['1']['name'], 'Alpha')
+
+    def test_intro_option_opens_editor_for_the_right_board_path(self):
+        self._seed_sig_and_board(board_name='Town Square')
+        ctx = make_ctx(prompts=['b', '1', 'i', '', '', ''])
+        with patch('commands.board.edit._edit_intro_screen', new=AsyncMock()) as mock_edit:
+            run(edit_board_settings(ctx))
+        mock_edit.assert_awaited_once()
+        (called_ctx, called_path), kwargs = mock_edit.call_args
+        self.assertEqual(called_path, board_intro_path(1))
+        self.assertEqual(kwargs['subject'], 'the Town Square board')
 
     def test_set_anonymous_mode(self):
         self._seed_sig_and_board()

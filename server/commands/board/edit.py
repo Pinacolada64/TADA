@@ -35,6 +35,11 @@ import board as board_store
 from base_classes import Guild
 from commands.base_command import CommandResult
 from flags import PlayerFlags
+from network_context import PETSCIINetworkContext
+from petscii_editor import store as canvas_store
+from petscii_editor.canvas import Canvas
+from petscii_editor.session import stream_canvas_edit
+from text_editor import run_editor
 
 log = logging.getLogger(__name__)
 
@@ -97,6 +102,50 @@ def _board_name_taken(meta_data: dict, name: str, exclude_id: int | None = None)
         if board.get('name', '').strip().lower() == target:
             return True
     return False
+
+
+async def _edit_intro_screen(ctx, path, *, subject: str) -> None:
+    """'[I]ntro' in _sig_detail()/_board_detail() -- edit the optional
+    intro screen shown on entering that SIG/board (see board/intro.py,
+    commands/board/board.py's _show_intro_screen()). Real Commodore
+    (PETSCII) connections get the same visual canvas editor 'banner
+    edit' uses (petscii_editor.session.stream_canvas_edit); every other
+    client type falls back to the plain markup-text editor already used
+    for board posts (text_editor.run_editor()), since there's no visual
+    canvas editor for non-PETSCII terminals yet -- Ryan's call, matching
+    this feature's original framing of picking the editor from the
+    connection type rather than asking the admin to choose. *subject*
+    names what's being edited in messages, e.g. 'the General SIG' or
+    'the Town Square board'."""
+    if isinstance(ctx, PETSCIINetworkContext):
+        await stream_canvas_edit(
+            ctx, path,
+            opening_msg=f'|cyan|[[c64]]|white| opening intro-screen editor for {subject}...',
+            timeout_msg='Intro-screen editor timed out waiting for a save.',
+            cancelled_msg=f'Intro-screen edit for {subject} cancelled.',
+            saved_msg=f'Intro screen for {subject} saved.',
+            log_label=f'{subject} intro screen',
+        )
+        return
+
+    loaded = canvas_store.load(path)
+    if isinstance(loaded, Canvas):
+        await ctx.send('This intro screen was made with the graphical editor -- '
+                        'editing it as text starts a fresh one instead of merging.')
+        initial = []
+    else:
+        initial = loaded
+
+    body = await run_editor(ctx, initial_lines=initial,
+                             activity_id=f'intro_screen:{subject}',
+                             activity_label=f'editing the intro screen for {subject}')
+    if body is None:
+        await ctx.send('Cancelled.')
+        return
+    lines = [d.get('text', '') if isinstance(d, dict) else str(d) for d in body]
+    canvas_store.save_tokenized(path, lines)
+    log.info('ADMIN CANVAS EDIT: %s saved %s intro screen', ctx.player.name, subject)
+    await ctx.send(f'Intro screen for {subject} saved.')
 
 
 async def _prompt_multi_select(ctx, items: list[dict], *, noun: str, prompt: str) -> list[dict]:
@@ -216,6 +265,7 @@ async def _sig_detail(ctx, sigs_data: dict, meta_data: dict, sig: dict) -> None:
             '  R  Rename', '  X  Delete (only if it has no boards)',
             '  O  Reorder (move to a new position in the SIG list)',
             '  P  Manage SIG operators',
+            '  I  Edit intro screen (shown once on entering this SIG)',
             '  A<range>  Add existing board(s) into this SIG, e.g. A1,3-4',
             '  E<range>  Edit board(s) one at a time, e.g. E1, E2-4',
             '  L<range>  List a range of boards, e.g. L1-4',
@@ -246,6 +296,9 @@ async def _sig_detail(ctx, sigs_data: dict, meta_data: dict, sig: dict) -> None:
             await _move_to_position(ctx, sigs_data['sigs'], sig, name=sig.get('name', '(unnamed)'))
         elif lower == 'p':
             await _manage_sig_admins(ctx, sig)
+        elif lower == 'i':
+            await _edit_intro_screen(ctx, board_store.intro.sig_intro_path(sig['id']),
+                                      subject=f"the {sig.get('name', '(unnamed)')} SIG")
         elif lower.startswith('a'):
             await _add_boards_to_sig(ctx, meta_data, sig, choice[1:].strip())
         elif lower.startswith('e'):
@@ -403,7 +456,8 @@ async def _board_detail(ctx, sigs_data: dict, meta_data: dict, board_id: int) ->
             '  R  Rename', '  M  Move to another SIG', '  H  Share into another SIG',
             '  O  Reorder (move to a new position within its SIG)',
             '  A  Set anonymous-posting mode', '  G  Set access gate',
-            '  P  Manage admins', '  X  Delete (only if it has no threads)',
+            '  P  Manage admins', '  I  Edit intro screen (shown once on entering this board)',
+            '  X  Delete (only if it has no threads)',
             f'({ctx.player.return_key} to go back)', '',
         ]
         raw = await ctx.prompt('Change which', preamble_lines=lines)
@@ -425,6 +479,9 @@ async def _board_detail(ctx, sigs_data: dict, meta_data: dict, board_id: int) ->
             await _edit_access_gate(ctx, meta_data, board_id)
         elif choice == 'p':
             await _manage_admins(ctx, meta_data, board_id)
+        elif choice == 'i':
+            await _edit_intro_screen(ctx, board_store.intro.board_intro_path(board_id),
+                                      subject=f"the {board.get('name', '(unnamed)')} board")
         elif choice == 'x':
             if await _delete_board(ctx, sigs_data, meta_data, board_id):
                 return
