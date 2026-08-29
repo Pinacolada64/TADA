@@ -163,6 +163,8 @@ def _listing_menu_lines(ctx, width: int) -> list[str]:
     t.add_row([f'[{ctx.player.return_key}]', 'read the next thread'])
     t.add_row(['[P]ost', 'start a new thread'])
     t.add_row(['[Q]uit', 'leave the message board'])
+    t.add_row(["'>' / '<'", 'next / previous board in this SIG'])
+    t.add_row(["'>>' / '<<'", 'next / previous SIG'])
     t.add_row(['[pm]', 'toggle Prompt Mode'])
     t.add_row(["'?'", 'show this list again'])
     return [''] + t.render(width=width) + ['']
@@ -237,14 +239,62 @@ async def _show_intro_screen(ctx, path) -> None:
         await ctx.send(lines)
 
 
-async def pick_board(ctx) -> int | None:
-    """Which board_id a bare 'board'/'board post'/'board rn' should act
-    on: _DEFAULT_BOARD_ID with no picker shown at all when there's only
-    one board to choose from (see _single_board_shortcut -- keeps
-    today's single-board UX exactly unchanged for every install that
-    hasn't touched 'board #edit' yet), otherwise a two-level SIG-then-
-    board numbered picker (decision 8 in the sig-editor plan: menu-
-    driven navigation only, no 'board 2.3' shorthand). Threads
+async def _enter_sig(ctx, sig: dict) -> None:
+    """Send a SIG's welcome greeting + intro screen -- shared by
+    pick_board()'s picker path and _list()'s '>>' / '<<' next/previous-
+    SIG navigation, so both show the same greeting on entry."""
+    await ctx.send(_welcome_lines('SIG', sig.get('name', '(unnamed)'), sig.get('admins', [])))
+    await _show_intro_screen(ctx, board_store.sig_intro_path(sig['id']))
+
+
+async def _enter_board(ctx, meta_data: dict, board_id: int) -> None:
+    """Send a board's welcome greeting + intro screen -- shared by
+    pick_board()'s picker path and _list()'s '>' / '<' / '>>' / '<<'
+    navigation, so both show the same greeting on entry."""
+    board = board_store.meta.get_board(meta_data, board_id)
+    await ctx.send(_welcome_lines('board', board.get('name', '(unnamed)'), board.get('admins', [])))
+    await _show_intro_screen(ctx, board_store.board_intro_path(board_id))
+
+
+async def _resolve_board_in_sig(ctx, chosen_sig: dict, meta_data: dict, *, multi_sig: bool):
+    """Given a SIG the player just entered, resolve which of its boards
+    to land on -- straight to the only one, or via a numbered picker
+    (offering 'B. Back to SIGs list' when allow_back). Sends both the
+    SIG's and the resolved board's welcome+intro. Returns the board id,
+    the _BACK sentinel (only reachable when multi_sig), or None if the
+    SIG has no boards or the player backed fully out of the picker."""
+    await _enter_sig(ctx, chosen_sig)
+
+    board_ids = chosen_sig.get('board_ids', [])
+    if not board_ids:
+        await ctx.send(f"{chosen_sig.get('name', '(unnamed)')} has no boards yet.")
+        return None
+
+    if len(board_ids) == 1:
+        board_id = board_ids[0]
+    else:
+        boards = [board_store.meta.get_board(meta_data, bid) for bid in board_ids]
+        picked = await _pick_from_numbered_list(ctx, boards, noun='board', allow_back=multi_sig)
+        if picked is _BACK:
+            return _BACK
+        if picked is None:
+            return None
+        board_id = picked['id']
+    await _enter_board(ctx, meta_data, board_id)
+    return board_id
+
+
+async def pick_board(ctx) -> tuple[int, int | None] | None:
+    """Which (board_id, sig_id) a bare 'board'/'board post'/'board rn'
+    should act on: (_DEFAULT_BOARD_ID, sig_id or None) with no picker
+    shown at all when there's only one board to choose from (see
+    _single_board_shortcut -- keeps today's single-board UX exactly
+    unchanged for every install that hasn't touched 'board #edit' yet),
+    otherwise a two-level SIG-then-board numbered picker (decision 8 in
+    the sig-editor plan: menu-driven navigation only, no 'board 2.3'
+    shorthand). sig_id is returned alongside board_id so _list() can
+    offer '>'/'<'/'>>'/'<<' same-SIG/next-SIG navigation without
+    re-deriving which SIG a (possibly shared) board came from. Threads
     themselves (board <id>/reply <id>/delete <id>) are found by their
     own globally-unique id regardless of board, so they never need this.
     None if the player backs out of the SIG level, or of the board level
@@ -254,9 +304,10 @@ async def pick_board(ctx) -> int | None:
     sig_data = board_store.sigs.load_sigs()
     sig_list = sig_data.get('sigs', [])
     if _single_board_shortcut(sig_list):
-        return _DEFAULT_BOARD_ID
+        return _DEFAULT_BOARD_ID, (sig_list[0]['id'] if sig_list else None)
 
     multi_sig = len(sig_list) > 1
+    meta_data = board_store.meta.load_meta()
     while True:
         if len(sig_list) == 1:
             chosen_sig = sig_list[0]
@@ -265,30 +316,12 @@ async def pick_board(ctx) -> int | None:
                 ctx, sig_list, noun='SIG', header='Special Interest Groups (SIGs)')
             if chosen_sig is None:
                 return None
-        await ctx.send(_welcome_lines('SIG', chosen_sig.get('name', '(unnamed)'),
-                                      chosen_sig.get('admins', [])))
-        await _show_intro_screen(ctx, board_store.sig_intro_path(chosen_sig['id']))
-
-        board_ids = chosen_sig.get('board_ids', [])
-        if not board_ids:
-            await ctx.send(f"{chosen_sig.get('name', '(unnamed)')} has no boards yet.")
+        result = await _resolve_board_in_sig(ctx, chosen_sig, meta_data, multi_sig=multi_sig)
+        if result is _BACK:
+            continue
+        if result is None:
             return None
-
-        meta_data = board_store.meta.load_meta()
-        if len(board_ids) == 1:
-            chosen_board = board_store.meta.get_board(meta_data, board_ids[0])
-        else:
-            boards = [board_store.meta.get_board(meta_data, bid) for bid in board_ids]
-            picked = await _pick_from_numbered_list(ctx, boards, noun='board', allow_back=multi_sig)
-            if picked is _BACK:
-                continue
-            if picked is None:
-                return None
-            chosen_board = picked
-        await ctx.send(_welcome_lines('board', chosen_board.get('name', '(unnamed)'),
-                                      chosen_board.get('admins', [])))
-        await _show_intro_screen(ctx, board_store.board_intro_path(chosen_board['id']))
-        return chosen_board['id']
+        return result, chosen_sig['id']
 
 
 class BoardCommand(Command):
@@ -378,10 +411,12 @@ class BoardCommand(Command):
         Picks which board via pick_board() -- a no-op picker (returns
         _DEFAULT_BOARD_ID straight away) until more than one board
         exists. None means the player backed out of the SIG/board
-        picker without choosing anything."""
-        board_id = await pick_board(ctx)
-        if board_id is None:
+        picker without choosing anything. sig_id (alongside board_id)
+        is what '>'/'<'/'>>'/'<<' below navigate relative to."""
+        picked = await pick_board(ctx)
+        if picked is None:
             return CommandResult.ok('Cancelled.')
+        board_id, sig_id = picked
 
         since = self._last_date(ctx)
         position = -1  # index into this pass's 'threads' of the last-read one; -1 = none read yet
@@ -444,6 +479,11 @@ class BoardCommand(Command):
                     return CommandResult.ok('Exited board.')
                 elif low == 'p':
                     await self._post(ctx, board_id=board_id)
+                elif choice in ('>', '<', '>>', '<<'):
+                    nav = await self._navigate(ctx, choice, board_id=board_id, sig_id=sig_id)
+                    if nav is not None:
+                        board_id, sig_id = nav
+                        position = -1
                 elif choice == '?':
                     await ctx.send(_listing_menu_lines(ctx, rule_width))
                 elif low in ('pm', 'promptmode'):
@@ -461,6 +501,60 @@ class BoardCommand(Command):
                     await ctx.send(f"'{choice}' is not a valid thread id.")
         finally:
             ctx.client.virtual_location = previous_location
+
+    async def _navigate(self, ctx, choice: str, *, board_id: int,
+                         sig_id: int | None) -> tuple[int, int | None] | None:
+        """'>' / '<' step to the next/previous board within *sig_id*
+        (by position in its board_ids list); '>>' / '<<' step to the
+        next/previous SIG entirely, landing on that SIG's *first* board
+        with no picker of its own -- Ryan's call, keeping this a single
+        keystroke rather than nesting another board picker mid-listing.
+        Reports and returns None (no navigation happened) at either end
+        of a list, or if *board_id*/*sig_id* aren't part of a SIG at all
+        (the single-board-shortcut install with no SIGs configured)."""
+        sig_list = board_store.sigs.load_sigs().get('sigs', [])
+        sig = next((s for s in sig_list if s.get('id') == sig_id), None)
+        if sig is None:
+            await ctx.send("This board isn't part of a SIG -- nothing to navigate to.")
+            return None
+
+        if choice in ('>', '<'):
+            board_ids = sig.get('board_ids', [])
+            idx = board_ids.index(board_id) if board_id in board_ids else None
+            if idx is None:
+                await ctx.send("Can't find this board's position in its SIG.")
+                return None
+            new_idx = idx + 1 if choice == '>' else idx - 1
+            if not (0 <= new_idx < len(board_ids)):
+                await ctx.send('Already at the last board in this SIG.' if choice == '>'
+                                else 'Already at the first board in this SIG.')
+                return None
+            new_board_id = board_ids[new_idx]
+            await _enter_board(ctx, board_store.meta.load_meta(), new_board_id)
+            return new_board_id, sig_id
+
+        # '>>' / '<<' -- next/previous SIG.
+        if len(sig_list) <= 1:
+            await ctx.send("There's only one SIG.")
+            return None
+        idx = next((i for i, s in enumerate(sig_list) if s.get('id') == sig_id), None)
+        if idx is None:
+            await ctx.send("Can't find this SIG's position in the SIG list.")
+            return None
+        new_idx = idx + 1 if choice == '>>' else idx - 1
+        if not (0 <= new_idx < len(sig_list)):
+            await ctx.send('Already at the last SIG.' if choice == '>>' else 'Already at the first SIG.')
+            return None
+        new_sig = sig_list[new_idx]
+        new_board_ids = new_sig.get('board_ids', [])
+        if not new_board_ids:
+            await ctx.send(f"{new_sig.get('name', '(unnamed)')} has no boards yet.")
+            return None
+        await _enter_sig(ctx, new_sig)
+        meta_data = board_store.meta.load_meta()
+        new_board_id = new_board_ids[0]
+        await _enter_board(ctx, meta_data, new_board_id)
+        return new_board_id, new_sig['id']
 
     async def _read_one(self, ctx, thread_id: int) -> CommandResult:
         all_threads = board_store.load_board()
@@ -526,9 +620,10 @@ class BoardCommand(Command):
         from text_editor import run_editor
 
         if board_id is None:
-            board_id = await pick_board(ctx)
-            if board_id is None:
+            picked = await pick_board(ctx)
+            if picked is None:
                 return CommandResult.ok('Cancelled.')
+            board_id, _sig_id = picked
 
         anonymous = await resolve_anonymous(ctx, board_id)
         if anonymous is None:

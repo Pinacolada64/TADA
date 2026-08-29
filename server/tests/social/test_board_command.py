@@ -642,5 +642,73 @@ class TestTwoLevelPicker(BoardCommandTestCase):
         self.assertIn('In Beta', sent)
 
 
+class TestBoardSigNavigation(BoardCommandTestCase):
+    """'>' / '<' step between boards in the same SIG; '>>' / '<<' step
+    between SIGs, landing on the new SIG's first board."""
+
+    def _seed_two_boards(self):
+        board_store.sigs.save_sigs({'sigs': [
+            {'id': 1, 'name': 'General', 'board_ids': [1, 2]},
+            {'id': 2, 'name': 'Off Topic', 'board_ids': [3]},
+        ]}, self.sigs_path)
+        board_store.meta.save_meta({'boards': {
+            '1': {'id': 1, 'name': 'Alpha', 'anonymous_mode': 'ask', 'access': {'type': 'any'}, 'admins': []},
+            '2': {'id': 2, 'name': 'Beta', 'anonymous_mode': 'ask', 'access': {'type': 'any'}, 'admins': []},
+            '3': {'id': 3, 'name': 'Gamma', 'anonymous_mode': 'ask', 'access': {'type': 'any'}, 'admins': []},
+        }}, self.config_path)
+        self._seed([
+            {'id': 1, 'board_id': 1, 'title': 'In Alpha', 'author': 'a', 'anonymous': False,
+             'posted_at': '2026-01-01T00:00:00', 'body': [], 'replies': []},
+            {'id': 2, 'board_id': 2, 'title': 'In Beta', 'author': 'a', 'anonymous': False,
+             'posted_at': '2026-01-01T00:00:00', 'body': [], 'replies': []},
+        ])
+
+    def test_next_board_moves_within_the_same_sig(self):
+        self._seed_two_boards()
+        # 1: General; 1: Alpha (board picker, since General has 2 boards);
+        # >: step to Beta; q: leave.
+        ctx = make_ctx(prompts=['1', '1', '>', 'q'])
+        run(BoardCommand().execute(ctx))
+        listing_prompts = [str(c) for c in ctx.prompt.call_args_list]
+        self.assertIn('In Beta', listing_prompts[-1])
+
+    def test_previous_board_at_the_start_reports_and_stays_put(self):
+        self._seed_two_boards()
+        ctx = make_ctx(prompts=['1', '1', '<', 'q'])
+        run(BoardCommand().execute(ctx))
+        self.assertIn('Already at the first board in this SIG.', str(ctx.send.call_args_list))
+        listing_prompts = [str(c) for c in ctx.prompt.call_args_list]
+        self.assertIn('In Alpha', listing_prompts[-1])
+
+    def test_next_board_at_the_end_reports_and_stays_put(self):
+        self._seed_two_boards()
+        ctx = make_ctx(prompts=['1', '2', '>', 'q'])  # land on Beta directly
+        run(BoardCommand().execute(ctx))
+        self.assertIn('Already at the last board in this SIG.', str(ctx.send.call_args_list))
+
+    def test_next_sig_lands_on_its_first_board_with_no_picker(self):
+        self._seed_two_boards()
+        ctx = make_ctx(prompts=['1', '1', '>>', 'q'])
+        run(BoardCommand().execute(ctx))
+        sent = str(ctx.send.call_args_list)
+        self.assertIn('Welcome to the Off Topic SIG!', sent)
+        self.assertIn('Welcome to the Gamma board!', sent)
+
+    def test_previous_sig_at_the_start_reports_and_stays_put(self):
+        self._seed_two_boards()
+        ctx = make_ctx(prompts=['1', '1', '<<', 'q'])
+        run(BoardCommand().execute(ctx))
+        self.assertIn('Already at the first SIG.', str(ctx.send.call_args_list))
+
+    def test_navigation_unavailable_with_no_sig_structure(self):
+        # Single-board-shortcut install (no SIGs configured at all) --
+        # nothing for '>'/'<'/'>>'/'<<' to navigate to.
+        self._seed([{'id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,
+                      'posted_at': '2026-01-01T00:00:00', 'body': [], 'replies': []}])
+        ctx = make_ctx(prompts=['>', 'q'])
+        run(BoardCommand().execute(ctx))
+        self.assertIn("isn't part of a SIG", str(ctx.send.call_args_list))
+
+
 if __name__ == '__main__':
     unittest.main()
