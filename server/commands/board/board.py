@@ -368,8 +368,19 @@ class BoardCommand(Command):
                 if new_only:
                     threads = [t for t in threads if board_store.is_new_since(t, since)]
                 if not threads:
-                    await ctx.send('No new threads.' if new_only else 'No threads on the board yet.')
-                    return CommandResult.ok('No threads.')
+                    if new_only:
+                        await ctx.send('No new threads.')
+                        return CommandResult.ok('No threads.')
+                    # Empty board (not just "nothing new") -- Ryan's call:
+                    # let the player start the first thread right here
+                    # instead of just bouncing them back out, same spirit
+                    # as the bare listing's own [P]ost shortcut.
+                    raw = await ctx.prompt('No threads on this board yet -- [P]ost one, or [Q]uit',
+                                           preamble_lines=[''])
+                    if raw is not None and raw.strip().lower() == 'p':
+                        await self._post(ctx, board_id=board_id)
+                        continue
+                    return CommandResult.ok('Exited board.')
 
                 rule_width = getattr(getattr(ctx.player, 'client_settings', None), 'screen_columns', 80)
                 lines = [

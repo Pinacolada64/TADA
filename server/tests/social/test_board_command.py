@@ -101,11 +101,24 @@ class BoardCommandTestCase(unittest.TestCase):
 
 
 class TestList(BoardCommandTestCase):
-    def test_no_threads_message(self):
-        ctx = make_ctx()
+    def test_no_threads_prompts_to_post_or_quit(self):
+        ctx = make_ctx(prompts=['q'])
         run(BoardCommand().execute(ctx))
-        sent = str(ctx.send.call_args)
-        self.assertIn('No threads', sent)
+        prompted = str(ctx.prompt.call_args)
+        self.assertIn('No threads on this board yet', prompted)
+
+    def test_no_threads_p_starts_a_post(self):
+        ctx = make_ctx(prompts=['p', 'n', 'My First Post', 'hello there', '.s', 'q'])
+        run(BoardCommand().execute(ctx))
+        saved = board_store.load_board(self.path)
+        self.assertEqual([t['title'] for t in saved], ['My First Post'])
+
+    def test_no_threads_blank_exits(self):
+        ctx = make_ctx(prompts=[''])
+        result = run(BoardCommand().execute(ctx))
+        self.assertTrue(result.success)
+        saved = board_store.load_board(self.path)
+        self.assertEqual(saved, [])
 
     def test_lists_threads(self):
         self._seed([{'id': 1, 'title': 'Hello World', 'author': 'bob', 'anonymous': False,
