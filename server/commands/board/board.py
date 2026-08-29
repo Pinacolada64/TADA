@@ -168,18 +168,35 @@ def _listing_menu_lines(ctx, width: int) -> list[str]:
     return [''] + t.render(width=width) + ['']
 
 
-async def _pick_from_numbered_list(ctx, items: list[dict], *, noun: str) -> dict | None:
+# Sentinel returned by _pick_from_numbered_list() when the player types
+# 'B' at a picker that offers one (distinct from None, which means they
+# backed out of picking anything at all -- see pick_board()'s loop).
+_BACK = object()
+
+
+async def _pick_from_numbered_list(ctx, items: list[dict], *, noun: str,
+                                    header: str | None = None,
+                                    allow_back: bool = False) -> dict | object | None:
     """Show a 1-based numbered list of *items* (each needs a 'name' key)
-    and prompt for a pick. None on a blank/disconnected answer (the
-    player backed out) or an out-of-range/non-numeric one (reported and
-    treated as backing out, rather than looping forever)."""
-    lines = [''] + [f'  {i}. {item.get("name", "(unnamed)")}' for i, item in enumerate(items, 1)]
+    and prompt for a pick. *header*, if given, is a title line shown
+    above the list (e.g. 'Special Interest Groups (SIGs)'). With
+    allow_back=True, 'B' returns the _BACK sentinel instead of a pick --
+    used by the board picker to step back up to the SIG list rather than
+    cancelling out of 'board' entirely. None on a blank/disconnected
+    answer (the player backed out) or an out-of-range/non-numeric one
+    (reported and treated as backing out, rather than looping forever)."""
+    lines = [''] + ([f'|yellow|{header}|reset|', ''] if header else [])
+    lines += [f'  {i}. {item.get("name", "(unnamed)")}' for i, item in enumerate(items, 1)]
+    if allow_back:
+        lines.append('  B. Back to SIGs list')
     lines.append(f'({ctx.player.return_key} to cancel)')
     lines.append('')
     raw = await ctx.prompt(f'Which {noun}', preamble_lines=lines)
     if raw is None or not raw.strip():
         return None
     choice = raw.strip()
+    if allow_back and choice.lower() == 'b':
+        return _BACK
     if not choice.isdigit() or not (1 <= int(choice) <= len(items)):
         await ctx.send(f"'{choice}' is not a valid {noun} number.")
         return None
@@ -230,39 +247,48 @@ async def pick_board(ctx) -> int | None:
     driven navigation only, no 'board 2.3' shorthand). Threads
     themselves (board <id>/reply <id>/delete <id>) are found by their
     own globally-unique id regardless of board, so they never need this.
-    None if the player backs out of either level."""
+    None if the player backs out of the SIG level, or of the board level
+    with only one SIG to offer 'back' to. With more than one SIG, 'B' at
+    the board level loops back to the SIG picker instead of cancelling
+    out of 'board' entirely."""
     sig_data = board_store.sigs.load_sigs()
     sig_list = sig_data.get('sigs', [])
     if _single_board_shortcut(sig_list):
         return _DEFAULT_BOARD_ID
 
-    if len(sig_list) == 1:
-        chosen_sig = sig_list[0]
-    else:
-        chosen_sig = await _pick_from_numbered_list(ctx, sig_list, noun='SIG')
-        if chosen_sig is None:
-            return None
-    await ctx.send(_welcome_lines('SIG', chosen_sig.get('name', '(unnamed)'),
-                                  chosen_sig.get('admins', [])))
-    await _show_intro_screen(ctx, board_store.sig_intro_path(chosen_sig['id']))
+    multi_sig = len(sig_list) > 1
+    while True:
+        if len(sig_list) == 1:
+            chosen_sig = sig_list[0]
+        else:
+            chosen_sig = await _pick_from_numbered_list(
+                ctx, sig_list, noun='SIG', header='Special Interest Groups (SIGs)')
+            if chosen_sig is None:
+                return None
+        await ctx.send(_welcome_lines('SIG', chosen_sig.get('name', '(unnamed)'),
+                                      chosen_sig.get('admins', [])))
+        await _show_intro_screen(ctx, board_store.sig_intro_path(chosen_sig['id']))
 
-    board_ids = chosen_sig.get('board_ids', [])
-    if not board_ids:
-        await ctx.send(f"{chosen_sig.get('name', '(unnamed)')} has no boards yet.")
-        return None
-
-    meta_data = board_store.meta.load_meta()
-    if len(board_ids) == 1:
-        chosen_board = board_store.meta.get_board(meta_data, board_ids[0])
-    else:
-        boards = [board_store.meta.get_board(meta_data, bid) for bid in board_ids]
-        chosen_board = await _pick_from_numbered_list(ctx, boards, noun='board')
-        if chosen_board is None:
+        board_ids = chosen_sig.get('board_ids', [])
+        if not board_ids:
+            await ctx.send(f"{chosen_sig.get('name', '(unnamed)')} has no boards yet.")
             return None
-    await ctx.send(_welcome_lines('board', chosen_board.get('name', '(unnamed)'),
-                                  chosen_board.get('admins', [])))
-    await _show_intro_screen(ctx, board_store.board_intro_path(chosen_board['id']))
-    return chosen_board['id']
+
+        meta_data = board_store.meta.load_meta()
+        if len(board_ids) == 1:
+            chosen_board = board_store.meta.get_board(meta_data, board_ids[0])
+        else:
+            boards = [board_store.meta.get_board(meta_data, bid) for bid in board_ids]
+            picked = await _pick_from_numbered_list(ctx, boards, noun='board', allow_back=multi_sig)
+            if picked is _BACK:
+                continue
+            if picked is None:
+                return None
+            chosen_board = picked
+        await ctx.send(_welcome_lines('board', chosen_board.get('name', '(unnamed)'),
+                                      chosen_board.get('admins', [])))
+        await _show_intro_screen(ctx, board_store.board_intro_path(chosen_board['id']))
+        return chosen_board['id']
 
 
 class BoardCommand(Command):

@@ -589,6 +589,41 @@ class TestTwoLevelPicker(BoardCommandTestCase):
         self.assertIn('Beta', str(board_prompt))
         self.assertIn('In Beta', str(listing_prompt))
 
+    def test_sig_picker_shows_a_header_line(self):
+        self._seed_two_boards()
+        ctx = make_ctx(prompts=['1', '2', 'q'])
+        run(BoardCommand().execute(ctx))
+        sig_prompt = ctx.prompt.call_args_list[0]
+        self.assertIn('Special Interest Groups (SIGs)', str(sig_prompt))
+
+    def test_b_at_board_picker_shows_back_option_and_loops_to_sig_picker(self):
+        self._seed_two_boards()
+        # 1: pick General (2 boards -> board picker shown); b: back to
+        # SIGs; 2: pick Off Topic, whose single board (Gamma) needs no
+        # picker of its own, landing straight on the listing; q: leave it.
+        ctx = make_ctx(prompts=['1', 'b', '2', 'q'])
+        run(BoardCommand().execute(ctx))
+        self.assertEqual(ctx.prompt.await_count, 4)
+        board_prompt = ctx.prompt.call_args_list[1]
+        self.assertIn('B. Back to SIGs list', str(board_prompt))
+        second_sig_prompt = ctx.prompt.call_args_list[2]
+        self.assertIn('Off Topic', str(second_sig_prompt))
+
+    def test_back_option_absent_with_only_one_sig(self):
+        # Single-SIG-multi-board case: no SIG picker is ever shown, so
+        # there's nothing for 'B' at the board picker to go back to.
+        board_store.sigs.save_sigs({'sigs': [
+            {'id': 1, 'name': 'General', 'board_ids': [1, 2]},
+        ]}, self.sigs_path)
+        board_store.meta.save_meta({'boards': {
+            '1': {'id': 1, 'name': 'Alpha', 'anonymous_mode': 'ask', 'access': {'type': 'any'}, 'admins': []},
+            '2': {'id': 2, 'name': 'Beta', 'anonymous_mode': 'ask', 'access': {'type': 'any'}, 'admins': []},
+        }}, self.config_path)
+        ctx = make_ctx(prompts=['1', 'q'])
+        run(BoardCommand().execute(ctx))
+        board_prompt = ctx.prompt.call_args_list[0]
+        self.assertNotIn('Back to SIGs list', str(board_prompt))
+
     def test_backing_out_of_sig_picker_cancels(self):
         self._seed_two_boards()
         ctx = make_ctx(prompts=[''])
