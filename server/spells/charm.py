@@ -146,14 +146,17 @@ async def try_charm_potion(ctx: 'GameContext') -> bool:
         'monster_number': monster_no,
         'name':          name,
         'display_name':  mdisp,
+        'multiple_monsters': bool(flags.get('multiple_monsters')),
         'strength':      int(monster.get('strength', 0) or 0),
         'to_hit':        int(monster.get('to_hit', 0) or 0),
     }
-    await ctx.send(f'{mdisp} suddenly takes a shine to you!')
+    takes = 'take' if flags.get('multiple_monsters') else 'takes'
+    calms = 'calm' if flags.get('multiple_monsters') else 'calms'
+    await ctx.send(f'{mdisp} suddenly {takes} a shine to you!')
 
     player_name = getattr(player, 'name', 'Someone')
     await ctx.send_room(
-        f'{player_name} drinks a strange potion, and {mdisp} suddenly calms down.',
+        f'{player_name} drinks a strange potion, and {mdisp} suddenly {calms} down.',
         exclude_self=True,
     )
     return True
@@ -173,7 +176,8 @@ def charm_greeting_line(player, room_no: int, level: int) -> str | None:
         return None
     player_name = getattr(player, 'name', 'Adventurer')
     display_name = pending.get('display_name', pending['name'])
-    return f'{display_name} is charmed: "Gosh, er... hi, {player_name}!"'
+    verb = 'are' if pending.get('multiple_monsters') else 'is'
+    return f'{display_name} {verb} charmed: "Gosh, er... hi, {player_name}!"'
 
 
 async def try_charm_join_offer(ctx: 'GameContext', *, level: int, room_no: int) -> None:

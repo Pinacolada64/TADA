@@ -13,10 +13,12 @@ from party import Party
 
 
 def _make_monster(number=50, name='GOBLIN', strength=10, to_hit=5,
-                   charmable=True, mechanical=False, tough=False):
+                   charmable=True, mechanical=False, tough=False,
+                   multiple_monsters=False):
     return {
         'number': number, 'name': name, 'strength': strength, 'to_hit': to_hit,
-        'flags': {'charmable': charmable, 'mechanical': mechanical, 'tough': tough},
+        'flags': {'charmable': charmable, 'mechanical': mechanical, 'tough': tough,
+                  'multiple_monsters': multiple_monsters},
     }
 
 
@@ -101,6 +103,18 @@ class TestTryCharmPotion(_IsolatedBattleLog):
         self.assertEqual(pending['level'], 1)
         self.assertEqual(pending['room_no'], 1)
 
+    async def test_multiple_monsters_potion_lines_use_plural_verbs(self):
+        from spells.charm import try_charm_potion
+        monster = _make_monster(number=50, name='MUNCHKINS', multiple_monsters=True)
+        ctx = _make_ctx(room=_make_room(monster=50), monsters=[monster])
+        result = await try_charm_potion(ctx)
+        self.assertTrue(result)
+        self.assertTrue(ctx.player.pending_charm['multiple_monsters'])
+        sent = ' '.join(str(a) for c in ctx.send.await_args_list for a in c.args)
+        self.assertIn('suddenly take a shine to you!', sent)
+        room = ' '.join(str(a) for c in ctx.send_room.await_args_list for a in c.args)
+        self.assertIn('suddenly calm down.', room)
+
     async def test_tough_monster_unaffected(self):
         # SPUR.SUB.S:147 `if mw then if instr(".",wy$) print m$" is
         # unaffected by the charm potion!":return` -- gated on 'tough'
@@ -175,6 +189,15 @@ class TestCharmGreetingLine(unittest.TestCase):
                                  'name': 'GOBLIN', 'strength': 10, 'to_hit': 5}
         line = charm_greeting_line(player, 5, 1)
         self.assertEqual(line, 'GOBLIN is charmed: "Gosh, er... hi, Killerella!"')
+
+    def test_multiple_monsters_uses_plural_verb(self):
+        from spells.charm import charm_greeting_line
+        player = _make_player(name='Railbender')
+        player.pending_charm = {'level': 1, 'room_no': 5, 'monster_number': 50,
+                                 'name': 'MUNCHKINS', 'display_name': 'MUNCHKINS',
+                                 'multiple_monsters': True, 'strength': 10, 'to_hit': 5}
+        line = charm_greeting_line(player, 5, 1)
+        self.assertEqual(line, 'MUNCHKINS are charmed: "Gosh, er... hi, Railbender!"')
 
     def test_different_room_returns_none(self):
         from spells.charm import charm_greeting_line
