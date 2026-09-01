@@ -60,7 +60,10 @@ class DrinkCommand(Command):
         if room is not None and getattr(room, 'food', 0) == _POOL_OF_WATER_ID:
             from config import config
             restore_drink(player, config.survival_max)
-            await ctx.send('You kneel and drink your fill..')
+            non_expert = " (Your thirst has been quenched.)" \
+                if player.drink is not None \
+                and not player.is_expert else ''
+            await ctx.send(f'You kneel and drink your fill.{non_expert}')
             return CommandResult.ok()
 
         entries = _drink_entries(player)
