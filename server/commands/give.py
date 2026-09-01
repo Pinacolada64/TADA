@@ -433,9 +433,13 @@ class GiveCommand(Command):
                     await ctx.send(f"{ally.name}'s saddlebags are full.")
                     return CommandResult.ok()
 
-            # Weapon: allies have no READY command of their own, so a given
-            # weapon is auto-readied on the spot (replacing whatever they
-            # had -- combat/resolution.py ally_attacks() reads ally.readied_weapon).
+            # Weapon: the ally just stows it -- alpha testers found it
+            # nonsensical for an ally to auto-ready a weapon the instant it
+            # changed hands (they might already be wielding something they
+            # prefer, or the player may be handing over a spare). The
+            # player now decides who wields what, and when, via READY,
+            # which lists allies' carried weapons (commands/ready.py's
+            # _ally_weapon_entries / _toggle_ally_weapon).
             from items import Weapon
             from bar.ally_data import add_ally_item
             if isinstance(item, Weapon):
@@ -452,10 +456,6 @@ class GiveCommand(Command):
                 unworn_slot = unworn_if_given_away(player, item)
                 if inventory:
                     inventory.remove(item)
-                ally.readied_weapon = item
-                ally.ammo_rounds = 0
-                ally.ammo_max = 0
-                ally.ammo_damage = 0
                 # add_ally_item(), not a raw ally.items.append(entry) --
                 # (a) it stacks onto a matching existing entry instead of
                 # always appending a duplicate (a given ally rarely holds
@@ -479,9 +479,11 @@ class GiveCommand(Command):
                     notice = unworn_notice(unworn_slot, iname)
                     if notice:
                         await ctx.send(notice)
-                await ctx.send(f'{ally.name} readies the {iname}!')
+                await ctx.send(f'{ally.name} stows the {iname}.')
+                if not player.is_expert:
+                    await ctx.send(f'(READY it to have {ally.name} wield it.)')
                 await ctx.send_room(
-                    f'{pself} gives the {iname} to {ally.name}, who readies it!',
+                    f'{pself} gives the {iname} to {ally.name}.',
                     exclude_self=True)
                 return CommandResult.ok()
 
@@ -501,6 +503,8 @@ class GiveCommand(Command):
                 weapon = getattr(ally, 'readied_weapon', None)
                 if weapon is None:
                     await ctx.send(f'{ally.name} has no weapon readied to load {iname} into.')
+                    if not player.is_expert:
+                        await ctx.send(f'(READY a weapon for {ally.name} first.)')
                     return CommandResult.ok()
                 wname_upper = (getattr(weapon, 'name', '') or '').upper()
                 reason = ammo_load_error(weapon, flags)

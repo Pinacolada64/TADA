@@ -339,21 +339,22 @@ class TestGiveToAlly(unittest.IsolatedAsyncioTestCase):
 
 
 # ---------------------------------------------------------------------------
-# GiveCommand — weapon auto-ready + ammo load-in for allies
+# GiveCommand — weapon stow + ammo load-in for allies
 #
-# Regression coverage for the bug fixed 2026-08-01: GiveCommand's
-# weapon-auto-ready branch checked `isinstance(item, Weapon)` against
-# item_system.Weapon, a class nothing in production code ever
-# constructs -- every real weapon (armory purchases, items.resolve_weapon()
-# reconstruction) is an items.Weapon instead, so the isinstance check was
-# always False. A GIVEn weapon silently fell through to the generic "takes
-# it and tucks it away" branch, ally.readied_weapon was never set, and a
-# follow-up GIVE of matching ammo always hit "has no weapon readied" even
-# though the player had just handed over the weapon. Fixed by importing
-# the real items.Weapon. This test drives GiveCommand end-to-end with a
-# real items.Weapon (built the way shoppe/armory.py builds one) rather
-# than hand-assigning ally.readied_weapon, so a regression of the
-# wrong-class import trips this test again.
+# Alpha-tester feedback (2026-09-01): a GIVEn weapon used to be
+# auto-readied on the ally the instant it changed hands, which testers
+# found nonsensical (the ally might already be wielding something better,
+# or the weapon may be a spare). A GIVEn weapon now just lands in
+# ally.items; the player readies it deliberately via READY (see
+# commands/ready.py's _ally_weapon_entries / _toggle_ally_weapon and
+# tests/combat/test_ready.py). Ammo still loads only into a *readied*
+# weapon, so these tests READY the stowed weapon first.
+#
+# (The 2026-08-01 bug this section originally covered -- GiveCommand's
+# `isinstance(item, Weapon)` checked the wrong Weapon class, so weapons
+# fell through to the generic "tucks it away" branch -- is still guarded:
+# a real items.Weapon must reach the dedicated stow branch, land in
+# ally.items, and leave the player's inventory.)
 # ---------------------------------------------------------------------------
 
 def _make_weapon(name: str = '.357 MAGNUM', item_id: int = 145) -> Weapon:
@@ -375,21 +376,29 @@ class TestGiveWeaponAndAmmoToAlly(unittest.IsolatedAsyncioTestCase):
         self.player.party.add_member(self.player, self.ally)
         self.ctx = _FakeCtx(self.player)
 
-    async def test_give_weapon_to_ally_readies_it(self):
+    async def test_give_weapon_to_ally_stows_it(self):
         weapon = _make_weapon()
         self.player.inventory.add(weapon)
         await self.cmd.execute(self.ctx, '.357', 'magnum', 'to', 'morganna')
 
-        self.assertIs(self.ally.readied_weapon, weapon)
-        self.assertIn('READIES', self.ctx.sent().upper())
+        # No longer auto-readied -- it just lands in the ally's pack.
+        self.assertIsNone(self.ally.readied_weapon)
+        self.assertEqual(len(self.ally.items), 1)
+        self.assertIs(self.ally.items[0].item, weapon)
+        self.assertIn('STOWS', self.ctx.sent().upper())
+        self.assertNotIn('READIES', self.ctx.sent().upper())
         self.assertEqual(len(self.player.inventory.entries()), 0)
         # See TestGiveToAlly.test_give_item_to_ally_marks_player_unsaved.
         self.assertTrue(self.player.unsaved_changes)
 
-    async def test_give_matching_ammo_after_weapon_loads_it(self):
+    async def test_give_matching_ammo_after_readying_weapon_loads_it(self):
+        from commands.ready import ReadyCommand
         weapon = _make_weapon()
         self.player.inventory.add(weapon)
         await self.cmd.execute(self.ctx, '.357', 'magnum', 'to', 'morganna')
+        # Player readies it for the ally -- allies no longer do this themselves.
+        await ReadyCommand().execute(self.ctx, '.357')
+        self.assertIs(self.ally.readied_weapon, weapon)
 
         ammo = _make_ammo()
         self.player.inventory.add(ammo)
@@ -400,6 +409,19 @@ class TestGiveWeaponAndAmmoToAlly(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.ally.ammo_damage, 4)
         self.assertIn('LOADS', self.ctx.sent().upper())
         self.assertTrue(self.player.unsaved_changes)
+
+    async def test_give_ammo_before_readying_weapon_is_rejected(self):
+        # Weapon in the ally's pack but not readied -> ammo has nowhere to go.
+        weapon = _make_weapon()
+        self.player.inventory.add(weapon)
+        await self.cmd.execute(self.ctx, '.357', 'magnum', 'to', 'morganna')
+
+        ammo = _make_ammo()
+        self.player.inventory.add(ammo)
+        await self.cmd.execute(self.ctx, '.357', 'ammo', 'to', 'morganna')
+
+        self.assertIn('no weapon readied', self.ctx.sent().lower())
+        self.assertEqual(self.ally.ammo_rounds, 0)
 
     async def test_giving_own_readied_weapon_to_ally_clears_it(self):
         # Bug: GIVEing away your own currently-readied weapon left
@@ -453,9 +475,11 @@ class TestGiveWeaponAndAmmoToAlly(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.ally.ammo_rounds, 0)
 
     async def test_give_mismatched_ammo_after_weapon_is_rejected(self):
+        from commands.ready import ReadyCommand
         weapon = _make_weapon()
         self.player.inventory.add(weapon)
         await self.cmd.execute(self.ctx, '.357', 'magnum', 'to', 'morganna')
+        await ReadyCommand().execute(self.ctx, '.357')
 
         wrong_ammo = _make_ammo(name='.44 AMMO', item_id=105, used_with='.44 magnum')
         self.player.inventory.add(wrong_ammo)

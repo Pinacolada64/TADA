@@ -35,6 +35,9 @@ class _FakeCtx:
         else:
             self._sent.append(str(msg))
 
+    async def send_room(self, msg, **kwargs):
+        pass
+
     def sent(self) -> str:
         return '\n'.join(self._sent)
 
@@ -64,6 +67,45 @@ class TestUnreadyCommand(unittest.IsolatedAsyncioTestCase):
         ctx = _FakeCtx(player)
         await UnreadyCommand().execute(ctx)
         self.assertIsNone(player.storm_servant_bonus)
+
+
+class TestUnreadyAllyWeapon(unittest.IsolatedAsyncioTestCase):
+    """"unready <ally>" -- mirror of READY's ally-weapon toggle."""
+
+    def _player_with_ally(self, readied=None):
+        from bar.ally_data import Ally, AllyStatus
+        from party import Party
+        player = _FakePlayer(readied_weapon=None)
+        player.name = 'Rulan'
+        ally = Ally('ALAN OF YOR', 'm', 12, 5)
+        ally.status = AllyStatus.SERVANT
+        ally.readied_weapon = readied
+        player.party = Party()
+        player.party.add_member(player, ally)
+        return player, ally
+
+    async def test_unready_named_ally_repacks_their_weapon(self):
+        player, ally = self._player_with_ally(readied=_FakeWeapon('SHORT SWORD'))
+        ally.ammo_rounds = 5
+        ctx = _FakeCtx(player)
+        await UnreadyCommand().execute(ctx, 'alan')
+        self.assertIsNone(ally.readied_weapon)
+        self.assertEqual(ally.ammo_rounds, 0)
+        self.assertIn('ALAN OF YOR repacks the SHORT SWORD.', ctx.sent())
+        self.assertTrue(player.unsaved_changes)
+
+    async def test_unready_ally_with_nothing_readied(self):
+        player, ally = self._player_with_ally(readied=None)
+        ctx = _FakeCtx(player)
+        await UnreadyCommand().execute(ctx, 'alan')
+        self.assertIn('ALAN OF YOR has no weapon readied.', ctx.sent())
+
+    async def test_unready_unknown_ally_name(self):
+        player, ally = self._player_with_ally(readied=_FakeWeapon('SHORT SWORD'))
+        ctx = _FakeCtx(player)
+        await UnreadyCommand().execute(ctx, 'nobody')
+        self.assertIn('No party ally matching "nobody".', ctx.sent())
+        self.assertIsNotNone(ally.readied_weapon)
 
 
 if __name__ == '__main__':

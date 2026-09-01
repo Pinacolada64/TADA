@@ -356,8 +356,8 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
     # table.py Table (Ally/Str/HP/Hit%/Notes columns) per Ryan's request;
     # Notes carries every AllyFlags member (see _ally_flag_tags), any
     # non-default AllyStatus tag, a Wpn tag for the ally's readied weapon
-    # (see _ally_weapon_display -- commands/give.py auto-readies a Weapon
-    # on GIVE), and a Worn tag for readied_armor/readied_shield (see
+    # (see _ally_weapon_display -- set via READY, commands/ready.py's
+    # _toggle_ally_weapon), and a Worn tag for readied_armor/readied_shield (see
     # _ally_worn_display -- commands/give.py auto-wears an armor/shield
     # Item the same way, added 2026-08-09). Not its own fixed-width table
     # column -- that starved Notes' width on narrow/C64 screens when tried

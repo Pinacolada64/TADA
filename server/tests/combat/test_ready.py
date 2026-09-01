@@ -76,6 +76,9 @@ class _FakeCtx:
     async def prompt(self, *a, **kw):
         return next(self._answers, None)
 
+    async def send_room(self, msg, **kwargs):
+        pass
+
     def sent(self) -> str:
         return '\n'.join(self._sent)
 
@@ -285,6 +288,105 @@ class TestWeaponAffinityTip(unittest.IsolatedAsyncioTestCase):
         ctx = _FakeCtx(player)
         await ReadyCommand().execute(ctx, 'sword')
         self.assertNotIn('[HELP WEAPON AFFINITY]', ctx.sent())
+
+
+class TestReadyAllyWeapons(unittest.IsolatedAsyncioTestCase):
+    """Alpha-tester feedback: allies no longer auto-ready a GIVEn weapon.
+    READY now lists each party ally's carried weapons and toggles
+    ally.readied_weapon on selection (commands/ready.py's
+    _ally_weapon_entries / _toggle_ally_weapon)."""
+
+    def _party_with_ally(self, player, weapons):
+        from bar.ally_data import Ally, AllyStatus, add_ally_item
+        from party import Party
+        ally = Ally('ALAN OF YOR', 'm', 12, 5)
+        ally.status = AllyStatus.SERVANT
+        for w in weapons:
+            add_ally_item(ally, w, quantity=1)
+        player.name = 'Rulan'
+        player.return_key = 'RETURN'
+        player.party = Party()
+        player.party.add_member(player, ally)
+        return ally
+
+    async def test_bare_ready_lists_ally_weapons(self):
+        player = _FakePlayer(weapons=[])
+        self._party_with_ally(player, [_weapon('SHORT SWORD', item_id=3)])
+        ctx = _FakeCtx(player)
+        ctx.set_answers([''])   # cancel at the prompt
+        await ReadyCommand().execute(ctx)
+        self.assertIn("Your allies' weapons:", ctx.sent())
+        self.assertIn('ALAN OF YOR: SHORT SWORD', ctx.sent())
+
+    async def test_pick_ally_weapon_readies_it(self):
+        player = _FakePlayer(weapons=[])
+        sword = _weapon('SHORT SWORD', item_id=3)
+        ally = self._party_with_ally(player, [sword])
+        ctx = _FakeCtx(player)
+        ctx.set_answers(['1'])   # only entry in the list
+        await ReadyCommand().execute(ctx)
+        self.assertIs(ally.readied_weapon, sword)
+        self.assertIn('ALAN OF YOR readies the SHORT SWORD', ctx.sent())
+        self.assertTrue(player.unsaved_changes)
+
+    async def test_pick_readied_ally_weapon_again_unreadies_it(self):
+        player = _FakePlayer(weapons=[])
+        sword = _weapon('SHORT SWORD', item_id=3)
+        ally = self._party_with_ally(player, [sword])
+        ally.readied_weapon = sword
+        ctx = _FakeCtx(player)
+        ctx.set_answers(['1'])
+        await ReadyCommand().execute(ctx)
+        self.assertIsNone(ally.readied_weapon)
+        self.assertIn('ALAN OF YOR repacks the SHORT SWORD', ctx.sent())
+
+    async def test_ready_by_ally_name_toggles(self):
+        player = _FakePlayer(weapons=[])
+        sword = _weapon('SHORT SWORD', item_id=3)
+        ally = self._party_with_ally(player, [sword])
+        ctx = _FakeCtx(player)
+        await ReadyCommand().execute(ctx, 'alan')
+        self.assertIs(ally.readied_weapon, sword)
+
+    async def test_ready_by_weapon_name_targets_ally_weapon(self):
+        player = _FakePlayer(weapons=[])
+        sword = _weapon('SHORT SWORD', item_id=3)
+        ally = self._party_with_ally(player, [sword])
+        ctx = _FakeCtx(player)
+        await ReadyCommand().execute(ctx, 'short', 'sword')
+        self.assertIs(ally.readied_weapon, sword)
+
+    async def test_readied_ally_weapon_shows_tag_in_list(self):
+        player = _FakePlayer(weapons=[])
+        sword = _weapon('SHORT SWORD', item_id=3)
+        ally = self._party_with_ally(player, [sword])
+        ally.readied_weapon = sword
+        ctx = _FakeCtx(player)
+        ctx.set_answers([''])
+        await ReadyCommand().execute(ctx)
+        self.assertIn('SHORT SWORD  (readied)', ctx.sent())
+
+    async def test_low_strength_still_allows_readying_ally_weapon(self):
+        # The STR gate is about the player's own arm -- it must not block
+        # directing an ally to wield theirs.
+        player = _FakePlayer(str_stat=1, weapons=[])
+        sword = _weapon('SHORT SWORD', item_id=3)
+        ally = self._party_with_ally(player, [sword])
+        ctx = _FakeCtx(player)
+        await ReadyCommand().execute(ctx, 'alan')
+        self.assertIs(ally.readied_weapon, sword)
+        self.assertNotIn('strength', ctx.sent().lower())
+
+    async def test_player_and_ally_weapons_numbered_together(self):
+        my_sword = _weapon('LONG SWORD', item_id=2)
+        player = _FakePlayer(weapons=[my_sword])
+        ally_bow = _weapon('LONG BOW', item_id=4)
+        ally = self._party_with_ally(player, [ally_bow])
+        ctx = _FakeCtx(player)
+        ctx.set_answers(['2'])   # 1 = own LONG SWORD, 2 = ally's LONG BOW
+        await ReadyCommand().execute(ctx)
+        self.assertIs(ally.readied_weapon, ally_bow)
+        self.assertIsNone(player.readied_weapon)
 
 
 if __name__ == '__main__':
