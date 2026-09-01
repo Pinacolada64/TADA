@@ -1,0 +1,39 @@
+    raise exc
+  File "/home/ryan/Documents/c64/TADA/TADA/server/network_context.py", line 480, in _send_formatted
+    await self.writer.drain()
+  File "/usr/lib/python3.13/asyncio/streams.py", line 374, in drain
+    raise exc
+  File "/home/ryan/Documents/c64/TADA/TADA/server/network_context.py", line 529, in prompt
+    raw = await self.reader.readuntil(b'\r')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/asyncio/streams.py", line 677, in readuntil
+    await self._wait_for_data('readuntil')
+  File "/usr/lib/python3.13/asyncio/streams.py", line 539, in _wait_for_data
+    await self._waiter
+  File "/usr/lib/python3.13/asyncio/selector_events.py", line 1005, in _read_ready__data_received
+    data = self._sock.recv(self.max_size)
+ConnectionResetError: [Errno 104] Connection reset by peer
+2026-08-28 19:26:11,688 | INFO     | Railbender       | player.save: Player.save: Saved Railbender to r
+un/server/player-railbender.json
+2026-08-28 19:26:11,688 | INFO     | Railbender       | simple_server.handle_connection: ('127.0.0.1',
+48376): connection closed. Total clients: 5
+2026-08-28 19:26:16,186 | DEBUG    | Railbender       | simple_server._game_loop: command: 'who' hp=500
+2026-08-28 19:26:16,186 | DEBUG    | Railbender       | command_processor.process_command: dispatch: 'w
+ho' -> commands.who.WhoCommand (mode=GAME, args=[], user='Railbender', translation=Translation.ANSI)
+2026-08-28 19:26:26,555 | DEBUG    | Railbender       | simple_server._game_loop: command: 'who' hp=500
+2026-08-28 19:26:26,555 | DEBUG    | Railbender       | command_processor.process_command: dispatch: 'w
+ho' -> commands.who.WhoCommand (mode=GAME, args=[], user='Railbender', translation=Translation.ANSI)
+2026-08-28 19:26:29,262 | DEBUG    | Railbender       | simple_server._game_loop: command: '"Hi!' hp=50
+0
+2026-08-28 19:26:29,262 | DEBUG    | Railbender       | command_processor.process_command: dispatch: '"
+' -> commands.say.SayCommand (mode=GAME, args=['Hi!'], user='Railbender', translation=Translation.ANSI)
+2026-08-28 19:26:52,406 | DEBUG    | Railbender       | simple_server._game_loop: command: '"Sorry you\
+'re having a rough time! This is very alpha quality software here :D' hp=500
+2026-08-28 19:26:52,406 | DEBUG    | Railbender       | command_processor.process_command: dispatch: '"
+' -> commands.say.SayCommand (mode=GAME, args=['Sorry', "you're", 'having', 'a', 'rough', 'time!', 'Thi
+s', 'is', 'very', 'alpha', 'quality', 'software', 'here', ':D'], user='Railbender', translation=Transla
+tion.ANSI)
+2026-08-28 19:26:55,479 | DEBUG    | Railbender       | simple_server._game_loop: command: 'who' hp=500
+2026-08-28 19:26:55,479 | DEBUG    | Railbender       | command_processor.process_command: dispatch: 'w
+ho' -> commands.who.WhoCommand (mode=GAME, args=[], user='Railbender', translation=Translation.ANSI)
+

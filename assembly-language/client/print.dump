@@ -1,0 +1,458 @@
+
+
+
+
+
+
+           
+                     D B D E S I G N 
+                     by Dave Moorman 
+           
+           
+              The major purpose of DBDesign is to produce FTS screens. An 
+
+          FTS file contains Font/Screen/Color data, and can be bloaded 
+          and used quickly with DotBASIC Plus. With DBD, you can visually 
+
+          design your user interface, which will snap up on the screen in 
+
+          an instant! 
+           
+           
+           WHAT YOU CAN DO 
+           --------------- 
+              The opening screen is blank, with the menu bar on the top 
+          line. You can remove the menu bar by pressing <F1>. To turn on 
+          the Font/Color window, press <F3>. Press <F5> to toggle between 
+
+          Font and Color windows. And, pressing <UP ARROW> toggles the 
+          window between the top and bottom of the screen. The menu bar 
+          and window do not affect your screen. 
+           
+              So press <F3> and <F5> until you have the Font window 
+          visible. Move the arrow to a character on the font and click. 
+          The character is "picked up". Move it to any place on the open 
+          screen and click to "place" it. Right click will make the 
+          character go away without placing it. 
+           
+              If the picked up character is a SPACE (chr$(32)), a color 
+          square appears. This just makes it easier to see where it is. 
+           
+              You can pick up a character off the screen as well. And, if 
+
+          you hold down the left mouse button and move the mouse, you 
+          will paint the character onto the screen. 
+           
+              The placed character is in the color of the menu bar and 
+          Font window. You can press <F4> to change the menu bar color, 
+          but a placed character will not be affected. So let's paint the 
+
+          placed character. 
+           
+              Press <F5> to enter Color mode. A "paint bucket" replaces 
+          the arrow. You can pick up any color from the color bars. At 
+          the left is the border/background color area. Move the bucket 
+          to the far left edge of the Color window and click. The border 
+          becomes whatever color is in the bucket. Point to the middle of 
+
+          the screen color area and click again. The background becomes 
+          whatever color is in the bucket. 
+           
+              You can move the bucket over characters on the screen and 
+          click to paint the character. Press and hold the left mouse 
+          button and move the mouse to paint the color all over the 
+          place! 
+           
+              Now, let's modify a character. Press <F5> and <F3> until 
+          the Font window appears. Use the cursor keys to move the font 
+
+
+
+
+
+
+
+
+
+
+
+          cursor over one of the characters. Now you can point and click 
+          in the Edit area to toggle pixels of the character off and on. 
+           
+              While Font and Color modes are extremely useful, you 
+          probably do not want to do a lot of text this way. Press 
+          <Shift-RETURN> to enter Text mode. Here you can type almost 
+          exactly like you would with the C-64's text editor. The only 
+          difference is that when you insert <Shift-BACKSPACE>, the right 
+
+          end of the line "falls off" the screen. 
+           
+              To get back to the Font/Color screen, press <Shift-RETURN> 
+          or <F1>. 
+           
+           
+           THE MENUS 
+           --------- 
+              That was a quick tour. Now we need a list of the major 
+          menus and all their functions. The hotkeys are capitalized on 
+          the menu, and appear in <>'s in this text. To escape from any 
+          of these menus, press <BACK ARROW> or click somewhere off the 
+          menu. 
+           FILE <F> 
+           
+            DISK <D> 
+           
+              Choose which disk drive is to be accessed by the program. 
+          The current drive number has an asterisk beside it. 
+           
+            LOAD <L> 
+           
+              Expect a short wait as the program sorts out the useable 
+          files on the disk. Simply scroll down and select the file you 
+          want. Here is what each type of file contains: 
+           
+              *.FTS -- Font/Screen/Color data 
+              *.TBS -- Screen/Color data 
+              *.SOC -- Screen Object Collection 
+              F.* -- Font 
+           
+              To escape from the scrolling menu, press <Q>. 
+           
+            SAVE <S> 
+           
+              Save FTS, TBS, SOC, or Font files. Choose the type of file, 
+
+          then input the file name (no prefix or extension). The filename 
+
+          of the most recently loaded file (sans prefix or extension) is 
+          presented for you automatically. 
+           
+            PUT FTS <P> 
+           
+              Puts a copy of the current screen into a memory buffer, 
+          which is a good idea if you are planning to make a mistake and 
+          need to undo. 
+           
+
+
+
+
+
+
+
+
+
+
+
+            GET FTS <G> 
+           
+              Gets the copy of a screen in the memory buffer. Current 
+          screen is lost. 
+           
+            SWAP FTS <W> 
+           
+              Swaps current screen with screen in the memory buffer. 
+          Handy when moving cut portions from one screen to another. 
+           
+            FONT TO BUFF <F> 
+           
+              Copies the font line on which the font cursor resides to 
+          the font buffer. 
+           
+            BUFF TO FONT <B> 
+           
+              Copies font buffer to the font line on which the cursor 
+          resides. 
+           
+            NEW <N> 
+           
+              Wipes the screen, installs LOADSTAR standard font. 
+           
+            DISK COMS <C> 
+           
+              Gives you an input line where you can type in disk 
+          commands. 
+           
+            EXIT <E> 
+           
+              The best possible way to leave the program. 
+           
+           EDIT <E> 
+           
+            BOX <B> 
+           
+              Allows you to set an area on the screen. The mouse arrow 
+          turns into an open box, and a colored square appears near it. 
+          As you move the mouse, the colored square moves to the nearest 
+          text cell. Click (Fire/ RETURN/SPACE> to set the upper left 
+          corner of the area you want to set. 
+           
+              The open box becomes four corners. Move the mouse down and 
+          right to bracket the area you want to set, then click. You will 
+
+          see "Box" on the right side of the menu bar, followed by the X 
+          Y W H values. (Jot these down for use with .DREG in your DB+ 
+          program.) The menu reopens for further commands. 
+           NOTE: All other commands (except GET SOB and PASTE) must have 
+          a box selected first. 
+           
+            COPY <C> 
+           
+              Copies the boxed area into a buffer. 
+
+
+
+
+
+
+
+
+
+
+
+           
+            CUT <U> 
+           
+              Copies the boxed area into a buffer, then clears the boxed 
+          area of the screen. 
+           
+            REV CUT <R> 
+           
+              Copies the boxed area into a buffer, then fills the boxed 
+          area with the reversed space (in the current menu bar color). 
+           
+              After Copy, cUt, or Rcut, you will see "Box Copied" on the 
+          right side of the menu bar, and the menu reopens for further 
+          commands. 
+           
+            PASTE <P> 
+           
+              Move the copied chunk of screen to any place on the screen 
+          and click. 
+           NOTE: Copy, cUt, or Rcut must be used before Paste will 
+          operate. 
+           
+            FILL COLOR <F> 
+           
+              Fills the boxed area with the color of the menu bar. 
+           
+            TEXT FILL <T> 
+           
+              Fills the boxed area with the character under the font 
+          cursor, in the color of the menu bar. 
+           
+            STORE SOB <S> 
+           
+              An SOB is a Screen OBject -- the area you Copied, cUt, or 
+          Rcut. With this function, you can collect SOBs in a Screen 
+          Object Collection, which you then can save and use in your 
+          DotBASIC Plus program. 
+           
+            GET SOB <G> 
+           
+              This function can be performed without first setting a 
+          boxed area. The SOBs in your collection (from Storing or from 
+          loading an SOC file) can be viewed, attached to the mouse, 
+          moved anywhere on the screen, and pasted there. 
+           NOTE: A Screen Object Collection (either loaded or created 
+          with STORE SOB) must be in memory for this function to work. 
+           
+              Use the Up/Down cursor keys to flip through the various 
+          SOBs in the Collection. Press <RETURN> to select. You will be 
+          asked to confirm. If you choose No, you return to the main 
+          screen. 
+           
+              Choosing Yes connects the SOB to the cursor, which you can 
+          move anywhere on the screen. Click to paste it. You will be 
+
+
+
+
+
+
+
+
+
+
+
+          asked to confirm. If you choose No, you will be asked if you 
+          want to continue. No takes you back to the main screen. Yes 
+          lets you move the SOB around some more. 
+           
+           CONTROL <C> 
+           
+              All the controls are available from the main screen with 
+          hot key presses. These are listed on the menu. You will 
+          probably learn these key presses rather quickly. If not, here 
+          they are on the menu! 
+           
+            MENU BAR <F1> 
+           
+              Toggles the menu bar off and on. 
+           
+            COLOR MODE <F2> 
+           
+              Switches between Normal, Extended Background, and 
+          Multi-color text screen modes. The Color Window knows which 
+          mode your are in, and shows the three (Multi-color) or four 
+          (Extended Background) background colors. Click the bucket on 
+          these areas to set these extra colors. 
+           
+            WINDOW TOGGLE <F3> 
+           
+              Toggles the Font/Color window on and off. 
+           
+            COLOR SELECT <F4> 
+           
+              Changes the color of the menu bar and all menus. A color 
+          menu appears on the left edge of the screen. Use mouse, cursor, 
+
+          or perss the standard <Ctrl-number> or <C=-number> combination 
+          to choose your color. Press <BACKARROW> to exit with change. 
+          until you like it! 
+           
+            FONT/COLOR TOGGLE <F5> 
+           
+              Toggles between the Font window and the Color window. 
+           
+            FONT FX <F6> 
+           
+              Turns on the Font Effects controls. The font cursor can be 
+          moved with the cursor keys, or a character can be selected by 
+          clicking on it in the font window. 
+           
+              CLEAR <C> 
+           
+                  Clears character. 
+           
+              SCROLL UP <U> 
+           
+                  Scrolls character up. 
+           
+              SCROLL LEFT <L> 
+
+
+
+
+
+
+
+
+
+
+
+           
+                  Scrolls character left. 
+           
+              FLIP HORIZONAL <H> 
+           
+                  Flips character horizontally. 
+           
+              TWIST <T> 
+           
+                  Twists character clockwise. 
+           
+              REVERSE <V> 
+           
+                  Reverses all pixels in 
+                  character. 
+           
+              SCROLL DOWN <D> 
+           
+                  Scrolls character down. 
+           
+              SCROLL RIGHT <R> 
+           
+                  Scrolls character right. 
+           
+              FLIP VERTICALLY <F> 
+           
+                  Flips character vertically. 
+           
+              COPY <P> 
+           
+                  The arrow will move to the 
+                  font area. Choose the 
+                  character to which the current 
+                  character will be copied and 
+                  click. 
+           
+            Right Click to escape the Font FX 
+              menu. 
+           
+            MOVE WINDOW <UP ARROW> 
+           
+              Moves Font/Color window to top or bottom of the screen. 
+           
+            TEXT MODE <Shift-RETURN> 
+           
+              In Text Mode, you can type to the screen almost exactly as 
+          you would with the C-64's screen editor. Press <Ctrl-9> for 
+          reverse, <Ctrl-0> for unreverse. Choose text colors whith 
+          <CTRL> or <C=> and number keys. Insert can push the text off 
+          the screen. 
+           
+              <Shift-RETURN> or <F1> exits Text Mode. 
+           
+           
+
+
+
+
+
+
+
+
+
+
+
+           CLEVER THINGS TO DO 
+           ------------------- 
+              Let's make a screen with two shadowed boxes. Then we will 
+          show you how to make each box a click-able button with rollover 
+
+          effects. 
+           
+              So, press <F><N><1>, and get a new screen. We will use the 
+          black background for the text. 
+           
+              First, make sure your menu bar color is white (press <F4> 
+          until it is). Then bring the Font window up (<F3> and <F5>). 
+          Click on the reverse space character. Right click to get rid of 
+
+          it on your pointer. 
+           
+              Now press <E><B>, and define a box that includes the whole 
+          screen. Press <T> to Text Fill the area. Wham! A white screen. 
+          For perfectionists, press <F5> and make the border white as 
+          well. 
+           
+              Change the menu bar color to blue, then press <E><B> again, 
+
+          and define a box for your first button. Press <F> for Fill 
+          Color. You have a box! Jot down the X/Y/W/H values displayed on 
+
+          the right side of the menu bar. You will need this! 
+           
+              Do this again for the second box. 
+           
+              Back in the Color window, choose light gray, then paint a 
+          shadow along the right and bottom of the two boxes. To finish 
+          the job, press <Shift-RETURN> for Text mode, press <Ctrl-9> 
+          then <Ctrl-7> for reverse blue characters. Move to your boxes 
+          and give them some text. 
+           
+              Got it? Good! Time to save your work. You will want to 
+          point to your work disk, so <F><D>, and choose the drive 
+          number. Press <F><S><1> (to save an FTS file). Name the file 
+          "myprog" -- or whatever you like. 
+           
+              One last thing to do, if you didn't do it already. Press 
+          <E><B> and bracket your first box. On the right of the menu 
+          bar, you will see 4 numbers. Jot these down. Then do the same 
+          thing for the other box. 
+           REFER TO THE .FTS DOTCOMMAND in the DotBIBLE to learn how to 
+          use your designs in a DB+ program! 
+           
+           DMM 
+           

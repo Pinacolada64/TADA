@@ -399,6 +399,13 @@ class Server:
         finally:
             if addr in self.clients:
                 del self.clients[addr]
+            # Drain any output a turn buffered but never flushed because an
+            # exception unwound past the normal end-of-dispatch flush.
+            # paginate=False: never block for a keypress on a closing socket.
+            try:
+                await ctx.flush_turn(paginate=False)
+            except Exception:
+                pass
             # combat/duel.py's DuelSession.forfeit(): a duelist who
             # disconnects mid-fight (crash, abrupt close, or a graceful
             # quit) is treated as an automatic loss, mirroring
@@ -749,6 +756,11 @@ class Server:
     async def _game_loop(self, ctx: GameContext) -> None:
         """Main command loop for an authenticated (or guest) player."""
         logging.debug('ENTER')
+        # From here on, ctx.send() buffers a turn's output and defers the
+        # More-Prompt pagination decision to the combined total (see
+        # network_context.flush_turn). Login/negotiation output above stays
+        # on the old immediate-send path.
+        ctx._buffering_enabled = True
         if not getattr(ctx.client, 'room', None):
             ctx.client.room = int(getattr(ctx.player, 'map_room', 1) or 1)
 
@@ -779,6 +791,12 @@ class Server:
             from datetime import datetime
             ctx.client.last_input = datetime.now()
             result = await processor.process_input(raw, ctx=ctx)
+            # End of dispatch: flush this turn's buffered send() output as
+            # one screenful-aware block (see network_context.flush_turn).
+            # Covers command paths that return without a further prompt
+            # (e.g. 'quit'); the normal path re-flushes harmlessly at the
+            # next ctx.prompt('main').
+            await ctx.flush_turn()
 
             # QuitCommand sets data={'quit': True} to signal clean exit
             if result.data.get('quit'):
