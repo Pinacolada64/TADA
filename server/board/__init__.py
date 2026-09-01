@@ -43,7 +43,7 @@ from .listing import (
 )
 from .meta import load_config, save_config
 from .threads import is_new_since, load_board, new_status, next_id, save_board
-from .access import is_board_admin, player_can_access
+from .access import is_board_admin, player_can_access, accessible_board_ids, visible_sigs
 from .intro import sig_intro_path, board_intro_path
 
 __all__ = [
@@ -51,6 +51,6 @@ __all__ = [
     'MessageHeader', 'build_quote_preamble', 'display_author', 'format_thread',
     'format_thread_listing', 'format_thread_summary', 'render_message_lines',
     'load_config', 'save_config', 'is_new_since', 'new_status', 'load_board', 'next_id', 'save_board',
-    'is_board_admin', 'player_can_access',
+    'is_board_admin', 'player_can_access', 'accessible_board_ids', 'visible_sigs',
     'sig_intro_path', 'board_intro_path',
 ]

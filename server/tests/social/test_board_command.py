@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import board as board_store
+from base_classes import Guild
 from command_settings import CommandSettings
 from commands.board import BoardCommand
 from flags import PlayerFlags
@@ -32,11 +33,15 @@ def _expected_header_line(label: str, value: str, position: int, width: int) -> 
 
 
 class _FakePlayer:
-    def __init__(self, name='alexa', admin=False, prompt_mode=False, expert=False):
+    def __init__(self, name='alexa', admin=False, prompt_mode=False, expert=False,
+                 dungeon_master=False, guild=None, extra_flags=None):
         self.name = name
         self._admin = admin
         self._prompt_mode = prompt_mode
         self._expert = expert
+        self._dungeon_master = dungeon_master
+        self.guild = guild
+        self._extra_flags = extra_flags or set()
         self.return_key = 'Enter'
         self.command_settings = CommandSettings()
         self.client_settings = MagicMock()
@@ -56,7 +61,9 @@ class _FakePlayer:
             return self._prompt_mode
         if flag == PlayerFlags.EXPERT_MODE:
             return self._expert
-        return False
+        if flag == PlayerFlags.DUNGEON_MASTER:
+            return self._dungeon_master
+        return flag in self._extra_flags
 
     def toggle_flag(self, flag):
         if flag == PlayerFlags.PROMPT_MODE:
@@ -708,6 +715,109 @@ class TestBoardSigNavigation(BoardCommandTestCase):
         ctx = make_ctx(prompts=['>', 'q'])
         run(BoardCommand().execute(ctx))
         self.assertIn("isn't part of a SIG", str(ctx.send.call_args_list))
+
+
+class TestBoardAccessGating(BoardCommandTestCase):
+    """player_can_access() wired into pick_board()/_navigate() (picker
+    filtering) and _read_one()/_reply()/_delete() (direct-id lookups,
+    which bypass pick_board() entirely via a thread's globally-unique
+    id -- see commands/board/board.py's _can_access_board())."""
+
+    def _seed_gated_board(self):
+        # One SIG, two boards: Open (everyone) and Sword-Only (gated to
+        # Guild.SWORD). Ungated player can never see/reach Sword-Only.
+        board_store.sigs.save_sigs({'sigs': [
+            {'id': 1, 'name': 'General', 'board_ids': [1, 2]},
+        ]}, self.sigs_path)
+        board_store.meta.save_meta({'boards': {
+            '1': {'id': 1, 'name': 'Open', 'anonymous_mode': 'ask',
+                  'access': {'type': 'any'}, 'admins': []},
+            '2': {'id': 2, 'name': 'Sword-Only', 'anonymous_mode': 'ask',
+                  'access': {'type': 'guild', 'value': Guild.SWORD.value}, 'admins': []},
+        }}, self.config_path)
+        self._seed([
+            {'id': 1, 'board_id': 1, 'title': 'Open Thread', 'author': 'a', 'anonymous': False,
+             'posted_at': '2026-01-01T00:00:00', 'body': [], 'replies': []},
+            {'id': 2, 'board_id': 2, 'title': 'Secret Thread', 'author': 'a', 'anonymous': False,
+             'posted_at': '2026-01-01T00:00:00', 'body': [], 'replies': []},
+        ])
+
+    def test_gated_board_excluded_from_the_picker(self):
+        self._seed_gated_board()
+        ctx = make_ctx(player=_FakePlayer(guild=Guild.CIVILIAN), prompts=['q'])
+        run(BoardCommand().execute(ctx))
+        # Only one accessible board -> no picker shown at all, straight
+        # to Open's listing.
+        self.assertEqual(ctx.prompt.await_count, 1)
+        self.assertIn('Open Thread', str(ctx.prompt.call_args))
+
+    def test_member_sees_the_gated_board_in_the_picker(self):
+        self._seed_gated_board()
+        ctx = make_ctx(player=_FakePlayer(guild=Guild.SWORD), prompts=['2', 'q'])
+        run(BoardCommand().execute(ctx))
+        board_prompt, listing_prompt = ctx.prompt.call_args_list
+        self.assertIn('Sword-Only', str(board_prompt))
+        self.assertIn('Secret Thread', str(listing_prompt))
+
+    def test_admin_sees_every_board_regardless_of_gate(self):
+        self._seed_gated_board()
+        ctx = make_ctx(player=_FakePlayer(guild=Guild.CIVILIAN, admin=True), prompts=['2', 'q'])
+        run(BoardCommand().execute(ctx))
+        board_prompt = ctx.prompt.call_args_list[0]
+        self.assertIn('Sword-Only', str(board_prompt))
+
+    def test_direct_thread_read_denied_for_gated_board(self):
+        self._seed_gated_board()
+        ctx = make_ctx(player=_FakePlayer(guild=Guild.CIVILIAN))
+        run(BoardCommand().execute(ctx, '2'))
+        self.assertIn('No such thread.', str(ctx.send.call_args_list))
+
+    def test_direct_thread_read_allowed_for_member(self):
+        self._seed_gated_board()
+        ctx = make_ctx(player=_FakePlayer(guild=Guild.SWORD))
+        run(BoardCommand().execute(ctx, '2'))
+        self.assertIn('Secret Thread', str(ctx.send.call_args_list))
+
+    def test_reply_denied_for_gated_board(self):
+        ctx_prompts = ['My Reply', 'body text', '.s']
+        self._seed_gated_board()
+        ctx = make_ctx(player=_FakePlayer(guild=Guild.CIVILIAN), prompts=['n'] + ctx_prompts)
+        run(BoardCommand().execute(ctx, 'reply', '2'))
+        self.assertIn('No such thread.', str(ctx.send.call_args_list))
+        saved = board_store.load_board(self.path)
+        self.assertEqual(saved[1]['replies'], [])
+
+    def test_navigation_skips_a_gated_board(self):
+        self._seed_gated_board()
+        # Land on Open (only accessible board -> no board picker at
+        # all); '>' should report the end rather than stepping onto
+        # the gated Sword-Only board.
+        ctx = make_ctx(player=_FakePlayer(guild=Guild.CIVILIAN), prompts=['>', 'q'])
+        run(BoardCommand().execute(ctx))
+        self.assertIn('Already at the last board in this SIG.', str(ctx.send.call_args_list))
+
+    def test_post_denied_for_explicit_gated_board_id(self):
+        self._seed_gated_board()
+        ctx = make_ctx(player=_FakePlayer(guild=Guild.CIVILIAN))
+        result = run(BoardCommand()._post(ctx, board_id=2))
+        self.assertFalse(result.success)
+        self.assertEqual(result.error, 'permission_denied')
+
+    def test_no_accessible_boards_at_all_reports_and_exits(self):
+        # Single-board-shortcut install where the one board is gated.
+        board_store.sigs.save_sigs({'sigs': [{'id': 1, 'name': 'General', 'board_ids': [1]}]},
+                                    self.sigs_path)
+        board_store.meta.save_meta({'boards': {
+            '1': {'id': 1, 'name': 'Sword-Only', 'anonymous_mode': 'ask',
+                  'access': {'type': 'guild', 'value': Guild.SWORD.value}, 'admins': []},
+        }}, self.config_path)
+        self._seed([{'id': 1, 'board_id': 1, 'title': 'Secret', 'author': 'a', 'anonymous': False,
+                      'posted_at': '2026-01-01T00:00:00', 'body': [], 'replies': []}])
+        ctx = make_ctx(player=_FakePlayer(guild=Guild.CIVILIAN))
+        result = run(BoardCommand().execute(ctx))
+        self.assertTrue(result.success)
+        self.assertIn("don't have access", str(ctx.send.call_args_list))
+        self.assertEqual(ctx.prompt.await_count, 0)
 
 
 if __name__ == '__main__':

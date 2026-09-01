@@ -55,6 +55,17 @@ def _is_privileged(player) -> bool:
     return bool(player.query_flag(PlayerFlags.ADMIN) or player.query_flag(PlayerFlags.DUNGEON_MASTER))
 
 
+def _can_access_board(ctx, board_id: int) -> bool:
+    """Can ctx's player access board *board_id*? Wraps board/access.py's
+    player_can_access() with a fresh meta_data load, for the direct-id
+    call sites (_read_one()/_reply()/_delete(), reached via a globally-
+    unique thread id and its own thread['board_id'] -- not through
+    pick_board(), which already filters its pickers via
+    accessible_board_ids()/visible_sigs())."""
+    board = board_store.meta.get_board(board_store.meta.load_meta(), board_id)
+    return board_store.player_can_access(ctx.player, board)
+
+
 def _is_petscii(ctx) -> bool:
     """Whether ctx's player is on a real Commodore (PETSCII) connection --
     mirrors commands/help.py's _is_petscii_viewer(). Used to pick '...'
@@ -262,10 +273,12 @@ async def _resolve_board_in_sig(ctx, chosen_sig: dict, meta_data: dict, *, multi
     (offering 'B. Back to SIGs list' when allow_back). Sends both the
     SIG's and the resolved board's welcome+intro. Returns the board id,
     the _BACK sentinel (only reachable when multi_sig), or None if the
-    SIG has no boards or the player backed fully out of the picker."""
+    SIG has no boards -- or none the player can access, same message
+    either way (Ryan's call: don't hint that gated boards exist here) --
+    or the player backed fully out of the picker."""
     await _enter_sig(ctx, chosen_sig)
 
-    board_ids = chosen_sig.get('board_ids', [])
+    board_ids = board_store.accessible_board_ids(ctx.player, meta_data, chosen_sig.get('board_ids', []))
     if not board_ids:
         await ctx.send(f"{chosen_sig.get('name', '(unnamed)')} has no boards yet.")
         return None
@@ -297,23 +310,35 @@ async def pick_board(ctx) -> tuple[int, int | None] | None:
     re-deriving which SIG a (possibly shared) board came from. Threads
     themselves (board <id>/reply <id>/delete <id>) are found by their
     own globally-unique id regardless of board, so they never need this.
-    None if the player backs out of the SIG level, or of the board level
-    with only one SIG to offer 'back' to. With more than one SIG, 'B' at
-    the board level loops back to the SIG picker instead of cancelling
-    out of 'board' entirely."""
+    None if the player backs out of the SIG level, of the board level
+    with only one visible SIG to offer 'back' to, or has access to no
+    board at all. With more than one visible SIG, 'B' at the board
+    level loops back to the SIG picker instead of cancelling out of
+    'board' entirely. A SIG/board the player's access gate excludes
+    never appears in either picker -- see board/access.py's
+    visible_sigs()/accessible_board_ids()."""
     sig_data = board_store.sigs.load_sigs()
     sig_list = sig_data.get('sigs', [])
+    meta_data = board_store.meta.load_meta()
+
     if _single_board_shortcut(sig_list):
+        if not board_store.player_can_access(ctx.player, board_store.meta.get_board(meta_data, _DEFAULT_BOARD_ID)):
+            await ctx.send("You don't have access to any boards yet.")
+            return None
         return _DEFAULT_BOARD_ID, (sig_list[0]['id'] if sig_list else None)
 
-    multi_sig = len(sig_list) > 1
-    meta_data = board_store.meta.load_meta()
+    visible = board_store.visible_sigs(ctx.player, sig_list, meta_data)
+    if not visible:
+        await ctx.send("You don't have access to any boards yet.")
+        return None
+
+    multi_sig = len(visible) > 1
     while True:
-        if len(sig_list) == 1:
-            chosen_sig = sig_list[0]
+        if len(visible) == 1:
+            chosen_sig = visible[0]
         else:
             chosen_sig = await _pick_from_numbered_list(
-                ctx, sig_list, noun='SIG', header='Special Interest Groups (SIGs)')
+                ctx, visible, noun='SIG', header='Special Interest Groups (SIGs)')
             if chosen_sig is None:
                 return None
         result = await _resolve_board_in_sig(ctx, chosen_sig, meta_data, multi_sig=multi_sig)
@@ -510,16 +535,21 @@ class BoardCommand(Command):
         with no picker of its own -- Ryan's call, keeping this a single
         keystroke rather than nesting another board picker mid-listing.
         Reports and returns None (no navigation happened) at either end
-        of a list, or if *board_id*/*sig_id* aren't part of a SIG at all
-        (the single-board-shortcut install with no SIGs configured)."""
+        of a list, if *board_id*/*sig_id* aren't part of a SIG at all
+        (the single-board-shortcut install with no SIGs configured), or
+        a step would land somewhere the player's access gate excludes
+        (skipped over entirely, same as such boards/SIGs never showing
+        up in pick_board()'s own pickers -- see board/access.py's
+        accessible_board_ids()/visible_sigs())."""
         sig_list = board_store.sigs.load_sigs().get('sigs', [])
         sig = next((s for s in sig_list if s.get('id') == sig_id), None)
         if sig is None:
             await ctx.send("This board isn't part of a SIG -- nothing to navigate to.")
             return None
+        meta_data = board_store.meta.load_meta()
 
         if choice in ('>', '<'):
-            board_ids = sig.get('board_ids', [])
+            board_ids = board_store.accessible_board_ids(ctx.player, meta_data, sig.get('board_ids', []))
             idx = board_ids.index(board_id) if board_id in board_ids else None
             if idx is None:
                 await ctx.send("Can't find this board's position in its SIG.")
@@ -530,28 +560,28 @@ class BoardCommand(Command):
                                 else 'Already at the first board in this SIG.')
                 return None
             new_board_id = board_ids[new_idx]
-            await _enter_board(ctx, board_store.meta.load_meta(), new_board_id)
+            await _enter_board(ctx, meta_data, new_board_id)
             return new_board_id, sig_id
 
         # '>>' / '<<' -- next/previous SIG.
-        if len(sig_list) <= 1:
+        visible = board_store.visible_sigs(ctx.player, sig_list, meta_data)
+        if len(visible) <= 1:
             await ctx.send("There's only one SIG.")
             return None
-        idx = next((i for i, s in enumerate(sig_list) if s.get('id') == sig_id), None)
+        idx = next((i for i, s in enumerate(visible) if s.get('id') == sig_id), None)
         if idx is None:
             await ctx.send("Can't find this SIG's position in the SIG list.")
             return None
         new_idx = idx + 1 if choice == '>>' else idx - 1
-        if not (0 <= new_idx < len(sig_list)):
+        if not (0 <= new_idx < len(visible)):
             await ctx.send('Already at the last SIG.' if choice == '>>' else 'Already at the first SIG.')
             return None
-        new_sig = sig_list[new_idx]
-        new_board_ids = new_sig.get('board_ids', [])
+        new_sig = visible[new_idx]
+        new_board_ids = board_store.accessible_board_ids(ctx.player, meta_data, new_sig.get('board_ids', []))
         if not new_board_ids:
             await ctx.send(f"{new_sig.get('name', '(unnamed)')} has no boards yet.")
             return None
         await _enter_sig(ctx, new_sig)
-        meta_data = board_store.meta.load_meta()
         new_board_id = new_board_ids[0]
         await _enter_board(ctx, meta_data, new_board_id)
         return new_board_id, new_sig['id']
@@ -559,7 +589,10 @@ class BoardCommand(Command):
     async def _read_one(self, ctx, thread_id: int) -> CommandResult:
         all_threads = board_store.load_board()
         thread = next((t for t in all_threads if t.get('id') == thread_id), None)
-        if thread is None:
+        if thread is None or not _can_access_board(ctx, thread.get('board_id', _DEFAULT_BOARD_ID)):
+            # Same "No such thread." either way -- a gated board's
+            # threads shouldn't be distinguishable from ones that don't
+            # exist, for a player who can't see that board at all.
             await ctx.send('No such thread.')
             return CommandResult.fail('Unknown thread.', error='not_found')
         # Total-count context is "how many threads on *this* thread's own
@@ -624,6 +657,14 @@ class BoardCommand(Command):
             if picked is None:
                 return CommandResult.ok('Cancelled.')
             board_id, _sig_id = picked
+        elif not _can_access_board(ctx, board_id):
+            # Defense in depth -- pick_board() already filters its
+            # pickers, but board_id can also arrive pre-chosen from
+            # _list()'s own [P]ost shortcut/empty-board prompt, so a
+            # mid-session access change (e.g. a guild switch) doesn't
+            # leave a stale post path open.
+            await ctx.send("You don't have access to that board.")
+            return CommandResult.fail('Access denied.', error='permission_denied')
 
         anonymous = await resolve_anonymous(ctx, board_id)
         if anonymous is None:
@@ -681,7 +722,7 @@ class BoardCommand(Command):
 
         threads = board_store.load_board()
         thread = next((t for t in threads if t.get('id') == int(id_str)), None)
-        if thread is None:
+        if thread is None or not _can_access_board(ctx, thread.get('board_id', _DEFAULT_BOARD_ID)):
             await ctx.send('No such thread.')
             return CommandResult.fail('Unknown thread.', error='not_found')
         if thread.get('frozen'):
@@ -737,7 +778,12 @@ class BoardCommand(Command):
 
         threads = board_store.load_board()
         thread = next((t for t in threads if t.get('id') == int(id_str)), None)
-        if thread is None:
+        if thread is None or not _can_access_board(ctx, thread.get('board_id', _DEFAULT_BOARD_ID)):
+            # In practice this never fires for a global ADMIN (already
+            # let through above, and player_can_access() always passes
+            # them) -- kept for consistency with the other three call
+            # sites and as a backstop if a board-local admin path ever
+            # reaches here without the global flag.
             await ctx.send('No such thread.')
             return CommandResult.fail('Unknown thread.', error='not_found')
 
