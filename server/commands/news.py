@@ -109,14 +109,24 @@ class NewsCommand(Command):
                     return CommandResult.ok('No news.')
 
                 rule_width = getattr(getattr(ctx.player, 'client_settings', None), 'screen_columns', 80)
+                # Dates are rendered in the viewer's PREFS date format (which
+                # can be wider than ISO's fixed 10 chars), so size the Date
+                # column to the widest one actually shown, with _DATE_COL_WIDTH
+                # as the floor.
+                rows = [
+                    (f"{it['id']:>3}",
+                     news_store.format_posted_date(it.get('posted_at', ''), ctx.player),
+                     it.get('title', '(untitled)'))
+                    for it in visible
+                ]
+                date_col = max([_DATE_COL_WIDTH] + [len(posted) + 3 for _, posted, _ in rows])
                 lines = [
                     '', '|yellow|News|reset|', '',
-                    f"  Num  {'Date':<{_DATE_COL_WIDTH}}Title",
+                    f"  Num  {'Date':<{date_col}}Title",
                     make_rule(rule_width, hrule_char(ctx)),
                 ]
-                for it in visible:
-                    posted = it.get('posted_at', '')[:10]
-                    lines.append(f"  {it['id']:>3}. {posted:<{_DATE_COL_WIDTH}}{it.get('title', '(untitled)')}")
+                for num, posted, title in rows:
+                    lines.append(f"  {num}. {posted:<{date_col}}{title}")
                 lines.append('')
 
                 raw = await ctx.prompt(

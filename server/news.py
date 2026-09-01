@@ -38,7 +38,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from formatting import deserialize_lines, render_lines
+from formatting import deserialize_lines, format_player_datetime, render_lines
 
 log = logging.getLogger(__name__)
 
@@ -149,11 +149,45 @@ _HEADER_COLORS_BY_POSITION = ('cyan', 'light_green')
 _HEADER_FALLBACK_COLOR = 'yellow'
 
 
-def _format_lifetime(item: dict) -> str:
+def format_posted_date(posted_at: Optional[str], player) -> str:
+    """Render a stored ISO ``posted_at`` as a date string in *player*'s
+    PREFS date format / timezone (commands/prefs.py's 'D'/'Z' rows), the
+    same way the login banner's "You last connected on ..." line does.
+
+    Falls back to the bare ``YYYY-MM-DD`` ISO prefix if the value can't be
+    parsed (e.g. an old record with a date-only or malformed stamp).
+    """
+    try:
+        dt = datetime.datetime.fromisoformat(posted_at or '')
+    except (ValueError, TypeError):
+        return (posted_at or '')[:10]
+    return format_player_datetime(dt, player)
+
+
+def _format_range_date(value: Optional[str], player) -> str:
+    """Render a range window's start/end date (a pure calendar date,
+    ``YYYY-MM-DD``) in *player*'s PREFS date format. Unlike
+    format_posted_date() this does *not* do timezone conversion -- the
+    window bounds are calendar dates, not instants, so shifting them by a
+    UTC offset would be wrong."""
+    d = _parse_iso_date(value)
+    if d is None:
+        return value or ''
+    if player is None:
+        return d.isoformat()
+    cs = getattr(player, 'client_settings', None)
+    date_format = getattr(cs, 'date_format', '') or '%B %d, %Y'
+    try:
+        return d.strftime(date_format)
+    except (ValueError, TypeError):
+        return d.isoformat()
+
+
+def _format_lifetime(item: dict, player=None) -> str:
     lifetime = item.get('lifetime', 'permanent')
     if lifetime == 'range':
-        start = item.get('start_date', '?')
-        end = item.get('end_date') or 'open-ended'
+        start = _format_range_date(item.get('start_date'), player) or '?'
+        end = _format_range_date(item.get('end_date'), player) or 'open-ended'
         return f'{start} to {end}'
     return lifetime.capitalize()
 
@@ -169,8 +203,8 @@ def format_item(item: dict, ctx) -> list[str]:
     column, same cyan/light_green/yellow-fallback coloring by line
     position -- so NEWS reads consistently with BOARD."""
     fields = [
-        ('Date',      item.get('posted_at', '')[:10]),
-        ('Lifetime',  _format_lifetime(item)),
+        ('Date',      format_posted_date(item.get('posted_at', ''), ctx.player)),
+        ('Lifetime',  _format_lifetime(item, ctx.player)),
         ('Posted By', item.get('author', '???')),
         ('Subject',   item.get('title', '(untitled)')),
     ]
