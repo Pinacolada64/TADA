@@ -248,8 +248,22 @@ async def perform_login(reader, writer, username: str, password: str,
                          timeout: float = 3.0) -> bool:
     """Complete handshake + terminal negotiation, then log in with real credentials.
 
-    Returns True once the server confirms the login (its 'Welcome, <name>!' line).
+    Returns True once the server confirms the login (its 'Welcome, <name>!'
+    line) *and* the game loop's real command prompt has been reached.
+
+    The post-login welcome/news/tip/status block is a single big
+    ctx.send() -- on a 40-column terminal it can exceed one screenful and
+    paginate (network_context._paginate()), exactly like the pre-login
+    banner that _skip_login_banner_pagination() handles. Whether it does
+    is content-dependent and brittle: e.g. "You last connected on
+    September 01, 2026." wraps to two lines where "August 31" fit on one,
+    tipping a 24-line block to 25 on a 25-row screen. If the caller fires
+    a command (a movement key, say) while a '-- More --' page is still
+    pending, that command is silently consumed as a page-advance
+    keystroke and never runs. So drain every page here before returning,
+    the same way the pre-login helper does.
     """
+    import asyncio
     import time
     from simple_client import perform_handshake, send_message, receive_message
     from net_common import Message, Mode
@@ -259,14 +273,34 @@ async def perform_login(reader, writer, username: str, password: str,
     await _skip_login_banner_pagination(reader, writer, timeout=timeout)
     await send_message(writer, Message(lines=[f'connect {username} {password}'], mode=Mode.login))
 
+    seen_welcome = False
     start = time.time()
-    while time.time() - start < timeout:
-        msg = await receive_message(reader)
+    while True:
+        remaining = timeout - (time.time() - start)
+        if remaining <= 0:
+            return seen_welcome
+        try:
+            msg = await asyncio.wait_for(receive_message(reader), timeout=remaining)
+        except asyncio.TimeoutError:
+            return seen_welcome
         if not msg:
-            break
-        lines = msg.get('lines') if isinstance(msg, dict) else None
+            return seen_welcome
+
+        lines  = msg.get('lines') if isinstance(msg, dict) else None
+        prompt = msg.get('prompt') if isinstance(msg, dict) else None
+
         if lines and any(isinstance(ln, str) and ln.startswith(f'Welcome, {username}')
                           for ln in lines):
+            seen_welcome = True
+
+        if isinstance(prompt, str) and ('-- More' in prompt or '-- End' in prompt):
+            await send_message(writer, Message(lines=[''], mode=Mode.app))
+            continue
+
+        # An empty-lines message whose prompt ends in '>' is the game
+        # loop's real "waiting for a command" prompt (see
+        # network_context.prompt()); once we've seen it after the welcome
+        # line, login is fully settled and no page is pending.
+        if seen_welcome and not lines and isinstance(prompt, str) and prompt.rstrip().endswith('>'):
             return True
-    return False
 

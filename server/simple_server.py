@@ -779,14 +779,7 @@ class Server:
         processor = ctx.client.command_processor
 
         while True:
-            import sys as _sys
-            print(f"[DIAG game_loop] about to prompt('main') in_turn={ctx._in_turn} "
-                  f"buf_enabled={ctx._buffering_enabled} paginating={ctx._paginating} "
-                  f"buf={len(ctx._turn_buffer) if ctx._turn_buffer else 0} room={getattr(ctx.client,'room',None)}",
-                  file=_sys.stderr, flush=True)
             raw = await ctx.prompt('main')
-            print(f"[DIAG game_loop] prompt('main') returned {raw!r} room={getattr(ctx.client,'room',None)}",
-                  file=_sys.stderr, flush=True)
             if raw is None:                     # clean EOF / disconnect
                 logging.debug('EXIT (disconnect)')
                 await self._player_quit(ctx)

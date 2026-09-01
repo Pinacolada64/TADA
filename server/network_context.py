@@ -214,18 +214,7 @@ class GameContext(BaseContext):
         and More Prompt is on. The single choke point both send() (when not
         buffering) and flush_turn() funnel through."""
         page_size = max(1, self.player.client_settings.screen_rows - 1)
-        _wp = self._wants_pagination(formatted, page_size)
-        import sys as _sys
-        _cs = self.player.client_settings
-        print(f"[DIAG _emit] nlines={len(formatted)} page_size={page_size} "
-              f"cols={getattr(_cs,'screen_columns',None)} rows={getattr(_cs,'screen_rows',None)} "
-              f"in_turn={self._in_turn} buf_enabled={self._buffering_enabled} "
-              f"paginating={self._paginating} wants_pagination={_wp} "
-              f"first={formatted[0][:40]!r}", file=_sys.stderr, flush=True)
-        if formatted and 'Welcome,' in str(formatted[0]):
-            for _i, _l in enumerate(formatted):
-                print(f"[DIAG welcome] {_i:2d}|{_l!r}", file=_sys.stderr, flush=True)
-        if _wp:
+        if self._wants_pagination(formatted, page_size):
             await self._paginate(formatted, page_size)
         else:
             await self._send_formatted(formatted)
@@ -283,16 +272,11 @@ class GameContext(BaseContext):
         B or -        — previous page
         Q             — stop reading early
         """
-        import sys as _sys, traceback as _tb
-        print(f"[DIAG _paginate] ENTER nlines={len(formatted)} page_size={page_size} "
-              f"first={formatted[0][:40]!r}", file=_sys.stderr, flush=True)
-        _tb.print_stack(limit=6, file=_sys.stderr)
         self._paginating = True   # our own prompt() calls below must not re-buffer or re-flush
         try:
             await self._paginate_loop(formatted, page_size)
         finally:
             self._paginating = False
-        print("[DIAG _paginate] EXIT", file=_sys.stderr, flush=True)
 
     async def _paginate_loop(self, formatted: list[str], page_size: int) -> None:
         total      = len(formatted)
