@@ -5,13 +5,14 @@
 # to be read as a document (MECHANICS.md, FUNCTIONS.md, DATA_FILES.md,
 # RESEARCH.md, CHARISMA_AUDIT.md, GENDER_AUDIT.md, LEVEL_AUDIT.md,
 # tools/BOT_README.md, ../programming-notes/spur-variables.md,
-# ../ALPHA_TESTERS.md) -- not dated task logs (TODO.md, BOTS_TODO.md,
-# TODO_HELP.md) or the other top-level project READMEs, which aren't
-# meant to be rendered to PDF.
+# ../ALPHA_TESTERS.md, ../PULL_REQUESTS.md) -- not dated task logs
+# (TODO.md, BOTS_TODO.md, TODO_HELP.md) or the other top-level project
+# READMEs, which aren't meant to be rendered to PDF.
 #
 # Usage: scripts/generate_docs.sh
 # Output: one PDF per doc, next to its Markdown source (server/*.pdf,
-# server/tools/*.pdf, programming-notes/*.pdf, ../ALPHA_TESTERS.pdf)
+# server/tools/*.pdf, programming-notes/*.pdf, ../ALPHA_TESTERS.pdf,
+# ../PULL_REQUESTS.pdf)
 
 set -euo pipefail
 
@@ -29,6 +30,7 @@ DOCS=(
   "$SERVER_DIR/tools/BOT_README.md"
   "$SERVER_DIR/../programming-notes/spur-variables.md"
   "$SERVER_DIR/../ALPHA_TESTERS.md"
+  "$SERVER_DIR/../PULL_REQUESTS.md"
 )
 
 "$SCRIPT_DIR/md_to_pdf.sh" "${DOCS[@]}"
