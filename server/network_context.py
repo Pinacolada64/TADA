@@ -164,6 +164,9 @@ class GameContext(BaseContext):
     _turn_buffer = None
     _in_turn     = False   # armed by prompt() while a command runs
     _paginating  = False   # guard: _paginate()'s own prompts don't re-buffer
+    _buffering_enabled = False   # set True once in the game loop; login/negotiation
+                                 # output keeps its old immediate-send behavior
+                                 # (it has its own e2e pagination-drain helpers)
 
     # -----------------------------------------------------------------------
     # Core I/O
@@ -393,8 +396,9 @@ class GameContext(BaseContext):
             return None         # treat unrecoverable errors as disconnect
 
         # Got real input: arm buffering so the resulting command's send()
-        # calls accumulate into one screenful-aware block.
-        if not self._paginating:
+        # calls accumulate into one screenful-aware block. Only in the game
+        # loop -- login/negotiation output streams immediately as before.
+        if not self._paginating and self._buffering_enabled:
             self._in_turn = True
         return text
 
@@ -638,8 +642,8 @@ class PETSCIINetworkContext(GameContext):
             # from formatting import petscii_encode
             # self.writer.write(petscii_encode(text, self.CODEC_NAME) + self.LINE_ENDING)
             # await self.writer.drain()
-            if not self._paginating:
-                self._in_turn = True   # arm buffering for the resulting command
+            if not self._paginating and self._buffering_enabled:
+                self._in_turn = True   # arm buffering for the resulting command (game loop only)
             return text
         except asyncio.IncompleteReadError:
             return None         # EOF — Commodore client disconnected

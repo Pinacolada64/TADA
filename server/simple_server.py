@@ -690,11 +690,6 @@ class Server:
 
             logging.debug('login input: %r', raw.strip())
             result = await processor.process_input(raw, ctx=ctx)
-            # End of dispatch: flush this turn's buffered output now, so
-            # the farewell text of a 'quit' (which returns below without
-            # ever reaching another prompt) still gets sent. The normal
-            # path would flush at the next ctx.prompt() anyway.
-            await ctx.flush_turn()
 
             if not result.success and result.error == 'unknown_command':
                 available = sorted(
@@ -761,6 +756,11 @@ class Server:
     async def _game_loop(self, ctx: GameContext) -> None:
         """Main command loop for an authenticated (or guest) player."""
         logging.debug('ENTER')
+        # From here on, ctx.send() buffers a turn's output and defers the
+        # More-Prompt pagination decision to the combined total (see
+        # network_context.flush_turn). Login/negotiation output above stays
+        # on the old immediate-send path.
+        ctx._buffering_enabled = True
         if not getattr(ctx.client, 'room', None):
             ctx.client.room = int(getattr(ctx.player, 'map_room', 1) or 1)
 

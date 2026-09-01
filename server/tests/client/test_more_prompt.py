@@ -235,6 +235,7 @@ class TestPromptFlushesAndArmsTurn(unittest.IsolatedAsyncioTestCase):
         player = _FakePlayer(more_prompt=True)
         ctx = GameContext(player=player, reader=MagicMock(), writer=MagicMock(),
                           server=MagicMock(), client=MagicMock())
+        ctx._buffering_enabled = True   # simple_server sets this on entering the game loop
         ctx.server.send_message = AsyncMock()
         ctx.reader.readline = AsyncMock(return_value=response)
         ctx._send_formatted = AsyncMock()
@@ -259,6 +260,16 @@ class TestPromptFlushesAndArmsTurn(unittest.IsolatedAsyncioTestCase):
         ctx._in_turn = True
         result = await ctx.prompt('main')
         self.assertIsNone(result)
+        self.assertFalse(ctx._in_turn)
+
+    async def test_prompt_does_not_arm_when_buffering_disabled(self):
+        # Login / terminal-negotiation phase: buffering stays off so that
+        # output streams immediately and never paginates mid-login (the
+        # e2e helpers only drain the pre-login banner's pages).
+        ctx = self._ctx()
+        ctx._buffering_enabled = False
+        result = await ctx.prompt('login')
+        self.assertEqual(result, 'look')
         self.assertFalse(ctx._in_turn)
 
 
