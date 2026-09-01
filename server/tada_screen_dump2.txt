@@ -1,0 +1,39 @@
+Energy'>: 4}
+2026-08-28 19:39:23,833 | DEBUG    | ('127.0.0.1', 60224) | base_classes.__init__: Castle: (24, 62, 66)
+2026-08-28 19:39:23,833 | DEBUG    | ('127.0.0.1', 60224) | player.set_up_combinations: {<CombinationTy
+pes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fd0ec132490>}
+2026-08-28 19:39:23,834 | INFO     | ('127.0.0.1', 60224) | player.set_up_silver: {<PlayerMoneyTypes.IN
+_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR
+'>: 3000}
+2026-08-28 19:39:23,834 | INFO     | ('127.0.0.1', 60224) | player.__init__: Silver in hand: 1000
+2026-08-28 19:39:23,834 | INFO     | ('127.0.0.1', 60224) | simple_server.handle_connection: ('127.0.0.
+1', 60224): ANSI/JSON connection
+2026-08-28 19:39:23,834 | DEBUG    | ('127.0.0.1', 60224) | simple_server._handshake: ENTER
+2026-08-28 19:39:23,834 | INFO     | ('127.0.0.1', 60224) | simple_server._handshake: handshake OK
+2026-08-28 19:39:23,834 | DEBUG    | ('127.0.0.1', 60224) | simple_server._handshake: EXIT True
+2026-08-28 19:39:23,834 | DEBUG    | ('127.0.0.1', 60224) | simple_server._negotiate_terminal: ENTER
+2026-08-28 19:39:23,835 | INFO     | ('127.0.0.1', 60224) | simple_server._negotiate_terminal: ANSI col
+or mode set.
+2026-08-28 19:39:23,835 | DEBUG    | ('127.0.0.1', 60224) | simple_server._negotiate_terminal: EXIT Tru
+e
+2026-08-28 19:39:23,839 | INFO     | ('127.0.0.1', 60224) | command_processor.discover: discover('comma
+nds'): registered 68 command(s): ['ask', 'attack', 'ban', 'banner', 'board', 'cast', 'config', 'connect
+', 'dbg', 'die', 'dismount', 'drink', 'drop', 'eat', 'edit', 'editmonsters', 'editplayer', 'examine', '
+table', 'test', 'flee', 'follow', 'get', 'give', 'groups', 'help', 'helpstaff', 'history', 'inv', 'lass
+o', 'list', 'logs', 'look', 'loot', 'lurk', 'mail', 'map', 'mp', 'mount', 'go', 'new', 'news', 'order',
+ 'page', 'password', 'play', 'pray', 'prefs', 'pm', 'quit', 'quote', 'read', 'ready', 'reload', 'say',
+'shout', 'shutdown', 'stat', 'take', '#', 'tips', 'unready', 'unwear', 'use', 'wear', 'whereat', 'whisp
+er', 'who']
+2026-08-28 19:39:23,840 | INFO     | ('127.0.0.1', 60224) | command_processor.discover: discover('comba
+t'): registered 1 command(s): ['duel']
+2026-08-28 19:39:23,840 | DEBUG    | ('127.0.0.1', 60224) | simple_server._login: ENTER
+2026-08-28 19:39:32,888 | DEBUG    | ('127.0.0.1', 60224) | simple_server._login: login input: 'who'
+2026-08-28 19:39:32,888 | DEBUG    | ('127.0.0.1', 60224) | command_processor.process_command: dispatch
+: 'who' -> commands.who.WhoCommand (mode=LOGIN, args=[], user='Guest', translation=Translation.ANSI)
+2026-08-28 19:39:36,908 | DEBUG    | ('127.0.0.1', 60224) | simple_server._login: login input: 'quit'
+2026-08-28 19:39:36,908 | DEBUG    | ('127.0.0.1', 60224) | command_processor.process_command: dispatch
+: 'quit' -> commands.quit.QuitCommand (mode=LOGIN, args=[], user='Guest', translation=Translation.ANSI)
+2026-08-28 19:39:36,908 | DEBUG    | ('127.0.0.1', 60224) | simple_server._login: EXIT False (quit)
+2026-08-28 19:39:36,908 | INFO     | ('127.0.0.1', 60224) | simple_server.handle_connection: ('127.0.0.
+1', 60224): connection closed. Total clients: 5
+^C

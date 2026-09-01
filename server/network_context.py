@@ -216,10 +216,15 @@ class GameContext(BaseContext):
         page_size = max(1, self.player.client_settings.screen_rows - 1)
         _wp = self._wants_pagination(formatted, page_size)
         import sys as _sys
+        _cs = self.player.client_settings
         print(f"[DIAG _emit] nlines={len(formatted)} page_size={page_size} "
+              f"cols={getattr(_cs,'screen_columns',None)} rows={getattr(_cs,'screen_rows',None)} "
               f"in_turn={self._in_turn} buf_enabled={self._buffering_enabled} "
               f"paginating={self._paginating} wants_pagination={_wp} "
               f"first={formatted[0][:40]!r}", file=_sys.stderr, flush=True)
+        if formatted and 'Welcome,' in str(formatted[0]):
+            for _i, _l in enumerate(formatted):
+                print(f"[DIAG welcome] {_i:2d}|{_l!r}", file=_sys.stderr, flush=True)
         if _wp:
             await self._paginate(formatted, page_size)
         else:

@@ -212,4 +212,55 @@ status:
 		echo "$(SL_HOST):$(SL_PORT) REACHABLE" || \
 		echo "$(SL_HOST):$(SL_PORT) NOT REACHABLE"
 
-.PHONY: all vice d64 preprocess build clean status
+# --- Commodore 128 client (client-128.asm) ---
+# Separate program, separate memory map/KERNAL from tada-client.asm
+# above -- see client-128.asm's own header comment. No SwiftLink/
+# server connection yet, so no ACIA flags or d64 image needed (unlike
+# vice: above); just assemble and autostart. input_editor.asm (the
+# ported sliding-input.asm line editor) is {include:}'d directly, with
+# no {const:}/{def:} macros of its own, so -- unlike screen-handler.asm
+# above -- it does NOT need its own macro_preprocessor.py pass; it's
+# still listed as a prerequisite below since c64list reads it straight
+# off disk when it hits the {include:} line.
+TARGET128       = client-128
+LAUNCH_VICE128  = x128
+
+$(TARGET128)_pp.asm: $(TARGET128).asm input_editor.asm
+	$(PREPROCESSOR) $(TARGET128).asm
+
+$(TARGET128).prg: $(TARGET128)_pp.asm
+	$(C64LIST) $(TARGET128)_pp.asm -prg:$(TARGET128) -sym -ovr
+
+$(TARGET128)-vice-labels: $(TARGET128).prg
+	$(CONVERT_LABELS) $(TARGET128)_pp.sym $(TARGET128)-vice-labels
+
+monitor-commands-128: $(TARGET128)-vice-labels
+	echo "ll \"$(TARGET128)-vice-labels\"" > monitor-commands-128
+
+all128: $(TARGET128).prg $(TARGET128)-vice-labels monitor-commands-128
+
+# Positional trailing .prg argument autostarts it directly, same as
+# every live-testing launch this session -- no -autostart/d64 needed
+# since there's no overlay module or disk image to bundle yet. Own
+# remote-monitor port (6511) so this can run alongside `make vice`
+# (port 6510) without colliding.
+vice128: all128
+	$(LAUNCH_VICE128) \
+	-moncommands "monitor-commands-128" \
+	-remotemonitor \
+	-remotemonitoraddress "127.0.0.1:6511" \
+	$(TARGET128).prg
+
+preprocess128: $(TARGET128)_pp.asm
+
+build128: all128
+
+clean128:
+	rm -f $(TARGET128)_pp.asm \
+	      $(TARGET128)_pp.prg \
+	      $(TARGET128)_pp.sym \
+	      $(TARGET128).prg \
+	      $(TARGET128)-vice-labels \
+	      monitor-commands-128
+
+.PHONY: all vice d64 preprocess build clean status all128 vice128 preprocess128 build128 clean128

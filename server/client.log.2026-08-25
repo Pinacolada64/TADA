@@ -1,0 +1,725 @@
+2026-08-25 02:40:34,022 - root - DEBUG - 10448
+2026-08-25 02:40:34,023 - root - DEBUG - 14
+2026-08-25 02:40:34,023 - root - DEBUG - 13
+2026-08-25 02:40:34,023 - root - DEBUG - 1
+2026-08-25 02:40:34,023 - root - DEBUG - 17
+2026-08-25 02:40:34,023 - root - DEBUG - 5
+2026-08-25 02:40:34,023 - root - DEBUG - 4
+2026-08-25 02:40:34,023 - root - DEBUG - 5
+2026-08-25 02:40:34,023 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 14, <PlayerStat.CON: 'Constitution'>: 13, <PlayerStat.DEX: 'Dexterity'>: 1, <PlayerStat.INT: 'Intelligence'>: 17, <PlayerStat.STR: 'Strength'>: 5, <PlayerStat.WIS: 'Wisdom'>: 4, <PlayerStat.EGY: 'Energy'>: 5}
+2026-08-25 02:40:34,023 - root - DEBUG - Castle: (59, 2, 86)
+2026-08-25 02:40:34,023 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fa939609e80>}
+2026-08-25 02:40:34,023 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 02:40:34,023 - root - INFO - Silver in hand: 1000
+2026-08-25 02:40:34,024 - root - DEBUG - 5723
+2026-08-25 02:40:34,024 - root - DEBUG - 5
+2026-08-25 02:40:34,024 - root - DEBUG - 11
+2026-08-25 02:40:34,024 - root - DEBUG - 13
+2026-08-25 02:40:34,024 - root - DEBUG - 12
+2026-08-25 02:40:34,024 - root - DEBUG - 4
+2026-08-25 02:40:34,024 - root - DEBUG - 5
+2026-08-25 02:40:34,024 - root - DEBUG - 18
+2026-08-25 02:40:34,024 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 5, <PlayerStat.CON: 'Constitution'>: 11, <PlayerStat.DEX: 'Dexterity'>: 13, <PlayerStat.INT: 'Intelligence'>: 12, <PlayerStat.STR: 'Strength'>: 4, <PlayerStat.WIS: 'Wisdom'>: 5, <PlayerStat.EGY: 'Energy'>: 18}
+2026-08-25 02:40:34,024 - root - DEBUG - Castle: (98, 13, 4)
+2026-08-25 02:40:34,024 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fa9395ddd10>}
+2026-08-25 02:40:34,024 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 02:40:34,024 - root - INFO - Silver in hand: 1000
+2026-08-25 02:44:07,958 - asyncio - DEBUG - Using selector: EpollSelector
+2026-08-25 02:45:49,904 - root - DEBUG - 18553
+2026-08-25 02:45:49,905 - root - DEBUG - 1
+2026-08-25 02:45:49,905 - root - DEBUG - 11
+2026-08-25 02:45:49,905 - root - DEBUG - 14
+2026-08-25 02:45:49,905 - root - DEBUG - 13
+2026-08-25 02:45:49,905 - root - DEBUG - 7
+2026-08-25 02:45:49,905 - root - DEBUG - 14
+2026-08-25 02:45:49,905 - root - DEBUG - 15
+2026-08-25 02:45:49,905 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 1, <PlayerStat.CON: 'Constitution'>: 11, <PlayerStat.DEX: 'Dexterity'>: 14, <PlayerStat.INT: 'Intelligence'>: 13, <PlayerStat.STR: 'Strength'>: 7, <PlayerStat.WIS: 'Wisdom'>: 14, <PlayerStat.EGY: 'Energy'>: 15}
+2026-08-25 02:45:49,905 - root - DEBUG - Castle: (97, 12, 61)
+2026-08-25 02:45:49,905 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f206fd99e80>}
+2026-08-25 02:45:49,905 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 02:45:49,906 - root - INFO - Silver in hand: 1000
+2026-08-25 02:45:49,906 - root - DEBUG - 16222
+2026-08-25 02:45:49,906 - root - DEBUG - 6
+2026-08-25 02:45:49,906 - root - DEBUG - 12
+2026-08-25 02:45:49,906 - root - DEBUG - 15
+2026-08-25 02:45:49,906 - root - DEBUG - 1
+2026-08-25 02:45:49,906 - root - DEBUG - 15
+2026-08-25 02:45:49,906 - root - DEBUG - 13
+2026-08-25 02:45:49,906 - root - DEBUG - 11
+2026-08-25 02:45:49,906 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 6, <PlayerStat.CON: 'Constitution'>: 12, <PlayerStat.DEX: 'Dexterity'>: 15, <PlayerStat.INT: 'Intelligence'>: 1, <PlayerStat.STR: 'Strength'>: 15, <PlayerStat.WIS: 'Wisdom'>: 13, <PlayerStat.EGY: 'Energy'>: 11}
+2026-08-25 02:45:49,906 - root - DEBUG - Castle: (44, 32, 61)
+2026-08-25 02:45:49,906 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f206fd6de50>}
+2026-08-25 02:45:49,906 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 02:45:49,906 - root - INFO - Silver in hand: 1000
+2026-08-25 02:59:36,265 - root - DEBUG - 9659
+2026-08-25 02:59:36,266 - root - DEBUG - 15
+2026-08-25 02:59:36,266 - root - DEBUG - 12
+2026-08-25 02:59:36,266 - root - DEBUG - 8
+2026-08-25 02:59:36,266 - root - DEBUG - 13
+2026-08-25 02:59:36,266 - root - DEBUG - 18
+2026-08-25 02:59:36,266 - root - DEBUG - 6
+2026-08-25 02:59:36,266 - root - DEBUG - 2
+2026-08-25 02:59:36,266 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 15, <PlayerStat.CON: 'Constitution'>: 12, <PlayerStat.DEX: 'Dexterity'>: 8, <PlayerStat.INT: 'Intelligence'>: 13, <PlayerStat.STR: 'Strength'>: 18, <PlayerStat.WIS: 'Wisdom'>: 6, <PlayerStat.EGY: 'Energy'>: 2}
+2026-08-25 02:59:36,266 - root - DEBUG - Castle: (30, 88, 66)
+2026-08-25 02:59:36,266 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f4c8e289fd0>}
+2026-08-25 02:59:36,266 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 02:59:36,266 - root - INFO - Silver in hand: 1000
+2026-08-25 03:01:02,997 - root - DEBUG - 54448
+2026-08-25 03:01:02,997 - root - DEBUG - 10
+2026-08-25 03:01:02,998 - root - DEBUG - 13
+2026-08-25 03:01:02,998 - root - DEBUG - 16
+2026-08-25 03:01:02,998 - root - DEBUG - 14
+2026-08-25 03:01:02,998 - root - DEBUG - 12
+2026-08-25 03:01:02,998 - root - DEBUG - 11
+2026-08-25 03:01:02,998 - root - DEBUG - 10
+2026-08-25 03:01:02,998 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 10, <PlayerStat.CON: 'Constitution'>: 13, <PlayerStat.DEX: 'Dexterity'>: 16, <PlayerStat.INT: 'Intelligence'>: 14, <PlayerStat.STR: 'Strength'>: 12, <PlayerStat.WIS: 'Wisdom'>: 11, <PlayerStat.EGY: 'Energy'>: 10}
+2026-08-25 03:01:02,998 - root - DEBUG - Castle: (47, 82, 48)
+2026-08-25 03:01:02,998 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fb4fed65550>}
+2026-08-25 03:01:02,998 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 03:01:02,998 - root - INFO - Silver in hand: 1000
+2026-08-25 03:01:02,998 - root - DEBUG - 48616
+2026-08-25 03:01:02,998 - root - DEBUG - 8
+2026-08-25 03:01:02,998 - root - DEBUG - 8
+2026-08-25 03:01:02,998 - root - DEBUG - 16
+2026-08-25 03:01:02,998 - root - DEBUG - 14
+2026-08-25 03:01:02,998 - root - DEBUG - 2
+2026-08-25 03:01:02,998 - root - DEBUG - 7
+2026-08-25 03:01:02,998 - root - DEBUG - 5
+2026-08-25 03:01:02,998 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 8, <PlayerStat.CON: 'Constitution'>: 8, <PlayerStat.DEX: 'Dexterity'>: 16, <PlayerStat.INT: 'Intelligence'>: 14, <PlayerStat.STR: 'Strength'>: 2, <PlayerStat.WIS: 'Wisdom'>: 7, <PlayerStat.EGY: 'Energy'>: 5}
+2026-08-25 03:01:02,998 - root - DEBUG - Castle: (78, 54, 7)
+2026-08-25 03:01:02,998 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fb4fed12850>}
+2026-08-25 03:01:02,998 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 03:01:02,999 - root - INFO - Silver in hand: 1000
+2026-08-25 03:03:45,526 - root - DEBUG - 22956
+2026-08-25 03:03:45,526 - root - DEBUG - 15
+2026-08-25 03:03:45,527 - root - DEBUG - 6
+2026-08-25 03:03:45,527 - root - DEBUG - 13
+2026-08-25 03:03:45,527 - root - DEBUG - 10
+2026-08-25 03:03:45,527 - root - DEBUG - 17
+2026-08-25 03:03:45,527 - root - DEBUG - 10
+2026-08-25 03:03:45,527 - root - DEBUG - 1
+2026-08-25 03:03:45,527 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 15, <PlayerStat.CON: 'Constitution'>: 6, <PlayerStat.DEX: 'Dexterity'>: 13, <PlayerStat.INT: 'Intelligence'>: 10, <PlayerStat.STR: 'Strength'>: 17, <PlayerStat.WIS: 'Wisdom'>: 10, <PlayerStat.EGY: 'Energy'>: 1}
+2026-08-25 03:03:45,527 - root - DEBUG - Castle: (88, 4, 60)
+2026-08-25 03:03:45,527 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f6617f11e80>}
+2026-08-25 03:03:45,527 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 03:03:45,527 - root - INFO - Silver in hand: 1000
+2026-08-25 03:03:45,527 - root - DEBUG - 1343
+2026-08-25 03:03:45,527 - root - DEBUG - 1
+2026-08-25 03:03:45,527 - root - DEBUG - 12
+2026-08-25 03:03:45,527 - root - DEBUG - 9
+2026-08-25 03:03:45,528 - root - DEBUG - 8
+2026-08-25 03:03:45,528 - root - DEBUG - 16
+2026-08-25 03:03:45,528 - root - DEBUG - 2
+2026-08-25 03:03:45,528 - root - DEBUG - 9
+2026-08-25 03:03:45,528 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 1, <PlayerStat.CON: 'Constitution'>: 12, <PlayerStat.DEX: 'Dexterity'>: 9, <PlayerStat.INT: 'Intelligence'>: 8, <PlayerStat.STR: 'Strength'>: 16, <PlayerStat.WIS: 'Wisdom'>: 2, <PlayerStat.EGY: 'Energy'>: 9}
+2026-08-25 03:03:45,528 - root - DEBUG - Castle: (3, 35, 82)
+2026-08-25 03:03:45,528 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f6617ee5e50>}
+2026-08-25 03:03:45,528 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 03:03:45,528 - root - INFO - Silver in hand: 1000
+2026-08-25 03:22:59,501 - root - DEBUG - 1889
+2026-08-25 03:22:59,501 - root - DEBUG - 1
+2026-08-25 03:22:59,501 - root - DEBUG - 1
+2026-08-25 03:22:59,501 - root - DEBUG - 10
+2026-08-25 03:22:59,501 - root - DEBUG - 15
+2026-08-25 03:22:59,501 - root - DEBUG - 14
+2026-08-25 03:22:59,501 - root - DEBUG - 13
+2026-08-25 03:22:59,501 - root - DEBUG - 9
+2026-08-25 03:22:59,502 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 1, <PlayerStat.CON: 'Constitution'>: 1, <PlayerStat.DEX: 'Dexterity'>: 10, <PlayerStat.INT: 'Intelligence'>: 15, <PlayerStat.STR: 'Strength'>: 14, <PlayerStat.WIS: 'Wisdom'>: 13, <PlayerStat.EGY: 'Energy'>: 9}
+2026-08-25 03:22:59,502 - root - DEBUG - Castle: (87, 12, 46)
+2026-08-25 03:22:59,502 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f6964e99e80>}
+2026-08-25 03:22:59,502 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 03:22:59,502 - root - INFO - Silver in hand: 1000
+2026-08-25 03:22:59,502 - root - DEBUG - 18558
+2026-08-25 03:22:59,502 - root - DEBUG - 11
+2026-08-25 03:22:59,502 - root - DEBUG - 5
+2026-08-25 03:22:59,502 - root - DEBUG - 4
+2026-08-25 03:22:59,502 - root - DEBUG - 2
+2026-08-25 03:22:59,502 - root - DEBUG - 10
+2026-08-25 03:22:59,502 - root - DEBUG - 2
+2026-08-25 03:22:59,502 - root - DEBUG - 8
+2026-08-25 03:22:59,502 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 11, <PlayerStat.CON: 'Constitution'>: 5, <PlayerStat.DEX: 'Dexterity'>: 4, <PlayerStat.INT: 'Intelligence'>: 2, <PlayerStat.STR: 'Strength'>: 10, <PlayerStat.WIS: 'Wisdom'>: 2, <PlayerStat.EGY: 'Energy'>: 8}
+2026-08-25 03:22:59,502 - root - DEBUG - Castle: (16, 69, 26)
+2026-08-25 03:22:59,502 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f6964e6de50>}
+2026-08-25 03:22:59,502 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 03:22:59,502 - root - INFO - Silver in hand: 1000
+2026-08-25 13:16:12,131 - root - DEBUG - 51973
+2026-08-25 13:16:12,138 - root - DEBUG - 14
+2026-08-25 13:16:12,138 - root - DEBUG - 14
+2026-08-25 13:16:12,138 - root - DEBUG - 14
+2026-08-25 13:16:12,138 - root - DEBUG - 11
+2026-08-25 13:16:12,138 - root - DEBUG - 17
+2026-08-25 13:16:12,139 - root - DEBUG - 6
+2026-08-25 13:16:12,139 - root - DEBUG - 17
+2026-08-25 13:16:12,139 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 14, <PlayerStat.CON: 'Constitution'>: 14, <PlayerStat.DEX: 'Dexterity'>: 14, <PlayerStat.INT: 'Intelligence'>: 11, <PlayerStat.STR: 'Strength'>: 17, <PlayerStat.WIS: 'Wisdom'>: 6, <PlayerStat.EGY: 'Energy'>: 17}
+2026-08-25 13:16:12,139 - root - DEBUG - Castle: (79, 52, 37)
+2026-08-25 13:16:12,139 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f31cc005e80>}
+2026-08-25 13:16:12,139 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 13:16:12,139 - root - INFO - Silver in hand: 1000
+2026-08-25 13:16:12,139 - root - DEBUG - 19001
+2026-08-25 13:16:12,139 - root - DEBUG - 4
+2026-08-25 13:16:12,139 - root - DEBUG - 9
+2026-08-25 13:16:12,139 - root - DEBUG - 2
+2026-08-25 13:16:12,139 - root - DEBUG - 1
+2026-08-25 13:16:12,139 - root - DEBUG - 17
+2026-08-25 13:16:12,139 - root - DEBUG - 12
+2026-08-25 13:16:12,139 - root - DEBUG - 5
+2026-08-25 13:16:12,140 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 4, <PlayerStat.CON: 'Constitution'>: 9, <PlayerStat.DEX: 'Dexterity'>: 2, <PlayerStat.INT: 'Intelligence'>: 1, <PlayerStat.STR: 'Strength'>: 17, <PlayerStat.WIS: 'Wisdom'>: 12, <PlayerStat.EGY: 'Energy'>: 5}
+2026-08-25 13:16:12,140 - root - DEBUG - Castle: (22, 82, 69)
+2026-08-25 13:16:12,140 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f31cc009bd0>}
+2026-08-25 13:16:12,140 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 13:16:12,140 - root - INFO - Silver in hand: 1000
+2026-08-25 13:18:06,999 - root - DEBUG - 59631
+2026-08-25 13:18:07,000 - root - DEBUG - 8
+2026-08-25 13:18:07,000 - root - DEBUG - 16
+2026-08-25 13:18:07,000 - root - DEBUG - 8
+2026-08-25 13:18:07,000 - root - DEBUG - 18
+2026-08-25 13:18:07,000 - root - DEBUG - 16
+2026-08-25 13:18:07,000 - root - DEBUG - 17
+2026-08-25 13:18:07,000 - root - DEBUG - 12
+2026-08-25 13:18:07,000 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 8, <PlayerStat.CON: 'Constitution'>: 16, <PlayerStat.DEX: 'Dexterity'>: 8, <PlayerStat.INT: 'Intelligence'>: 18, <PlayerStat.STR: 'Strength'>: 16, <PlayerStat.WIS: 'Wisdom'>: 17, <PlayerStat.EGY: 'Energy'>: 12}
+2026-08-25 13:18:07,000 - root - DEBUG - Castle: (66, 81, 79)
+2026-08-25 13:18:07,000 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fd4e0f0de80>}
+2026-08-25 13:18:07,000 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 13:18:07,000 - root - INFO - Silver in hand: 1000
+2026-08-25 13:18:07,000 - root - DEBUG - 62079
+2026-08-25 13:18:07,000 - root - DEBUG - 12
+2026-08-25 13:18:07,000 - root - DEBUG - 2
+2026-08-25 13:18:07,000 - root - DEBUG - 16
+2026-08-25 13:18:07,000 - root - DEBUG - 5
+2026-08-25 13:18:07,000 - root - DEBUG - 2
+2026-08-25 13:18:07,000 - root - DEBUG - 16
+2026-08-25 13:18:07,000 - root - DEBUG - 10
+2026-08-25 13:18:07,000 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 12, <PlayerStat.CON: 'Constitution'>: 2, <PlayerStat.DEX: 'Dexterity'>: 16, <PlayerStat.INT: 'Intelligence'>: 5, <PlayerStat.STR: 'Strength'>: 2, <PlayerStat.WIS: 'Wisdom'>: 16, <PlayerStat.EGY: 'Energy'>: 10}
+2026-08-25 13:18:07,001 - root - DEBUG - Castle: (15, 12, 77)
+2026-08-25 13:18:07,001 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fd4e0f11bd0>}
+2026-08-25 13:18:07,001 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 13:18:07,001 - root - INFO - Silver in hand: 1000
+2026-08-25 13:21:36,146 - root - DEBUG - 63138
+2026-08-25 13:21:36,146 - root - DEBUG - 12
+2026-08-25 13:21:36,146 - root - DEBUG - 10
+2026-08-25 13:21:36,146 - root - DEBUG - 7
+2026-08-25 13:21:36,146 - root - DEBUG - 12
+2026-08-25 13:21:36,146 - root - DEBUG - 15
+2026-08-25 13:21:36,146 - root - DEBUG - 11
+2026-08-25 13:21:36,146 - root - DEBUG - 2
+2026-08-25 13:21:36,146 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 12, <PlayerStat.CON: 'Constitution'>: 10, <PlayerStat.DEX: 'Dexterity'>: 7, <PlayerStat.INT: 'Intelligence'>: 12, <PlayerStat.STR: 'Strength'>: 15, <PlayerStat.WIS: 'Wisdom'>: 11, <PlayerStat.EGY: 'Energy'>: 2}
+2026-08-25 13:21:36,146 - root - DEBUG - Castle: (65, 83, 59)
+2026-08-25 13:21:36,146 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f2afc86de80>}
+2026-08-25 13:21:36,147 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 13:21:36,147 - root - INFO - Silver in hand: 1000
+2026-08-25 13:21:36,147 - root - DEBUG - 56472
+2026-08-25 13:21:36,147 - root - DEBUG - 13
+2026-08-25 13:21:36,147 - root - DEBUG - 10
+2026-08-25 13:21:36,147 - root - DEBUG - 17
+2026-08-25 13:21:36,147 - root - DEBUG - 16
+2026-08-25 13:21:36,147 - root - DEBUG - 4
+2026-08-25 13:21:36,147 - root - DEBUG - 8
+2026-08-25 13:21:36,147 - root - DEBUG - 8
+2026-08-25 13:21:36,147 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 13, <PlayerStat.CON: 'Constitution'>: 10, <PlayerStat.DEX: 'Dexterity'>: 17, <PlayerStat.INT: 'Intelligence'>: 16, <PlayerStat.STR: 'Strength'>: 4, <PlayerStat.WIS: 'Wisdom'>: 8, <PlayerStat.EGY: 'Energy'>: 8}
+2026-08-25 13:21:36,147 - root - DEBUG - Castle: (87, 20, 86)
+2026-08-25 13:21:36,147 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f2afc871bd0>}
+2026-08-25 13:21:36,147 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 13:21:36,147 - root - INFO - Silver in hand: 1000
+2026-08-25 13:42:03,298 - root - DEBUG - 11411
+2026-08-25 13:42:03,305 - root - DEBUG - 10
+2026-08-25 13:42:03,305 - root - DEBUG - 7
+2026-08-25 13:42:03,305 - root - DEBUG - 13
+2026-08-25 13:42:03,305 - root - DEBUG - 12
+2026-08-25 13:42:03,305 - root - DEBUG - 5
+2026-08-25 13:42:03,306 - root - DEBUG - 4
+2026-08-25 13:42:03,306 - root - DEBUG - 3
+2026-08-25 13:42:03,306 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 10, <PlayerStat.CON: 'Constitution'>: 7, <PlayerStat.DEX: 'Dexterity'>: 13, <PlayerStat.INT: 'Intelligence'>: 12, <PlayerStat.STR: 'Strength'>: 5, <PlayerStat.WIS: 'Wisdom'>: 4, <PlayerStat.EGY: 'Energy'>: 3}
+2026-08-25 13:42:03,306 - root - DEBUG - Castle: (25, 47, 35)
+2026-08-25 13:42:03,306 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f71d9fcde80>}
+2026-08-25 13:42:03,306 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 13:42:03,306 - root - INFO - Silver in hand: 1000
+2026-08-25 13:42:03,306 - root - DEBUG - 50618
+2026-08-25 13:42:03,306 - root - DEBUG - 9
+2026-08-25 13:42:03,306 - root - DEBUG - 13
+2026-08-25 13:42:03,306 - root - DEBUG - 6
+2026-08-25 13:42:03,306 - root - DEBUG - 8
+2026-08-25 13:42:03,306 - root - DEBUG - 2
+2026-08-25 13:42:03,306 - root - DEBUG - 12
+2026-08-25 13:42:03,306 - root - DEBUG - 4
+2026-08-25 13:42:03,307 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 9, <PlayerStat.CON: 'Constitution'>: 13, <PlayerStat.DEX: 'Dexterity'>: 6, <PlayerStat.INT: 'Intelligence'>: 8, <PlayerStat.STR: 'Strength'>: 2, <PlayerStat.WIS: 'Wisdom'>: 12, <PlayerStat.EGY: 'Energy'>: 4}
+2026-08-25 13:42:03,307 - root - DEBUG - Castle: (2, 95, 96)
+2026-08-25 13:42:03,307 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f71d9fd1bd0>}
+2026-08-25 13:42:03,307 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 13:42:03,307 - root - INFO - Silver in hand: 1000
+2026-08-25 13:52:28,997 - root - DEBUG - 49929
+2026-08-25 13:52:28,998 - root - DEBUG - 1
+2026-08-25 13:52:28,998 - root - DEBUG - 9
+2026-08-25 13:52:28,998 - root - DEBUG - 18
+2026-08-25 13:52:28,998 - root - DEBUG - 4
+2026-08-25 13:52:28,998 - root - DEBUG - 10
+2026-08-25 13:52:28,998 - root - DEBUG - 9
+2026-08-25 13:52:28,998 - root - DEBUG - 3
+2026-08-25 13:52:28,998 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 1, <PlayerStat.CON: 'Constitution'>: 9, <PlayerStat.DEX: 'Dexterity'>: 18, <PlayerStat.INT: 'Intelligence'>: 4, <PlayerStat.STR: 'Strength'>: 10, <PlayerStat.WIS: 'Wisdom'>: 9, <PlayerStat.EGY: 'Energy'>: 3}
+2026-08-25 13:52:28,998 - root - DEBUG - Castle: (23, 64, 57)
+2026-08-25 13:52:28,998 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f209ab95e80>}
+2026-08-25 13:52:28,998 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 13:52:28,998 - root - INFO - Silver in hand: 1000
+2026-08-25 13:52:28,999 - root - DEBUG - 33620
+2026-08-25 13:52:28,999 - root - DEBUG - 6
+2026-08-25 13:52:28,999 - root - DEBUG - 9
+2026-08-25 13:52:28,999 - root - DEBUG - 13
+2026-08-25 13:52:28,999 - root - DEBUG - 17
+2026-08-25 13:52:28,999 - root - DEBUG - 7
+2026-08-25 13:52:28,999 - root - DEBUG - 8
+2026-08-25 13:52:28,999 - root - DEBUG - 13
+2026-08-25 13:52:28,999 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 6, <PlayerStat.CON: 'Constitution'>: 9, <PlayerStat.DEX: 'Dexterity'>: 13, <PlayerStat.INT: 'Intelligence'>: 17, <PlayerStat.STR: 'Strength'>: 7, <PlayerStat.WIS: 'Wisdom'>: 8, <PlayerStat.EGY: 'Energy'>: 13}
+2026-08-25 13:52:28,999 - root - DEBUG - Castle: (54, 50, 36)
+2026-08-25 13:52:28,999 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f209ab99bd0>}
+2026-08-25 13:52:28,999 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 13:52:28,999 - root - INFO - Silver in hand: 1000
+2026-08-25 13:54:40,508 - root - DEBUG - 41108
+2026-08-25 13:54:40,509 - root - DEBUG - 2
+2026-08-25 13:54:40,509 - root - DEBUG - 11
+2026-08-25 13:54:40,509 - root - DEBUG - 9
+2026-08-25 13:54:40,509 - root - DEBUG - 17
+2026-08-25 13:54:40,509 - root - DEBUG - 1
+2026-08-25 13:54:40,509 - root - DEBUG - 12
+2026-08-25 13:54:40,509 - root - DEBUG - 15
+2026-08-25 13:54:40,510 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 2, <PlayerStat.CON: 'Constitution'>: 11, <PlayerStat.DEX: 'Dexterity'>: 9, <PlayerStat.INT: 'Intelligence'>: 17, <PlayerStat.STR: 'Strength'>: 1, <PlayerStat.WIS: 'Wisdom'>: 12, <PlayerStat.EGY: 'Energy'>: 15}
+2026-08-25 13:54:40,510 - root - DEBUG - Castle: (88, 22, 72)
+2026-08-25 13:54:40,510 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fa4b90e9e80>}
+2026-08-25 13:54:40,510 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 13:54:40,510 - root - INFO - Silver in hand: 1000
+2026-08-25 13:54:40,510 - root - DEBUG - 63442
+2026-08-25 13:54:40,510 - root - DEBUG - 7
+2026-08-25 13:54:40,510 - root - DEBUG - 10
+2026-08-25 13:54:40,510 - root - DEBUG - 17
+2026-08-25 13:54:40,510 - root - DEBUG - 6
+2026-08-25 13:54:40,510 - root - DEBUG - 9
+2026-08-25 13:54:40,510 - root - DEBUG - 12
+2026-08-25 13:54:40,510 - root - DEBUG - 17
+2026-08-25 13:54:40,510 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 7, <PlayerStat.CON: 'Constitution'>: 10, <PlayerStat.DEX: 'Dexterity'>: 17, <PlayerStat.INT: 'Intelligence'>: 6, <PlayerStat.STR: 'Strength'>: 9, <PlayerStat.WIS: 'Wisdom'>: 12, <PlayerStat.EGY: 'Energy'>: 17}
+2026-08-25 13:54:40,510 - root - DEBUG - Castle: (64, 43, 78)
+2026-08-25 13:54:40,511 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fa4b90edbd0>}
+2026-08-25 13:54:40,511 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 13:54:40,511 - root - INFO - Silver in hand: 1000
+2026-08-25 13:55:33,991 - root - DEBUG - 1962
+2026-08-25 13:55:33,991 - root - DEBUG - 18
+2026-08-25 13:55:33,991 - root - DEBUG - 2
+2026-08-25 13:55:33,991 - root - DEBUG - 4
+2026-08-25 13:55:33,992 - root - DEBUG - 2
+2026-08-25 13:55:33,992 - root - DEBUG - 12
+2026-08-25 13:55:33,992 - root - DEBUG - 11
+2026-08-25 13:55:33,992 - root - DEBUG - 2
+2026-08-25 13:55:33,992 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 18, <PlayerStat.CON: 'Constitution'>: 2, <PlayerStat.DEX: 'Dexterity'>: 4, <PlayerStat.INT: 'Intelligence'>: 2, <PlayerStat.STR: 'Strength'>: 12, <PlayerStat.WIS: 'Wisdom'>: 11, <PlayerStat.EGY: 'Energy'>: 2}
+2026-08-25 13:55:33,992 - root - DEBUG - Castle: (97, 66, 43)
+2026-08-25 13:55:33,992 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fe8052c5e80>}
+2026-08-25 13:55:33,992 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 13:55:33,992 - root - INFO - Silver in hand: 1000
+2026-08-25 13:55:33,992 - root - DEBUG - 45481
+2026-08-25 13:55:33,992 - root - DEBUG - 7
+2026-08-25 13:55:33,992 - root - DEBUG - 2
+2026-08-25 13:55:33,992 - root - DEBUG - 13
+2026-08-25 13:55:33,992 - root - DEBUG - 11
+2026-08-25 13:55:33,992 - root - DEBUG - 18
+2026-08-25 13:55:33,992 - root - DEBUG - 12
+2026-08-25 13:55:33,992 - root - DEBUG - 10
+2026-08-25 13:55:33,992 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 7, <PlayerStat.CON: 'Constitution'>: 2, <PlayerStat.DEX: 'Dexterity'>: 13, <PlayerStat.INT: 'Intelligence'>: 11, <PlayerStat.STR: 'Strength'>: 18, <PlayerStat.WIS: 'Wisdom'>: 12, <PlayerStat.EGY: 'Energy'>: 10}
+2026-08-25 13:55:33,992 - root - DEBUG - Castle: (69, 24, 7)
+2026-08-25 13:55:33,992 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fe8052c9bd0>}
+2026-08-25 13:55:33,992 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 13:55:33,992 - root - INFO - Silver in hand: 1000
+2026-08-25 14:00:11,905 - root - DEBUG - 23085
+2026-08-25 14:00:11,907 - root - DEBUG - 8
+2026-08-25 14:00:11,907 - root - DEBUG - 16
+2026-08-25 14:00:11,907 - root - DEBUG - 10
+2026-08-25 14:00:11,907 - root - DEBUG - 15
+2026-08-25 14:00:11,909 - root - DEBUG - 15
+2026-08-25 14:00:11,910 - root - DEBUG - 17
+2026-08-25 14:00:11,910 - root - DEBUG - 16
+2026-08-25 14:00:11,910 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 8, <PlayerStat.CON: 'Constitution'>: 16, <PlayerStat.DEX: 'Dexterity'>: 10, <PlayerStat.INT: 'Intelligence'>: 15, <PlayerStat.STR: 'Strength'>: 15, <PlayerStat.WIS: 'Wisdom'>: 17, <PlayerStat.EGY: 'Energy'>: 16}
+2026-08-25 14:00:11,910 - root - DEBUG - Castle: (31, 96, 66)
+2026-08-25 14:00:11,910 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fad31c05e80>}
+2026-08-25 14:00:11,910 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 14:00:11,910 - root - INFO - Silver in hand: 1000
+2026-08-25 14:00:11,910 - root - DEBUG - 6278
+2026-08-25 14:00:11,910 - root - DEBUG - 8
+2026-08-25 14:00:11,910 - root - DEBUG - 12
+2026-08-25 14:00:11,910 - root - DEBUG - 10
+2026-08-25 14:00:11,910 - root - DEBUG - 5
+2026-08-25 14:00:11,910 - root - DEBUG - 13
+2026-08-25 14:00:11,911 - root - DEBUG - 9
+2026-08-25 14:00:11,911 - root - DEBUG - 8
+2026-08-25 14:00:11,911 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 8, <PlayerStat.CON: 'Constitution'>: 12, <PlayerStat.DEX: 'Dexterity'>: 10, <PlayerStat.INT: 'Intelligence'>: 5, <PlayerStat.STR: 'Strength'>: 13, <PlayerStat.WIS: 'Wisdom'>: 9, <PlayerStat.EGY: 'Energy'>: 8}
+2026-08-25 14:00:11,911 - root - DEBUG - Castle: (78, 14, 14)
+2026-08-25 14:00:11,911 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fad31c09bd0>}
+2026-08-25 14:00:11,912 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 14:00:11,912 - root - INFO - Silver in hand: 1000
+2026-08-25 14:06:25,508 - root - DEBUG - 50403
+2026-08-25 14:06:25,509 - root - DEBUG - 11
+2026-08-25 14:06:25,509 - root - DEBUG - 12
+2026-08-25 14:06:25,509 - root - DEBUG - 16
+2026-08-25 14:06:25,509 - root - DEBUG - 2
+2026-08-25 14:06:25,509 - root - DEBUG - 7
+2026-08-25 14:06:25,509 - root - DEBUG - 17
+2026-08-25 14:06:25,509 - root - DEBUG - 6
+2026-08-25 14:06:25,509 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 11, <PlayerStat.CON: 'Constitution'>: 12, <PlayerStat.DEX: 'Dexterity'>: 16, <PlayerStat.INT: 'Intelligence'>: 2, <PlayerStat.STR: 'Strength'>: 7, <PlayerStat.WIS: 'Wisdom'>: 17, <PlayerStat.EGY: 'Energy'>: 6}
+2026-08-25 14:06:25,509 - root - DEBUG - Castle: (13, 71, 95)
+2026-08-25 14:06:25,509 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fc379a39e80>}
+2026-08-25 14:06:25,509 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 14:06:25,509 - root - INFO - Silver in hand: 1000
+2026-08-25 14:06:25,510 - root - DEBUG - 53661
+2026-08-25 14:06:25,510 - root - DEBUG - 7
+2026-08-25 14:06:25,510 - root - DEBUG - 5
+2026-08-25 14:06:25,510 - root - DEBUG - 17
+2026-08-25 14:06:25,510 - root - DEBUG - 15
+2026-08-25 14:06:25,510 - root - DEBUG - 10
+2026-08-25 14:06:25,510 - root - DEBUG - 11
+2026-08-25 14:06:25,510 - root - DEBUG - 11
+2026-08-25 14:06:25,510 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 7, <PlayerStat.CON: 'Constitution'>: 5, <PlayerStat.DEX: 'Dexterity'>: 17, <PlayerStat.INT: 'Intelligence'>: 15, <PlayerStat.STR: 'Strength'>: 10, <PlayerStat.WIS: 'Wisdom'>: 11, <PlayerStat.EGY: 'Energy'>: 11}
+2026-08-25 14:06:25,510 - root - DEBUG - Castle: (14, 52, 45)
+2026-08-25 14:06:25,510 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fc379a3dbd0>}
+2026-08-25 14:06:25,510 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 14:06:25,510 - root - INFO - Silver in hand: 1000
+2026-08-25 14:08:27,720 - root - DEBUG - 24083
+2026-08-25 14:08:27,721 - root - DEBUG - 3
+2026-08-25 14:08:27,721 - root - DEBUG - 17
+2026-08-25 14:08:27,721 - root - DEBUG - 5
+2026-08-25 14:08:27,721 - root - DEBUG - 1
+2026-08-25 14:08:27,721 - root - DEBUG - 14
+2026-08-25 14:08:27,721 - root - DEBUG - 15
+2026-08-25 14:08:27,721 - root - DEBUG - 4
+2026-08-25 14:08:27,721 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 3, <PlayerStat.CON: 'Constitution'>: 17, <PlayerStat.DEX: 'Dexterity'>: 5, <PlayerStat.INT: 'Intelligence'>: 1, <PlayerStat.STR: 'Strength'>: 14, <PlayerStat.WIS: 'Wisdom'>: 15, <PlayerStat.EGY: 'Energy'>: 4}
+2026-08-25 14:08:27,721 - root - DEBUG - Castle: (99, 87, 60)
+2026-08-25 14:08:27,721 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f241ca61e80>}
+2026-08-25 14:08:27,721 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 14:08:27,721 - root - INFO - Silver in hand: 1000
+2026-08-25 14:08:27,722 - root - DEBUG - 32746
+2026-08-25 14:08:27,722 - root - DEBUG - 17
+2026-08-25 14:08:27,722 - root - DEBUG - 10
+2026-08-25 14:08:27,722 - root - DEBUG - 11
+2026-08-25 14:08:27,722 - root - DEBUG - 13
+2026-08-25 14:08:27,722 - root - DEBUG - 7
+2026-08-25 14:08:27,722 - root - DEBUG - 9
+2026-08-25 14:08:27,722 - root - DEBUG - 18
+2026-08-25 14:08:27,722 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 17, <PlayerStat.CON: 'Constitution'>: 10, <PlayerStat.DEX: 'Dexterity'>: 11, <PlayerStat.INT: 'Intelligence'>: 13, <PlayerStat.STR: 'Strength'>: 7, <PlayerStat.WIS: 'Wisdom'>: 9, <PlayerStat.EGY: 'Energy'>: 18}
+2026-08-25 14:08:27,722 - root - DEBUG - Castle: (91, 62, 77)
+2026-08-25 14:08:27,722 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f241ca65bd0>}
+2026-08-25 14:08:27,722 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 14:08:27,722 - root - INFO - Silver in hand: 1000
+2026-08-25 14:16:19,035 - root - DEBUG - 31688
+2026-08-25 14:16:19,036 - root - DEBUG - 9
+2026-08-25 14:16:19,036 - root - DEBUG - 1
+2026-08-25 14:16:19,036 - root - DEBUG - 1
+2026-08-25 14:16:19,036 - root - DEBUG - 3
+2026-08-25 14:16:19,036 - root - DEBUG - 2
+2026-08-25 14:16:19,036 - root - DEBUG - 2
+2026-08-25 14:16:19,036 - root - DEBUG - 13
+2026-08-25 14:16:19,036 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 9, <PlayerStat.CON: 'Constitution'>: 1, <PlayerStat.DEX: 'Dexterity'>: 1, <PlayerStat.INT: 'Intelligence'>: 3, <PlayerStat.STR: 'Strength'>: 2, <PlayerStat.WIS: 'Wisdom'>: 2, <PlayerStat.EGY: 'Energy'>: 13}
+2026-08-25 14:16:19,036 - root - DEBUG - Castle: (84, 92, 13)
+2026-08-25 14:16:19,036 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f79566e9e80>}
+2026-08-25 14:16:19,036 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 14:16:19,036 - root - INFO - Silver in hand: 1000
+2026-08-25 14:16:19,036 - root - DEBUG - 36422
+2026-08-25 14:16:19,036 - root - DEBUG - 3
+2026-08-25 14:16:19,036 - root - DEBUG - 1
+2026-08-25 14:16:19,036 - root - DEBUG - 10
+2026-08-25 14:16:19,037 - root - DEBUG - 16
+2026-08-25 14:16:19,037 - root - DEBUG - 18
+2026-08-25 14:16:19,037 - root - DEBUG - 13
+2026-08-25 14:16:19,037 - root - DEBUG - 8
+2026-08-25 14:16:19,037 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 3, <PlayerStat.CON: 'Constitution'>: 1, <PlayerStat.DEX: 'Dexterity'>: 10, <PlayerStat.INT: 'Intelligence'>: 16, <PlayerStat.STR: 'Strength'>: 18, <PlayerStat.WIS: 'Wisdom'>: 13, <PlayerStat.EGY: 'Energy'>: 8}
+2026-08-25 14:16:19,037 - root - DEBUG - Castle: (7, 93, 6)
+2026-08-25 14:16:19,037 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f79566edbd0>}
+2026-08-25 14:16:19,037 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 14:16:19,037 - root - INFO - Silver in hand: 1000
+2026-08-25 14:24:15,708 - root - DEBUG - 27616
+2026-08-25 14:24:15,709 - root - DEBUG - 1
+2026-08-25 14:24:15,709 - root - DEBUG - 18
+2026-08-25 14:24:15,709 - root - DEBUG - 2
+2026-08-25 14:24:15,709 - root - DEBUG - 2
+2026-08-25 14:24:15,709 - root - DEBUG - 13
+2026-08-25 14:24:15,709 - root - DEBUG - 15
+2026-08-25 14:24:15,710 - root - DEBUG - 13
+2026-08-25 14:24:15,710 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 1, <PlayerStat.CON: 'Constitution'>: 18, <PlayerStat.DEX: 'Dexterity'>: 2, <PlayerStat.INT: 'Intelligence'>: 2, <PlayerStat.STR: 'Strength'>: 13, <PlayerStat.WIS: 'Wisdom'>: 15, <PlayerStat.EGY: 'Energy'>: 13}
+2026-08-25 14:24:15,710 - root - DEBUG - Castle: (44, 62, 78)
+2026-08-25 14:24:15,710 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f68a9c39e80>}
+2026-08-25 14:24:15,710 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 14:24:15,710 - root - INFO - Silver in hand: 1000
+2026-08-25 14:24:15,710 - root - DEBUG - 37223
+2026-08-25 14:24:15,710 - root - DEBUG - 12
+2026-08-25 14:24:15,711 - root - DEBUG - 14
+2026-08-25 14:24:15,711 - root - DEBUG - 3
+2026-08-25 14:24:15,711 - root - DEBUG - 9
+2026-08-25 14:24:15,711 - root - DEBUG - 17
+2026-08-25 14:24:15,711 - root - DEBUG - 3
+2026-08-25 14:24:15,711 - root - DEBUG - 15
+2026-08-25 14:24:15,711 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 12, <PlayerStat.CON: 'Constitution'>: 14, <PlayerStat.DEX: 'Dexterity'>: 3, <PlayerStat.INT: 'Intelligence'>: 9, <PlayerStat.STR: 'Strength'>: 17, <PlayerStat.WIS: 'Wisdom'>: 3, <PlayerStat.EGY: 'Energy'>: 15}
+2026-08-25 14:24:15,712 - root - DEBUG - Castle: (74, 45, 53)
+2026-08-25 14:24:15,712 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f68a9c3dbd0>}
+2026-08-25 14:24:15,712 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 14:24:15,712 - root - INFO - Silver in hand: 1000
+2026-08-25 14:32:48,687 - root - DEBUG - 61802
+2026-08-25 14:32:48,688 - root - DEBUG - 6
+2026-08-25 14:32:48,688 - root - DEBUG - 5
+2026-08-25 14:32:48,689 - root - DEBUG - 17
+2026-08-25 14:32:48,689 - root - DEBUG - 9
+2026-08-25 14:32:48,689 - root - DEBUG - 8
+2026-08-25 14:32:48,689 - root - DEBUG - 18
+2026-08-25 14:32:48,689 - root - DEBUG - 4
+2026-08-25 14:32:48,689 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 6, <PlayerStat.CON: 'Constitution'>: 5, <PlayerStat.DEX: 'Dexterity'>: 17, <PlayerStat.INT: 'Intelligence'>: 9, <PlayerStat.STR: 'Strength'>: 8, <PlayerStat.WIS: 'Wisdom'>: 18, <PlayerStat.EGY: 'Energy'>: 4}
+2026-08-25 14:32:48,689 - root - DEBUG - Castle: (23, 78, 44)
+2026-08-25 14:32:48,689 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f2b8eb71e80>}
+2026-08-25 14:32:48,689 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 14:32:48,689 - root - INFO - Silver in hand: 1000
+2026-08-25 14:32:48,690 - root - DEBUG - 14595
+2026-08-25 14:32:48,690 - root - DEBUG - 8
+2026-08-25 14:32:48,690 - root - DEBUG - 11
+2026-08-25 14:32:48,690 - root - DEBUG - 7
+2026-08-25 14:32:48,690 - root - DEBUG - 2
+2026-08-25 14:32:48,690 - root - DEBUG - 12
+2026-08-25 14:32:48,690 - root - DEBUG - 12
+2026-08-25 14:32:48,690 - root - DEBUG - 1
+2026-08-25 14:32:48,690 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 8, <PlayerStat.CON: 'Constitution'>: 11, <PlayerStat.DEX: 'Dexterity'>: 7, <PlayerStat.INT: 'Intelligence'>: 2, <PlayerStat.STR: 'Strength'>: 12, <PlayerStat.WIS: 'Wisdom'>: 12, <PlayerStat.EGY: 'Energy'>: 1}
+2026-08-25 14:32:48,690 - root - DEBUG - Castle: (96, 76, 65)
+2026-08-25 14:32:48,690 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f2b8eb75bd0>}
+2026-08-25 14:32:48,690 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 14:32:48,690 - root - INFO - Silver in hand: 1000
+2026-08-25 14:38:04,382 - root - DEBUG - 8070
+2026-08-25 14:38:04,383 - root - DEBUG - 10
+2026-08-25 14:38:04,383 - root - DEBUG - 7
+2026-08-25 14:38:04,383 - root - DEBUG - 1
+2026-08-25 14:38:04,383 - root - DEBUG - 15
+2026-08-25 14:38:04,383 - root - DEBUG - 15
+2026-08-25 14:38:04,383 - root - DEBUG - 18
+2026-08-25 14:38:04,383 - root - DEBUG - 14
+2026-08-25 14:38:04,383 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 10, <PlayerStat.CON: 'Constitution'>: 7, <PlayerStat.DEX: 'Dexterity'>: 1, <PlayerStat.INT: 'Intelligence'>: 15, <PlayerStat.STR: 'Strength'>: 15, <PlayerStat.WIS: 'Wisdom'>: 18, <PlayerStat.EGY: 'Energy'>: 14}
+2026-08-25 14:38:04,383 - root - DEBUG - Castle: (57, 54, 3)
+2026-08-25 14:38:04,383 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fa7a9661e80>}
+2026-08-25 14:38:04,383 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 14:38:04,384 - root - INFO - Silver in hand: 1000
+2026-08-25 14:38:04,384 - root - DEBUG - 4459
+2026-08-25 14:38:04,384 - root - DEBUG - 12
+2026-08-25 14:38:04,384 - root - DEBUG - 11
+2026-08-25 14:38:04,384 - root - DEBUG - 13
+2026-08-25 14:38:04,384 - root - DEBUG - 4
+2026-08-25 14:38:04,384 - root - DEBUG - 14
+2026-08-25 14:38:04,384 - root - DEBUG - 16
+2026-08-25 14:38:04,384 - root - DEBUG - 7
+2026-08-25 14:38:04,384 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 12, <PlayerStat.CON: 'Constitution'>: 11, <PlayerStat.DEX: 'Dexterity'>: 13, <PlayerStat.INT: 'Intelligence'>: 4, <PlayerStat.STR: 'Strength'>: 14, <PlayerStat.WIS: 'Wisdom'>: 16, <PlayerStat.EGY: 'Energy'>: 7}
+2026-08-25 14:38:04,384 - root - DEBUG - Castle: (52, 39, 29)
+2026-08-25 14:38:04,384 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fa7a9665bd0>}
+2026-08-25 14:38:04,384 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 14:38:04,384 - root - INFO - Silver in hand: 1000
+2026-08-25 18:16:44,413 - root - DEBUG - 25718
+2026-08-25 18:16:44,420 - root - DEBUG - 7
+2026-08-25 18:16:44,420 - root - DEBUG - 12
+2026-08-25 18:16:44,421 - root - DEBUG - 3
+2026-08-25 18:16:44,421 - root - DEBUG - 13
+2026-08-25 18:16:44,421 - root - DEBUG - 13
+2026-08-25 18:16:44,421 - root - DEBUG - 16
+2026-08-25 18:16:44,421 - root - DEBUG - 13
+2026-08-25 18:16:44,421 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 7, <PlayerStat.CON: 'Constitution'>: 12, <PlayerStat.DEX: 'Dexterity'>: 3, <PlayerStat.INT: 'Intelligence'>: 13, <PlayerStat.STR: 'Strength'>: 13, <PlayerStat.WIS: 'Wisdom'>: 16, <PlayerStat.EGY: 'Energy'>: 13}
+2026-08-25 18:16:44,421 - root - DEBUG - Castle: (23, 63, 65)
+2026-08-25 18:16:44,421 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fb252061e80>}
+2026-08-25 18:16:44,421 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 18:16:44,421 - root - INFO - Silver in hand: 1000
+2026-08-25 18:16:44,422 - root - DEBUG - 34508
+2026-08-25 18:16:44,422 - root - DEBUG - 8
+2026-08-25 18:16:44,422 - root - DEBUG - 5
+2026-08-25 18:16:44,422 - root - DEBUG - 14
+2026-08-25 18:16:44,422 - root - DEBUG - 15
+2026-08-25 18:16:44,422 - root - DEBUG - 2
+2026-08-25 18:16:44,422 - root - DEBUG - 10
+2026-08-25 18:16:44,422 - root - DEBUG - 10
+2026-08-25 18:16:44,422 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 8, <PlayerStat.CON: 'Constitution'>: 5, <PlayerStat.DEX: 'Dexterity'>: 14, <PlayerStat.INT: 'Intelligence'>: 15, <PlayerStat.STR: 'Strength'>: 2, <PlayerStat.WIS: 'Wisdom'>: 10, <PlayerStat.EGY: 'Energy'>: 10}
+2026-08-25 18:16:44,422 - root - DEBUG - Castle: (61, 45, 44)
+2026-08-25 18:16:44,422 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fb252065bd0>}
+2026-08-25 18:16:44,422 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 18:16:44,422 - root - INFO - Silver in hand: 1000
+2026-08-25 19:15:24,814 - root - DEBUG - 60954
+2026-08-25 19:15:24,821 - root - DEBUG - 4
+2026-08-25 19:15:24,821 - root - DEBUG - 14
+2026-08-25 19:15:24,821 - root - DEBUG - 8
+2026-08-25 19:15:24,821 - root - DEBUG - 7
+2026-08-25 19:15:24,821 - root - DEBUG - 8
+2026-08-25 19:15:24,821 - root - DEBUG - 11
+2026-08-25 19:15:24,821 - root - DEBUG - 7
+2026-08-25 19:15:24,821 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 4, <PlayerStat.CON: 'Constitution'>: 14, <PlayerStat.DEX: 'Dexterity'>: 8, <PlayerStat.INT: 'Intelligence'>: 7, <PlayerStat.STR: 'Strength'>: 8, <PlayerStat.WIS: 'Wisdom'>: 11, <PlayerStat.EGY: 'Energy'>: 7}
+2026-08-25 19:15:24,822 - root - DEBUG - Castle: (6, 81, 45)
+2026-08-25 19:15:24,822 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f4767a61e80>}
+2026-08-25 19:15:24,822 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 19:15:24,822 - root - INFO - Silver in hand: 1000
+2026-08-25 19:15:24,822 - root - DEBUG - 38366
+2026-08-25 19:15:24,822 - root - DEBUG - 7
+2026-08-25 19:15:24,822 - root - DEBUG - 9
+2026-08-25 19:15:24,822 - root - DEBUG - 5
+2026-08-25 19:15:24,822 - root - DEBUG - 8
+2026-08-25 19:15:24,822 - root - DEBUG - 11
+2026-08-25 19:15:24,822 - root - DEBUG - 1
+2026-08-25 19:15:24,822 - root - DEBUG - 16
+2026-08-25 19:15:24,822 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 7, <PlayerStat.CON: 'Constitution'>: 9, <PlayerStat.DEX: 'Dexterity'>: 5, <PlayerStat.INT: 'Intelligence'>: 8, <PlayerStat.STR: 'Strength'>: 11, <PlayerStat.WIS: 'Wisdom'>: 1, <PlayerStat.EGY: 'Energy'>: 16}
+2026-08-25 19:15:24,823 - root - DEBUG - Castle: (84, 3, 52)
+2026-08-25 19:15:24,823 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f4767a65bd0>}
+2026-08-25 19:15:24,823 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 19:15:24,823 - root - INFO - Silver in hand: 1000
+2026-08-25 19:19:54,064 - root - DEBUG - 17429
+2026-08-25 19:19:54,065 - root - DEBUG - 2
+2026-08-25 19:19:54,065 - root - DEBUG - 8
+2026-08-25 19:19:54,065 - root - DEBUG - 7
+2026-08-25 19:19:54,065 - root - DEBUG - 11
+2026-08-25 19:19:54,065 - root - DEBUG - 9
+2026-08-25 19:19:54,065 - root - DEBUG - 16
+2026-08-25 19:19:54,065 - root - DEBUG - 4
+2026-08-25 19:19:54,066 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 2, <PlayerStat.CON: 'Constitution'>: 8, <PlayerStat.DEX: 'Dexterity'>: 7, <PlayerStat.INT: 'Intelligence'>: 11, <PlayerStat.STR: 'Strength'>: 9, <PlayerStat.WIS: 'Wisdom'>: 16, <PlayerStat.EGY: 'Energy'>: 4}
+2026-08-25 19:19:54,066 - root - DEBUG - Castle: (55, 76, 41)
+2026-08-25 19:19:54,066 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f7a65005e80>}
+2026-08-25 19:19:54,066 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 19:19:54,066 - root - INFO - Silver in hand: 1000
+2026-08-25 19:19:54,066 - root - DEBUG - 63770
+2026-08-25 19:19:54,066 - root - DEBUG - 16
+2026-08-25 19:19:54,066 - root - DEBUG - 14
+2026-08-25 19:19:54,066 - root - DEBUG - 9
+2026-08-25 19:19:54,066 - root - DEBUG - 13
+2026-08-25 19:19:54,066 - root - DEBUG - 15
+2026-08-25 19:19:54,066 - root - DEBUG - 15
+2026-08-25 19:19:54,067 - root - DEBUG - 17
+2026-08-25 19:19:54,067 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 16, <PlayerStat.CON: 'Constitution'>: 14, <PlayerStat.DEX: 'Dexterity'>: 9, <PlayerStat.INT: 'Intelligence'>: 13, <PlayerStat.STR: 'Strength'>: 15, <PlayerStat.WIS: 'Wisdom'>: 15, <PlayerStat.EGY: 'Energy'>: 17}
+2026-08-25 19:19:54,067 - root - DEBUG - Castle: (46, 29, 76)
+2026-08-25 19:19:54,067 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f7a65009bd0>}
+2026-08-25 19:19:54,067 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 19:19:54,067 - root - INFO - Silver in hand: 1000
+2026-08-25 19:20:56,004 - root - DEBUG - 35166
+2026-08-25 19:20:56,004 - root - DEBUG - 1
+2026-08-25 19:20:56,004 - root - DEBUG - 17
+2026-08-25 19:20:56,005 - root - DEBUG - 6
+2026-08-25 19:20:56,005 - root - DEBUG - 18
+2026-08-25 19:20:56,005 - root - DEBUG - 16
+2026-08-25 19:20:56,005 - root - DEBUG - 4
+2026-08-25 19:20:56,005 - root - DEBUG - 16
+2026-08-25 19:20:56,005 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 1, <PlayerStat.CON: 'Constitution'>: 17, <PlayerStat.DEX: 'Dexterity'>: 6, <PlayerStat.INT: 'Intelligence'>: 18, <PlayerStat.STR: 'Strength'>: 16, <PlayerStat.WIS: 'Wisdom'>: 4, <PlayerStat.EGY: 'Energy'>: 16}
+2026-08-25 19:20:56,005 - root - DEBUG - Castle: (81, 52, 4)
+2026-08-25 19:20:56,005 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fcc47155e80>}
+2026-08-25 19:20:56,005 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 19:20:56,005 - root - INFO - Silver in hand: 1000
+2026-08-25 19:20:56,005 - root - DEBUG - 61856
+2026-08-25 19:20:56,005 - root - DEBUG - 9
+2026-08-25 19:20:56,005 - root - DEBUG - 6
+2026-08-25 19:20:56,005 - root - DEBUG - 3
+2026-08-25 19:20:56,005 - root - DEBUG - 6
+2026-08-25 19:20:56,005 - root - DEBUG - 12
+2026-08-25 19:20:56,005 - root - DEBUG - 4
+2026-08-25 19:20:56,005 - root - DEBUG - 16
+2026-08-25 19:20:56,005 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 9, <PlayerStat.CON: 'Constitution'>: 6, <PlayerStat.DEX: 'Dexterity'>: 3, <PlayerStat.INT: 'Intelligence'>: 6, <PlayerStat.STR: 'Strength'>: 12, <PlayerStat.WIS: 'Wisdom'>: 4, <PlayerStat.EGY: 'Energy'>: 16}
+2026-08-25 19:20:56,005 - root - DEBUG - Castle: (53, 63, 60)
+2026-08-25 19:20:56,005 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fcc47159bd0>}
+2026-08-25 19:20:56,005 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 19:20:56,005 - root - INFO - Silver in hand: 1000
+2026-08-25 19:23:06,629 - root - WARNING - colorama not available; ANSI color output will be plain text.
+2026-08-25 19:23:06,630 - root - WARNING - cbmcodecs2 not available; PETSCII output will be ASCII only.
+2026-08-25 19:23:06,713 - root - DEBUG - ANSIColors: Colorama not installed
+2026-08-25 19:30:02,004 - root - DEBUG - 21932
+2026-08-25 19:30:02,005 - root - DEBUG - 17
+2026-08-25 19:30:02,005 - root - DEBUG - 13
+2026-08-25 19:30:02,005 - root - DEBUG - 12
+2026-08-25 19:30:02,006 - root - DEBUG - 12
+2026-08-25 19:30:02,006 - root - DEBUG - 4
+2026-08-25 19:30:02,006 - root - DEBUG - 4
+2026-08-25 19:30:02,006 - root - DEBUG - 2
+2026-08-25 19:30:02,006 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 17, <PlayerStat.CON: 'Constitution'>: 13, <PlayerStat.DEX: 'Dexterity'>: 12, <PlayerStat.INT: 'Intelligence'>: 12, <PlayerStat.STR: 'Strength'>: 4, <PlayerStat.WIS: 'Wisdom'>: 4, <PlayerStat.EGY: 'Energy'>: 2}
+2026-08-25 19:30:02,006 - root - DEBUG - Castle: (25, 76, 9)
+2026-08-25 19:30:02,006 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f996e1d1e80>}
+2026-08-25 19:30:02,006 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 19:30:02,006 - root - INFO - Silver in hand: 1000
+2026-08-25 19:30:02,007 - root - DEBUG - 7402
+2026-08-25 19:30:02,007 - root - DEBUG - 13
+2026-08-25 19:30:02,007 - root - DEBUG - 8
+2026-08-25 19:30:02,007 - root - DEBUG - 3
+2026-08-25 19:30:02,007 - root - DEBUG - 13
+2026-08-25 19:30:02,007 - root - DEBUG - 16
+2026-08-25 19:30:02,007 - root - DEBUG - 2
+2026-08-25 19:30:02,007 - root - DEBUG - 15
+2026-08-25 19:30:02,007 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 13, <PlayerStat.CON: 'Constitution'>: 8, <PlayerStat.DEX: 'Dexterity'>: 3, <PlayerStat.INT: 'Intelligence'>: 13, <PlayerStat.STR: 'Strength'>: 16, <PlayerStat.WIS: 'Wisdom'>: 2, <PlayerStat.EGY: 'Energy'>: 15}
+2026-08-25 19:30:02,007 - root - DEBUG - Castle: (26, 75, 62)
+2026-08-25 19:30:02,007 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f996e1d5bd0>}
+2026-08-25 19:30:02,008 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 19:30:02,008 - root - INFO - Silver in hand: 1000
+2026-08-25 19:33:19,561 - root - DEBUG - 8217
+2026-08-25 19:33:19,562 - root - DEBUG - 6
+2026-08-25 19:33:19,562 - root - DEBUG - 3
+2026-08-25 19:33:19,562 - root - DEBUG - 10
+2026-08-25 19:33:19,562 - root - DEBUG - 14
+2026-08-25 19:33:19,562 - root - DEBUG - 4
+2026-08-25 19:33:19,562 - root - DEBUG - 4
+2026-08-25 19:33:19,562 - root - DEBUG - 13
+2026-08-25 19:33:19,562 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 6, <PlayerStat.CON: 'Constitution'>: 3, <PlayerStat.DEX: 'Dexterity'>: 10, <PlayerStat.INT: 'Intelligence'>: 14, <PlayerStat.STR: 'Strength'>: 4, <PlayerStat.WIS: 'Wisdom'>: 4, <PlayerStat.EGY: 'Energy'>: 13}
+2026-08-25 19:33:19,562 - root - DEBUG - Castle: (51, 67, 79)
+2026-08-25 19:33:19,562 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f08de159e80>}
+2026-08-25 19:33:19,562 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 19:33:19,562 - root - INFO - Silver in hand: 1000
+2026-08-25 19:33:19,563 - root - DEBUG - 34635
+2026-08-25 19:33:19,563 - root - DEBUG - 9
+2026-08-25 19:33:19,563 - root - DEBUG - 1
+2026-08-25 19:33:19,563 - root - DEBUG - 3
+2026-08-25 19:33:19,563 - root - DEBUG - 13
+2026-08-25 19:33:19,563 - root - DEBUG - 7
+2026-08-25 19:33:19,563 - root - DEBUG - 13
+2026-08-25 19:33:19,563 - root - DEBUG - 6
+2026-08-25 19:33:19,563 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 9, <PlayerStat.CON: 'Constitution'>: 1, <PlayerStat.DEX: 'Dexterity'>: 3, <PlayerStat.INT: 'Intelligence'>: 13, <PlayerStat.STR: 'Strength'>: 7, <PlayerStat.WIS: 'Wisdom'>: 13, <PlayerStat.EGY: 'Energy'>: 6}
+2026-08-25 19:33:19,563 - root - DEBUG - Castle: (83, 19, 1)
+2026-08-25 19:33:19,563 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f08de15dbd0>}
+2026-08-25 19:33:19,563 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 19:33:19,563 - root - INFO - Silver in hand: 1000
+2026-08-25 21:03:11,010 - root - DEBUG - 6514
+2026-08-25 21:03:11,017 - root - DEBUG - 1
+2026-08-25 21:03:11,017 - root - DEBUG - 4
+2026-08-25 21:03:11,017 - root - DEBUG - 1
+2026-08-25 21:03:11,017 - root - DEBUG - 18
+2026-08-25 21:03:11,018 - root - DEBUG - 14
+2026-08-25 21:03:11,018 - root - DEBUG - 14
+2026-08-25 21:03:11,018 - root - DEBUG - 17
+2026-08-25 21:03:11,018 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 1, <PlayerStat.CON: 'Constitution'>: 4, <PlayerStat.DEX: 'Dexterity'>: 1, <PlayerStat.INT: 'Intelligence'>: 18, <PlayerStat.STR: 'Strength'>: 14, <PlayerStat.WIS: 'Wisdom'>: 14, <PlayerStat.EGY: 'Energy'>: 17}
+2026-08-25 21:03:11,018 - root - DEBUG - Castle: (16, 8, 79)
+2026-08-25 21:03:11,018 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f1f0eb5dfd0>}
+2026-08-25 21:03:11,018 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 21:03:11,018 - root - INFO - Silver in hand: 1000
+2026-08-25 21:03:11,018 - root - DEBUG - 21191
+2026-08-25 21:03:11,018 - root - DEBUG - 12
+2026-08-25 21:03:11,018 - root - DEBUG - 3
+2026-08-25 21:03:11,018 - root - DEBUG - 6
+2026-08-25 21:03:11,018 - root - DEBUG - 2
+2026-08-25 21:03:11,018 - root - DEBUG - 8
+2026-08-25 21:03:11,018 - root - DEBUG - 14
+2026-08-25 21:03:11,018 - root - DEBUG - 1
+2026-08-25 21:03:11,018 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 12, <PlayerStat.CON: 'Constitution'>: 3, <PlayerStat.DEX: 'Dexterity'>: 6, <PlayerStat.INT: 'Intelligence'>: 2, <PlayerStat.STR: 'Strength'>: 8, <PlayerStat.WIS: 'Wisdom'>: 14, <PlayerStat.EGY: 'Energy'>: 1}
+2026-08-25 21:03:11,018 - root - DEBUG - Castle: (21, 83, 69)
+2026-08-25 21:03:11,018 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7f1f0eb75bd0>}
+2026-08-25 21:03:11,018 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 21:03:11,018 - root - INFO - Silver in hand: 1000
+2026-08-25 21:49:01,874 - root - DEBUG - 57844
+2026-08-25 21:49:01,875 - root - DEBUG - 11
+2026-08-25 21:49:01,875 - root - DEBUG - 17
+2026-08-25 21:49:01,875 - root - DEBUG - 13
+2026-08-25 21:49:01,875 - root - DEBUG - 15
+2026-08-25 21:49:01,875 - root - DEBUG - 8
+2026-08-25 21:49:01,875 - root - DEBUG - 3
+2026-08-25 21:49:01,875 - root - DEBUG - 1
+2026-08-25 21:49:01,875 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 11, <PlayerStat.CON: 'Constitution'>: 17, <PlayerStat.DEX: 'Dexterity'>: 13, <PlayerStat.INT: 'Intelligence'>: 15, <PlayerStat.STR: 'Strength'>: 8, <PlayerStat.WIS: 'Wisdom'>: 3, <PlayerStat.EGY: 'Energy'>: 1}
+2026-08-25 21:49:01,875 - root - DEBUG - Castle: (95, 58, 91)
+2026-08-25 21:49:01,875 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fbabd3b9e80>}
+2026-08-25 21:49:01,875 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 21:49:01,875 - root - INFO - Silver in hand: 1000
+2026-08-25 21:49:01,875 - root - DEBUG - 31041
+2026-08-25 21:49:01,875 - root - DEBUG - 12
+2026-08-25 21:49:01,875 - root - DEBUG - 16
+2026-08-25 21:49:01,875 - root - DEBUG - 3
+2026-08-25 21:49:01,875 - root - DEBUG - 16
+2026-08-25 21:49:01,875 - root - DEBUG - 4
+2026-08-25 21:49:01,875 - root - DEBUG - 11
+2026-08-25 21:49:01,875 - root - DEBUG - 10
+2026-08-25 21:49:01,875 - root - DEBUG - {<PlayerStat.CHR: 'Charisma'>: 12, <PlayerStat.CON: 'Constitution'>: 16, <PlayerStat.DEX: 'Dexterity'>: 3, <PlayerStat.INT: 'Intelligence'>: 16, <PlayerStat.STR: 'Strength'>: 4, <PlayerStat.WIS: 'Wisdom'>: 11, <PlayerStat.EGY: 'Energy'>: 10}
+2026-08-25 21:49:01,875 - root - DEBUG - Castle: (16, 74, 73)
+2026-08-25 21:49:01,875 - root - DEBUG - {<CombinationTypes.CASTLE: 'Castle'>: <base_classes.Combination object at 0x7fbabd3bdbd0>}
+2026-08-25 21:49:01,875 - root - INFO - {<PlayerMoneyTypes.IN_HAND: 'IN_HAND'>: 1000, <PlayerMoneyTypes.IN_BANK: 'IN_BANK'>: 2000, <PlayerMoneyTypes.IN_BAR: 'IN_BAR'>: 3000}
+2026-08-25 21:49:01,876 - root - INFO - Silver in hand: 1000
+2026-08-25 22:53:45,858 - root - WARNING - colorama not available; ANSI color output will be plain text.
+2026-08-25 22:53:45,858 - root - WARNING - cbmcodecs2 not available; PETSCII output will be ASCII only.
+2026-08-25 22:53:45,892 - root - DEBUG - ANSIColors: Colorama not installed
+2026-08-25 22:55:12,818 - root - WARNING - colorama not available; ANSI color output will be plain text.
+2026-08-25 22:55:12,818 - root - WARNING - cbmcodecs2 not available; PETSCII output will be ASCII only.
+2026-08-25 22:55:12,846 - root - DEBUG - ANSIColors: Colorama not installed
