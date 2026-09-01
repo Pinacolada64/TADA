@@ -820,5 +820,108 @@ class TestBoardAccessGating(BoardCommandTestCase):
         self.assertEqual(ctx.prompt.await_count, 0)
 
 
+class TestReadScanAllNew(BoardCommandTestCase):
+    """'board ra' (Read All new -- full text) / 'board sa' (Scan All
+    new -- headers only), both across every SIG/board the player can
+    access, not just the current one -- Phase 4 of the sig-editor plan."""
+
+    def _seed_two_sigs(self):
+        # Two SIGs, one board each -- General (open) and Sword-Only
+        # (gated), each with one old and one new thread (threshold
+        # 2026-01-01, set per-test on the player).
+        board_store.sigs.save_sigs({'sigs': [
+            {'id': 1, 'name': 'Town Square', 'board_ids': [1]},
+            {'id': 2, 'name': 'Guild Hall', 'board_ids': [2]},
+        ]}, self.sigs_path)
+        board_store.meta.save_meta({'boards': {
+            '1': {'id': 1, 'name': 'General', 'anonymous_mode': 'ask',
+                  'access': {'type': 'any'}, 'admins': []},
+            '2': {'id': 2, 'name': 'Sword-Only', 'anonymous_mode': 'ask',
+                  'access': {'type': 'guild', 'value': Guild.SWORD.value}, 'admins': []},
+        }}, self.config_path)
+        self._seed([
+            {'id': 1, 'board_id': 1, 'title': 'Old General', 'author': 'a', 'anonymous': False,
+             'posted_at': '2020-01-01T00:00:00', 'body': [], 'replies': []},
+            {'id': 2, 'board_id': 1, 'title': 'New General', 'author': 'a', 'anonymous': False,
+             'posted_at': '2030-01-01T00:00:00', 'body': [{'text': 'hi'}], 'replies': []},
+            {'id': 3, 'board_id': 2, 'title': 'Old Sword', 'author': 'a', 'anonymous': False,
+             'posted_at': '2020-01-01T00:00:00', 'body': [], 'replies': []},
+            {'id': 4, 'board_id': 2, 'title': 'New Sword', 'author': 'a', 'anonymous': False,
+             'posted_at': '2030-01-01T00:00:00', 'body': [{'text': 'psst'}], 'replies': []},
+        ])
+
+    def test_ra_shows_new_threads_across_every_accessible_board(self):
+        self._seed_two_sigs()
+        player = _FakePlayer(guild=Guild.SWORD)
+        player.command_settings.board.last_date = '2026-01-01'
+        ctx = make_ctx(player=player, prompts=[''])
+        run(BoardCommand().execute(ctx, 'ra'))
+        sent = str(ctx.send.call_args_list)
+        self.assertIn('New General', sent)
+        self.assertIn('New Sword', sent)
+        self.assertNotIn('Old General', sent)
+        self.assertNotIn('Old Sword', sent)
+
+    def test_ra_excludes_a_gated_board_the_player_cant_access(self):
+        self._seed_two_sigs()
+        player = _FakePlayer(guild=Guild.CIVILIAN)
+        player.command_settings.board.last_date = '2026-01-01'
+        ctx = make_ctx(player=player, prompts=[''])
+        run(BoardCommand().execute(ctx, 'ra'))
+        sent = str(ctx.send.call_args_list)
+        self.assertIn('New General', sent)
+        self.assertNotIn('New Sword', sent)
+
+    def test_ra_stops_early_on_q(self):
+        self._seed_two_sigs()
+        player = _FakePlayer(guild=Guild.SWORD)
+        player.command_settings.board.last_date = '2026-01-01'
+        ctx = make_ctx(player=player, prompts=['q'])
+        result = run(BoardCommand().execute(ctx, 'ra'))
+        self.assertTrue(result.success)
+        self.assertEqual(ctx.prompt.await_count, 1)
+
+    def test_ra_no_new_messages_reports_cleanly(self):
+        self._seed_two_sigs()
+        player = _FakePlayer(guild=Guild.SWORD)
+        player.command_settings.board.last_date = '2031-01-01'
+        ctx = make_ctx(player=player)
+        result = run(BoardCommand().execute(ctx, 'ra'))
+        self.assertTrue(result.success)
+        self.assertIn('No new messages.', str(ctx.send.call_args_list))
+        self.assertEqual(ctx.prompt.await_count, 0)
+
+    def test_sa_shows_headers_not_bodies(self):
+        self._seed_two_sigs()
+        player = _FakePlayer(guild=Guild.SWORD)
+        player.command_settings.board.last_date = '2026-01-01'
+        ctx = make_ctx(player=player)
+        run(BoardCommand().execute(ctx, 'sa'))
+        sent = str(ctx.send.call_args_list)
+        self.assertIn('New General', sent)
+        self.assertIn('New Sword', sent)
+        self.assertNotIn('hi', sent)
+        self.assertNotIn('psst', sent)
+        # No pagination for scan -- one single ctx.send() call.
+        self.assertEqual(ctx.send.call_count, 1)
+
+    def test_sa_excludes_a_gated_board(self):
+        self._seed_two_sigs()
+        player = _FakePlayer(guild=Guild.CIVILIAN)
+        player.command_settings.board.last_date = '2026-01-01'
+        ctx = make_ctx(player=player)
+        run(BoardCommand().execute(ctx, 'sa'))
+        sent = str(ctx.send.call_args_list)
+        self.assertNotIn('New Sword', sent)
+
+    def test_ra_works_on_a_default_single_board_install(self):
+        # No SIG/board editor ever touched -- single-board-shortcut path.
+        self._seed([{'id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,
+                      'posted_at': '2030-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []}])
+        ctx = make_ctx()
+        run(BoardCommand().execute(ctx, 'ra'))
+        self.assertIn('Hello', str(ctx.send.call_args_list))
+
+
 if __name__ == '__main__':
     unittest.main()

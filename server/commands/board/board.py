@@ -6,7 +6,13 @@ the in-game command surface:
 
   board                 — list all threads (id, title, author, replies)
   board rn               — list only threads with activity since your
-                            own "read new" threshold (see 'board ld')
+                            own "read new" threshold (see 'board ld'),
+                            on the current board only
+  board ra                — Read All (new): full text of every new
+                            thread across every SIG/board you can
+                            access, not just the current one
+  board sa                — Scan All (new): same scope as 'board ra',
+                            headers only (no message bodies)
   board ld                — set/move that threshold -- an absolute date,
                             or a relative shortcut ('week', '2 months', ...)
   board <id>             — read one thread in full (root post + replies)
@@ -364,7 +370,9 @@ class BoardCommand(Command):
         category = HelpCategory.COMMUNICATION,
         usage    = [
             ('board',             'List all threads.'),
-            ('board rn',          "List only threads new since your last 'board ld'."),
+            ('board rn',          "List only threads new since your last 'board ld', on this board."),
+            ('board ra',          'Read All new threads (full text) across every SIG/board you can access.'),
+            ('board sa',          'Scan All new threads (headers only) across every SIG/board you can access.'),
             ('board ld',          'Set/move your "read new" threshold date.'),
             ('board <id>',        'Read one thread in full.'),
             ('board post',        'Start a new thread.'),
@@ -415,6 +423,10 @@ class BoardCommand(Command):
             return await self._delete(ctx, positional[1])
         if sub == 'rn':
             return await self._list(ctx, new_only=True)
+        if sub == 'ra':
+            return await self._read_all_new(ctx)
+        if sub == 'sa':
+            return await self._scan_all_new(ctx)
         if sub == 'ld':
             return await self._set_last_date(ctx)
         if positional and positional[0].isdigit():
@@ -644,6 +656,87 @@ class BoardCommand(Command):
         settings.board.last_date = result.isoformat() if result else None
         ctx.player.unsaved_changes = True
         return CommandResult.ok('Threshold set.')
+
+    # ------------------------------------------------------------------
+    # "Read All" / "Scan All" new (board ra / board sa) -- Phase 4 of the
+    # sig-editor plan (ImageBBS-style RA/SA): same "read new" threshold
+    # as 'board rn', but walking every SIG/board the player can access
+    # instead of just the one they happen to be viewing.
+    # ------------------------------------------------------------------
+
+    def _new_threads_by_board(self, ctx) -> list[tuple[dict | None, dict, dict]]:
+        """[(sig_or_None, board_meta, thread), ...] for every thread with
+        activity since the player's 'board ld' threshold, across every
+        SIG/board they can access -- SIG/board order, thread order
+        within each board. sig is None only for the single-board-
+        shortcut install (no real SIG structure configured yet); a
+        gated SIG/board is silently excluded, same as pick_board()'s
+        own pickers (see board/access.py's visible_sigs()/
+        accessible_board_ids())."""
+        since = self._last_date(ctx)
+        all_threads = board_store.load_board()
+        sig_list = board_store.sigs.load_sigs().get('sigs', [])
+        meta_data = board_store.meta.load_meta()
+
+        if _single_board_shortcut(sig_list):
+            board = board_store.meta.get_board(meta_data, _DEFAULT_BOARD_ID)
+            boards = [(sig_list[0] if sig_list else None, board)] \
+                if board_store.player_can_access(ctx.player, board) else []
+        else:
+            boards = [
+                (sig, board_store.meta.get_board(meta_data, bid))
+                for sig in board_store.visible_sigs(ctx.player, sig_list, meta_data)
+                for bid in board_store.accessible_board_ids(ctx.player, meta_data, sig.get('board_ids', []))
+            ]
+
+        items = []
+        for sig, board in boards:
+            board_threads = _threads_for_board(all_threads, board['id'])
+            items += [(sig, board, t) for t in board_threads if board_store.is_new_since(t, since)]
+        return items
+
+    @staticmethod
+    def _sig_board_label(sig: dict | None, board: dict) -> str:
+        board_name = board.get('name', '(unnamed)')
+        return f"{sig['name']} > {board_name}" if sig else board_name
+
+    async def _read_all_new(self, ctx) -> CommandResult:
+        items = self._new_threads_by_board(ctx)
+        if not items:
+            await ctx.send('No new messages.')
+            return CommandResult.ok('No new messages.')
+
+        privileged = _is_privileged(ctx.player)
+        for i, (sig, board, thread) in enumerate(items):
+            await ctx.send(
+                ['', f"|yellow|{self._sig_board_label(sig, board)}|reset|"]
+                + board_store.format_thread(thread, ctx, privileged) + [''])
+            if i < len(items) - 1:
+                raw = await ctx.prompt(f'{ctx.player.return_key} for next, Q to stop')
+                if raw is None or raw.strip().lower() == 'q':
+                    return CommandResult.ok(f'Stopped after {i + 1} of {len(items)}.')
+        return CommandResult.ok(f'Read {len(items)} new thread(s).')
+
+    async def _scan_all_new(self, ctx) -> CommandResult:
+        items = self._new_threads_by_board(ctx)
+        if not items:
+            await ctx.send('No new messages.')
+            return CommandResult.ok('No new messages.')
+
+        privileged = _is_privileged(ctx.player)
+        lines = []
+        last_label = None
+        for sig, board, thread in items:
+            label = self._sig_board_label(sig, board)
+            if label != last_label:
+                lines += ['', f'|yellow|{label}|reset|']
+                last_label = label
+            title = f"#{thread.get('id', 0)}  {thread.get('title', '(untitled)')}"
+            lines += board_store.MessageHeader.for_entry(
+                thread, title, privileged, ctx.player,
+                reply_count=len(thread.get('replies', []))).display()
+        await ctx.send(lines + [''])
+        return CommandResult.ok(f'Scanned {len(items)} new thread(s).')
 
     # ------------------------------------------------------------------
     # Posting / replying (any logged-in player)
