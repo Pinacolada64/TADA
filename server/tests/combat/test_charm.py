@@ -334,5 +334,49 @@ class TestBystanderBroadcasts(_IsolatedBattleLog):
         return base
 
 
+class TestSpontaneousCharmPluralLine(unittest.IsolatedAsyncioTestCase):
+    """encounters/monster.py:_try_spontaneous_charm's "looks at you adoringly"
+    line + the pending_charm dict it seeds -- both must honour the
+    multiple_monsters flag the same way the potion path does."""
+
+    def _ctx_and_monster(self, *, multiple_monsters):
+        ctx = MagicMock()
+        ctx.player = MagicMock()
+        ctx.player.name = 'Railbender'
+        ctx.player.stats = {}
+        ctx.player.xp_level = 1
+        ctx.player.honor = 1000
+        ctx.player.char_class = None
+        ctx.player.char_race = None
+        ctx.player.pending_charm = None
+        ctx.send = AsyncMock()
+        monster = {
+            'number': 50, 'name': 'MUNCHKINS', 'size': 'small',
+            'strength': 10, 'to_hit': 5,
+            # 'charmable' forces charmed=True unconditionally, so no roll to mock
+            'flags': {'charmable': True, 'multiple_monsters': multiple_monsters},
+        }
+        return ctx, monster
+
+    async def _run(self, *, multiple_monsters):
+        from encounters.monster import _try_spontaneous_charm
+        ctx, monster = self._ctx_and_monster(multiple_monsters=multiple_monsters)
+        with patch('bar.allies.owned_allies', return_value=[]):
+            joined = await _try_spontaneous_charm(ctx, monster, 50, level=1, room_no=5)
+        self.assertTrue(joined)
+        sent = ' '.join(str(a) for c in ctx.send.await_args_list for a in c.args)
+        return ctx.player.pending_charm, sent
+
+    async def test_multiple_monsters_plural(self):
+        pending, sent = await self._run(multiple_monsters=True)
+        self.assertIn('MUNCHKINS look at you adoringly...', sent)
+        self.assertTrue(pending['multiple_monsters'])
+
+    async def test_single_monster_singular(self):
+        pending, sent = await self._run(multiple_monsters=False)
+        self.assertIn('MUNCHKINS looks at you adoringly...', sent)
+        self.assertFalse(pending['multiple_monsters'])
+
+
 if __name__ == '__main__':
     unittest.main()
