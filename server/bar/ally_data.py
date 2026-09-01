@@ -112,7 +112,9 @@ class Ally:
         self.items: list = []   # items given by player via GIVE (persisted, see party.py)
         # Weapon combat (TADA-only extension -- SPUR allies never carry a
         # weapons.json entry, see combat/resolution.py ally_attacks()).
-        # Auto-readied by commands/give.py when the player GIVEs a Weapon.
+        # A GIVEn weapon lands in self.items; the player chooses when the
+        # ally actually wields it via READY (commands/ready.py's
+        # _toggle_ally_weapon) -- alpha testers disliked auto-readying.
         self.readied_weapon = None       # items.Weapon or None
         self.ammo_rounds: int = 0        # rounds currently loaded
         self.ammo_max:    int = 0        # capacity, for recovery/display
