@@ -200,10 +200,19 @@ class TestBorderRendering(unittest.TestCase):
         top = Line(border=Border(char='*', role=BorderRole.TOP))
         self.assertEqual(top.render(10), '+********+')
 
-    def test_long_content_truncated_to_interior(self):
+    def test_long_content_wraps_to_interior_width(self):
+        # Over-long content word-wraps to the box's inner width rather than
+        # truncating (or overflowing and breaking the frame) -- each
+        # physical row is a full-width bordered line.
         content = Line(text='this is way too long for the box',
                         border=Border(role=BorderRole.CONTENT))
-        self.assertEqual(len(content.render(10)), 10)
+        rows = content.render(10).split('\n')
+        self.assertGreater(len(rows), 1)
+        for row in rows:
+            self.assertEqual(len(row), 10)
+            self.assertTrue(row.startswith('| ') and row.endswith(' |'))
+        joined = ' '.join(r[2:-2].strip() for r in rows)
+        self.assertEqual(joined, 'this is way too long for the box')
 
     def test_same_line_renders_wider_at_a_different_width(self):
         # the whole point: no box-drawing characters are baked into .text,
@@ -723,6 +732,29 @@ class TestBorderTerminalAwareGlyphs(unittest.IsolatedAsyncioTestCase):
         result = await run_editor(ctx, initial_lines=['hi'])
         rendered = render_lines(deserialize_lines(result), ctx, 20)
         self.assertTrue(rendered[0].startswith('+*'))
+
+    async def test_long_content_wraps_inside_box_without_breaking_frame(self):
+        # Regression: a content line longer than the box interior used to
+        # overflow make_box()'s padding, shoving the right border past the
+        # screen edge so the terminal wrapped it and split the frame.
+        from terminal import Translation
+        long_line = ('An upcoming BUG command will be available to forward a '
+                     'bug to a Dungeon Master.')
+        ctx = _make_real_settings_ctx(['.b 1', '.s'], Translation.ANSI,
+                                      screen_columns=40)
+        result = await run_editor(ctx, initial_lines=[long_line])
+        rendered = render_lines(deserialize_lines(result), ctx, 40)
+        # still one output entry per input Line: top, one content, bottom
+        self.assertEqual(len(rendered), 3)
+        self.assertEqual(rendered[0][0], '┌')
+        self.assertEqual(rendered[-1][0], '└')
+        rows = rendered[1].split('\n')
+        self.assertGreater(len(rows), 1)
+        for row in rows:
+            self.assertEqual(len(row), 40)
+            self.assertTrue(row.startswith('│') and row.endswith('│'))
+        joined = ' '.join(r.strip('│').strip() for r in rows)
+        self.assertEqual(joined, long_line)
 
 
 class TestFindAndReplace(unittest.IsolatedAsyncioTestCase):
