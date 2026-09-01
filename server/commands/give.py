@@ -376,12 +376,33 @@ class GiveCommand(Command):
             await ctx.send("Can't, you are wearing it!")
             return CommandResult.ok()
 
-        # Require a target
+        # Require a target -- no target given, so offer a pick list of
+        # allies rather than just erroring out (Ryan's request: bare
+        # 'give <item>' should be as guided as bare 'give' is for items).
         if not target_words:
-            await ctx.send('Give it to whom?  (Try: give <item> to <name>)')
-            return CommandResult.ok()
-
-        target = ' '.join(target_words).lower()
+            allies = purchased_allies(player)
+            if not allies:
+                await ctx.send('Give it to whom?  (Try: give <item> to <name>)')
+                return CommandResult.ok()
+            lines = ['', 'Give to which ally:']
+            for i, a in enumerate(allies, 1):
+                lines.append(f'  {i:>2}. {a.name}')
+            lines.append('')
+            await ctx.send(lines)
+            raw = await ctx.prompt(preamble_lines=f'(1-{len(allies)}, {ctx.player.return_key} to cancel)',
+                                   prompt_text="Give to whom")
+            if not raw or not raw.strip():
+                return CommandResult.ok()
+            try:
+                idx = int(raw.strip()) - 1
+                if not (0 <= idx < len(allies)):
+                    raise ValueError
+            except ValueError:
+                await ctx.send('Invalid selection.')
+                return CommandResult.ok()
+            target = allies[idx].name.lower()
+        else:
+            target = ' '.join(target_words).lower()
 
         # --- Ally ---
         allies = purchased_allies(player)
