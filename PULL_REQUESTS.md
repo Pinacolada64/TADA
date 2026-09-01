@@ -5,17 +5,28 @@ and/or tip commit), name, and a short summary of what the change adds or fixes.
 
 - **PR data** comes from GitHub (`gh pr list --state all`); it is independent of
   which local branch this file lives on.
-- **Unfiled branches** are pushed to origin but have no PR opened yet, so they
-  are keyed on tip commit hash.
 
-Sections: Unfiled branches → Open PRs → Merged PRs (newest first).
+Sections: Open PRs → Merged PRs (newest first).
 
 ---
 
-## Unfiled branches (pushed, no PR yet)
+## Open PRs
 
-### `feature/ally-stat-caps` — allies: cap strength / to-hit / HP to SPUR ceilings; SPUR-faithful Fat Olaf MAINTAIN
-- **Tip:** `6e8e0cc` · **Base:** `ready-ally-weapons`
+### Stacked set — allies (#34 → #35, #36)
+
+`#35` and `#36` branched off `ready-ally-weapons`, so they target it rather than
+`master`; merge `#34` first and GitHub retargets them.
+
+#### [#34](https://github.com/Pinacolada64/TADA/pull/34) `ready-ally-weapons` → `master` — READY / UNREADY: ready & unready allies' weapons
+- **Tip:** `7121e39`
+- `GIVE <weapon> to <ally>` no longer auto-readies the weapon — it just stows it
+  in the ally's pack. The player chooses when the ally wields it via `READY`
+  (bare list or `ready <name>`), which toggles `ally.readied_weapon`;
+  `UNREADY <ally>` is the mirror. Ammo still loads only into a readied ally
+  weapon. Alpha-tester feedback: auto-readying on GIVE made no sense.
+
+#### [#35](https://github.com/Pinacolada64/TADA/pull/35) `feature/ally-stat-caps` → `ready-ally-weapons` — cap ally strength / to-hit / HP to SPUR ceilings; SPUR-faithful Fat Olaf MAINTAIN
+- **Tip:** `6e8e0cc`
 - Ally stats had no ceiling and ran away to absurd values. Adds caps derived
   from the SPUR source — strength **25** (sysop max 20 + Fat Olaf's `+5` hire),
   to-hit **0–9**, HP **50** (SPUR has no ally-HP stat; the port's `strength × 2`
@@ -28,8 +39,8 @@ Sections: Unfiled branches → Open PRs → Merged PRs (newest first).
   **"Character / NPC Stats"** and gains an `[E]dit stats` option on the ally and
   horse prompts.
 
-### `feature/give-drink-polish` — give ally pick-list + drink pool confirmation line
-- **Tip:** `ed9ed59` (2 commits) · **Base:** `ready-ally-weapons`
+#### [#36](https://github.com/Pinacolada64/TADA/pull/36) `feature/give-drink-polish` → `ready-ally-weapons` — give ally pick-list + drink pool confirmation line
+- **Tip:** `ed9ed59` (2 commits)
 - `2d7eb28` — bare `give <item>` with no `to <name>` now prints a numbered list
   of the player's allies and prompts for a choice instead of erroring out;
   falls back to the old "Give it to whom?" hint when the player has no allies.
@@ -37,17 +48,7 @@ Sections: Unfiled branches → Open PRs → Merged PRs (newest first).
   "(Your thirst has been quenched.)" for non-expert players, who previously got
   no confirmation that thirst was restored.
 
-### `ready-ally-weapons` — READY / UNREADY: let the player ready & unready allies' weapons
-- **Tip:** `7121e39` · **Base:** `master`
-- `GIVE <weapon> to <ally>` no longer auto-readies the weapon — it just stows it
-  in the ally's pack. The player chooses when the ally wields it via `READY`
-  (bare list or `ready <name>`), which toggles `ally.readied_weapon`;
-  `UNREADY <ally>` is the mirror. Ammo still loads only into a readied ally
-  weapon. Alpha-tester feedback: auto-readying on GIVE made no sense.
-
----
-
-## Open PRs
+### Others
 
 | PR | Branch | Title |
 |----|--------|-------|
