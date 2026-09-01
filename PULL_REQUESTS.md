@@ -12,20 +12,11 @@ Sections: Open PRs → Merged PRs (newest first).
 
 ## Open PRs
 
-### Stacked set — allies (#34 → #35, #36)
+### Allies set (#35, #36 — follow-ups to the merged #34)
 
-`#35` and `#36` branched off `ready-ally-weapons`, so they target it rather than
-`master`; merge `#34` first and GitHub retargets them.
+Both branched off `ready-ally-weapons`; retargeted to `master` after #34 merged.
 
-#### [#34](https://github.com/Pinacolada64/TADA/pull/34) `ready-ally-weapons` → `master` — READY / UNREADY: ready & unready allies' weapons
-- **Tip:** `7121e39`
-- `GIVE <weapon> to <ally>` no longer auto-readies the weapon — it just stows it
-  in the ally's pack. The player chooses when the ally wields it via `READY`
-  (bare list or `ready <name>`), which toggles `ally.readied_weapon`;
-  `UNREADY <ally>` is the mirror. Ammo still loads only into a readied ally
-  weapon. Alpha-tester feedback: auto-readying on GIVE made no sense.
-
-#### [#35](https://github.com/Pinacolada64/TADA/pull/35) `feature/ally-stat-caps` → `ready-ally-weapons` — cap ally strength / to-hit / HP to SPUR ceilings; SPUR-faithful Fat Olaf MAINTAIN
+#### [#35](https://github.com/Pinacolada64/TADA/pull/35) `feature/ally-stat-caps` → `master` — cap ally strength / to-hit / HP to SPUR ceilings; SPUR-faithful Fat Olaf MAINTAIN
 - **Tip:** `6e8e0cc`
 - Ally stats had no ceiling and ran away to absurd values. Adds caps derived
   from the SPUR source — strength **25** (sysop max 20 + Fat Olaf's `+5` hire),
@@ -39,7 +30,7 @@ Sections: Open PRs → Merged PRs (newest first).
   **"Character / NPC Stats"** and gains an `[E]dit stats` option on the ally and
   horse prompts.
 
-#### [#36](https://github.com/Pinacolada64/TADA/pull/36) `feature/give-drink-polish` → `ready-ally-weapons` — give ally pick-list + drink pool confirmation line
+#### [#36](https://github.com/Pinacolada64/TADA/pull/36) `feature/give-drink-polish` → `master` — give ally pick-list + drink pool confirmation line
 - **Tip:** `ed9ed59` (2 commits)
 - `2d7eb28` — bare `give <item>` with no `to <name>` now prints a numbered list
   of the player's allies and prompts for a choice instead of erroring out;
@@ -63,6 +54,7 @@ Sections: Open PRs → Merged PRs (newest first).
 
 | PR | Merge commit | Branch | Title |
 |----|--------------|--------|-------|
+| [#34](https://github.com/Pinacolada64/TADA/pull/34) | `9f65f71` | `ready-ally-weapons` | READY / UNREADY: ready & unready allies' weapons — `GIVE <weapon> to <ally>` stows instead of auto-readying; `READY`/`UNREADY <ally>` toggle `ally.readied_weapon`. |
 | #29 | `394cf09f` | `fix/e2e-login-banner-pagination` | Fix e2e login helpers hanging on the paginated login banner. |
 | #28 | `15ebe593` | `worktree-fix-baseline-test-failures` | Fix 14 pre-existing baseline test failures. |
 | #27 | `7dda8ecd` | `worktree-editplayer-armor-shield-range` | Bound editplayer Armor/Shield to 0–100; note STR/DEX/armor-class TODOs. |
