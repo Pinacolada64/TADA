@@ -176,7 +176,9 @@ class Party:
             member_type = item.get('type')
             try:
                 if member_type == 'ally':
-                    from bar.ally_data import Ally, AllyFlags, AllyPosition, AllyStatus
+                    from bar.ally_data import (
+                        Ally, AllyFlags, AllyPosition, AllyStatus, clamp_ally_stats,
+                    )
                     from base_classes import HorseBreed, HorseColor
                     from inventory import Inventory
                     flags = [
@@ -191,6 +193,10 @@ class Party:
                         flags,
                     )
                     ally.hit_points = item.get('hit_points', 0)
+                    # Clamp saves that predate the stat caps (bar/ally_data.py's
+                    # ALLY_STRENGTH_MAX etc.) or were hand-edited -- the ally
+                    # comes back in range instead of keeping a runaway value.
+                    clamp_ally_stats(ally)
                     breed_name = item.get('breed')
                     if breed_name in HorseBreed.__members__:
                         ally.breed = HorseBreed[breed_name]

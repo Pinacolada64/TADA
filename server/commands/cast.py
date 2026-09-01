@@ -265,7 +265,7 @@ def _cast_resurrect(player, success: bool) -> tuple[str, str]:
     "brought back to life" target this port actually tracks. Backfire
     strikes a living Ally unconscious instead, the same "real downside,
     not just flavor" shape as every other spell's backfire."""
-    from bar.ally_data import AllyStatus
+    from bar.ally_data import ALLY_HP_MAX, AllyStatus
     from bar.fat_olaf import _HP_PER_STRENGTH
 
     allies = [m for m in (getattr(player, 'party', None) or []) if hasattr(m, 'status')]
@@ -276,7 +276,7 @@ def _cast_resurrect(player, success: bool) -> tuple[str, str]:
         if target is None:
             return 'success', 'The spell finds no one in need of resurrection.'
         target.status = AllyStatus.SERVANT
-        target.hit_points = target.strength * _HP_PER_STRENGTH
+        target.hit_points = min(target.strength * _HP_PER_STRENGTH, ALLY_HP_MAX)
         player.unsaved_changes = True
         return 'success', f'{target.name} gasps and returns to life!'
 

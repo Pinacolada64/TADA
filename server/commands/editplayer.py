@@ -8,7 +8,9 @@ Menu layout mirrors the original C64 TADA Player Editor (tep v2.07):
   ├─  1. Alignment         natural + current alignment
   ├─  2. Armor/Shield      armor / shield protection values, shield skill
   ├─  3. Attributes        stats (CHR, CON, DEX, INT, STR, WIS, Energy)
-  ├─  4. Character Names   player name; rename allies and horse
+  ├─  4. Character / NPC Stats  player name; rename allies & horse, and
+  │                        edit their strength / to-hit / HP (clamped to
+  │                        the SPUR ceilings in bar/ally_data.py)
   ├─  5. Combinations      locker, elevator, castle, booby traps
   ├─  6. Command Settings  player.command_settings toggles (e.g. whereat hiding)
   ├─  7. Flags/Counters    all PlayerFlags grouped by category
@@ -460,7 +462,7 @@ def _build_main_menu(ctx) -> Menu:
     menu.add_item(MenuItem('Alignment',        shortcuts='al', submenu=_alignment_menu(ctx)))
     menu.add_item(MenuItem('Armor/Shield',     shortcuts='as', submenu=_armor_shield_menu(ctx)))
     menu.add_item(MenuItem('Attributes',       shortcuts='at', submenu=_attributes_menu(ctx)))
-    menu.add_item(MenuItem('Character Names',  shortcuts='cn', submenu=_names_menu(ctx)))
+    menu.add_item(MenuItem('Character / NPC Stats', shortcuts='cn', submenu=_names_menu(ctx)))
     menu.add_item(MenuItem('Combinations',     shortcuts='co', submenu=_combinations_menu(ctx)))
     menu.add_item(MenuItem('Command Settings', shortcuts='cs', submenu=_command_settings_menu(ctx)))
     menu.add_item(MenuItem('Flags/Counters',   shortcuts='fl', submenu=_flags_menu(ctx)))
@@ -1060,12 +1062,59 @@ async def _rename_ally(ctx, ally) -> None:
     await ctx.send(f'{old} renamed to {ally.name}.')
 
 
+async def _edit_ally_stats(ctx, ally) -> None:
+    """Edit an ally's (or the horse's) strength / to-hit / HP, each clamped
+    to the canonical SPUR ceilings in bar/ally_data.py (ALLY_STRENGTH_MAX 25,
+    to-hit 0-9, ALLY_HP_MAX 50). Loops so several stats can be set in one
+    visit; blank input finishes."""
+    from bar.ally_data import (
+        ALLY_HP_MAX, ALLY_STRENGTH_MAX, ALLY_TO_HIT_MAX, ALLY_TO_HIT_MIN,
+    )
+
+    while True:
+        raw = await ctx.prompt(
+            f'{ally.name} stats',
+            preamble_lines=[
+                f'Current:  Str {ally.strength}   '
+                f'To-hit {ally.to_hit} ({ally.to_hit * 10}%)   '
+                f'HP {ally.hit_points}',
+                f"[S]trength, [T]o-hit, [H]P, or {ctx.player.return_key} to finish:",
+            ],
+        )
+        choice = (raw or '').strip().lower()
+        if not choice:
+            return
+        if choice == 's':
+            val = await _prompt_int(ctx, f'{ally.name} strength',
+                                    ally.strength, 1, ALLY_STRENGTH_MAX)
+            if val is not None:
+                ally.strength = val
+                ctx.player.unsaved_changes = True
+                await ctx.send(f'{ally.name} strength set to {val}.')
+        elif choice == 't':
+            val = await _prompt_int(ctx, f'{ally.name} to-hit (x10 = %)',
+                                    ally.to_hit, ALLY_TO_HIT_MIN, ALLY_TO_HIT_MAX)
+            if val is not None:
+                ally.to_hit = val
+                ctx.player.unsaved_changes = True
+                await ctx.send(f'{ally.name} to-hit set to {val} ({val * 10}%).')
+        elif choice == 'h':
+            val = await _prompt_int(ctx, f'{ally.name} hit points',
+                                    ally.hit_points or 0, 0, ALLY_HP_MAX)
+            if val is not None:
+                ally.hit_points = val
+                ctx.player.unsaved_changes = True
+                await ctx.send(f'{ally.name} hit points set to {val}.')
+        else:
+            await ctx.send("Please choose 'S', 'T', or 'H'.")
+
+
 def _names_menu(ctx) -> Menu:
     from bar.allies import owned_allies
     from bar.ally_data import AllyFlags, AllyStatus
 
     p    = ctx.player
-    menu = _titled_menu(ctx, 'Character Names')
+    menu = _titled_menu(ctx, 'Character / NPC Stats')
 
     async def edit_name(ctx) -> None:
         raw = await ctx.prompt(
@@ -1225,8 +1274,9 @@ def _names_menu(ctx) -> Menu:
         raw = await ctx.prompt(
             ally.name,
             preamble_lines=[
-                f'Current: {ally.name}  Str {ally.strength}  {ally.to_hit * 10}%',
-                f"[N]ew name, [S]wap for a different ally, or "
+                f'Current: {ally.name}  Str {ally.strength}  {ally.to_hit * 10}%'
+                f'  HP {ally.hit_points}',
+                f"[N]ew name, [S]wap for a different ally, [E]dit stats, or "
                 f"{ctx.player.return_key} to cancel:",
             ],
         )
@@ -1237,8 +1287,10 @@ def _names_menu(ctx) -> Menu:
             await _rename_ally(ctx, ally)
         elif choice == 's':
             await _swap_ally(ctx, slot)
+        elif choice == 'e':
+            await _edit_ally_stats(ctx, ally)
         else:
-            await ctx.send("Please choose 'N' or 'S'.")
+            await ctx.send("Please choose 'N', 'S', or 'E'.")
 
     def _horse() -> Optional[object]:
         return next((a for a in owned_allies(p) if AllyFlags.MOUNT in (a.flags or [])), None)
@@ -1350,8 +1402,10 @@ def _names_menu(ctx) -> Menu:
             return
 
         bolted = mount.status == AllyStatus.BOLTED
-        options = "[N]ew name, [R]emove horse" + (", [C] recall bolted horse" if bolted else "")
-        current_line = f'Current: {mount.name}  Str {mount.strength}'
+        options = ("[N]ew name, [R]emove horse, [E]dit stats"
+                   + (", [C] recall bolted horse" if bolted else ""))
+        current_line = (f'Current: {mount.name}  Str {mount.strength}  '
+                        f'{mount.to_hit * 10}%  HP {mount.hit_points}')
         if bolted:
             current_line += f'  [BOLTED -- Level {mount.bolt_map_level} Room {mount.bolt_room_no}]'
         raw = await ctx.prompt(
@@ -1368,10 +1422,12 @@ def _names_menu(ctx) -> Menu:
             await _rename_ally(ctx, mount)
         elif choice == 'r':
             await _remove_horse(ctx)
+        elif choice == 'e':
+            await _edit_ally_stats(ctx, mount)
         elif choice == 'c' and bolted:
             await _recall_horse(ctx)
         else:
-            expected = 'N, R, or C' if bolted else "'N' or 'R'"
+            expected = 'N, R, E, or C' if bolted else "'N', 'R', or 'E'"
             await ctx.send(f"Please choose {expected}.")
 
     def _roster_label(a) -> str:
