@@ -18,12 +18,12 @@ from random import choice
 
 from bar.charisma import charisma_tier
 from base_classes import Gender, PlayerStat, PlayerMoneyTypes, PronounType
-from commands.messaging import player_exists, prompt_player_choice
+from commands.messaging import prompt_player_choice
 from flags import PlayerFlags
 from items import ItemCategory
 from network_context import GameContext
 from presence import broadcast_area
-from tada_utilities import get_pronoun
+from tada_utilities import get_pronoun, player_exists
 
 log = logging.getLogger(__name__)
 

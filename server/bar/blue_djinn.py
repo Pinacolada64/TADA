@@ -128,7 +128,7 @@ def set_thug_flag_on_target(ctx: GameContext, target_name: str) -> None:
     for client in online_clients.values():
         # Client stores the live session as .ctx (simple_server.py sets
         # client.ctx = ctx on connect), never a bare .player -- see
-        # commands/messaging.py's online_player_names() for the same
+        # tada_utilities.py's online_player_names() for the same
         # pattern this module previously got wrong in three places.
         tp = getattr(getattr(client, 'ctx', None), 'player', None)
         if tp and getattr(tp, 'name', '').lower() == target_name.lower():
@@ -188,7 +188,8 @@ async def _hire(ctx: GameContext) -> None:
 
         pattern = raw.strip()
 
-        from commands.messaging import prompt_player_choice, find_players, is_online
+        from commands.messaging import prompt_player_choice
+        from tada_utilities import find_players, is_online
         if pattern == '?':
             pattern = '*'
 

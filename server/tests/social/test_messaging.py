@@ -20,9 +20,9 @@ import unittest.mock
 from command_settings import CommandSettings
 from commands.messaging import (
     parse_targets, expand_groups, find_online,
-    online_player_names, is_online, player_exists, find_players,
     prompt_player_choice,
 )
+from tada_utilities import online_player_names, is_online, player_exists, find_players
 from commands.groups import GroupsCommand
 from commands.whisper import WhisperCommand
 from commands.page import PageCommand

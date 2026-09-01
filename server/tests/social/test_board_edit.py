@@ -129,6 +129,15 @@ class TestSigManagement(BoardEditTestCase):
         self.assertEqual(called_path, sig_intro_path(1))
         self.assertEqual(kwargs['subject'], 'the General SIG')
 
+    def test_manage_sig_operators_add_and_reject_unknown(self):
+        self._seed_sig_and_board()
+        ctx = make_ctx(prompts=['s', '1', 'p', 'a', 'alice, ghost', '', '', '', ''])
+        with patch('commands.board.edit.player_exists', side_effect=lambda server, n: n == 'alice'):
+            run(edit_board_settings(ctx))
+        saved = board_store.sigs.load_sigs(self.sigs_path)
+        self.assertEqual(saved['sigs'][0]['admins'], ['alice'])
+        self.assertIn('No such player: ghost.', str(ctx.send.call_args_list))
+
     def test_delete_sig_with_boards_refused(self):
         self._seed_sig_and_board()
         ctx = make_ctx(prompts=['s', '1', 'x', '', '', ''])
@@ -335,9 +344,19 @@ class TestBoardManagement(BoardEditTestCase):
     def test_add_and_remove_admins(self):
         self._seed_sig_and_board()
         ctx = make_ctx(prompts=['b', '1', 'p', 'a', 'alice, bob', 'r1', '', '', '', ''])
-        run(edit_board_settings(ctx))
+        with patch('commands.board.edit.player_exists', return_value=True):
+            run(edit_board_settings(ctx))
         saved = board_store.meta.load_meta(self.meta_path)
         self.assertEqual(saved['boards']['1']['admins'], ['bob'])
+
+    def test_add_admin_rejects_a_name_with_no_such_player(self):
+        self._seed_sig_and_board()
+        ctx = make_ctx(prompts=['b', '1', 'p', 'a', 'alice, ghost', '', '', '', ''])
+        with patch('commands.board.edit.player_exists', side_effect=lambda server, n: n == 'alice'):
+            run(edit_board_settings(ctx))
+        saved = board_store.meta.load_meta(self.meta_path)
+        self.assertEqual(saved['boards']['1']['admins'], ['alice'])
+        self.assertIn('No such player: ghost.', str(ctx.send.call_args_list))
 
     def test_move_board_between_sigs(self):
         board_store.sigs.save_sigs({'sigs': [

@@ -39,6 +39,7 @@ from network_context import PETSCIINetworkContext
 from petscii_editor import store as canvas_store
 from petscii_editor.canvas import Canvas
 from petscii_editor.session import stream_canvas_edit
+from tada_utilities import player_exists
 from text_editor import run_editor
 
 log = logging.getLogger(__name__)
@@ -650,6 +651,19 @@ async def _pick_flag_gate(ctx) -> dict | None:
     return {'type': 'flag', 'value': _GATE_FLAG_CHOICES[idx - 1].name}
 
 
+def _split_valid_names(ctx, raw_names: str) -> tuple[list[str], list[str]]:
+    """Split a comma-separated 'Name(s) to add' answer into (valid,
+    unknown) -- unknown holds any name that isn't an online player or
+    a saved character (player_exists(), tada_utilities.py) so 'A' at
+    the admin/operator picker can't silently store a typo that will
+    never actually grant anyone anything."""
+    names = [n.strip() for n in (raw_names or '').split(',') if n.strip()]
+    valid, unknown = [], []
+    for n in names:
+        (valid if player_exists(ctx.server, n) else unknown).append(n)
+    return valid, unknown
+
+
 async def _manage_admins(ctx, meta_data: dict, board_id: int) -> None:
     while True:
         board = board_store.meta.get_board(meta_data, board_id)
@@ -665,11 +679,13 @@ async def _manage_admins(ctx, meta_data: dict, board_id: int) -> None:
 
         if choice.lower() == 'a':
             raw_names = await ctx.prompt('Name(s) to add (comma separated)')
-            new_names = [n.strip() for n in (raw_names or '').split(',') if n.strip()]
+            new_names, unknown = _split_valid_names(ctx, raw_names)
             added = [n for n in new_names if n not in admins]
             admins.extend(added)
             board['admins'] = admins
             board_store.meta.set_board(meta_data, board_id, board)
+            if unknown:
+                await ctx.send(f"No such player: {', '.join(unknown)}.")
             await ctx.send(f"Added: {', '.join(added) or '(nothing new)'}.")
         elif choice[:1].lower() == 'r':
             from text_editor import parse_multi_select
@@ -704,9 +720,11 @@ async def _manage_sig_admins(ctx, sig: dict) -> None:
 
         if choice.lower() == 'a':
             raw_names = await ctx.prompt('Name(s) to add (comma separated)')
-            new_names = [n.strip() for n in (raw_names or '').split(',') if n.strip()]
+            new_names, unknown = _split_valid_names(ctx, raw_names)
             added = [n for n in new_names if n not in admins]
             admins.extend(added)
+            if unknown:
+                await ctx.send(f"No such player: {', '.join(unknown)}.")
             await ctx.send(f"Added: {', '.join(added) or '(nothing new)'}.")
         elif choice[:1].lower() == 'r':
             from text_editor import parse_multi_select

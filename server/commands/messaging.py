@@ -3,16 +3,18 @@
 parse_targets()       — split a comma/space/quoted target string into a name list
 expand_groups()       — replace #groupname tokens with stored member lists
 find_online()         — map name list to live GameContext objects
-online_player_names()   — list all currently connected player names
-known_player_names()    — list names from save files (online or not)
-is_online()             — check whether a specific name is currently connected
-find_players()          — return sorted names matching a pattern (? and * wildcards)
-player_exists()         — check online clients and save files; supports ? and * wildcards
 prompt_player_choice()  — display a numbered player list and return the user's pick
 is_in_combat()          — whether a ctx's player is an active combat participant
+
+online_player_names()/known_player_names()/is_online()/find_players()/
+player_exists() moved to tada_utilities.py (2026-09-01) -- general
+"does this player exist/who's online" lookups with callers well outside
+messaging (bar/, commands/board/edit.py). Re-imported here just for
+prompt_player_choice()'s own use below.
 """
-import fnmatch
 import shlex
+
+from tada_utilities import find_players, online_player_names
 
 
 def parse_targets(targets_str: str) -> list[str]:
@@ -98,75 +100,6 @@ def find_online(ctx, target_names: list[str], *,
     return found, not_found
 
 
-def online_player_names(server) -> list[str]:
-    """Return display names of all currently connected players."""
-    names = []
-    for client in server.clients.values():
-        ctx  = getattr(client, 'ctx', None)
-        name = getattr(getattr(ctx, 'player', None), 'name', '')
-        if name:
-            names.append(name)
-    return names
-
-
-def known_player_names() -> list[str]:
-    """Return ids of all players that have a save file, online or not.
-
-    Names are derived from the filename: run/server/player-<name>.json.
-    """
-    import glob
-    import os
-    try:
-        import net_common
-        base = getattr(net_common, 'run_server_dir', None) or './run/server'
-    except Exception:
-        base = './run/server'
-    names = []
-    for path in glob.glob(os.path.join(str(base), 'player-*.json')):
-        stem = os.path.basename(path)[len('player-'):-len('.json')]
-        if stem:
-            names.append(stem)
-    return names
-
-
-def is_online(server, name: str) -> bool:
-    """Return True if a player with this name is currently connected."""
-    needle = name.lower()
-    return any(n.lower() == needle for n in online_player_names(server))
-
-
-def find_players(server, pattern: str) -> list[str]:
-    """Return sorted names matching pattern, checking online clients then save files.
-
-    Supports shell-style wildcards: * matches any string, ? matches one character.
-    Matching is case-insensitive.  Each name appears at most once.
-
-    Examples:
-        find_players(server, '*')       → all known players
-        find_players(server, 'ral*')    → ['railbender'] (if that save file exists)
-        find_players(server, 'r?lan')   → ['Rulan'] (if online or saved)
-    """
-    pat  = pattern.lower()
-    seen: set[str] = set()
-    results: list[str] = []
-
-    for name in online_player_names(server):
-        if fnmatch.fnmatch(name.lower(), pat):
-            key = name.lower()
-            if key not in seen:
-                seen.add(key)
-                results.append(name)
-
-    for name in known_player_names():
-        if fnmatch.fnmatch(name.lower(), pat):
-            key = name.lower()
-            if key not in seen:
-                seen.add(key)
-                results.append(name)
-
-    return sorted(results, key=str.lower)
-
-
 async def prompt_player_choice(ctx, pattern: str = '*', *,
                                prompt_text: str = 'Choose a player') -> 'str | None':
     """Show a numbered, wildcard-filtered player list and prompt for a choice.
@@ -236,16 +169,3 @@ def is_in_combat(ctx) -> bool:
     if session is None:
         return False
     return ctx in getattr(session, 'attackers', [])
-
-
-def player_exists(server, name: str) -> bool:
-    """Return True if the name belongs to an online player or has a save file.
-
-    Supports ? and * wildcards — returns True if any player matches.
-    """
-    if '*' in name or '?' in name:
-        return bool(find_players(server, name))
-    if is_online(server, name):
-        return True
-    needle = name.lower()
-    return any(n.lower() == needle for n in known_player_names())
