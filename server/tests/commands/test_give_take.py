@@ -322,7 +322,16 @@ class TestGiveToAlly(unittest.IsolatedAsyncioTestCase):
         self.assertIn('not carrying', self.ctx.sent().lower())
         self.assertEqual(len(self.ally.items), 0)
 
-    async def test_give_no_target_asks_whom(self):
+    async def test_give_no_target_lists_allies(self):
+        # Bare 'give <item>' with allies in the party -> numbered pick list
+        # (as guided as bare 'give' already is for items). _FakeCtx.prompt
+        # returns '' here, so the selection is cancelled after the list.
+        await self.cmd.execute(self.ctx, 'ration')
+        self.assertIn('give to which ally', self.ctx.sent().lower())
+        self.assertIn('BATMAN', self.ctx.sent().upper())
+
+    async def test_give_no_target_no_allies_asks_whom(self):
+        self.player.party.remove(self.ally)
         await self.cmd.execute(self.ctx, 'ration')
         self.assertIn('whom', self.ctx.sent().lower())
 
