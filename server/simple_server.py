@@ -399,6 +399,13 @@ class Server:
         finally:
             if addr in self.clients:
                 del self.clients[addr]
+            # Drain any output a turn buffered but never flushed because an
+            # exception unwound past the normal end-of-dispatch flush.
+            # paginate=False: never block for a keypress on a closing socket.
+            try:
+                await ctx.flush_turn(paginate=False)
+            except Exception:
+                pass
             # combat/duel.py's DuelSession.forfeit(): a duelist who
             # disconnects mid-fight (crash, abrupt close, or a graceful
             # quit) is treated as an automatic loss, mirroring
@@ -683,6 +690,11 @@ class Server:
 
             logging.debug('login input: %r', raw.strip())
             result = await processor.process_input(raw, ctx=ctx)
+            # End of dispatch: flush this turn's buffered output now, so
+            # the farewell text of a 'quit' (which returns below without
+            # ever reaching another prompt) still gets sent. The normal
+            # path would flush at the next ctx.prompt() anyway.
+            await ctx.flush_turn()
 
             if not result.success and result.error == 'unknown_command':
                 available = sorted(
@@ -779,6 +791,12 @@ class Server:
             from datetime import datetime
             ctx.client.last_input = datetime.now()
             result = await processor.process_input(raw, ctx=ctx)
+            # End of dispatch: flush this turn's buffered send() output as
+            # one screenful-aware block (see network_context.flush_turn).
+            # Covers command paths that return without a further prompt
+            # (e.g. 'quit'); the normal path re-flushes harmlessly at the
+            # next ctx.prompt('main').
+            await ctx.flush_turn()
 
             # QuitCommand sets data={'quit': True} to signal clean exit
             if result.data.get('quit'):

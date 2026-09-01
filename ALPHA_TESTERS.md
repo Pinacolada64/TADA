@@ -91,8 +91,21 @@ here until someone gets a solid repro and either fixes them or rules them out.
     doesn't get held back until the very end -- may need an explicit
     "flush now" escape hatch, or a size/time threshold, rather than
     buffering unconditionally until the command fully returns.
-- **Next step:** unscoped -- needs a design decision on the buffering
-  approach above before implementation.
+- **Status: RESOLVED (2026-08-31).** Implemented the "buffer inside
+  `GameContext`" approach. `network_context.py`: `send()` appends to a
+  per-turn `_turn_buffer` while `_in_turn` is set (armed by `prompt()`
+  once it reads real input, disarmed while blocked for input so
+  say/page/wall from other players still deliver immediately);
+  `flush_turn()` emits the whole buffer through one `_emit()` call so
+  `_wants_pagination()` sees the cumulative length. Flush points:
+  top of `prompt()`, and an explicit `await ctx.flush_turn()` after each
+  dispatch in `simple_server.py`'s `_login`/`_game_loop` (covers `quit`,
+  which returns without a further prompt) plus a `paginate=False` drain
+  in the connection `finally`. Escape hatch for streaming output:
+  `ctx.send(..., flush=True)`. `_paginate()`'s own nav prompts are
+  guarded by `_paginating` so they don't re-buffer. Tests in
+  `tests/client/test_more_prompt.py` (`TestTurnBuffering`,
+  `TestPromptFlushesAndArmsTurn`).
 
 ### Land Armory sells the ship's late-game/sci-fi gear (not just beginner equipment)
 

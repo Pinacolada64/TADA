@@ -147,6 +147,121 @@ class TestPaginatePromptText(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(prompt_text, '-- More [1/3] [?=help] --')
 
 
+class TestTurnBuffering(unittest.IsolatedAsyncioTestCase):
+    """ALPHA_TESTERS.md: "More Prompt doesn't trigger when output is split
+    across separate send() calls". While a command runs (ctx._in_turn),
+    send() accumulates into a per-turn buffer and the pagination decision
+    is deferred to flush_turn(), which sees the cumulative total."""
+
+    async def test_send_buffers_while_in_turn(self):
+        ctx = _make_ctx(more_prompt=True)
+        ctx._in_turn = True
+        await ctx.send(*[f'line {i}' for i in range(20)])
+        ctx._paginate.assert_not_awaited()
+        ctx._send_formatted.assert_not_awaited()
+        self.assertEqual(len(ctx._turn_buffer), 20)
+
+    async def test_send_emits_immediately_when_not_in_turn(self):
+        # Default (freshly constructed) context is not in a turn: today's
+        # behavior, one send() decides its own pagination.
+        ctx = _make_ctx(more_prompt=True)
+        await ctx.send(*[f'line {i}' for i in range(20)])
+        ctx._paginate.assert_awaited_once()
+
+    async def test_two_short_sends_paginate_once_combined(self):
+        # page_size is 9 (screen_rows 10). Two 6-line sends each stay under
+        # it, but 12 combined exceeds it -> flush_turn paginates once.
+        ctx = _make_ctx(more_prompt=True)
+        ctx._in_turn = True
+        await ctx.send(*[f'help {i}' for i in range(6)])
+        await ctx.send(*[f'menu {i}' for i in range(6)])
+        ctx._paginate.assert_not_awaited()
+        await ctx.flush_turn()
+        ctx._paginate.assert_awaited_once()
+        (lines, _page_size), _ = ctx._paginate.await_args
+        self.assertEqual(len(lines), 12)
+
+    async def test_flush_turn_below_page_size_does_not_paginate(self):
+        ctx = _make_ctx(more_prompt=True)
+        ctx._in_turn = True
+        await ctx.send('a', 'b', 'c')
+        await ctx.flush_turn()
+        ctx._paginate.assert_not_awaited()
+        ctx._send_formatted.assert_awaited_once()
+
+    async def test_flush_turn_paginate_false_never_paginates(self):
+        ctx = _make_ctx(more_prompt=True)
+        ctx._in_turn = True
+        await ctx.send(*[f'line {i}' for i in range(50)])
+        await ctx.flush_turn(paginate=False)
+        ctx._paginate.assert_not_awaited()
+        ctx._send_formatted.assert_awaited_once()
+
+    async def test_flush_true_forces_buffer_out_mid_turn(self):
+        ctx = _make_ctx(more_prompt=True)
+        ctx._in_turn = True
+        await ctx.send('buffered first')
+        await ctx.send('now flush', flush=True)
+        ctx._send_formatted.assert_awaited_once()
+        (lines,), _ = ctx._send_formatted.await_args
+        self.assertEqual(lines, ['buffered first', 'now flush'])
+        self.assertEqual(ctx._turn_buffer, [])
+
+    async def test_flush_turn_noop_on_empty_buffer(self):
+        ctx = _make_ctx(more_prompt=True)
+        ctx._in_turn = True
+        await ctx.flush_turn()
+        ctx._paginate.assert_not_awaited()
+        ctx._send_formatted.assert_not_awaited()
+
+    async def test_send_during_pagination_is_not_re_buffered(self):
+        # _paginate() sets _paginating; its own status-line sends must go
+        # straight out, not back into the buffer it is draining.
+        ctx = _make_ctx(more_prompt=True)
+        ctx._in_turn = True
+        ctx._paginating = True
+        await ctx.send('status line')
+        ctx._send_formatted.assert_awaited_once()
+        self.assertIsNone(ctx._turn_buffer)
+
+
+class TestPromptFlushesAndArmsTurn(unittest.IsolatedAsyncioTestCase):
+    """prompt() is the natural end-of-turn hook: it flushes the previous
+    turn's buffer, disarms buffering while blocked for input, then re-arms
+    it once real input arrives so the next command's send()s accumulate."""
+
+    def _ctx(self, response=b'{"lines": ["look"]}\n'):
+        from unittest.mock import MagicMock
+        player = _FakePlayer(more_prompt=True)
+        ctx = GameContext(player=player, reader=MagicMock(), writer=MagicMock(),
+                          server=MagicMock(), client=MagicMock())
+        ctx.server.send_message = AsyncMock()
+        ctx.reader.readline = AsyncMock(return_value=response)
+        ctx._send_formatted = AsyncMock()
+        ctx._paginate = AsyncMock()
+        return ctx
+
+    async def test_prompt_flushes_buffer_then_arms_in_turn(self):
+        ctx = self._ctx()
+        ctx._in_turn = True
+        await ctx.send('leftover from last turn')
+        self.assertEqual(len(ctx._turn_buffer), 1)
+
+        result = await ctx.prompt('main')
+
+        self.assertEqual(result, 'look')
+        ctx._send_formatted.assert_awaited()          # buffer was flushed
+        self.assertEqual(ctx._turn_buffer, [])
+        self.assertTrue(ctx._in_turn)                 # re-armed for next command
+
+    async def test_prompt_disarms_in_turn_on_disconnect(self):
+        ctx = self._ctx(response=b'')                 # EOF
+        ctx._in_turn = True
+        result = await ctx.prompt('main')
+        self.assertIsNone(result)
+        self.assertFalse(ctx._in_turn)
+
+
 class TestToggleMorePrompt(unittest.IsolatedAsyncioTestCase):
 
     async def test_toggle_off_from_on(self):
