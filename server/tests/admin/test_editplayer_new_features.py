@@ -6,7 +6,7 @@ out with _not_implemented() before this session:
   - Armor/Shield menu    (main menu)
   - Map Information menu (main menu)
   - Weapons menu         (main menu: readied weapon, battle experience)
-  - Character Names      (Ally 1-3, Horse rename)
+  - Character / NPC Stats (Ally 1-3, Horse rename + stat editing)
   - Statistics           (Birthday, Experience, Moves to date, Monsters killed)
 
 Run with:
@@ -398,7 +398,7 @@ class TestWeaponsMenu(unittest.IsolatedAsyncioTestCase):
 
 
 # ---------------------------------------------------------------------------
-# Character Names — Ally slots + Horse
+# Character / NPC Stats — Ally slots + Horse
 # ---------------------------------------------------------------------------
 
 class TestNamesMenuHorseDoesNotOccupyAllySlot(unittest.IsolatedAsyncioTestCase):
@@ -517,7 +517,7 @@ class TestNamesMenuAllyAndHorse(unittest.IsolatedAsyncioTestCase):
         ctx = _FakeCtx(responses=['X'], player=player)
         menu = _names_menu(ctx)
         await _find_item(menu, 'Ally 1').action(ctx)
-        self.assertIn("Please choose 'N' or 'S'.", ctx.sent[-1])
+        self.assertIn("Please choose 'N', 'S', or 'E'.", ctx.sent[-1])
         self.assertEqual(ally.name, 'EMMETT "DOC" BROWN')
 
     async def test_second_empty_slot_reports_no_ally(self):

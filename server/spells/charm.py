@@ -239,6 +239,11 @@ async def try_charm_join_offer(ctx: 'GameContext', *, level: int, room_no: int) 
     ally.status = AllyStatus.SERVANT
     ally.owner  = player.name
     ally.hit_points = pending['strength'] * _HP_PER_STRENGTH
+    # A charmed monster inherits its (sysop-capped 1-18) monster strength,
+    # so it's already in range, but clamp for belt-and-suspenders parity
+    # with every other ally-creation path.
+    from bar.ally_data import clamp_ally_stats
+    clamp_ally_stats(ally)
 
     player.party.add_member(player, ally)
     player.charmed_monsters.append(pending['monster_number'])

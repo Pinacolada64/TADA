@@ -77,6 +77,12 @@ class _MockPlayer:
         self.food               = 20
         self.drink              = 20
         self._held_items: set   = set()
+        self.party: list        = []
+        self.unsaved_changes    = False
+
+    @property
+    def return_key(self) -> str:
+        return self.client_settings.return_key
 
     def has_item(self, *, name=None, item_id=None, category=None) -> bool:
         return name is not None and name.upper() in self._held_items
@@ -235,7 +241,7 @@ class TestMenuStructure(unittest.TestCase):
     def test_main_menu_contains_expected_labels(self):
         labels = {i.text for i in _build_main_menu(self.ctx).selectable}
         for name in ('Alignment', 'Attributes', 'Flags/Counters',
-                     'Statistics', 'Character Names', 'Combinations',
+                     'Statistics', 'Character / NPC Stats', 'Combinations',
                      'Hit Points', 'Money', 'Weapons'):
             self.assertIn(name, labels, f'{name!r} missing from main menu')
 
@@ -750,11 +756,11 @@ class TestIntegration(unittest.IsolatedAsyncioTestCase):
     navigate_menu calls ctx.prompt('Choice', ...) after every menu display.
     Inline action prompts (_prompt_int, list pickers) also consume items.
 
-    Flags/Counters is item 6 in the main menu.
+    Flags/Counters is item 7 in the main menu.
     Expert Mode is item 1 in the flags menu.
 
     Scripted navigation to toggle Expert Mode and return:
-        Main displayed   → '6'  → push Flags submenu
+        Main displayed   → '7'  → push Flags submenu
         Flags displayed  → '1'  → run toggle action
         Flags displayed  → ''   → pop Flags submenu
         Main displayed   → ''   → pop main menu, done
@@ -770,6 +776,7 @@ class TestIntegration(unittest.IsolatedAsyncioTestCase):
         self.assertGreater(len(ctx.sent), 0)
 
     async def test_toggle_expert_mode_via_navigation(self):
+        # Main → Flags/Counters (7) → Expert Mode (1) → up → up
         ctx = _MockCtx(responses=['7', '1', '', ''])
         self.assertFalse(ctx.player.query_flag(PlayerFlags.EXPERT_MODE))
         await EditPlayerCommand().execute(ctx)
@@ -818,6 +825,63 @@ class TestIntegration(unittest.IsolatedAsyncioTestCase):
                or ctx.player.combinations.get(combo_type.name))
         self.assertIsNotNone(obj)
         self.assertEqual(obj.combination, (4, 5, 9))
+
+
+# ---------------------------------------------------------------------------
+# 10. Character / NPC Stats — _edit_ally_stats (strength / to-hit / HP,
+#     clamped to bar/ally_data.py's canonical SPUR ceilings)
+# ---------------------------------------------------------------------------
+
+class TestEditAllyStats(unittest.IsolatedAsyncioTestCase):
+
+    def _ally(self, name='ROBIN', strength=9, to_hit=4, hp=18):
+        from bar.ally_data import Ally, AllyStatus
+        a = Ally(name, 'm', strength, to_hit, [])
+        a.status = AllyStatus.SERVANT
+        a.hit_points = hp
+        return a
+
+    async def test_edit_strength_sets_value_and_marks_unsaved(self):
+        from commands.editplayer import _edit_ally_stats
+        ally = self._ally(strength=25)
+        ctx  = _MockCtx(responses=['s', '12', ''])
+        await _edit_ally_stats(ctx, ally)
+        self.assertEqual(ally.strength, 12)
+        self.assertTrue(ctx.player.unsaved_changes)
+
+    async def test_edit_to_hit_and_hp_in_one_visit(self):
+        from commands.editplayer import _edit_ally_stats
+        ally = self._ally(to_hit=4, hp=18)
+        ctx  = _MockCtx(responses=['t', '7', 'h', '30', ''])
+        await _edit_ally_stats(ctx, ally)
+        self.assertEqual(ally.to_hit, 7)
+        self.assertEqual(ally.hit_points, 30)
+
+    async def test_strength_above_cap_is_rejected(self):
+        from bar.ally_data import ALLY_STRENGTH_MAX
+        from commands.editplayer import _edit_ally_stats
+        ally = self._ally(strength=10)
+        # 99 is over ALLY_STRENGTH_MAX (25) -> _prompt_int loops, then blank
+        # cancels the sub-prompt, then blank finishes the stat menu.
+        ctx  = _MockCtx(responses=['s', str(ALLY_STRENGTH_MAX + 74), '', ''])
+        await _edit_ally_stats(ctx, ally)
+        self.assertEqual(ally.strength, 10)
+
+    async def test_hp_above_cap_is_rejected(self):
+        from bar.ally_data import ALLY_HP_MAX
+        from commands.editplayer import _edit_ally_stats
+        ally = self._ally(hp=20)
+        ctx  = _MockCtx(responses=['h', str(ALLY_HP_MAX + 1), '', ''])
+        await _edit_ally_stats(ctx, ally)
+        self.assertEqual(ally.hit_points, 20)
+
+    async def test_blank_first_input_is_a_no_op(self):
+        from commands.editplayer import _edit_ally_stats
+        ally = self._ally(strength=9)
+        ctx  = _MockCtx(responses=[''])
+        await _edit_ally_stats(ctx, ally)
+        self.assertEqual(ally.strength, 9)
+        self.assertFalse(ctx.player.unsaved_changes)
 
 
 # ---------------------------------------------------------------------------

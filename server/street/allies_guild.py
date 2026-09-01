@@ -21,7 +21,7 @@ SPUR notes:
 import logging
 from typing import List, Optional
 
-from bar.ally_data import Ally, AllyFlags
+from bar.ally_data import ALLY_STRENGTH_MAX, Ally, AllyFlags
 from bar.allies import owned_allies, pick_ally
 from base_classes import PlayerMoneyTypes
 from network_context import GameContext
@@ -103,11 +103,16 @@ async def _train_body(ctx: GameContext, ally: Ally) -> None:
     if level >= _MAX_BODY_BUILD_LEVEL:
         await ctx.send(f'{ally.name} already is as large as possible!')
         return
+    # A +3 level would overshoot the canonical strength ceiling (catalog 20 +
+    # Olaf's hire bonus) -- refuse rather than sell training that can't land.
+    if ally.strength >= ALLY_STRENGTH_MAX:
+        await ctx.send(f'{ally.name} is already as strong as any ally can be!')
+        return
     cost = (level + 1) * _BODY_BUILD_BASE_COST
     if not await _confirm_and_charge(ctx, ally, f'body built +{_BODY_BUILD_STR_BONUS}', cost):
         return
     ally.body_build = level + 1
-    ally.strength += _BODY_BUILD_STR_BONUS
+    ally.strength = min(ally.strength + _BODY_BUILD_STR_BONUS, ALLY_STRENGTH_MAX)
     await ctx.send(f'{ally.name} is now BODY BUILT +{_BODY_BUILD_STR_BONUS}!  (Str {ally.strength})')
     import net_common
     net_common.append_battle_log(
