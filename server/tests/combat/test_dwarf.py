@@ -342,7 +342,7 @@ class TestOnKilled(unittest.IsolatedAsyncioTestCase):
                     net_common.run_server_dir = orig_dir
 
             self.assertEqual(player.get_silver('IN_HAND'), 850)
-            self.assertEqual(config.dwarf_silver, 0)
+            self.assertEqual(config.dwarf_silver, 500)
             player.clear_flag.assert_called_once_with(PlayerFlags.DWARF_ALIVE)
             self.assertEqual(game_map.get_room(1, 2).monster, 0)
             self.assertIn('750', lines[0])
