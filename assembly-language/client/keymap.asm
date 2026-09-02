@@ -62,32 +62,39 @@
 ;                            just whatever keymap_table's own zero-fill
 ;                            (or a loaded file's leftover bytes) left
 ;                            there -- harmless, nothing ever reads it
-MAX_BINDINGS   = 14        ; the 4 built-in nav functions plus up to 10
-                             ; macros -- fits without a scrollable list
-                             ; in the (future) editor popup
+MAX_BINDINGS   = 15        ; the 4 built-in nav functions, the built-in
+                             ; "open the editor" binding (F7 by
+                             ; default -- Ryan's ask, 2026-09-02: make
+                             ; it a real, rebindable keymap_table entry
+                             ; instead of a hardcoded special case, so
+                             ; it's visible/rebindable the same as
+                             ; everything else) plus up to 10 macros --
+                             ; still fits without a scrollable list in
+                             ; the editor popup
 MACRO_TEXT_LEN = 24
 BINDING_SIZE   = 3 + MACRO_TEXT_LEN
 ; Hand-computed rather than written as MAX_BINDINGS*BINDING_SIZE --
 ; confirmed (again -- see tada-client.asm's DIALOGUE_SHIFT_BYTES
 ; comment for the first time this bit) that C64List 4.06 infers a
 ; computed value's storage width from its byte-sized operands rather
-; than the actual product, silently truncating 378 ($017a) down to
-; $7a with just a warning (no error) to catch it. If MAX_BINDINGS or
+; than the actual product, silently truncating 405 ($0195) down to
+; $95 with just a warning (no error) to catch it. If MAX_BINDINGS or
 ; BINDING_SIZE changes, recompute this by hand: MAX_BINDINGS*BINDING_SIZE.
-KEYMAP_TABLE_SIZE   = 378         ; MAX_BINDINGS(14) * BINDING_SIZE(27)
-KEYMAP_DEFAULT_BINDINGS = 4
+KEYMAP_TABLE_SIZE   = 405         ; MAX_BINDINGS(15) * BINDING_SIZE(27)
+KEYMAP_DEFAULT_BINDINGS = 5
 KEYMAP_DEFAULT_SIZE = BINDING_SIZE * KEYMAP_DEFAULT_BINDINGS
 
 MOD_SHIFT = 1
 MOD_CMDRE = 2
 MOD_CTRL  = 4
 
-ACTION_EMPTY      = 0
-ACTION_WORD_LEFT  = 1
-ACTION_WORD_RIGHT = 2
-ACTION_HOME       = 3
-ACTION_END        = 4
-ACTION_MACRO      = 255
+ACTION_EMPTY       = 0
+ACTION_WORD_LEFT   = 1
+ACTION_WORD_RIGHT  = 2
+ACTION_HOME        = 3
+ACTION_END         = 4
+ACTION_OPEN_EDITOR = 5
+ACTION_MACRO       = 255
 
 ; keymap_table is a resident buffer (not inside any overlay module) --
 ; read_line_loop needs it on every keypress regardless of whether the
@@ -115,7 +122,8 @@ keymap_table:
 ; successfully (first run, or a disk without one), so a player who's
 ; never opened the Keymap Editor sees no behavior change at all. Only
 ; these KEYMAP_DEFAULT_SIZE bytes need copying -- the remaining
-; MAX_BINDINGS-4 slots in keymap_table are already correct either way
+; MAX_BINDINGS-KEYMAP_DEFAULT_BINDINGS slots in keymap_table are
+; already correct either way
 ; (its own area fill above if the default copy runs, or whatever a
 ; real LOAD wrote if one succeeded).
 ;
@@ -144,6 +152,8 @@ keymap_default:
         byte 0, $91, ACTION_HOME
         area MACRO_TEXT_LEN, $20
         byte 0, $11, ACTION_END
+        area MACRO_TEXT_LEN, $20
+        byte 0, $88, ACTION_OPEN_EDITOR   ; F7, no modifier
         area MACRO_TEXT_LEN, $20
 
 ; --- init_keymap: LOAD a saved keymap from disk, or fall back to the
@@ -348,8 +358,8 @@ keymap_data_filename:
 ; Scans keymap_table via a moving 16-bit pointer (scr_ptr_lo/hi, this
 ; file's own temporary borrow of tada-client.asm's shared indirect-
 ; pointer pair -- see set_screen_line's comment on the convention),
-; NOT simple `LDA keymap_table,Y` indexed addressing: MAX_BINDINGS(14)
-; * BINDING_SIZE(27) is 378, so slot 10's own base offset (270) already
+; NOT simple `LDA keymap_table,Y` indexed addressing: MAX_BINDINGS(15)
+; * BINDING_SIZE(27) is 405, so slot 10's own base offset (270) already
 ; exceeds what an 8-bit Y can reach. Same self-modified/incremented-
 ; pointer technique copy_block already uses elsewhere in this
 ; codebase, just read-only here (no destination pointer needed).
@@ -458,9 +468,21 @@ keymap_dispatch_try_home:
         jmp keymap_dispatch_handled
 keymap_dispatch_try_end:
         cmp #ACTION_END
-        bne keymap_dispatch_try_macro
+        bne keymap_dispatch_try_open_editor
         jsr read_line_end
         jmp keymap_dispatch_handled
+keymap_dispatch_try_open_editor:
+        cmp #ACTION_OPEN_EDITOR
+        bne keymap_dispatch_try_macro
+        jmp load_keymap_menu      ; never returns here -- same as read_
+                                     ; line_not_return's old direct `jmp
+                                     ; load_keymap_menu` for F7 used to
+                                     ; do, before this became a real
+                                     ; table entry; JT_RESUME (called by
+                                     ; the popup itself when it's done)
+                                     ; is what eventually hands control
+                                     ; back, not this call chain's own
+                                     ; rts
 keymap_dispatch_try_macro:
         cmp #ACTION_MACRO
         bne keymap_dispatch_handled

@@ -8,14 +8,13 @@
 ; full reasoning). Discarded once this returns control via JT_RESUME,
 ; same as every other overlay module.
 ;
-; This first slice: view the current keymap (all MAX_BINDINGS slots,
-; built live from keymap_table -- read via KEYMAP_TABLE_PTR, see that
+; This slice: view the current keymap (all MAX_BINDINGS slots, built
+; live from keymap_table -- read via KEYMAP_TABLE_PTR, see that
 ; constant's own comment in constants.asm for why an indirect pointer
-; instead of a fixed address), navigate with CRSR UP/DOWN, and either
-; Save (KERNAL SAVE keymap_table back to KEYMAP.CFG) or Cancel (no
-; changes possible yet in this slice, so Cancel and Save currently
-; behave almost identically -- Cancel just skips the SAVE). Combo-
-; capture editing (RETURN on a nav slot), a macro-text sub-editor
+; instead of a fixed address), navigate with CRSR UP/DOWN, capture a
+; new combo for a nav slot with RETURN (key_capture_combo -- rejects a
+; combo already bound elsewhere), and either Save (KERNAL SAVE
+; keymap_table back to KEYMAP.CFG) or Cancel. A macro-text sub-editor
 ; (RETURN on a macro slot), clearing a slot (DEL), and preset loading
 ; (P) are follow-up work, not yet in this file.
 {include:constants.asm}
@@ -37,7 +36,10 @@ BOX_ROWS    = 21               ; rows 2-22 -- clear of STATUS_ROW(23)/
 ; keymap.asm's own file-header comment). Must be kept in sync by hand
 ; if either changes; confirmed no simpler option exists the same way
 ; OVERLAY_BUF's own comment documents for that constant.
-MAX_BINDINGS   = 14
+MAX_BINDINGS   = 15        ; keymap.asm's own MAX_BINDINGS comment
+                             ; explains the 4 nav functions + the
+                             ; built-in "open the editor" binding + up
+                             ; to 10 macros
 MACRO_TEXT_LEN = 24
 BINDING_SIZE   = 3 + MACRO_TEXT_LEN
 
@@ -45,12 +47,13 @@ MOD_SHIFT = 1
 MOD_CMDRE = 2
 MOD_CTRL  = 4
 
-ACTION_EMPTY      = 0
-ACTION_WORD_LEFT  = 1
-ACTION_WORD_RIGHT = 2
-ACTION_HOME       = 3
-ACTION_END        = 4
-ACTION_MACRO      = 255
+ACTION_EMPTY       = 0
+ACTION_WORD_LEFT   = 1
+ACTION_WORD_RIGHT  = 2
+ACTION_HOME        = 3
+ACTION_END         = 4
+ACTION_OPEN_EDITOR = 5
+ACTION_MACRO       = 255
 
 ; $2900 -- see tada-client.asm's OVERLAY_BUF comment (moved here
 ; 2026-09-02 after this module's own first live test re-triggered the
@@ -122,6 +125,8 @@ keymap_keys:
         word key_save
         byte $03                  ; RUN/STOP -- cancel and exit
         word key_cancel
+        byte $0d                  ; RETURN -- capture a new combo for
+        word key_capture_combo    ; the selected row (nav slots only)
 KEYMAP_KEYS_END = * - keymap_keys
 
 key_row_up:
@@ -144,6 +149,151 @@ key_row_down:
 key_row_done:
         jsr draw_list
         rts
+
+; --- selected_slot_addr: scr_ptr_lo/hi = KEYMAP_TABLE_PTR +
+; selected_row*BINDING_SIZE --- same moving-pointer walk describe_
+; binding_row uses, factored out here since key_capture_combo and its
+; own duplicate check both need a slot's address and this file only
+; has one zero-page pointer (scr_ptr_lo/hi) to compute it into --
+; recomputed fresh each use rather than cached, cheap at MAX_BINDINGS-1
+; iterations of a short loop.
+selected_slot_addr:
+        lda KEYMAP_TABLE_PTR
+        sta scr_ptr_lo
+        lda KEYMAP_TABLE_PTR+1
+        sta scr_ptr_hi
+        ldx selected_row
+        beq ssa_done
+ssa_loop:
+        lda scr_ptr_lo
+        clc
+        adc #BINDING_SIZE
+        sta scr_ptr_lo
+        bcc ssa_no_carry
+        inc scr_ptr_hi
+ssa_no_carry:
+        dex
+        bne ssa_loop
+ssa_done:
+        rts
+
+; --- key_capture_combo: RETURN on the selected row -> wait for the
+; next real keypress (plus whatever SHIFT/C=/CTRL is held per $028d,
+; same modifier-read keymap.asm's own keymap_dispatch uses) and store
+; it as that row's new modifier+key, leaving its action byte (and any
+; macro text) untouched. No-op on an empty slot (ACTION_EMPTY --
+; nothing to rebind) or a macro slot (ACTION_MACRO -- RETURN there is
+; reserved for the not-yet-built macro-text sub-editor, see this
+; file's own header comment); only the four nav actions (WORD_LEFT/
+; WORD_RIGHT/HOME/END) actually capture. RUN/STOP during the wait
+; cancels (matches the prompt's own "Stop to cancel" text) without
+; changing anything. A captured combo already bound to some OTHER slot
+; is rejected with an inline message and the wait resumes, rather than
+; silently creating a duplicate -- the original plan's "editor-time
+; only" duplicate check.
+key_capture_combo:
+        jsr selected_slot_addr
+        ldy #2                     ; action byte
+        lda (scr_ptr_lo),y
+        cmp #ACTION_EMPTY
+        beq kcc_rts
+        cmp #ACTION_MACRO
+        beq kcc_rts
+
+        ldx #<capture_prompt_msg
+        ldy #>capture_prompt_msg
+        jsr draw_message_row
+kcc_wait:
+        jsr GETIN
+        cmp #0
+        beq kcc_wait
+        cmp #$03                   ; RUN/STOP -- cancel, no change
+        beq kcc_done
+        sta capture_key
+        lda $028d
+        and #(MOD_SHIFT|MOD_CMDRE|MOD_CTRL)
+        sta capture_mod
+        jsr capture_check_duplicate
+        bcs kcc_wait                ; duplicate -- message shown, retry
+
+        jsr selected_slot_addr      ; recompute -- the duplicate scan
+                                     ; above reused scr_ptr_lo/hi itself
+        ldy #0
+        lda capture_mod
+        sta (scr_ptr_lo),y
+        ldy #1
+        lda capture_key
+        sta (scr_ptr_lo),y
+kcc_done:
+        ldx #<row_help1
+        ldy #>row_help1
+        jsr draw_message_row        ; restore the normal help line
+        jsr draw_list
+kcc_rts:
+        rts
+
+capture_key:
+        byte 0
+capture_mod:
+        byte 0
+
+; --- capture_check_duplicate: is capture_mod/capture_key already
+; bound to some OTHER (non-empty) slot? Sets carry and shows an inline
+; conflict message if so; clears carry silently otherwise.
+capture_check_duplicate:
+        lda KEYMAP_TABLE_PTR
+        sta scr_ptr_lo
+        lda KEYMAP_TABLE_PTR+1
+        sta scr_ptr_hi
+        ldx #0
+ccd_loop:
+        cpx selected_row
+        beq ccd_next               ; skip the slot being edited itself
+        ldy #2
+        lda (scr_ptr_lo),y
+        cmp #ACTION_EMPTY
+        beq ccd_next
+        ldy #0
+        lda (scr_ptr_lo),y
+        cmp capture_mod
+        bne ccd_next
+        ldy #1
+        lda (scr_ptr_lo),y
+        cmp capture_key
+        bne ccd_next
+        ldx #<capture_conflict_msg
+        ldy #>capture_conflict_msg
+        jsr draw_message_row
+        sec
+        rts
+ccd_next:
+        lda scr_ptr_lo
+        clc
+        adc #BINDING_SIZE
+        sta scr_ptr_lo
+        bcc ccd_no_carry
+        inc scr_ptr_hi
+ccd_no_carry:
+        inx
+        cpx #MAX_BINDINGS
+        bne ccd_loop
+        clc
+        rts
+
+; --- draw_message_row: poke a full 40-byte pre-formatted row (X/Y =
+; lo/hi, same shape as row_help1/row_help2 -- 4 border bytes, $5d, 30
+; chars, $5d, 4 border bytes) over row_help1's screen position. Reuses
+; poke_line's own plain copy rather than a bespoke routine, since
+; every caller here already has a full 40-byte source ready (capture_
+; prompt_msg/capture_conflict_msg, or row_help1 itself to restore it).
+draw_message_row:
+        stx poke_src_lo
+        sty poke_src_hi
+        lda #<(SCREEN_RAM+(BOX_TOP_ROW+18)*40)
+        sta poke_dst_lo
+        lda #>(SCREEN_RAM+(BOX_TOP_ROW+18)*40)
+        sta poke_dst_hi
+        jmp poke_line
 
 ; --- Save: write keymap_table back to KEYMAP.CFG, restore, hand back ---
 ; SCRATCH the old file first, then a plain (no "@0:") SAVE -- Ryan's
@@ -207,10 +357,17 @@ scratch_keymap_file:
         jsr KERNAL_CLOSE
         rts
 
-; --- Cancel: no changes possible yet in this slice (view-only), so
-; this just hands back without saving -- kept as its own key/routine
-; rather than aliasing key_save so a future editing slice has
-; somewhere real to put "discard the in-progress edit" logic.
+; --- Cancel: hands back without touching disk -- but NOTE, a real gap
+; now that key_capture_combo exists: it writes straight into the
+; resident keymap_table live, not a staged copy, so Cancel only skips
+; the SAVE -- any combo captured earlier in this same popup visit
+; stays live in memory (and dispatching) even though the player chose
+; not to save it, until the next boot's LOAD overwrites it from disk
+; (or KEYMAP.CFG was never written at all, so it's simply lost then).
+; A proper fix needs a snapshot of keymap_table on module_start and a
+; restore-from-snapshot here; not built yet -- kept as its own key/
+; routine (rather than aliasing key_save) so that logic has somewhere
+; real to go.
 key_cancel:
         jsr JT_RESTORE_SCREEN
         jmp JT_RESUME
@@ -303,11 +460,17 @@ draw_popup:
         sta poke_dst_hi
         jsr poke_line
 
-        ; rows +3..+16 (the 14 list rows) start blank -- draw_list
+        ; rows +3..+17 (the 15 list rows) start blank -- draw_list
         ; fills them immediately after this returns, every time it's
         ; called (including once, right after this), so there's no
         ; separate per-row draw needed here the way config_menu.asm's
-        ; fixed 3-field rows need.
+        ; fixed 3-field rows need. No separate blank spacer row between
+        ; the list and row_help1 below (unlike the one between the
+        ; title and the list, kept) -- the 15th list row now occupies
+        ; exactly the row that spacer used to (BOX_TOP_ROW+17), so
+        ; removing it grows the list by one row without growing the
+        ; box: row_help1/help2/bottom_border keep their same row
+        ; numbers either way.
         ; blank_list_row (not X) carries the row counter across the jsr
         ; poke_line below -- real bug, caught live 2026-09-02: poke_line's
         ; own inner copy loop runs X 0..39 and leaves it at 40 on return,
@@ -339,16 +502,6 @@ draw_popup_blank_list:
         lda blank_list_row
         cmp #MAX_BINDINGS
         bne draw_popup_blank_list
-
-        lda #<row_blank
-        sta poke_src_lo
-        lda #>row_blank
-        sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+17)*40)
-        sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+17)*40)
-        sta poke_dst_hi
-        jsr poke_line
 
         lda #<row_help1
         sta poke_src_lo
@@ -383,7 +536,7 @@ draw_popup_blank_list:
 ; --- draw_list: (re)draw all MAX_BINDINGS rows from keymap_table ---
 ; Called once at startup and again after every CRSR UP/DOWN -- redraws
 ; every row rather than just the marker column, simplest correct thing
-; for a list this small (14 rows * 40 bytes = 560 bytes, negligible).
+; for a list this small (15 rows * 40 bytes = 600 bytes, negligible).
 draw_list:
         ldx #0
 draw_list_loop:
@@ -544,9 +697,18 @@ dbr_try_home:
         jsr copy_name12
         jmp dbr_combo
 dbr_try_end:
-        ; whatever's left over is ACTION_END -- nothing else is valid
+        cmp #ACTION_END
+        bne dbr_try_open_editor
         ldx #<name_end
         ldy #>name_end
+        jsr copy_name12
+        jmp dbr_combo
+dbr_try_open_editor:
+        ; whatever's left over is ACTION_OPEN_EDITOR -- nothing else is
+        ; valid (ACTION_EMPTY/ACTION_MACRO both took an earlier exit,
+        ; above)
+        ldx #<name_open_editor
+        ldy #>name_open_editor
         jsr copy_name12
 dbr_combo:
         jsr describe_combo
@@ -845,7 +1007,7 @@ keymap_table_end_lo:
         byte 0
 keymap_table_end_hi:
         byte 0
-KEYMAP_TABLE_SIZE = 378           ; MAX_BINDINGS(14) * BINDING_SIZE(27)
+KEYMAP_TABLE_SIZE = 405           ; MAX_BINDINGS(15) * BINDING_SIZE(27)
 
 ; {alpha:poke} builds single poke-able screen codes for '>'/' ' -- same
 ; verified {alpha:poke} ASCII->screen-code conversion config_menu.asm's
@@ -870,6 +1032,8 @@ name_home:
         ascii "Home        "
 name_end:
         ascii "End         "
+name_open_editor:
+        ascii "Open Editor "
 {alpha:normal}
 
 ; NUL-terminated modifier-prefix/key-name fragments -- describe_combo
@@ -918,11 +1082,24 @@ row_blank:
         byte $5d, $20,$20,$20,$20
 row_help1:
         byte $20,$20,$20,$20, $5d
-        ascii " Crsr Up/Down: Select row     "
+        ascii " Up/Down: Select  Return: Bind"
         byte $5d, $20,$20,$20,$20
 row_help2:
         byte $20,$20,$20,$20, $5d
         ascii " S: Save   Stop: Cancel       "
+        byte $5d, $20,$20,$20,$20
+
+; key_capture_combo swaps row_help1's screen line for one of these two
+; (then restores row_help1 itself when done) via draw_message_row --
+; same shape/field width, verified 30 ascii chars each the same way
+; row_help1/row_help2's own strings are.
+capture_prompt_msg:
+        byte $20,$20,$20,$20, $5d
+        ascii " Press new key, Stop to cancel"
+        byte $5d, $20,$20,$20,$20
+capture_conflict_msg:
+        byte $20,$20,$20,$20, $5d
+        ascii " That combo is already used!  "
         byte $5d, $20,$20,$20,$20
 bottom_border:
         byte $20,$20,$20,$20, $6d

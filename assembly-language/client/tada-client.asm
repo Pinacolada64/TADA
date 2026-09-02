@@ -1779,28 +1779,18 @@ read_line_loop:
         jmp read_line_done
 read_line_not_return:
 
-        ; F7 (unshifted, $88 -- a plain single GETIN byte, no $028d
-        ; modifier check needed the way cursor keys require) opens the
-        ; Keymap Editor popup, entirely locally -- no server round trip
-        ; at all, unlike Video Settings/Help (DISPLAY_STREAM_CONFIRM/
-        ; HELP_STREAM_CONFIRM), since neither the nav-function rebinds
-        ; nor macro text mean anything to the server: a macro just
-        ; inserts text into the input line exactly as if typed, and nav
-        ; rebinding is pure local input handling. Checked first, ahead
-        ; of every other special key below, since it's a global "open
-        ; the editor" shortcut rather than an ordinary line-editing
-        ; function. F1/F3/F5/F7 are otherwise unused anywhere in this
-        ; file's read_line dispatch (confirmed via grep before picking
-        ; F7) -- the 128 client's own F1/F7 avoidance (input_editor.asm's
-        ; comment) is specific to the 128's KERNAL auto-expanding them
-        ; into whole command strings, which the plain C64 KERNAL this
-        ; file targets doesn't do.
-        cmp #$88
-        bne read_line_not_f7
-        jmp load_keymap_menu
-read_line_not_f7:
-
         ; --- Keymap dispatch ---
+        ; F7 (unshifted, $88) opens the Keymap Editor popup -- used to
+        ; be a hardcoded special case checked right here, ahead of
+        ; keymap_dispatch below; now it's just ACTION_OPEN_EDITOR, a
+        ; real (and rebindable) keymap_table entry like everything else
+        ; (Ryan's ask, 2026-09-02) -- see keymap_default's own comment.
+        ; keymap_dispatch_run's ACTION_OPEN_EDITOR branch jumps straight
+        ; into load_keymap_menu, entirely locally -- no server round
+        ; trip at all, unlike Video Settings/Help (DISPLAY_STREAM_
+        ; CONFIRM/HELP_STREAM_CONFIRM), since neither the nav-function
+        ; rebinds, macro text, nor which key opens the editor mean
+        ; anything to the server.
         ; Handles word-left/right (CTRL+CRSR-LEFT/DOWN by default) and
         ; home/end (plain CRSR-UP/DOWN by default) via keymap_table --
         ; see keymap.asm's own comment on keymap_dispatch and
