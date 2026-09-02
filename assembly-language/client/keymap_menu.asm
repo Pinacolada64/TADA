@@ -74,6 +74,11 @@ module_start:
         adc #>KEYMAP_TABLE_SIZE
         sta keymap_table_end_hi
 
+        ; Snapshot keymap_table before anything in this visit can
+        ; touch it (key_capture_combo writes live) -- key_cancel
+        ; restores from this if the player backs out without saving.
+        jsr backup_keymap_table
+
         lda #0
         sta selected_row
         jsr draw_popup
@@ -357,18 +362,18 @@ scratch_keymap_file:
         jsr KERNAL_CLOSE
         rts
 
-; --- Cancel: hands back without touching disk -- but NOTE, a real gap
-; now that key_capture_combo exists: it writes straight into the
-; resident keymap_table live, not a staged copy, so Cancel only skips
-; the SAVE -- any combo captured earlier in this same popup visit
-; stays live in memory (and dispatching) even though the player chose
-; not to save it, until the next boot's LOAD overwrites it from disk
-; (or KEYMAP.CFG was never written at all, so it's simply lost then).
-; A proper fix needs a snapshot of keymap_table on module_start and a
-; restore-from-snapshot here; not built yet -- kept as its own key/
-; routine (rather than aliasing key_save) so that logic has somewhere
-; real to go.
+; --- Cancel: restore keymap_table from module_start's own snapshot,
+; then hand back without touching disk. key_capture_combo writes
+; straight into the resident keymap_table live, not a staged copy --
+; this used to be a real gap (any combo captured earlier in this same
+; popup visit stayed live even after Cancel), fixed by restore_
+; keymap_table undoing whatever this visit changed. Kept as its own
+; key/routine (rather than aliasing key_save) since the two now
+; genuinely diverge: Save keeps the live (possibly edited) table and
+; also persists it to disk; Cancel discards the edits and touches disk
+; not at all.
 key_cancel:
+        jsr restore_keymap_table
         jsr JT_RESTORE_SCREEN
         jmp JT_RESUME
 
@@ -744,73 +749,103 @@ copy_name12_load:
 
 ; --- describe_combo: build row_scratch+15..+29 (15 bytes) from the
 ; matched binding's modifier+key bytes ---
-; Only shows the FIRST modifier bit found (CTRL, then C=, then SHIFT)
-; rather than every one that's set -- keymap_dispatch itself still
-; matches on the FULL mask regardless, this is a display simplification
-; only, fine since no default or realistic binding combines more than
-; one modifier. The four cursor keys get a short name; anything else
-; (a macro's own trigger key, which can be any key at all) shows as a
-; raw "$XX" hex code rather than guessing a charset-dependent glyph.
+; Data-driven (Ryan's ask, 2026-09-02): mod_names/key_names below (own
+; comment) are walked by a small generic table-scan, not a hardcoded
+; cmp chain -- easy to extend (a future ALT modifier bit for a C128
+; editor, more named keys) by adding a table row, not new code. Only
+; shows the FIRST modifier bit found (checked in mod_names' own order
+; -- CTRL, then C=, then SHIFT) rather than every one that's set --
+; keymap_dispatch itself still matches on the FULL mask regardless,
+; this is a display simplification only, fine since no default or
+; realistic binding combines more than one modifier. A key not in
+; key_names (a macro's own trigger key, which can be any key at all)
+; shows as a raw "$XX" hex code rather than guessing a charset-
+; dependent glyph.
 describe_combo:
         ldx #0
         stx describe_combo_col
+
         ldy #0                     ; modifier byte
         lda (scr_ptr_lo),y
-        and #MOD_CTRL
-        beq dc_try_cmdre
-        ldx #<mod_ctrl_name
-        ldy #>mod_ctrl_name
+        sta describe_mod
+        ldx #0
+dc_mod_loop:
+        cpx #MOD_NAMES_END
+        beq dc_key                 ; no modifier bit matched -- fine,
+                                     ; plenty of bindings have none
+        lda mod_names,x
+        and describe_mod
+        beq dc_mod_next
+        lda mod_names+1,x
+        sta dc_name_lo
+        lda mod_names+2,x
+        tay
+        ldx dc_name_lo
         jsr copy_mod_prefix
         jmp dc_key
-dc_try_cmdre:
-        ldy #0
-        lda (scr_ptr_lo),y
-        and #MOD_CMDRE
-        beq dc_try_shift
-        ldx #<mod_cmdre_name
-        ldy #>mod_cmdre_name
-        jsr copy_mod_prefix
-        jmp dc_key
-dc_try_shift:
-        ldy #0
-        lda (scr_ptr_lo),y
-        and #MOD_SHIFT
-        beq dc_key
-        ldx #<mod_shift_name
-        ldy #>mod_shift_name
-        jsr copy_mod_prefix
+dc_mod_next:
+        txa
+        clc
+        adc #3
+        tax
+        jmp dc_mod_loop
+
 dc_key:
         ldy #1                     ; key byte
         lda (scr_ptr_lo),y
         sta describe_key
-        cmp #$9d
-        bne dk_try_right
-        ldx #<key_left_name
-        ldy #>key_left_name
+        ldx #0
+dc_key_loop:
+        cpx #KEY_NAMES_END
+        beq dk_hex                 ; no name for this key -- fall back
+        lda key_names,x
+        cmp describe_key
+        bne dc_key_next
+        lda key_names+1,x
+        sta dc_name_lo
+        lda key_names+2,x
+        tay
+        ldx dc_name_lo
         jsr copy_key_name
         jmp dc_pad
-dk_try_right:
-        cmp #$1d
-        bne dk_try_up
-        ldx #<key_right_name
-        ldy #>key_right_name
-        jsr copy_key_name
-        jmp dc_pad
-dk_try_up:
-        cmp #$91
-        bne dk_try_down
-        ldx #<key_up_name
-        ldy #>key_up_name
-        jsr copy_key_name
-        jmp dc_pad
-dk_try_down:
-        cmp #$11
-        bne dk_hex
-        ldx #<key_down_name
-        ldy #>key_down_name
-        jsr copy_key_name
-        jmp dc_pad
+dc_key_next:
+        txa
+        clc
+        adc #3
+        tax
+        jmp dc_key_loop
+        ; No name for this key -- show the actual letter/symbol instead
+        ; of a raw hex code where possible (Ryan's ask, 2026-09-02:
+        ; "ctrl+$04" doesn't read as "ctrl+D" to anyone). GETIN's
+        ; unshifted-letter PETSCII codes ($41-$5A, 'A'-'Z') need NO
+        ; conversion here -- confirmed against this file's own already-
+        ; working {alpha:pokealt} static strings (e.g. name_word_left's
+        ; assembled bytes: 'W'/'L' poke as their own plain ASCII value,
+        ; $57/$4C, and display as uppercase): this popup's charset
+        ; (mode 2, mixed case) maps screen codes $41-$5A straight to
+        ; uppercase glyphs, same as PETSCII already has them. $20-$3F
+        ; (space, digits, punctuation) is likewise identical between
+        ; PETSCII and screen code in this charset. Anything outside
+        ; both ranges (control codes, unnamed cursor/function keys,
+        ; SHIFT/CBM-modified letter codes) still falls back to hex --
+        ; there's no single glyph for those without a bigger table.
 dk_hex:
+        lda describe_key
+        cmp #$41
+        bcc dk_try_symbol
+        cmp #$5b                  ; > 'Z' ($5a)?
+        bcs dk_try_symbol
+        jsr describe_combo_putc   ; 'A'-'Z': PETSCII == screen code already
+        jmp dc_pad
+dk_try_symbol:
+        lda describe_key
+        cmp #$20
+        bcc dk_hex_fallback
+        cmp #$40                  ; > '?' ($3f)?
+        bcs dk_hex_fallback
+        jsr describe_combo_putc   ; $20-$3f: PETSCII == screen code already
+        jmp dc_pad
+dk_hex_fallback:
         lda #'$'
         jsr describe_combo_putc
         lda describe_key
@@ -831,6 +866,46 @@ describe_combo_col:
         byte 0
 describe_key:
         byte 0
+describe_mod:
+        byte 0
+dc_name_lo:
+        byte 0
+
+; --- mod_names / key_names: (byte, word) rows -- a mask/key value and
+; the NUL-terminated name to show for it (copy_mod_prefix/copy_key_name
+; both just append a NUL-terminated string via describe_combo_putc, so
+; one shape works for both tables despite one being a mask and the
+; other an exact byte match). Add a row here to name a new key or
+; modifier; no code changes needed in describe_combo itself. Checked
+; in this order -- see describe_combo's own comment on why only the
+; first match shows for modifiers.
+mod_names:
+        byte MOD_CTRL
+        word mod_ctrl_name
+        byte MOD_CMDRE
+        word mod_cmdre_name
+        byte MOD_SHIFT
+        word mod_shift_name
+MOD_NAMES_END = * - mod_names
+
+key_names:
+        byte $9d
+        word key_left_name
+        byte $1d
+        word key_right_name
+        byte $91
+        word key_up_name
+        byte $11
+        word key_down_name
+        byte $85
+        word key_f1_name
+        byte $86
+        word key_f3_name
+        byte $87
+        word key_f5_name
+        byte $88
+        word key_f7_name
+KEY_NAMES_END = * - key_names
 
 ; .a = one character -> row_scratch+15+describe_combo_col, advances
 ; the column. Bounds-checked against the 15-byte combo field so a
@@ -1000,7 +1075,7 @@ blank_list_row:
 ; a byte count -- module_start computes this once (KEYMAP_TABLE_PTR +
 ; KEYMAP_TABLE_SIZE), right after JT_SAVE_SCREEN, so key_save's own
 ; SETLFS/SAVE sequence just reads it straight rather than recomputing
-; it inline every time. KEYMAP_TABLE_SIZE is hand-computed (378), not
+; it inline every time. KEYMAP_TABLE_SIZE is hand-computed (405), not
 ; written as MAX_BINDINGS*BINDING_SIZE -- same C64List byte/word-
 ; inference gotcha keymap.asm's own KEYMAP_TABLE_SIZE comment documents.
 keymap_table_end_lo:
@@ -1008,6 +1083,85 @@ keymap_table_end_lo:
 keymap_table_end_hi:
         byte 0
 KEYMAP_TABLE_SIZE = 405           ; MAX_BINDINGS(15) * BINDING_SIZE(27)
+
+; --- backup_keymap_table / restore_keymap_table: bulk-copy
+; KEYMAP_TABLE_SIZE (405) bytes between the resident keymap_table (via
+; KEYMAP_TABLE_PTR) and this module's own keymap_table_backup below --
+; module_start takes the snapshot before anything in this popup visit
+; can touch the live table; key_cancel restores from it so a combo
+; captured but not explicitly Saved doesn't linger live in the
+; resident table (see key_cancel's own comment).
+;
+; Too big for an 8-bit indexed loop (poke_line's own fixed 40-byte
+; copy doesn't reach), and needs two moving pointers at once (source
+; and destination), so this can't reuse this module's one zero-page
+; pointer (scr_ptr_lo/hi) the way most of this file's other bulk work
+; does -- instead it's two self-modified ABSOLUTE addresses (no
+; indexing at all) each advanced a byte at a time with the same carry-
+; propagation idea fill_bytes already uses for its own single
+; self-modified pointer, just load-then-store instead of a constant
+; fill, and a 16-bit remaining-count down to zero instead of fill_
+; bytes' own convention of counting down a fixed byte total.
+backup_keymap_table:
+        lda KEYMAP_TABLE_PTR
+        sta kt_copy_load+1
+        lda KEYMAP_TABLE_PTR+1
+        sta kt_copy_load+2
+        lda #<keymap_table_backup
+        sta kt_copy_store+1
+        lda #>keymap_table_backup
+        sta kt_copy_store+2
+        jmp kt_copy_run
+
+restore_keymap_table:
+        lda #<keymap_table_backup
+        sta kt_copy_load+1
+        lda #>keymap_table_backup
+        sta kt_copy_load+2
+        lda KEYMAP_TABLE_PTR
+        sta kt_copy_store+1
+        lda KEYMAP_TABLE_PTR+1
+        sta kt_copy_store+2
+kt_copy_run:
+        lda #<KEYMAP_TABLE_SIZE
+        sta kt_copy_remaining_lo
+        lda #>KEYMAP_TABLE_SIZE
+        sta kt_copy_remaining_hi
+kt_copy_loop:
+        lda kt_copy_remaining_lo
+        ora kt_copy_remaining_hi
+        beq kt_copy_done
+kt_copy_load:
+        lda $ffff
+kt_copy_store:
+        sta $ffff
+        inc kt_copy_load+1
+        bne kt_copy_load_no_carry
+        inc kt_copy_load+2
+kt_copy_load_no_carry:
+        inc kt_copy_store+1
+        bne kt_copy_store_no_carry
+        inc kt_copy_store+2
+kt_copy_store_no_carry:
+        lda kt_copy_remaining_lo
+        bne kt_copy_dec_lo
+        dec kt_copy_remaining_hi
+kt_copy_dec_lo:
+        dec kt_copy_remaining_lo
+        jmp kt_copy_loop
+kt_copy_done:
+        rts
+
+kt_copy_remaining_lo:
+        byte 0
+kt_copy_remaining_hi:
+        byte 0
+
+; This module's own copy of keymap_table, taken/restored around a
+; popup visit -- NOT persisted anywhere itself (only the resident
+; keymap_table, via key_save, ever gets written to KEYMAP.CFG).
+keymap_table_backup:
+        area KEYMAP_TABLE_SIZE, $00
 
 ; {alpha:poke} builds single poke-able screen codes for '>'/' ' -- same
 ; verified {alpha:poke} ASCII->screen-code conversion config_menu.asm's
@@ -1060,6 +1214,18 @@ key_up_name:
         byte 0
 key_down_name:
         ascii "DOWN"
+        byte 0
+key_f1_name:
+        ascii "F1"
+        byte 0
+key_f3_name:
+        ascii "F3"
+        byte 0
+key_f5_name:
+        ascii "F5"
+        byte 0
+key_f7_name:
+        ascii "F7"
         byte 0
 {alpha:normal}
 
