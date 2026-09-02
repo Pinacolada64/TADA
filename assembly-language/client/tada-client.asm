@@ -1792,136 +1792,34 @@ read_line_not_return:
         jmp load_keymap_menu
 read_line_not_f7:
 
-{ifdef: keymap_debug}
-        ; --- Keymap dispatch (keymap_debug build only) ---
-        ; See keymap.asm's own comment on keymap_dispatch for why this
-        ; is gated behind {ifdef:keymap_debug} instead of replacing the
-        ; hardcoded chain below outright: a match here handles the key
-        ; itself and loops back, same as every branch further down: no
-        ; match falls through to that SAME hardcoded chain unchanged,
-        ; so testing this never risks the working (normal) build --
-        ; make debug-d64 assembles a second, separately-named .d64 with
-        ; -def:keymap_debug passed to c64list, the normal `make d64` is
-        ; completely untouched by any of this. A dedicated parser
-        ; variable, deliberately NOT the pre-existing "debug" one this
-        ; file already has (see this section's header comment above,
-        ; the {undef: debug} line): confirmed live 2026-09-02 that
-        ; enabling that one wakes up an old, apparently-never-actually-
-        ; run-before per-character trace elsewhere in this file (the
-        ; <XX>[XX] block a few hundred lines up) which corrupts real
-        ; keyboard input -- print_hex_nibble's `tax` clobbers X with
-        ; no save/restore around it, and nothing calling print_hex_byte
-        ; from that trace accounts for that. Not fixed here (out of
-        ; scope for the keymap work, and disabled again by default
-        ; either way since "debug" itself is never defined for this
-        ; build) -- just avoided by using a name that line's {undef:}
-        ; has no effect on. Once this dispatch is confirmed correct
-        ; live, a follow-up change removes both this {ifdef:} guard and
-        ; the now-redundant hardcoded checks it would otherwise
-        ; duplicate forever.
+        ; --- Keymap dispatch ---
+        ; Handles word-left/right (CTRL+CRSR-LEFT/DOWN by default) and
+        ; home/end (plain CRSR-UP/DOWN by default) via keymap_table --
+        ; see keymap.asm's own comment on keymap_dispatch and
+        ; keymap_default. A match here handles the key itself and loops
+        ; back; a miss (e.g. DEL, INST, plain CRSR-LEFT/RIGHT -- none of
+        ; those are in the default keymap at all) falls through to the
+        ; ordinary dispatch below, .A restored to the real typed byte
+        ; either way. This used to be a hardcoded cmp/$028d chain
+        ; directly in this file (CRSR UP/DOWN, CTRL+CRSR-LEFT/DOWN);
+        ; replaced by this table-driven version 2026-09-02 once it was
+        ; confirmed correct live (both a real login-prompt retest and a
+        ; direct synthetic check of every case -- see keymap_dispatch's
+        ; own commit history for the two real bugs that surfaced and
+        ; got fixed along the way). See keymap_default's own comment
+        ; for the historical CTRL+cursor/VICE-GTK caveat that used to
+        ; live here.
         jsr keymap_dispatch
         bcc read_line_not_keymap
         jmp read_line_loop
 read_line_not_keymap:
-{endif}
 
-        ; CRSR UP/DOWN were never in read_line's own dispatch chain at
-        ; all before this -- unhandled, they fell through to
-        ; read_line_store and got typed as literal control bytes, which
-        ; is worse here than a stray on-screen glyph the way it was on
-        ; the 128 client (see input_editor.asm's own cursor up/down
-        ; fix): read_line_store also ECHOES the typed byte via CHROUT,
-        ; and CHROUT-ing $91/$11 as OUTPUT actually executes them as
-        ; cursor-up/cursor-down control codes, moving the real screen
-        ; cursor around uncontrolled -- confirmed live 2026-08-24 by
-        ; Ryan. Rather than just ignore them (matching the 128 side),
-        ; Ryan asked for CRSR UP -> start of line, CRSR DOWN -> end of
-        ; line (when CTRL isn't also held -- see below), a more useful
-        ; binding than a no-op given they're otherwise unused.
-        cmp #$91                 ; CRSR UP (shift+CRSR key)?
-        bne read_line_check_left
-        jsr read_line_home
-        jmp read_line_loop
-read_line_check_left:
-
-        ; CTRL+CRSR-LEFT/CTRL+CRSR-DOWN -> word-left/word-right, checked
-        ; ahead of the ordinary dispatch below since GETIN's own byte
-        ; for a cursor key doesn't change when CTRL is also held (CTRL
-        ; only modifies the encoding for letter keys, not cursor keys).
-        ; $028D (653 decimal, SFDX) is the KERNAL's live SHIFT/
-        ; Commodore/CTRL status (0/1/2/4), the C64 cross-reference
-        ; Compute's 128 Programmer's Guide gives for the 128's own $D3
-        ; -- bit 2 (value 4) is CTRL. Written as the explicit hex
-        ; literal $028d here (a plain `lda 653` compiles identically --
-        ; confirmed by comparing the raw assembled bytes of both, both
-        ; give AD 8D 02 -- an earlier version of this comment claimed
-        ; otherwise, that c64list assembles unprefixed numbers as hex
-        ; by default; that claim was wrong and has been corrected, see
-        ; project_tada_c64_client.md's memory entry for the full
-        ; correction). Same key combo the
-        ; 128 client's input_editor.asm uses (see its own comment
-        ; there) for cross-client consistency, chosen there because
-        ; the 128's F1/F7 are unusable as plain shortcuts (KERNAL auto-
-        ; expands them into whole command strings) -- the C64 doesn't
-        ; have that specific problem, but read_line never had word-jump
-        ; at all before this, so there's no existing F1/F7 binding
-        ; being displaced either.
-        ;
-        ; NOTE (2026-08-24): CTRL+CRSR-LEFT/DOWN could not be live-
-        ; confirmed working end-to-end in this session's sandboxed VICE
-        ; testing environment -- isolated via a pure-BASIC PEEK(653)/
-        ; GET A$ test (independent of this file entirely) that Tab
-        ; (VICE's mapped CTRL key here) reads correctly as 4 when held
-        ; alone, and C=+cursor correctly shows a nonzero SFDX value,
-        ; but Tab+cursor (any direction, including CRSR DOWN, which
-        ; shares neither row nor column with Tab in the keyboard
-        ; matrix, ruling out real matrix ghosting) never registers any
-        ; GETIN event at all. This looks like a VICE/GTK-specific
-        ; limitation of the Tab key specifically when held with another
-        ; key (Tab doubles as a GTK focus-navigation key), not a bug in
-        ; this dispatch logic, which is verified correct via py65
-        ; disassembly against source intent. Ryan's own idea for a real
-        ; fix -- installing assembly-language/3-key-rollover-source.lbl
-        ; (a custom IRQ-driven keyboard scan bypassing the KERNAL's own,
-        ; already present in this repo, untracked/unintegrated) in
-        ; place of the KERNAL's scan -- is a legitimate direction but a
-        ; separate, larger undertaking than this dispatch change;
-        ; parked rather than attempted in the same session. Confirm
-        ; the actual key combo on real hardware or a differently-
-        ; configured VICE before relying on it.
-        cmp #$9d                 ; CRSR LEFT (shift+CRSR key)?
-        bne read_line_check_ctrl_down
-        pha
-        lda $028d
-        and #4
-        beq read_line_left_plain ; CTRL not held -- ordinary cursor-left
-        pla                      ; CTRL held -- discard stashed byte,
-        jsr read_line_word_left  ; word-jump instead
-        jmp read_line_loop
-read_line_left_plain:
-        pla
-        jmp read_line_left
-
-read_line_check_ctrl_down:
-        cmp #$11                 ; CRSR DOWN -- see the header comment
-        bne read_line_dispatch_rest ; above for the UP/DOWN backstory
-        pha
-        lda $028d
-        and #4
-        beq read_line_down_plain ; CTRL not held -- jump to end of line
-        pla
-        jsr read_line_word_right
-        jmp read_line_loop
-read_line_down_plain:
-        pla
-        jsr read_line_end
-        jmp read_line_loop
-
-read_line_dispatch_rest:
         cmp #$14                 ; DEL (PETSCII backspace)?
         beq read_line_del
         cmp #$94                 ; INST (shift+DEL) -- insert a blank at cursor?
         beq read_line_inst
+        cmp #$9d                 ; CRSR LEFT (shift+CRSR key)?
+        beq read_line_left
         cmp #$1d                 ; CRSR RIGHT (unshifted CRSR key)?
         beq read_line_right
         jmp read_line_store

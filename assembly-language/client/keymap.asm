@@ -42,12 +42,12 @@
 ; A fixed-size table read_line_loop's read_line_not_return consults
 ; (currently gated behind {ifdef:debug} -- see that call site's own
 ; comment in tada-client.asm and keymap_dispatch's below) to decide
-; what a keypress does, instead of (for now, still also) its own
-; hardcoded cmp chain. Each binding is BINDING_SIZE bytes:
+; what a keypress does -- replaced that call site's own hardcoded cmp
+; chain outright, 2026-09-02, once confirmed correct live. Each binding
+; is BINDING_SIZE bytes:
 ;   modifier   (1 byte) -- bitmask matching $028d's own layout (see
-;                            tada-client.asm's read_line_check_left
-;                            comment): bit 0 SHIFT, bit 1 Commodore,
-;                            bit 2 CTRL
+;                            keymap_dispatch's own comment below): bit
+;                            0 SHIFT, bit 1 Commodore, bit 2 CTRL
 ;   key        (1 byte) -- the raw GETIN byte for that key
 ;   action     (1 byte) -- ACTION_EMPTY (slot unused), a built-in nav
 ;                            function index, or ACTION_MACRO
@@ -106,15 +106,36 @@ keymap_table:
         area KEYMAP_TABLE_SIZE, $00
 
 ; --- Built-in default keymap ---
-; Matches tada-client.asm's own originally-hardcoded scheme (read_line_
-; check_left's comment there): CTRL+CRSR-LEFT/DOWN for word-left/right,
-; plain CRSR-UP/DOWN for home/end. Copied into keymap_table by init_
-; keymap whenever no KEYMAP.CFG loads successfully (first run, or a
-; disk without one), so a player who's never opened the Keymap Editor
-; sees no behavior change at all. Only these KEYMAP_DEFAULT_SIZE bytes
-; need copying -- the remaining MAX_BINDINGS-4 slots in keymap_table
-; are already correct either way (its own area fill above if the
-; default copy runs, or whatever a real LOAD wrote if one succeeded).
+; Matches this scheme's original home before the dispatch rework
+; (2026-09-02, see keymap_dispatch's own comment): CTRL+CRSR-LEFT/DOWN
+; for word-left/right, plain CRSR-UP/DOWN for home/end -- the exact
+; hardcoded `cmp`/$028d checks tada-client.asm's read_line_not_return
+; used to have, before keymap_dispatch + this table replaced them.
+; Copied into keymap_table by init_keymap whenever no KEYMAP.CFG loads
+; successfully (first run, or a disk without one), so a player who's
+; never opened the Keymap Editor sees no behavior change at all. Only
+; these KEYMAP_DEFAULT_SIZE bytes need copying -- the remaining
+; MAX_BINDINGS-4 slots in keymap_table are already correct either way
+; (its own area fill above if the default copy runs, or whatever a
+; real LOAD wrote if one succeeded).
+;
+; NOTE (2026-08-24, inherited from the removed hardcoded version):
+; CTRL+CRSR-LEFT/DOWN could not be live-confirmed working end-to-end in
+; that session's sandboxed VICE testing environment -- isolated via a
+; pure-BASIC PEEK(653)/GET A$ test (independent of this file entirely)
+; that Tab (VICE's mapped CTRL key there) reads correctly as 4 when
+; held alone, and C=+cursor correctly shows a nonzero SFDX value, but
+; Tab+cursor (any direction) never registers any GETIN event at all.
+; Looked like a VICE/GTK-specific limitation of the Tab key specifically
+; when held with another key (Tab doubles as a GTK focus-navigation
+; key), not a bug in the dispatch logic. Not re-confirmed since: 2026-
+; 09-02's live retest of keymap_dispatch exercised plain typed text
+; (catching the real A-preservation bug that session found), not a
+; CTRL+cursor combo specifically -- only a synthetic monitor call has
+; verified this exact binding so far (keymap_dispatch's own commit).
+; Still worth confirming CTRL+CRSR specifically via real typed input,
+; on real hardware or a differently-configured VICE, before relying on
+; it.
 keymap_default:
         byte MOD_CTRL, $9d, ACTION_WORD_LEFT
         area MACRO_TEXT_LEN, $20
@@ -342,9 +363,17 @@ keymap_dispatch_loop:
                                     ; DOWN for Word Right, same as the
                                     ; built-in default already does)
         lda $028d                 ; live SHIFT/Commodore/CTRL status --
-        and #(MOD_SHIFT|MOD_CMDRE|MOD_CTRL) ; see read_line_check_
-        sta keymap_dispatch_temp  ; left's own comment in tada-client.
-                                    ; asm for the full $028d rationale
+        and #(MOD_SHIFT|MOD_CMDRE|MOD_CTRL) ; $028D (653 decimal, SFDX)
+        sta keymap_dispatch_temp  ; is the KERNAL's live SHIFT/Commodore/
+                                    ; CTRL status (0/1/2/4), the C64
+                                    ; cross-reference Compute's 128
+                                    ; Programmer's Guide gives for the
+                                    ; 128's own $D3 -- bit 2 (value 4)
+                                    ; is CTRL. Cursor keys' own GETIN
+                                    ; byte doesn't change when a
+                                    ; modifier is also held (unlike
+                                    ; letter keys), so this is the only
+                                    ; way to detect that
         ldy #0                     ; modifier byte
         lda (scr_ptr_lo),y
         cmp keymap_dispatch_temp
