@@ -1792,6 +1792,26 @@ read_line_not_return:
         jmp load_keymap_menu
 read_line_not_f7:
 
+{ifdef: debug}
+        ; --- Keymap dispatch (debug build only) ---
+        ; See keymap.asm's own comment on keymap_dispatch for why this
+        ; is gated behind {ifdef:debug} instead of replacing the
+        ; hardcoded chain below outright: a match here handles the key
+        ; itself and loops back, same as every branch further down: no
+        ; match falls through to that SAME hardcoded chain unchanged,
+        ; so testing this never risks the working (non-debug) build --
+        ; make debug-d64 assembles a second, separately-named .d64 with
+        ; -def:debug passed to c64list, the normal `make d64` is
+        ; completely untouched by any of this. Once confirmed correct
+        ; live, a follow-up change removes both this {ifdef:} guard and
+        ; the now-redundant hardcoded checks it would otherwise
+        ; duplicate forever.
+        jsr keymap_dispatch
+        bcc read_line_not_keymap
+        jmp read_line_loop
+read_line_not_keymap:
+{endif}
+
         ; CRSR UP/DOWN were never in read_line's own dispatch chain at
         ; all before this -- unhandled, they fell through to
         ; read_line_store and got typed as literal control bytes, which

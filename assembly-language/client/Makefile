@@ -188,6 +188,43 @@ $(TARGET).d64: $(TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg
 
 d64: $(TARGET).d64
 
+# --- Debug build ---
+# A second, separately-named .prg/.d64 with -def:debug passed to c64list,
+# for trying out {ifdef:debug}...{endif} code (e.g. keymap.asm's dispatch
+# rework) without touching $(TARGET).prg/$(TARGET).d64 (the normal build
+# above) at all -- Ryan's ask, 2026-09-02: build a debug variant instead
+# of risking the working copy while a new dispatch path is still being
+# verified live.
+#
+# -def:debug alone isn't enough: $(TARGET).asm has an unconditional
+# {undef: debug} near its top (see that line's own comment -- the
+# project's existing, established way to toggle the OTHER {ifdef:debug}
+# block already in read_line_loop is to hand-comment that line out, not
+# a build flag), and {def:}/{undef:} process sequentially -- a later
+# {undef:} always wins over an earlier command-line -def:, so it would
+# silently cancel -def:debug before c64list ever reached this file's own
+# {ifdef:debug} blocks. Rather than edit that shared line (both builds'
+# tada-client.asm), this derives a separate preprocessed copy with just
+# that one directive line stripped, leaving $(TARGET)_pp.asm and
+# $(TARGET).asm itself completely untouched.
+DEBUG_TARGET = $(TARGET)-debug
+
+$(DEBUG_TARGET)_pp.asm: $(TARGET)_pp.asm
+	sed '/{undef: debug}/d' $(TARGET)_pp.asm > $(DEBUG_TARGET)_pp.asm
+
+$(DEBUG_TARGET).prg: $(DEBUG_TARGET)_pp.asm
+	$(C64LIST) $(DEBUG_TARGET)_pp.asm -prg:$(DEBUG_TARGET) -sym -ovr -def:debug
+
+$(DEBUG_TARGET).d64: $(DEBUG_TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg
+	rm -f $(DEBUG_TARGET).d64
+	c1541 -format "tada,00" d64 $(DEBUG_TARGET).d64
+	c1541 $(DEBUG_TARGET).d64 -write $(DEBUG_TARGET).prg "tada-client"
+	c1541 $(DEBUG_TARGET).d64 -write petscii_editor.prg "PETSCII.ED"
+	c1541 $(DEBUG_TARGET).d64 -write config_menu.prg "CONFIG.MNU"
+	c1541 $(DEBUG_TARGET).d64 -write help_menu.prg "HELP.MNU"
+
+debug-d64: $(DEBUG_TARGET).d64
+
 # Just preprocess, useful for checking macro/const output
 preprocess: $(TARGET)_pp.asm
 
@@ -207,7 +244,11 @@ clean:
 	      $(addsuffix _pp.sym,$(MODULES)) \
 	      $(addsuffix .prg,$(MODULES)) \
 	      $(addsuffix .sym,$(MODULES)) \
-	      $(TARGET).d64
+	      $(TARGET).d64 \
+	      $(DEBUG_TARGET)_pp.asm \
+	      $(DEBUG_TARGET)_pp.sym \
+	      $(DEBUG_TARGET).prg \
+	      $(DEBUG_TARGET).d64
 
 # Show build status and server reachability
 status:
@@ -222,4 +263,4 @@ status:
 		echo "$(SL_HOST):$(SL_PORT) REACHABLE" || \
 		echo "$(SL_HOST):$(SL_PORT) NOT REACHABLE"
 
-.PHONY: all vice d64 preprocess build clean status
+.PHONY: all vice d64 debug-d64 preprocess build clean status

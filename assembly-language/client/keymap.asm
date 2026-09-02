@@ -41,9 +41,17 @@
 ;   key        (1 byte) -- the raw GETIN byte for that key
 ;   action     (1 byte) -- ACTION_EMPTY (slot unused), a built-in nav
 ;                            function index, or ACTION_MACRO
-;   macro_text (MACRO_TEXT_LEN bytes) -- space-padded; only meaningful
-;                            when action == ACTION_MACRO, unused (left
-;                            as spaces) for nav-function slots
+;   macro_text (MACRO_TEXT_LEN bytes) -- NUL-terminated (NOT space-
+;                            padded: macro text may legitimately
+;                            contain a literal space, e.g. "give
+;                            sword", so a space can't double as the
+;                            terminator the way it does for screen
+;                            padding elsewhere in this file). Only
+;                            meaningful when action == ACTION_MACRO;
+;                            unused for nav-function slots, where it's
+;                            just whatever keymap_table's own zero-fill
+;                            (or a loaded file's leftover bytes) left
+;                            there -- harmless, nothing ever reads it
 MAX_BINDINGS   = 14        ; the 4 built-in nav functions plus up to 10
                              ; macros -- fits without a scrollable list
                              ; in the (future) editor popup
@@ -191,3 +199,183 @@ keymap_menu_filename:
 keymap_data_filename:
         ascii "KEYMAP.CFG"
 {alpha:normal}
+
+; ============================================================
+; --- Keymap dispatch (debug build only for now) ---
+; ============================================================
+; Called from tada-client.asm's read_line_not_return, wrapped there in
+; {ifdef:debug}...{endif} -- see that call site's own comment for why:
+; a match here fully replaces what the hardcoded chain below it would
+; otherwise have done for the SAME key, but a miss falls through to
+; that unchanged chain, so this can be live-tested (make debug-d64)
+; without any risk to the normal build while it's still being verified.
+
+; --- keymap_dispatch: check keymap_table for a binding matching the
+; just-typed key + current modifier state ---
+; Input: .A = the byte read_line_loop's GETIN call just returned.
+; Output: carry SET and the key fully handled (caller should treat it
+; as consumed, typically `jmp read_line_loop`) if a binding matched;
+; carry CLEAR (caller falls through to its own further dispatch) if
+; nothing in the table matches this key+modifier combo at all, or
+; matches on key but not modifier (see keymap_dispatch_loop's own
+; comment on why every slot is still checked in that case rather than
+; stopping at the first key-only match).
+;
+; Scans keymap_table via a moving 16-bit pointer (scr_ptr_lo/hi, this
+; file's own temporary borrow of tada-client.asm's shared indirect-
+; pointer pair -- see set_screen_line's comment on the convention),
+; NOT simple `LDA keymap_table,Y` indexed addressing: MAX_BINDINGS(14)
+; * BINDING_SIZE(27) is 378, so slot 10's own base offset (270) already
+; exceeds what an 8-bit Y can reach. Same self-modified/incremented-
+; pointer technique copy_block already uses elsewhere in this
+; codebase, just read-only here (no destination pointer needed).
+keymap_dispatch:
+        sta keymap_dispatch_key
+        lda #<keymap_table
+        sta scr_ptr_lo
+        lda #>keymap_table
+        sta scr_ptr_hi
+        ldx #MAX_BINDINGS
+keymap_dispatch_loop:
+        ldy #2                    ; action byte
+        lda (scr_ptr_lo),y
+        cmp #ACTION_EMPTY
+        beq keymap_dispatch_next  ; unused slot -- skip without even
+                                    ; checking key/modifier
+        ldy #1                    ; key byte
+        lda (scr_ptr_lo),y
+        cmp keymap_dispatch_key
+        bne keymap_dispatch_next  ; wrong key -- try the next slot
+                                    ; (deliberately not stopping here:
+                                    ; two slots could share a key with
+                                    ; different modifiers, e.g. plain
+                                    ; CRSR-DOWN for End vs CTRL+CRSR-
+                                    ; DOWN for Word Right, same as the
+                                    ; built-in default already does)
+        lda $028d                 ; live SHIFT/Commodore/CTRL status --
+        and #(MOD_SHIFT|MOD_CMDRE|MOD_CTRL) ; see read_line_check_
+        sta keymap_dispatch_temp  ; left's own comment in tada-client.
+                                    ; asm for the full $028d rationale
+        ldy #0                     ; modifier byte
+        lda (scr_ptr_lo),y
+        cmp keymap_dispatch_temp
+        bne keymap_dispatch_next  ; right key, wrong modifier -- keep
+                                    ; scanning (same reasoning as above)
+        ldy #2                     ; MATCH -- dispatch on this slot's
+        lda (scr_ptr_lo),y        ; action byte
+        jmp keymap_dispatch_run
+keymap_dispatch_next:
+        lda scr_ptr_lo
+        clc
+        adc #BINDING_SIZE
+        sta scr_ptr_lo
+        bcc keymap_dispatch_no_carry
+        inc scr_ptr_hi
+keymap_dispatch_no_carry:
+        dex
+        bne keymap_dispatch_loop
+        clc                        ; scanned every slot, no match
+        rts
+
+; --- keymap_dispatch_run: act on a matched slot's action byte ---
+; Input: .A = the action byte; scr_ptr_lo/hi still points at the start
+; of the matched binding record (keymap_insert_macro needs that for
+; ACTION_MACRO). Falls through to keymap_dispatch_handled (carry set)
+; for every recognized action; an action byte that matches none of
+; them (shouldn't happen -- nothing writes a keymap_table record with
+; an action outside this set) is still treated as handled rather than
+; falling through to tada-client.asm's own hardcoded chain, since a
+; real key/modifier match already occurred and re-running the
+; hardcoded path for it would risk double-handling the keystroke.
+keymap_dispatch_run:
+        cmp #ACTION_WORD_LEFT
+        bne keymap_dispatch_try_word_right
+        jsr read_line_word_left
+        jmp keymap_dispatch_handled
+keymap_dispatch_try_word_right:
+        cmp #ACTION_WORD_RIGHT
+        bne keymap_dispatch_try_home
+        jsr read_line_word_right
+        jmp keymap_dispatch_handled
+keymap_dispatch_try_home:
+        cmp #ACTION_HOME
+        bne keymap_dispatch_try_end
+        jsr read_line_home
+        jmp keymap_dispatch_handled
+keymap_dispatch_try_end:
+        cmp #ACTION_END
+        bne keymap_dispatch_try_macro
+        jsr read_line_end
+        jmp keymap_dispatch_handled
+keymap_dispatch_try_macro:
+        cmp #ACTION_MACRO
+        bne keymap_dispatch_handled
+        jsr keymap_insert_macro
+keymap_dispatch_handled:
+        sec
+        rts
+
+keymap_dispatch_key:
+        byte 0
+keymap_dispatch_temp:
+        byte 0
+
+; --- keymap_insert_macro: insert a matched binding's macro_text into
+; linebuf at cursor_pos ---
+; Same shift-and-insert idea as tada-client.asm's read_line_store, just
+; applied to a whole string at once instead of one typed char. Input:
+; scr_ptr_lo/hi points at the start of the matched binding record
+; (keymap_dispatch_run's own pointer, still valid here -- nothing
+; between there and this call moves it). Silently stops inserting
+; (rather than erroring) if linelen hits MAX_LINE-1 partway through,
+; same "buffer full, ignore the rest" behavior read_line_store already
+; has for a single typed character, just covering the whole remaining
+; macro instead of one char.
+keymap_insert_macro:
+        ldy #3                     ; macro_text starts at binding
+                                     ; offset 3 (past modifier/key/action)
+keymap_insert_macro_scan:
+        cpy #BINDING_SIZE
+        beq keymap_insert_macro_done
+        lda (scr_ptr_lo),y
+        beq keymap_insert_macro_done  ; NUL terminator
+        pha
+        lda linelen
+        cmp #MAX_LINE-1
+        bcc keymap_insert_macro_room
+        pla
+        jmp keymap_insert_macro_done  ; buffer full -- stop here,
+                                        ; discarding the rest of the
+                                        ; macro rather than partially
+                                        ; inserting a mid-word fragment
+keymap_insert_macro_room:
+        ldx linelen                ; shift linebuf[cursor_pos..linelen-1]
+                                     ; right by one to open a gap at
+                                     ; cursor_pos -- same loop shape as
+                                     ; read_line_store_shift
+keymap_insert_macro_shift:
+        cpx cursor_pos
+        beq keymap_insert_macro_shift_done
+        lda linebuf-1,x
+        sta linebuf,x
+        dex
+        jmp keymap_insert_macro_shift
+keymap_insert_macro_shift_done:
+        pla                         ; recover the char to insert
+        ldx cursor_pos
+        sta linebuf,x
+        inc linelen
+        inc cursor_pos
+        jsr term_chrout             ; echo it -- preserves X/Y itself,
+                                      ; so our Y (macro_text scan index)
+                                      ; survives this call untouched
+        lda #0
+        sta QTSW                    ; same defensive reset read_line_
+                                      ; store/reprint_input_line already
+                                      ; do after every echoed char, in
+                                      ; case this macro's text contains
+                                      ; a literal '"'
+        iny
+        jmp keymap_insert_macro_scan
+keymap_insert_macro_done:
+        rts
