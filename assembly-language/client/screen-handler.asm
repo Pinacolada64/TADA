@@ -171,10 +171,30 @@ async_blank_loop:
         ldx $d6
         cpx #STATUS_ROW
         bne async_blank_loop
-        ldx #24                    ; blanking forward hit the reserved
+        ldx #DIALOGUE_LAST_ROW     ; blanking forward hit the reserved
         ldy #0                      ; row -- hop over it to the start of
-        clc                         ; the row below instead of scrolling
-        jsr KERNAL_PLOT
+        clc                         ; the row below instead of scrolling.
+        jsr KERNAL_PLOT             ; Was #24 (one row lower than async_
+                                     ; step_back's own #DIALOGUE_LAST_ROW
+                                     ; landing for the identical backward
+                                     ; case) -- confirmed live 2026-09-02
+                                     ; via a temporary row-log ring buffer
+                                     ; that this mismatch was silently
+                                     ; desyncing $d6 from what term_chrout
+                                     ; expects: a real repro's logged row
+                                     ; sequence went 20,21,23,20,21,23...
+                                     ; -- DIALOGUE_LAST_ROW (22) never
+                                     ; appearing at all -- leaving one of
+                                     ; every three "free" post-shift rows
+                                     ; permanently unwritten, surfacing
+                                     ; later as a blank line once that row
+                                     ; got shifted into view. Only fires
+                                     ; while erase_input_line's forward
+                                     ; blank-walk (service_async_text,
+                                     ; mid-typing incoming text) happens
+                                     ; to cross STATUS_ROW -- unrelated to
+                                     ; SCROLL_AHEAD, reproduces at
+                                     ; SCROLL_AHEAD=1 too.
         jmp async_blank_loop
 async_blank_done:
         rts

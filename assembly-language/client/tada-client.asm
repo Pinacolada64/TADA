@@ -166,15 +166,36 @@
 ; `=` is a real c64list symbol, resolved globally across {include:}s.
 KERNAL_PLOT = $fff0
 
-; Where the petscii_editor overlay module loads and runs. Chosen well
-; clear of both this resident program's own growth (currently topping
-; out well under $1000 -- see tada-client-vice-labels after a build for
-; the exact current top) and the screen/color RAM/KERNAL-adjacent low
-; page usage below -- leaves the module ~32K of contiguous RAM up to
-; $9fff (BASIC ROM, banked in throughout per this client's design, starts
-; at $a000) to work with, far more than a 2000-byte canvas buffer plus
-; editor code needs.
-{const: OVERLAY_BUF $2000}
+; Where every loadable overlay module (petscii_editor.asm, config_menu.
+; asm, help_menu.asm) loads and runs -- $2100, NOT $2000. Moved here
+; 2026-08-25 after a real, live-reproduced bug: BACKUP_CHARS/BACKUP_
+; COLORS (below, the shared screen-backup pair JT_SAVE_SCREEN/JT_
+; RESTORE_SCREEN use) sit at $1900/$1ce8, and BACKUP_COLORS' own 1000
+; bytes run through to $20cf -- 208 bytes INTO where OVERLAY_BUF used to
+; start. Every overlay's module_start calls JT_SAVE_SCREEN as its very
+; first instruction; save_screen's COLOR_RAM-backup copy loop writes
+; straight through that overlap, corrupting the first 208 bytes of the
+; overlay's own just-loaded, currently-executing code the moment that
+; jsr returns -- confirmed live via help_menu.asm: the popup rendered a
+; textbook VICE uninitialized-RAM pattern ($00/$ff alternating, from
+; whatever COLOR_RAM cells landed there) instead of its own row_help1
+; text, then execution ran off into garbage. config_menu.asm/petscii_
+; editor.asm apparently never had anything load-bearing in that specific
+; 208-byte window, so this went unnoticed until help_menu.asm's own
+; layout did. $2100 leaves 49 bytes of margin past BACKUP_COLORS' own
+; end ($20cf) -- comfortably clear, and every overlay module's own
+; `orig $2000` must be updated to `orig $2100` to match (they don't
+; {include:} this constant, see load_petscii_editor's own comment for
+; why the embedded-load-address convention doesn't need them to).
+; Original placement comment (no longer accurate, corrected above):
+; "chosen well clear of both this resident program's own growth ... and
+; the screen/color RAM/KERNAL-adjacent low page usage below" -- true of
+; the resident program's OWN growth, not of BACKUP_CHARS/BACKUP_COLORS,
+; which were added to this same low-page block afterward without
+; re-checking against OVERLAY_BUF. Still leaves the module ~32K of
+; contiguous RAM up to $9fff (BASIC ROM, banked in throughout per this
+; client's design, starts at $a000) to work with.
+{const: OVERLAY_BUF $2100}
 
 ; Fixed low-page jump table the petscii_editor overlay (and any future
 ; loadable module) calls through instead of depending on this resident
@@ -601,9 +622,38 @@ copy_1000:
         sta copy_remaining_hi
         jmp copy_block
 
-; term_scroll_advance's 880-byte dialogue-window shift (rows 1-22 into
-; rows 0-21, screen + color) -- see its own comment.
-DIALOGUE_SHIFT_BYTES = 880
+; SCROLL_AHEAD: how many rows term_scroll_advance frees in a single
+; shift, instead of the traditional one-row-at-a-time terminal scroll.
+; Once the dialogue window first fills, EVERY later line triggers a
+; shift regardless of SCROLL_AHEAD -- freeing N rows at once just means
+; only every Nth line pays for one, and that shift moves less data too
+; (a shrinking window each time, not the same fixed 22-row copy every
+; single line): over N lines this moves roughly 1/N as many total bytes
+; as the old always-1-row version. Tunable 1-4; rebuild to pick up a
+; change. SCROLL_AHEAD=1 reproduces the original one-row-at-a-time
+; behavior exactly (DIALOGUE_SHIFT_ROWS=22, matching the old hardcoded
+; 880-byte/row-1 shift below). Idea from a terminal program Ryan
+; remembered doing this.
+SCROLL_AHEAD = 3
+
+; term_scroll_advance's dialogue-window shift (rows SCROLL_AHEAD-22
+; into rows 0-(21-SCROLL_AHEAD+1), screen + color) -- see its own
+; comment and SCROLL_AHEAD's above. DIALOGUE_SHIFT_ROWS doubles as the
+; row index of the first freshly-blanked row after a shift (rows
+; 0..DIALOGUE_SHIFT_ROWS-1 hold the shifted-up content, rows
+; DIALOGUE_SHIFT_ROWS..22 are the SCROLL_AHEAD blanked spares) -- see
+; term_scroll_advance's use of it both ways.
+;
+; DIALOGUE_SHIFT_BYTES is DIALOGUE_SHIFT_ROWS*40, but is hand-computed
+; below rather than written as that multiply -- confirmed live that
+; C64List 4.06 infers a computed value's storage width from its byte-
+; sized operands (both under 256) rather than the actual product,
+; silently truncating 800 ($320) down to $20 with just a warning (no
+; error) to catch it. Same reasoning as STATUS_ROW_OFFSET above being
+; hand-computed instead of STATUS_ROW*ROW_BYTES. If SCROLL_AHEAD
+; changes, recompute this by hand: (23-SCROLL_AHEAD)*40.
+DIALOGUE_SHIFT_ROWS = 23 - SCROLL_AHEAD
+DIALOGUE_SHIFT_BYTES = 800        ; (23-SCROLL_AHEAD)*40 for SCROLL_AHEAD=3
 copy_dialogue_block:
         lda #<DIALOGUE_SHIFT_BYTES
         sta copy_remaining_lo
@@ -670,6 +720,21 @@ term_chrout:
         sty term_saved_y
         jsr CHROUT
         ldx $d6                    ; TBLX -- physical cursor row
+        ; --- TEMPORARY diagnostic: log every post-CHROUT row into a
+        ; 256-entry ring buffer (row_log, indexed by row_log_idx -- a
+        ; single byte, so it wraps 0-255 for free with no extra masking).
+        ; Meant to be read after-the-fact with a single quiet memory
+        ; dump (no live pause/breakpoint needed) once a real, live-typed
+        ; repro shows the blank-row bug -- both a direct term_chrout
+        ; call and a full handle_recv_byte feed of the real encoded shop
+        ; menu bytes rendered correctly in isolation, so whatever's
+        ; different only shows up under real SwiftLink receive timing.
+        ; Remove once the bug's found.
+        stx row_log_temp
+        ldy row_log_idx
+        lda row_log_temp
+        sta row_log,y
+        inc row_log_idx
         cpx #STATUS_ROW
         bcc term_chrout_rts
         jsr term_scroll_advance
@@ -682,6 +747,13 @@ term_saved_x:
         byte 0
 term_saved_y:
         byte 0
+
+row_log_temp:
+        byte 0
+row_log_idx:
+        byte 0
+row_log:
+        area 256, 0
 
 ; --- term_cursor_left / term_cursor_right: single-step relative cursor
 ; move ($9d/$1d) that skips over STATUS_ROW instead of landing on it,
@@ -714,7 +786,11 @@ term_cursor_right:
         ldx $d6
         cpx #STATUS_ROW
         bne term_cursor_right_rts
-        ldx #24
+        ldx #DIALOGUE_LAST_ROW     ; was #24 -- same mismatch as async_
+                                     ; blank's fixed one, term_cursor_
+                                     ; left's own #DIALOGUE_LAST_ROW
+                                     ; landing is the correct sibling to
+                                     ; match
         ldy #0
         clc
         jsr KERNAL_PLOT
@@ -725,32 +801,113 @@ term_cursor_right_rts:
 ; Comfortably past the visible area on both PAL (312 lines/frame) and
 ; NTSC (262 lines/frame) -- moves the START of the scroll's screen-
 ; memory writes to an off-screen moment, rather than however mid-frame
-; the triggering character happened to land. Does NOT fully eliminate
-; tearing on its own: the shift itself (two 880-byte copies, screen +
-; color, ~3.5ms of CPU time) runs longer than a single vblank window
-; (well under 1ms) and can spill back into active drawing time
-; regardless. A complete fix would chunk the copy across several frames
-; instead of doing it atomically; not pursued since checking real frames
-; extracted from a screen recording (see project memory) found no
-; visible tearing with just this cheap version. $d012 alone (without
-; checking $d011 bit 7) is sufficient for line 250 since that's well
-; under 256.
+; the triggering character happened to land. On its own this does NOT
+; fully eliminate tearing: the SCREEN_RAM copy below (440 bytes, one
+; atomic 880-byte dialogue-window shift halved by row) runs longer than
+; a single vblank window (well under 1ms) and can spill back into
+; active drawing time regardless. A complete fix would chunk that copy
+; across several frames too, the way copy_color_chunked below already
+; does for COLOR_RAM -- not pursued for SCREEN_RAM since checking real
+; frames extracted from a screen recording (see project memory) found
+; no visible glyph tearing with just this cheap version; the harness's
+; own fix for glyph tearing was full double buffering (see
+; tada_screen_blit_test.asm), a much bigger change not brought over
+; here. $d012 alone (without checking $d011 bit 7) is sufficient for
+; line 250 since that's well under 256.
 wait_vblank:
         lda $d012
         cmp #250
         bne wait_vblank
         rts
 
-; Shift the dialogue window up, rows 1-22 -> rows 0-21 (screen + color),
-; discarding old row 0, then blank the fresh row 22 and reposition the
-; cursor there. Both of term_chrout's triggers (a bare CR, or a column
+; --- copy_color_chunked ---
+; COLOR_RAM's rows 1-22 -> rows 0-21 shift (the color half of
+; term_scroll_advance's dialogue-window shift), split across several
+; vblank windows instead of one atomic 880-byte copy -- ported from the
+; standalone tada_screen_blit_test.asm harness (same routine name
+; there), where it held up well tested in isolation, with no SwiftLink
+; RS232 traffic streaming in concurrently; live-testing here under real
+; gameplay (server text actively arriving mid-scroll) is the open
+; question this port is meant to answer. Only the COLOR_RAM half moves
+; to chunking: SCREEN_RAM keeps its single atomic copy just above (see
+; wait_vblank's own comment on why). COLOR_CHUNK_BYTES matches the
+; harness's own value -- inherited, not re-tuned for this file.
+; Self-modifies ccc_load/ccc_store same as copy_block self-modifies
+; copy_src_load/copy_dst_store; kept as its own separate pair (rather
+; than reusing copy_block's) since a chunk boundary can leave this
+; mid-copy across intervening wait_vblank calls, whereas copy_block
+; always runs to completion in one shot. copy_remaining_lo/hi ARE
+; shared with copy_block/copy_dialogue_block -- safe since this only
+; ever runs after term_scroll_advance's SCREEN_RAM copy_dialogue_block
+; call has already finished with them.
+; COLOR_CHUNK_BYTES stays fixed regardless of SCROLL_AHEAD -- a shorter
+; DIALOGUE_SHIFT_BYTES from a higher SCROLL_AHEAD just means fewer
+; chunks (the last one partial), which the remaining-bytes check below
+; already handles correctly either way.
+COLOR_CHUNK_BYTES = 220           ; 880 / 4, inherited from the harness
+copy_color_chunked:
+        lda #<(COLOR_RAM+SCROLL_AHEAD*ROW_BYTES)
+        sta ccc_load+1
+        lda #>(COLOR_RAM+SCROLL_AHEAD*ROW_BYTES)
+        sta ccc_load+2
+        lda #<COLOR_RAM
+        sta ccc_store+1
+        lda #>COLOR_RAM
+        sta ccc_store+2
+        lda #<DIALOGUE_SHIFT_BYTES
+        sta copy_remaining_lo
+        lda #>DIALOGUE_SHIFT_BYTES
+        sta copy_remaining_hi
+ccc_next_chunk:
+        jsr wait_vblank
+        lda #COLOR_CHUNK_BYTES
+        sta ccc_chunk_remaining
+ccc_loop:
+ccc_load:
+        lda $ffff
+ccc_store:
+        sta $ffff
+        inc ccc_load+1
+        bne ccc_src_ok
+        inc ccc_load+2
+ccc_src_ok:
+        inc ccc_store+1
+        bne ccc_dst_ok
+        inc ccc_store+2
+ccc_dst_ok:
+        lda copy_remaining_lo
+        bne ccc_dec_lo
+        dec copy_remaining_hi
+ccc_dec_lo:
+        dec copy_remaining_lo
+        lda copy_remaining_lo
+        ora copy_remaining_hi
+        beq ccc_done                ; whole 880-byte copy finished
+        dec ccc_chunk_remaining
+        bne ccc_loop                 ; more bytes left in this chunk
+        jmp ccc_next_chunk           ; chunk done -- wait for the next vblank
+ccc_done:
+        rts
+
+ccc_chunk_remaining:
+        byte 0
+
+; Shift the dialogue window up, rows SCROLL_AHEAD-22 -> rows
+; 0-(DIALOGUE_SHIFT_ROWS-1) (screen + color), discarding the old top
+; SCROLL_AHEAD rows, then blank the SCROLL_AHEAD freshly-freed rows at
+; the bottom (DIALOGUE_SHIFT_ROWS..22) and reposition the cursor at the
+; first of them. Both of term_chrout's triggers (a bare CR, or a column
 ; wrap) reduce to exactly this -- neither ever leaves real new content
 ; in STATUS_ROW to preserve (see this section's own header comment).
+; With SCROLL_AHEAD>1, KERNAL's own cursor advance fills the other
+; freshly-blanked rows on its own over the next several lines without
+; tripping term_chrout's STATUS_ROW check again, until they run out and
+; this fires once more -- see SCROLL_AHEAD's own comment.
 term_scroll_advance:
         jsr wait_vblank
-        lda #<(SCREEN_RAM+ROW_BYTES)
+        lda #<(SCREEN_RAM+SCROLL_AHEAD*ROW_BYTES)
         sta copy_src_lo
-        lda #>(SCREEN_RAM+ROW_BYTES)
+        lda #>(SCREEN_RAM+SCROLL_AHEAD*ROW_BYTES)
         sta copy_src_hi
         lda #<SCREEN_RAM
         sta copy_dst_lo
@@ -758,26 +915,20 @@ term_scroll_advance:
         sta copy_dst_hi
         jsr copy_dialogue_block
 
-        lda #<(COLOR_RAM+ROW_BYTES)
-        sta copy_src_lo
-        lda #>(COLOR_RAM+ROW_BYTES)
-        sta copy_src_hi
-        lda #<COLOR_RAM
-        sta copy_dst_lo
-        lda #>COLOR_RAM
-        sta copy_dst_hi
-        jsr copy_dialogue_block
+        jsr copy_color_chunked      ; chunked across several vblanks --
+                                     ; see its own comment
 
-        lda #DIALOGUE_LAST_ROW
-        jsr set_screen_line         ; scr_ptr_lo/hi = row 22 base
+        lda #DIALOGUE_SHIFT_ROWS
+        jsr set_screen_line         ; scr_ptr_lo/hi = first blanked
+                                     ; row's base (see its own comment)
         ldy #0
         lda #$20
 term_scroll_advance_blank:
         sta (scr_ptr_lo),y
         iny
-        cpy #40
+        cpy #SCROLL_AHEAD*40
         bne term_scroll_advance_blank
-        ldx #DIALOGUE_LAST_ROW      ; KERNAL_PLOT: X=row, Y=col
+        ldx #DIALOGUE_SHIFT_ROWS    ; KERNAL_PLOT: X=row, Y=col
         ldy #0
         clc
         jsr KERNAL_PLOT
