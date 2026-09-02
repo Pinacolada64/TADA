@@ -171,44 +171,52 @@ KERNAL_LOAD   = $ffd5
 KERNAL_PLOT = $fff0
 
 ; Where every loadable overlay module (petscii_editor.asm, config_menu.
-; asm, help_menu.asm) loads and runs -- $2100, NOT $2000. Moved here
+; asm, help_menu.asm, keymap_menu.asm) loads and runs. Moved here
 ; 2026-08-25 after a real, live-reproduced bug: BACKUP_CHARS/BACKUP_
 ; COLORS (below, the shared screen-backup pair JT_SAVE_SCREEN/JT_
-; RESTORE_SCREEN use) sit at $1900/$1ce8, and BACKUP_COLORS' own 1000
-; bytes run through to $20cf -- 208 bytes INTO where OVERLAY_BUF used to
-; start. Every overlay's module_start calls JT_SAVE_SCREEN as its very
-; first instruction; save_screen's COLOR_RAM-backup copy loop writes
-; straight through that overlap, corrupting the first 208 bytes of the
-; overlay's own just-loaded, currently-executing code the moment that
-; jsr returns -- confirmed live via help_menu.asm: the popup rendered a
-; textbook VICE uninitialized-RAM pattern ($00/$ff alternating, from
-; whatever COLOR_RAM cells landed there) instead of its own row_help1
-; text, then execution ran off into garbage. config_menu.asm/petscii_
-; editor.asm apparently never had anything load-bearing in that specific
-; 208-byte window, so this went unnoticed until help_menu.asm's own
-; layout did. $2100 leaves 49 bytes of margin past BACKUP_COLORS' own
-; end ($20cf) -- comfortably clear, and every overlay module's own
-; `orig $2000` must be updated to `orig $2100` to match (they don't
-; {include:} this constant, see load_petscii_editor's own comment for
-; why the embedded-load-address convention doesn't need them to).
-; Original placement comment (no longer accurate, corrected above):
-; "chosen well clear of both this resident program's own growth ... and
-; the screen/color RAM/KERNAL-adjacent low page usage below" -- true of
-; the resident program's OWN growth, not of BACKUP_CHARS/BACKUP_COLORS,
-; which were added to this same low-page block afterward without
-; re-checking against OVERLAY_BUF. Still leaves the module ~32K of
-; contiguous RAM up to $9fff (BASIC ROM, banked in throughout per this
-; client's design, starts at $a000) to work with.
+; RESTORE_SCREEN use) sit right below wherever OVERLAY_BUF starts, and
+; BACKUP_COLORS' own 1000-byte backup-copy loop (run by save_screen,
+; called as literally the first instruction of every overlay's
+; module_start) writes straight through into OVERLAY_BUF, corrupting
+; the start of the overlay's own just-loaded, currently-executing code
+; the instant that jsr returns.
+;
+; **This bug recurred 2026-09-02** (keymap_menu.asm's first live test,
+; caught via the VICE monitor: OVERLAY_BUF found full of COLOR_RAM-
+; range garbage bytes moments after JSR JT_SAVE_SCREEN, PC wandering
+; off into a JAM within a few hundred cycles). Root cause: BACKUP_CHARS/
+; BACKUP_COLORS are plain sequential labels (`area 1000, 0` each, no
+; fixed address), not `=` constants -- their real addresses drift
+; upward every time something is added to the resident program earlier
+; in the file. The original fix moved OVERLAY_BUF from $2000 to $2100,
+; leaving 49 bytes of margin past BACKUP_COLORS' then-current end
+; ($20cf); ordinary resident-program growth since then (nothing to do
+; with keymap_menu.asm) pushed BACKUP_COLORS' end to $24d0, erasing
+; that margin and then some -- 976 bytes of silent overlap by the time
+; this was caught. A fixed hardcoded value here is fundamentally
+; fragile against floating labels below it; the real fix is a
+; SIGNIFICANTLY bigger margin so ordinary future growth can't reach it
+; again unnoticed, not just re-measuring the current gap.
+;
+; $2900 leaves ~1.3KB of headroom past BACKUP_COLORS' current end
+; ($24d0) -- every overlay module's own `orig $2100` was updated to
+; `orig $2900` to match (they don't {include:} this constant, see
+; load_petscii_editor's own comment for why the embedded-load-address
+; convention doesn't need them to -- which also means this margin has
+; to be re-checked by hand again if BACKUP_CHARS/BACKUP_COLORS ever
+; move further, same as before). Still leaves the module a comfortable
+; stretch of contiguous RAM up to $9fff (BASIC ROM, banked in
+; throughout per this client's design, starts at $a000) to work with.
 ;
 ; Plain `=`, not {const:} -- keymap.asm's own load_keymap_menu
 ; ({include:}'d, see keymap_table's own comment) needs this too, same
 ; KERNAL_PLOT/KERNAL_SETNAM-style reasoning as those. The overlay
 ; modules themselves (petscii_editor.asm/config_menu.asm/help_menu.asm/
 ; keymap_menu.asm) still don't {include:} it -- they're separate
-; standalone .prg assemblies with their own hardcoded `orig $2100`, not
+; standalone .prg assemblies with their own hardcoded `orig $2900`, not
 ; part of this compilation unit at all (see load_petscii_editor's own
 ; comment on the embedded-load-address convention that makes that safe).
-OVERLAY_BUF = $2100
+OVERLAY_BUF = $2900
 
 ; Fixed low-page jump table the petscii_editor overlay (and any future
 ; loadable module) calls through instead of depending on this resident

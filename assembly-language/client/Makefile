@@ -25,7 +25,7 @@ TARGET          = tada-client
 # `-fs8 "."` (or a real 1541/1581) serves as device 8, since the resident
 # program LOADs it by filename at runtime -- this Makefile's own directory
 # already doubles as that build/serve directory.
-MODULES         = petscii_editor config_menu help_menu
+MODULES         = petscii_editor config_menu help_menu keymap_menu
 
 petscii_editor_pp.asm: petscii_editor.asm
 	$(PREPROCESSOR) petscii_editor.asm
@@ -44,6 +44,12 @@ help_menu_pp.asm: help_menu.asm
 
 help_menu.prg: help_menu_pp.asm
 	$(C64LIST) help_menu_pp.asm -prg:help_menu -sym -ovr
+
+keymap_menu_pp.asm: keymap_menu.asm
+	$(PREPROCESSOR) keymap_menu.asm
+
+keymap_menu.prg: keymap_menu_pp.asm
+	$(C64LIST) keymap_menu_pp.asm -prg:keymap_menu -sym -ovr
 
 # --- ROM paths ---
 # Stock KERNAL/BASIC/CHARGEN -- kept around for reference/fallback even
@@ -178,13 +184,14 @@ vice: all $(TARGET).d64
 # client.asm's own petscii_editor_filename now uses the matching raw
 # $d0,$c5,$d4,... byte literals rather than `ascii` for exactly this
 # reason -- keep the two in sync if either changes.
-$(TARGET).d64: $(TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg
+$(TARGET).d64: $(TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg keymap_menu.prg
 	rm -f $(TARGET).d64
 	c1541 -format "tada,00" d64 $(TARGET).d64
 	c1541 $(TARGET).d64 -write $(TARGET).prg "tada-client"
 	c1541 $(TARGET).d64 -write petscii_editor.prg "PETSCII.ED"
 	c1541 $(TARGET).d64 -write config_menu.prg "CONFIG.MNU"
 	c1541 $(TARGET).d64 -write help_menu.prg "HELP.MNU"
+	c1541 $(TARGET).d64 -write keymap_menu.prg "KEYMAP.ED"
 
 d64: $(TARGET).d64
 
@@ -222,13 +229,14 @@ $(DEBUG_TARGET)_pp.asm: $(TARGET)_pp.asm
 $(DEBUG_TARGET).prg: $(DEBUG_TARGET)_pp.asm
 	$(C64LIST) $(DEBUG_TARGET)_pp.asm -prg:$(DEBUG_TARGET) -sym -ovr -def:keymap_debug
 
-$(DEBUG_TARGET).d64: $(DEBUG_TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg
+$(DEBUG_TARGET).d64: $(DEBUG_TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg keymap_menu.prg
 	rm -f $(DEBUG_TARGET).d64
 	c1541 -format "tada,00" d64 $(DEBUG_TARGET).d64
 	c1541 $(DEBUG_TARGET).d64 -write $(DEBUG_TARGET).prg "tada-client"
 	c1541 $(DEBUG_TARGET).d64 -write petscii_editor.prg "PETSCII.ED"
 	c1541 $(DEBUG_TARGET).d64 -write config_menu.prg "CONFIG.MNU"
 	c1541 $(DEBUG_TARGET).d64 -write help_menu.prg "HELP.MNU"
+	c1541 $(DEBUG_TARGET).d64 -write keymap_menu.prg "KEYMAP.ED"
 
 debug-d64: $(DEBUG_TARGET).d64
 

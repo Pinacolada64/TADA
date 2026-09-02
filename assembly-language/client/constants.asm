@@ -53,3 +53,15 @@ PROTO_DISPLAY_STREAM_CONFIRM = $c016
 PROTO_DISPLAY_STREAM_CANCEL  = $c017
 PROTO_APPLY_STREAM_CONFIRM   = $c018
 PROTO_HELP_STREAM_CONFIRM    = $c019
+
+; Not a jump-table entry or protocol byte -- a 2-byte pointer (lo, hi)
+; to keymap_table's real runtime address, written once by init_keymap
+; at boot. keymap_table can't get a fixed hand-chosen address the way
+; BACKUP_CHARS/BACKUP_COLORS/OVERLAY_BUF do (no safe gap of 378+ free
+; bytes was found between the resident program's own natural end and
+; BACKUP_CHARS at $1900), so keymap_menu.asm (a separate standalone
+; .prg, same as config_menu.asm/petscii_editor.asm -- doesn't {include:}
+; keymap.asm and so can't see its `keymap_table = ...` symbol at
+; assembly time even if that address WERE fixed) reads this pointer at
+; runtime instead of needing to know or guess the address in advance.
+KEYMAP_TABLE_PTR             = $c01a

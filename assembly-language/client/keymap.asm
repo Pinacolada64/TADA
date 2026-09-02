@@ -161,6 +161,20 @@ keymap_default:
 ; before init_nmi/init_swiftlink -- purely local disk I/O, unrelated to
 ; the network setup that follows it.
 init_keymap:
+        ; Publish keymap_table's real runtime address via KEYMAP_TABLE_
+        ; PTR (constants.asm) -- see that constant's own comment for why
+        ; this indirection exists at all (no fixed hand-chosen address
+        ; was available, and keymap_menu.asm can't see this file's own
+        ; `keymap_table = ...` symbol regardless, being a separate
+        ; standalone .prg). Written unconditionally, first thing, before
+        ; either the LOAD or the default-copy below run -- both target
+        ; the exact same address either way, so there's no "which one
+        ; happened" branching needed here.
+        lda #<keymap_table
+        sta KEYMAP_TABLE_PTR
+        lda #>keymap_table
+        sta KEYMAP_TABLE_PTR+1
+
         jsr status_push_reset
         ldx #<keymap_loading_msg
         ldy #>keymap_loading_msg
