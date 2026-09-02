@@ -350,8 +350,30 @@ keymap_dispatch_next:
 keymap_dispatch_no_carry:
         dex
         bne keymap_dispatch_loop
-        clc                        ; scanned every slot, no match
-        rts
+        lda keymap_dispatch_key    ; scanned every slot, no match --
+        clc                         ; restore .A to the original typed
+        rts                         ; byte before returning: the scan
+                                     ; above has been freely reloading
+                                     ; .A from keymap_table this whole
+                                     ; time (table data, not the typed
+                                     ; key), and the caller's own
+                                     ; fallthrough-to-its-hardcoded-
+                                     ; chain path depends on .A still
+                                     ; holding the real key on a miss --
+                                     ; confirmed live 2026-09-02: every
+                                     ; unmatched key was landing in
+                                     ; linebuf as whatever keymap_table
+                                     ; byte the scan happened to end on
+                                     ; instead of what was actually
+                                     ; typed. keymap_dispatch_run's own
+                                     ; match path doesn't need this --
+                                     ; every branch there ends in either
+                                     ; a jsr (nav function, doesn't
+                                     ; touch linebuf directly) or
+                                     ; keymap_insert_macro (inserts the
+                                     ; MACRO's text, not the triggering
+                                     ; key, so .A's value past that
+                                     ; point is moot either way)
 
 ; --- keymap_dispatch_run: act on a matched slot's action byte ---
 ; Input: .A = the action byte; scr_ptr_lo/hi still points at the start
