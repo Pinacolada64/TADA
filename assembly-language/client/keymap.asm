@@ -26,14 +26,24 @@
 ; separate macro_preprocessor.py pass can see them (see KERNAL_PLOT's
 ; own comment in tada-client.asm for the general reasoning).
 
+; KERNAL routines used only by read_error_channel below, local to this
+; file (unlike KERNAL_SETNAM/SETLFS/LOAD above, nothing outside
+; keymap.asm needs these, so plain {const:} is fine here).
+{const: KERNAL_OPEN   $ffc0}
+{const: KERNAL_CLOSE  $ffc3}
+{const: KERNAL_CHKIN  $ffc6}
+{const: KERNAL_CLRCHN $ffcc}
+{const: KERNAL_CHRIN  $ffcf}
+{const: KERNAL_READST $ffb7}
+
 ; ============================================================
 ; --- Keymap: rebindable input-line functions + macros ---
 ; ============================================================
-; A fixed-size table read_line_loop will consult once the dispatch
-; integration lands (a later change, not yet wired in -- this file is
-; just the data model, on-disk persistence, and the popup's load
-; entry point) to decide what a keypress does, instead of read_line_
-; not_return's hardcoded cmp chain. Each binding is BINDING_SIZE bytes:
+; A fixed-size table read_line_loop's read_line_not_return consults
+; (currently gated behind {ifdef:debug} -- see that call site's own
+; comment in tada-client.asm and keymap_dispatch's below) to decide
+; what a keypress does, instead of (for now, still also) its own
+; hardcoded cmp chain. Each binding is BINDING_SIZE bytes:
 ;   modifier   (1 byte) -- bitmask matching $028d's own layout (see
 ;                            tada-client.asm's read_line_check_left
 ;                            comment): bit 0 SHIFT, bit 1 Commodore,
@@ -130,6 +140,19 @@ keymap_default:
 ; before init_nmi/init_swiftlink -- purely local disk I/O, unrelated to
 ; the network setup that follows it.
 init_keymap:
+        jsr status_push_reset
+        ldx #<keymap_loading_msg
+        ldy #>keymap_loading_msg
+        jsr build_status_line     ; "Loading KEYMAP.CFG..." -- status_
+                                    ; push_reset/build_status_line are
+                                    ; already live by this point (called
+                                    ; from tada-client.asm's start:
+                                    ; right after init_screen, which
+                                    ; sets up the status row and pushes
+                                    ; its own build-date message --
+                                    ; this replaces that batch, same as
+                                    ; any other status_push_reset call)
+
         lda #10                  ; length of "KEYMAP.CFG" below
         ldx #<keymap_data_filename
         ldy #>keymap_data_filename
@@ -140,8 +163,11 @@ init_keymap:
         jsr KERNAL_SETLFS
         lda #0
         jsr KERNAL_LOAD
-        bcc init_keymap_rts       ; loaded successfully -- keymap_table
-                                    ; already holds the real saved data
+        bcs init_keymap_use_default
+        jmp init_keymap_clear_error ; loaded successfully -- keymap_
+                                      ; table already holds the real
+                                      ; saved data
+init_keymap_use_default:
         lda #<keymap_default
         sta copy_src_lo
         lda #>keymap_default
@@ -155,8 +181,47 @@ init_keymap:
         lda #>KEYMAP_DEFAULT_SIZE
         sta copy_remaining_hi
         jsr copy_block
-init_keymap_rts:
+init_keymap_clear_error:
+        ; Read (and discard) the drive's error channel regardless of
+        ; whether the LOAD above succeeded or failed -- every CBM DOS
+        ; operation queues a status message there ("00, OK,00,00" on
+        ; success, "04, FILE NOT FOUND,00,00" etc on failure), and a
+        ; real 1541's ERROR LED stays lit/blinking red until that
+        ; message is actually read back, regardless of whether the
+        ; caller (this routine) already decided how to handle the
+        ; failure on its own via LOAD's carry flag. Ryan's catch --
+        ; skipping this would leave a normal, expected first-run "no
+        ; KEYMAP.CFG yet" outcome looking like a real drive problem to
+        ; anyone glancing at the drive light.
+        jsr read_error_channel
         rts
+
+; --- read_error_channel: drain the drive's command/error channel ---
+; OPEN 15,8,15 / read until EOI / CLOSE 15 -- the standard KERNAL
+; pattern for clearing a drive's error status after any operation
+; (LOAD, SAVE, etc). Discards every byte read rather than displaying
+; it: the point here is purely to clear the ERROR LED, not to surface
+; the message anywhere -- init_keymap already knows success/failure
+; from LOAD's own carry flag and has nothing further to say about it.
+read_error_channel:
+        lda #0                    ; filename length 0 -- OPEN 15,8,15
+        jsr KERNAL_SETNAM          ; (the command/error channel) takes
+        lda #15                    ; no filename
+        ldx #8
+        ldy #15
+        jsr KERNAL_SETLFS
+        jsr KERNAL_OPEN
+        ldx #15
+        jsr KERNAL_CHKIN           ; channel 15 becomes the input channel
+read_error_channel_loop:
+        jsr KERNAL_CHRIN
+        jsr KERNAL_READST
+        and #$40                   ; EOI (end of the status line)
+        beq read_error_channel_loop
+        jsr KERNAL_CLRCHN
+        lda #15
+        jmp KERNAL_CLOSE            ; tail call -- CLOSE's own rts
+                                     ; returns straight to our caller
 
 ; --- Load the keymap_menu overlay module and hand control to it ---
 ; Reached only via tada-client.asm's read_line_not_return F7 check -- a
@@ -180,6 +245,17 @@ load_keymap_menu:
         jsr KERNAL_LOAD
         bcs load_overlay_error
         jmp OVERLAY_BUF
+
+; {alpha:pokealt} makes the `ascii` line below emit real screen codes
+; at assembly time -- required, not cosmetic, same reasoning as
+; tada-client.asm's own build_msg: redraw_status_row pokes queue
+; content straight into SCREEN_RAM rather than going through CHROUT's
+; own PETSCII->screencode conversion.
+{alpha:pokealt}
+keymap_loading_msg:
+        ascii "Loading KEYMAP.CFG..."
+        byte 0
+{alpha:normal}
 
 ; {alpha:alt} makes the `ascii` lines below emit $C1-$DA range bytes for
 ; the uppercase letters instead of plain $41-$5A ASCII -- required, not
