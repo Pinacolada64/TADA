@@ -189,31 +189,38 @@ $(TARGET).d64: $(TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg
 d64: $(TARGET).d64
 
 # --- Debug build ---
-# A second, separately-named .prg/.d64 with -def:debug passed to c64list,
-# for trying out {ifdef:debug}...{endif} code (e.g. keymap.asm's dispatch
-# rework) without touching $(TARGET).prg/$(TARGET).d64 (the normal build
-# above) at all -- Ryan's ask, 2026-09-02: build a debug variant instead
-# of risking the working copy while a new dispatch path is still being
-# verified live.
+# A second, separately-named .prg/.d64 with -def:keymap_debug passed to
+# c64list, for trying out {ifdef:keymap_debug}...{endif} code (keymap.
+# asm's dispatch rework) without touching $(TARGET).prg/$(TARGET).d64
+# (the normal build above) at all -- Ryan's ask, 2026-09-02: build a
+# debug variant instead of risking the working copy while a new
+# dispatch path is still being verified live.
 #
-# -def:debug alone isn't enough: $(TARGET).asm has an unconditional
-# {undef: debug} near its top (see that line's own comment -- the
-# project's existing, established way to toggle the OTHER {ifdef:debug}
-# block already in read_line_loop is to hand-comment that line out, not
-# a build flag), and {def:}/{undef:} process sequentially -- a later
-# {undef:} always wins over an earlier command-line -def:, so it would
-# silently cancel -def:debug before c64list ever reached this file's own
-# {ifdef:debug} blocks. Rather than edit that shared line (both builds'
-# tada-client.asm), this derives a separate preprocessed copy with just
-# that one directive line stripped, leaving $(TARGET)_pp.asm and
-# $(TARGET).asm itself completely untouched.
+# A dedicated parser variable (keymap_debug), deliberately NOT the
+# pre-existing "debug" one $(TARGET).asm already has and unconditionally
+# {undef:}s near its top -- confirmed live 2026-09-02 that -def:debug
+# alone doesn't even work around that ({def:}/{undef:} process
+# sequentially, so a later {undef:} always wins over an earlier
+# command-line -def:), and more importantly that "debug" wakes up an
+# old, apparently-never-actually-run-before per-character trace
+# elsewhere in tada-client.asm that corrupts real keyboard input (see
+# the keymap_debug ifdef block's own comment in tada-client.asm for the
+# root cause). keymap_debug sidesteps both problems: unaffected by that
+# {undef:}, and doesn't share a name with anything else in the file, so
+# this could just reuse $(TARGET)_pp.asm directly as c64list's input --
+# no sed-stripping needed the way working around "debug" would have
+# required -- EXCEPT c64list names its .sym output after the INPUT
+# file regardless of -prg:, so assembling $(TARGET)_pp.asm twice (once
+# per build) would make the second run silently overwrite the first
+# build's own $(TARGET)_pp.sym. A plain `cp` to a distinctly-named
+# input file avoids that, still far simpler than the sed version.
 DEBUG_TARGET = $(TARGET)-debug
 
 $(DEBUG_TARGET)_pp.asm: $(TARGET)_pp.asm
-	sed '/{undef: debug}/d' $(TARGET)_pp.asm > $(DEBUG_TARGET)_pp.asm
+	cp $(TARGET)_pp.asm $(DEBUG_TARGET)_pp.asm
 
 $(DEBUG_TARGET).prg: $(DEBUG_TARGET)_pp.asm
-	$(C64LIST) $(DEBUG_TARGET)_pp.asm -prg:$(DEBUG_TARGET) -sym -ovr -def:debug
+	$(C64LIST) $(DEBUG_TARGET)_pp.asm -prg:$(DEBUG_TARGET) -sym -ovr -def:keymap_debug
 
 $(DEBUG_TARGET).d64: $(DEBUG_TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg
 	rm -f $(DEBUG_TARGET).d64

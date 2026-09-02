@@ -1792,17 +1792,30 @@ read_line_not_return:
         jmp load_keymap_menu
 read_line_not_f7:
 
-{ifdef: debug}
-        ; --- Keymap dispatch (debug build only) ---
+{ifdef: keymap_debug}
+        ; --- Keymap dispatch (keymap_debug build only) ---
         ; See keymap.asm's own comment on keymap_dispatch for why this
-        ; is gated behind {ifdef:debug} instead of replacing the
+        ; is gated behind {ifdef:keymap_debug} instead of replacing the
         ; hardcoded chain below outright: a match here handles the key
         ; itself and loops back, same as every branch further down: no
         ; match falls through to that SAME hardcoded chain unchanged,
-        ; so testing this never risks the working (non-debug) build --
+        ; so testing this never risks the working (normal) build --
         ; make debug-d64 assembles a second, separately-named .d64 with
-        ; -def:debug passed to c64list, the normal `make d64` is
-        ; completely untouched by any of this. Once confirmed correct
+        ; -def:keymap_debug passed to c64list, the normal `make d64` is
+        ; completely untouched by any of this. A dedicated parser
+        ; variable, deliberately NOT the pre-existing "debug" one this
+        ; file already has (see this section's header comment above,
+        ; the {undef: debug} line): confirmed live 2026-09-02 that
+        ; enabling that one wakes up an old, apparently-never-actually-
+        ; run-before per-character trace elsewhere in this file (the
+        ; <XX>[XX] block a few hundred lines up) which corrupts real
+        ; keyboard input -- print_hex_nibble's `tax` clobbers X with
+        ; no save/restore around it, and nothing calling print_hex_byte
+        ; from that trace accounts for that. Not fixed here (out of
+        ; scope for the keymap work, and disabled again by default
+        ; either way since "debug" itself is never defined for this
+        ; build) -- just avoided by using a name that line's {undef:}
+        ; has no effect on. Once this dispatch is confirmed correct
         ; live, a follow-up change removes both this {ifdef:} guard and
         ; the now-redundant hardcoded checks it would otherwise
         ; duplicate forever.
