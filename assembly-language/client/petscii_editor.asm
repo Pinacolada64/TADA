@@ -87,7 +87,10 @@ SCREEN_CELLS = 1000
 scr_ptr_lo = $fb
 scr_ptr_hi = $fc
 
-        orig $2000
+; $2100, NOT $2000 -- see tada-client.asm's OVERLAY_BUF comment for why
+; (BACKUP_COLORS overlaps $2000-$20cf; a real, live-reproduced bug
+; help_menu.asm first exposed).
+        orig $2100
 
 module_start:
         jsr recv_length_prefix   ; discarded -- always exactly 1920 for a

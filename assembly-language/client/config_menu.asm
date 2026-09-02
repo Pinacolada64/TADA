@@ -36,7 +36,10 @@ BOX_ROWS    = 12
 ; SCREEN_RAM/COLOR_RAM/CHROUT/GETIN are macro_preprocessor.py built-ins
 ; (C64_CONSTANTS) -- no {const:} needed for those here.
 
-        orig $2000
+; $2100, NOT $2000 -- see tada-client.asm's OVERLAY_BUF comment for why
+; (BACKUP_COLORS overlaps $2000-$20cf; a real, live-reproduced bug
+; help_menu.asm first exposed).
+        orig $2100
 
 module_start:
         jsr JT_SAVE_SCREEN        ; back up whatever's on screen right now
@@ -589,7 +592,7 @@ digit_ones:
 ; some screen-reader/accessibility software, e.g. Gadget, doesn't get
 ; along with a blinking cursor). Must live after `orig $2000` like every
 ; other data table in this module -- a real byte-emitting label placed
-; before `orig $2000` assembles at c64list's own default origin instead,
+; before `orig $2100` assembles at c64list's own default origin instead,
 ; silently producing a .prg whose embedded load address doesn't match
 ; OVERLAY_BUF at all (this exact bug, live 2026-08-15: it built with 0
 ; errors -- just a "Large change in origin" warning -- but KERNAL LOAD

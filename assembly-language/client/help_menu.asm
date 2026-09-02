@@ -47,7 +47,10 @@ BOX_ROWS    = 25
 ; SCREEN_RAM/COLOR_RAM/CHROUT/GETIN are macro_preprocessor.py built-ins
 ; (C64_CONSTANTS) -- no {const:} needed for those here.
 
-        orig $2000
+; $2100, NOT $2000 -- see tada-client.asm's OVERLAY_BUF comment for why
+; (BACKUP_COLORS overlaps $2000-$20cf; a real, live-reproduced bug this
+; exact module first exposed).
+        orig $2100
 
 module_start:
         jsr JT_SAVE_SCREEN        ; back up whatever's on screen right now
@@ -700,7 +703,7 @@ row_help_5:
 
 row_help_6:
         byte $20,$20,$20,$20, $5d
-        ascii "DROP, INV, TALK, ATTACK.      "
+        ascii "DROP, INV, SAY, ATTACK.       "
         byte $5d, $20,$20,$20,$20
 
 row_help_7:
@@ -731,7 +734,7 @@ row_keys_1:
 
 row_keys_2:
         byte $20,$20,$20,$20, $5d
-        ascii "CRSR keys: move cursor        "
+        ascii "CRSR left/right: move cursor  "
         byte $5d, $20,$20,$20,$20
 
 row_keys_3:
@@ -785,14 +788,27 @@ row_credits_2:
         ascii "                              "
         byte $5d, $20,$20,$20,$20
 
+; A literal " inside an ascii "..." string isn't valid (it would just
+; close the string early) -- c64list also doesn't treat '...' as an
+; alternate string delimiter the way some assemblers do; confirmed live
+; 2026-08-25, `ascii '...'` errors "Single character expected" since
+; c64list parses single-quotes as a one-character literal instead. Each
+; embedded " is `byte 34` ($22, same screen code as ASCII/PETSCII in
+; this punctuation range -- no {alpha:pokealt} translation needed,
+; `byte` bypasses that entirely regardless, same as this file's own
+; box-drawing bytes above) splitting the ascii run around it.
 row_credits_3:
         byte $20,$20,$20,$20, $5d
-        ascii "Created by Ryan Sherwood      "
+        ascii "Created by Ryan "
+        byte 34
+        ascii "Pinacolada"
+        byte 34
+        ascii "  "
         byte $5d, $20,$20,$20,$20
 
 row_credits_4:
         byte $20,$20,$20,$20, $5d
-        ascii "with Claude                   "
+        ascii "Sherwood, and Claude.ai!      "
         byte $5d, $20,$20,$20,$20
 
 row_credits_5:
@@ -802,22 +818,25 @@ row_credits_5:
 
 row_credits_6:
         byte $20,$20,$20,$20, $5d
-        ascii "Inspired by SPUR              "
+        ascii "Inspired by "
+        byte 34
+        ascii "The Land of Spur"
+        byte 34
         byte $5d, $20,$20,$20,$20
 
 row_credits_7:
         byte $20,$20,$20,$20, $5d
-        ascii "                              "
+        ascii "by Greg Davis and Skip Thomson"
         byte $5d, $20,$20,$20,$20
 
 row_credits_8:
         byte $20,$20,$20,$20, $5d
-        ascii "Thanks for playing!           "
+        ascii "                              "
         byte $5d, $20,$20,$20,$20
 
 row_credits_9:
         byte $20,$20,$20,$20, $5d
-        ascii "                              "
+        ascii " -- Thank you for playing! -- "
         byte $5d, $20,$20,$20,$20
 
 ; --- title rows ---
@@ -847,4 +866,3 @@ row_help2:
         ascii "RETURN or STOP: close         "
         byte $5d, $20,$20,$20,$20
 {alpha:normal}
-
