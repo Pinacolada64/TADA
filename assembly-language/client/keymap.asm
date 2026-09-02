@@ -194,6 +194,19 @@ init_keymap_clear_error:
         ; KEYMAP.CFG yet" outcome looking like a real drive problem to
         ; anyone glancing at the drive light.
         jsr read_error_channel
+
+        ; Restore the build-date status message init_screen originally
+        ; pushed (tada-client.asm's own build_msg/start:) -- "Loading
+        ; KEYMAP.CFG..." above replaced that batch via status_push_
+        ; reset, and nothing else pushes a new one before the player
+        ; ever sees the screen, so without this it would just sit there
+        ; permanently instead of the build date, which is what every
+        ; earlier build showed and what Ryan wants to see again once
+        ; loading's done.
+        jsr status_push_reset
+        ldx #<build_msg
+        ldy #>build_msg
+        jsr build_status_line
         rts
 
 ; --- read_error_channel: drain the drive's command/error channel ---
