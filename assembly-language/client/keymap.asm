@@ -1,0 +1,193 @@
+; --- keymap.asm ---
+; Player-customizable input-line keybindings: rebindable word-left/
+; right and home/end navigation, plus a handful of macro slots that
+; insert a short server command into the input line when pressed.
+; Split out of tada-client.asm the same way screen-handler.asm was
+; (Ryan's call, 2026-09-02) -- keeping this concern in its own file
+; rather than growing tada-client.asm further.
+;
+; Purely client-side: neither the nav-function rebinds nor macro text
+; mean anything to the server (a macro just inserts text into the input
+; line exactly as if typed), so there's no protocol/round-trip the way
+; Video Settings (c64_display.py) or Help (help_menu.py) have -- opened
+; by a local F7 keypress (read_line_not_return's own check, in
+; tada-client.asm), persisted to/from disk (KEYMAP.CFG) rather than
+; sent to the server at all.
+;
+; Pulled into tada-client.asm via {include:keymap_pp.asm} (see the
+; Makefile's own preprocessing step for this file, same SPLIT_MODULES
+; mechanism screen-handler.asm uses) -- c64list resolves labels across
+; the include globally, so everything here can freely reference and be
+; referenced by tada-client.asm's own labels (KERNAL_SETNAM/SETLFS/
+; LOAD, OVERLAY_BUF, copy_block/copy_src_lo/copy_dst_lo/copy_remaining_
+; lo, load_overlay_error, term_chrout, read_line_word_left/right,
+; read_line_home/end) -- those four KERNAL/OVERLAY_BUF constants are
+; plain `=` there rather than {const:} specifically so this file's own,
+; separate macro_preprocessor.py pass can see them (see KERNAL_PLOT's
+; own comment in tada-client.asm for the general reasoning).
+
+; ============================================================
+; --- Keymap: rebindable input-line functions + macros ---
+; ============================================================
+; A fixed-size table read_line_loop will consult once the dispatch
+; integration lands (a later change, not yet wired in -- this file is
+; just the data model, on-disk persistence, and the popup's load
+; entry point) to decide what a keypress does, instead of read_line_
+; not_return's hardcoded cmp chain. Each binding is BINDING_SIZE bytes:
+;   modifier   (1 byte) -- bitmask matching $028d's own layout (see
+;                            tada-client.asm's read_line_check_left
+;                            comment): bit 0 SHIFT, bit 1 Commodore,
+;                            bit 2 CTRL
+;   key        (1 byte) -- the raw GETIN byte for that key
+;   action     (1 byte) -- ACTION_EMPTY (slot unused), a built-in nav
+;                            function index, or ACTION_MACRO
+;   macro_text (MACRO_TEXT_LEN bytes) -- space-padded; only meaningful
+;                            when action == ACTION_MACRO, unused (left
+;                            as spaces) for nav-function slots
+MAX_BINDINGS   = 14        ; the 4 built-in nav functions plus up to 10
+                             ; macros -- fits without a scrollable list
+                             ; in the (future) editor popup
+MACRO_TEXT_LEN = 24
+BINDING_SIZE   = 3 + MACRO_TEXT_LEN
+; Hand-computed rather than written as MAX_BINDINGS*BINDING_SIZE --
+; confirmed (again -- see tada-client.asm's DIALOGUE_SHIFT_BYTES
+; comment for the first time this bit) that C64List 4.06 infers a
+; computed value's storage width from its byte-sized operands rather
+; than the actual product, silently truncating 378 ($017a) down to
+; $7a with just a warning (no error) to catch it. If MAX_BINDINGS or
+; BINDING_SIZE changes, recompute this by hand: MAX_BINDINGS*BINDING_SIZE.
+KEYMAP_TABLE_SIZE   = 378         ; MAX_BINDINGS(14) * BINDING_SIZE(27)
+KEYMAP_DEFAULT_BINDINGS = 4
+KEYMAP_DEFAULT_SIZE = BINDING_SIZE * KEYMAP_DEFAULT_BINDINGS
+
+MOD_SHIFT = 1
+MOD_CMDRE = 2
+MOD_CTRL  = 4
+
+ACTION_EMPTY      = 0
+ACTION_WORD_LEFT  = 1
+ACTION_WORD_RIGHT = 2
+ACTION_HOME       = 3
+ACTION_END        = 4
+ACTION_MACRO      = 255
+
+; keymap_table is a resident buffer (not inside any overlay module) --
+; read_line_loop needs it on every keypress regardless of whether the
+; editor popup has ever been opened, and it must also be a stable,
+; predictable LOAD/SAVE target: KERNAL LOAD/SAVE ",8,1" always uses (or
+; writes) a 2-byte header matching the file's actual load address, so
+; this label's own assembled address IS that header -- both init_keymap
+; below and keymap_menu.asm's future Save action must target this exact
+; buffer for that convention to round-trip correctly. Zero-filled --
+; NOT spaces: a zero action byte IS ACTION_EMPTY, so every one of the
+; MAX_BINDINGS-KEYMAP_DEFAULT_BINDINGS slots init_keymap doesn't
+; overwrite (no saved keymap uses them either) already reads correctly
+; as "unused" the moment this label's own fill runs, no separate pass
+; needed to mark them empty.
+keymap_table:
+        area KEYMAP_TABLE_SIZE, $00
+
+; --- Built-in default keymap ---
+; Matches tada-client.asm's own originally-hardcoded scheme (read_line_
+; check_left's comment there): CTRL+CRSR-LEFT/DOWN for word-left/right,
+; plain CRSR-UP/DOWN for home/end. Copied into keymap_table by init_
+; keymap whenever no KEYMAP.CFG loads successfully (first run, or a
+; disk without one), so a player who's never opened the Keymap Editor
+; sees no behavior change at all. Only these KEYMAP_DEFAULT_SIZE bytes
+; need copying -- the remaining MAX_BINDINGS-4 slots in keymap_table
+; are already correct either way (its own area fill above if the
+; default copy runs, or whatever a real LOAD wrote if one succeeded).
+keymap_default:
+        byte MOD_CTRL, $9d, ACTION_WORD_LEFT
+        area MACRO_TEXT_LEN, $20
+        byte MOD_CTRL, $11, ACTION_WORD_RIGHT
+        area MACRO_TEXT_LEN, $20
+        byte 0, $91, ACTION_HOME
+        area MACRO_TEXT_LEN, $20
+        byte 0, $11, ACTION_END
+        area MACRO_TEXT_LEN, $20
+
+; --- init_keymap: LOAD a saved keymap from disk, or fall back to the
+; built-in default ---
+; Attempts KERNAL LOAD "KEYMAP.CFG",8,1 directly into keymap_table (the
+; file's own embedded header, written by keymap_menu.asm's future Save
+; action, always matches this exact address -- see keymap_table's own
+; comment). FILE NOT FOUND ($04) is the ordinary first-run case (or a
+; disk with no saved keymap), not a real error -- any LOAD failure at
+; all just copies keymap_default in instead, no attempt to distinguish
+; "no file" from "no drive"/other genuine errors, since the fallback is
+; correct either way and there's no player-facing prompt to show a
+; KERNAL error number to this early in boot (before the screen/status
+; row are even fully set up). Called from tada-client.asm's own start:
+; before init_nmi/init_swiftlink -- purely local disk I/O, unrelated to
+; the network setup that follows it.
+init_keymap:
+        lda #10                  ; length of "KEYMAP.CFG" below
+        ldx #<keymap_data_filename
+        ldy #>keymap_data_filename
+        jsr KERNAL_SETNAM
+        lda #2                   ; file number -- distinct from load_
+        ldx #8                   ; help_menu/load_keymap_menu's #1,
+        ldy #1                   ; unrelated but harmless either way
+        jsr KERNAL_SETLFS
+        lda #0
+        jsr KERNAL_LOAD
+        bcc init_keymap_rts       ; loaded successfully -- keymap_table
+                                    ; already holds the real saved data
+        lda #<keymap_default
+        sta copy_src_lo
+        lda #>keymap_default
+        sta copy_src_hi
+        lda #<keymap_table
+        sta copy_dst_lo
+        lda #>keymap_table
+        sta copy_dst_hi
+        lda #<KEYMAP_DEFAULT_SIZE
+        sta copy_remaining_lo
+        lda #>KEYMAP_DEFAULT_SIZE
+        sta copy_remaining_hi
+        jsr copy_block
+init_keymap_rts:
+        rts
+
+; --- Load the keymap_menu overlay module and hand control to it ---
+; Reached only via tada-client.asm's read_line_not_return F7 check -- a
+; purely local keystroke, not a server-sent trigger the way every other
+; overlay module is reached (CANVAS_STREAM_CONFIRM/DISPLAY_STREAM_
+; CONFIRM/HELP_STREAM_CONFIRM), since neither the keymap editor nor
+; what it edits (see init_keymap's own comment above) means anything to
+; the server. Same LOAD ",8,1" convention as the others otherwise, and
+; falls through to tada-client.asm's shared load_overlay_error on
+; failure just like they do.
+load_keymap_menu:
+        lda #9                   ; length of "KEYMAP.ED" below
+        ldx #<keymap_menu_filename
+        ldy #>keymap_menu_filename
+        jsr KERNAL_SETNAM
+        lda #1
+        ldx #8
+        ldy #1
+        jsr KERNAL_SETLFS
+        lda #0
+        jsr KERNAL_LOAD
+        bcs load_overlay_error
+        jmp OVERLAY_BUF
+
+; {alpha:alt} makes the `ascii` lines below emit $C1-$DA range bytes for
+; the uppercase letters instead of plain $41-$5A ASCII -- required, not
+; cosmetic, same reasoning as tada-client.asm's own petscii_editor_
+; filename/etc block (a real C64 disk directory stores uppercase
+; letters in that range, and LOAD/SAVE only succeed once SETNAM's
+; filename bytes match it exactly). Reset to {alpha:normal} immediately
+; after for the same reason that file resets it too.
+{alpha:alt}
+keymap_menu_filename:
+        ascii "KEYMAP.ED"
+; KEYMAP.CFG (init_keymap's own LOAD, and keymap_menu.asm's future SAVE)
+; is data, not a program -- doesn't belong beside the overlay-module
+; filename above, but needs the exact same $C1-$DA alpha:alt encoding
+; for the same reason, so it stays in this one block rather than
+; opening a second one just for one name.
+keymap_data_filename:
+        ascii "KEYMAP.CFG"
+{alpha:normal}

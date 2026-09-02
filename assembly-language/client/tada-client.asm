@@ -148,10 +148,14 @@
 ; KERNAL routines used by load_petscii_editor/load_config_menu to LOAD an
 ; overlay module from disk on demand (see load_petscii_editor's own
 ; comment for why this is a separate on-disk module rather than resident
-; code).
-{const: KERNAL_SETNAM $ffbd}
-{const: KERNAL_SETLFS $ffba}
-{const: KERNAL_LOAD    $ffd5}
+; code). Plain `=`, not {const:} -- keymap.asm's own init_keymap/load_
+; keymap_menu ({include:}'d, see keymap_table's own comment) need these
+; too, and {const:} is a per-file macro_preprocessor.py text
+; substitution invisible to a separately-preprocessed included file --
+; same reasoning as KERNAL_PLOT just below.
+KERNAL_SETNAM = $ffbd
+KERNAL_SETLFS = $ffba
+KERNAL_LOAD   = $ffd5
 
 ; KERNAL_PLOT is X=row, Y=column (carry set = read current position into
 ; X/Y, carry clear = set position from X/Y) -- NOT the commonly-cited
@@ -195,7 +199,16 @@ KERNAL_PLOT = $fff0
 ; re-checking against OVERLAY_BUF. Still leaves the module ~32K of
 ; contiguous RAM up to $9fff (BASIC ROM, banked in throughout per this
 ; client's design, starts at $a000) to work with.
-{const: OVERLAY_BUF $2100}
+;
+; Plain `=`, not {const:} -- keymap.asm's own load_keymap_menu
+; ({include:}'d, see keymap_table's own comment) needs this too, same
+; KERNAL_PLOT/KERNAL_SETNAM-style reasoning as those. The overlay
+; modules themselves (petscii_editor.asm/config_menu.asm/help_menu.asm/
+; keymap_menu.asm) still don't {include:} it -- they're separate
+; standalone .prg assemblies with their own hardcoded `orig $2100`, not
+; part of this compilation unit at all (see load_petscii_editor's own
+; comment on the embedded-load-address convention that makes that safe).
+OVERLAY_BUF = $2100
 
 ; Fixed low-page jump table the petscii_editor overlay (and any future
 ; loadable module) calls through instead of depending on this resident
@@ -315,6 +328,11 @@ start:
         jsr init_screen
         jsr init_jump_table      ; populate JT_SL_SEND/JT_SL_RECV/JT_RESUME
                                   ; before anything could need them
+        jsr init_keymap          ; load a saved keymap from disk (or fall
+                                  ; back to the built-in default) before
+                                  ; read_line's first poll -- purely local
+                                  ; disk I/O, unrelated to SwiftLink, so
+                                  ; it runs ahead of the network setup below
         jsr init_nmi             ; install our receive handler before the
         jsr init_swiftlink       ; ACIA is told to start raising NMIs on it
         jsr init_sid             ; silence the SID chip, clear playback state
@@ -1347,6 +1365,14 @@ help_menu_filename:
         ascii "HELP.MNU"
 {alpha:normal}
 
+; --- Keymap (rebindable input-line functions + macros) ---
+; Split into its own file, keymap.asm -- see that file's own header for
+; the full picture. init_keymap/keymap_table/load_keymap_menu/etc all
+; live there now; this {include:} is what pulls them into this same
+; compilation unit (see the Makefile's SPLIT_MODULES for why it names
+; the _pp.asm file, not the raw source).
+{include:keymap_pp.asm}
+
 ; --- Init NMI receive handler ---
 ; The SwiftLink cartridge raises NMI (not IRQ) when a byte arrives --
 ; init_swiftlink's SL_CMD_INIT already tells the ACIA to do this. Without
@@ -1744,6 +1770,27 @@ read_line_loop:
         bne read_line_not_return
         jmp read_line_done
 read_line_not_return:
+
+        ; F7 (unshifted, $88 -- a plain single GETIN byte, no $028d
+        ; modifier check needed the way cursor keys require) opens the
+        ; Keymap Editor popup, entirely locally -- no server round trip
+        ; at all, unlike Video Settings/Help (DISPLAY_STREAM_CONFIRM/
+        ; HELP_STREAM_CONFIRM), since neither the nav-function rebinds
+        ; nor macro text mean anything to the server: a macro just
+        ; inserts text into the input line exactly as if typed, and nav
+        ; rebinding is pure local input handling. Checked first, ahead
+        ; of every other special key below, since it's a global "open
+        ; the editor" shortcut rather than an ordinary line-editing
+        ; function. F1/F3/F5/F7 are otherwise unused anywhere in this
+        ; file's read_line dispatch (confirmed via grep before picking
+        ; F7) -- the 128 client's own F1/F7 avoidance (input_editor.asm's
+        ; comment) is specific to the 128's KERNAL auto-expanding them
+        ; into whole command strings, which the plain C64 KERNAL this
+        ; file targets doesn't do.
+        cmp #$88
+        bne read_line_not_f7
+        jmp load_keymap_menu
+read_line_not_f7:
 
         ; CRSR UP/DOWN were never in read_line's own dispatch chain at
         ; all before this -- unhandled, they fell through to
