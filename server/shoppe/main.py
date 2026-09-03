@@ -340,7 +340,7 @@ async def _shoppe_session(ctx: GameContext, player) -> None:
             pass
         else:
             keys = '/'.join(k for k, _, _ in menu)
-            await ctx.send(f'"{raw.strip()}"? ({keys}/X to choose)')
+            await ctx.send(f'"{raw.strip()}"? ({keys}/[X] Leave)')
 
 
 # ---------------------------------------------------------------------------

@@ -111,7 +111,7 @@ async def main(ctx: GameContext) -> None:
 
         raw = await ctx.prompt(
             'Which',
-            preamble_lines=['Which? (1-5, Q to leave, ? to re-list)'])
+            preamble_lines=['Which? (1-5, [Q] Leave, ? to re-list)'])
         if raw is None:
             return
         choice = raw.strip().upper()
@@ -125,7 +125,7 @@ async def main(ctx: GameContext) -> None:
         try:
             n = int(choice)
         except ValueError:
-            await ctx.send('Enter 1 through 5, Q to leave.')
+            await ctx.send('Enter 1 through 5, [Q] Leave.')
             continue
 
         opt = next((o for o in _OPTIONS if o[0] == n), None)

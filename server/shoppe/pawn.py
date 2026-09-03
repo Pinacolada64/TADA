@@ -113,7 +113,7 @@ async def main(ctx: GameContext) -> None:
 
             raw = await ctx.prompt(
                 'Item #',
-                preamble_lines=['Buy which item number? (Q to cancel)'])
+                preamble_lines=['Buy which item number? ([Q] Cancel)'])
             if raw is None:
                 return
             choice = raw.strip().upper()
@@ -170,7 +170,7 @@ async def main(ctx: GameContext) -> None:
 
         raw = await ctx.prompt(
             'Item #',
-            preamble_lines=['Sell which item number? (Q to cancel)'])
+            preamble_lines=['Sell which item number? ([Q] Cancel)'])
         if raw is None:
             return
         choice = raw.strip().upper()

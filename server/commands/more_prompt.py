@@ -21,7 +21,7 @@ class MorePromptCommand(Command):
         description = (
             "When More Prompt is on, output longer than a screenful pauses "
             f"with a '-- More --' prompt between pages (Enter for next, "
-            "B/- for back, Q to stop). When off, everything is sent at "
+            "B/- for back, [Q] Stop). When off, everything is sent at "
             "once regardless of length. Same setting as 'prefs' menu's "
             "'M' key -- this is just a shortcut."
         ),

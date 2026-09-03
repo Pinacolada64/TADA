@@ -594,7 +594,7 @@ async def _choose_password(ctx, prefill: Optional[str] = None) -> Optional[str]:
             "Choose a password",
             preamble_lines=[
                 "",
-                "Choose a password, or 'R' for a random pronounceable one.",
+                "Choose a password, or [R]andom for a pronounceable one.",
             ],
         )
         if pw1 is None:
@@ -664,7 +664,7 @@ async def _choose_age(ctx) -> bool:
     preamble = [
         "",
         "How old is your character?",
-        "Enter a number (15–50), or 'R' for a random age:",
+        "Enter a number (15–50), or [R]andom age:",
     ]
     while True:
         raw = await _prompt_or_quit(ctx, "age", preamble_lines=preamble)
@@ -683,7 +683,7 @@ async def _choose_age(ctx) -> bool:
                     break
         elif ans.isdigit():
             age = int(ans)
-            help_msg = "Please enter a number between 15 and 50, or 'R' to choose a random age."
+            help_msg = "Please enter a number between 15 and 50, or [R]andom to choose an age."
             if age < 15:
                 apostrophe = "'"
                 await ctx.send(f'"Oh, come off it! You{apostrophe}re not even old enough to handle a '
@@ -1211,7 +1211,7 @@ async def _roll_stats(ctx) -> bool:
             return True
         if ans in ("r", "reroll", "re-roll"):
             continue
-        await ctx.send("Enter 'Y' to accept or 'R' to re-roll.")
+        await ctx.send("Enter [Y] to accept or [R]e-roll.")
 
 
 async def _assign_equipment(ctx) -> bool:

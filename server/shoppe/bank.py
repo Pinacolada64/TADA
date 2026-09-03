@@ -81,7 +81,7 @@ async def main(ctx: GameContext) -> None:
 
         raw = await ctx.prompt(
             'Choice',
-            preamble_lines=['[D]eposit, [W]ithdraw, [T]ransfer, or Q to leave'])
+            preamble_lines=['[D]eposit, [W]ithdraw, [T]ransfer, or [Q] Leave'])
         if raw is None:
             return
         cmd = raw.strip().upper()[:1]
@@ -161,4 +161,4 @@ async def main(ctx: GameContext) -> None:
                 await ctx.send(f'Transfer failed — could not find account for {target_name}.')
 
         else:
-            await ctx.send('[D]eposit, [W]ithdraw, [T]ransfer, or Q to leave.')
+            await ctx.send('[D]eposit, [W]ithdraw, [T]ransfer, or [Q] Leave.')

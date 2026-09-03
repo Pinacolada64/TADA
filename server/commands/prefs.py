@@ -90,7 +90,7 @@ _SETTING_HELP: dict[str, list[str]] = {
         '|cyan|More Prompt|reset|',
         "When output would be longer than one screen, pauses with a "
         "'-- More --' prompt between pages: Enter for the next page, "
-        "B or - to go back a page, Q to stop reading early. When off, "
+        "B or - to go back a page, [Q] Stop reading early. When off, "
         "everything is sent at once and scrolls by regardless of length. "
         "Same setting as the standalone 'mp' command.",
         '',

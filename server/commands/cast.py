@@ -457,7 +457,7 @@ class CastCommand(Command):
         while True:
             raw = await ctx.prompt(
                 'Spell #',
-                preamble_lines=['Cast which spell number? (?=list, Q to leave)'])
+                preamble_lines=['Cast which spell number? (?=list, [Q] Leave)'])
             if raw is None:
                 return CommandResult.ok()
             choice = raw.strip()
@@ -471,7 +471,7 @@ class CastCommand(Command):
             try:
                 index = int(choice)
             except ValueError:
-                await ctx.send('Enter a spell number, ? to list, or Q to leave.')
+                await ctx.send('Enter a spell number, ? to list, or [Q] Leave.')
                 continue
             if index < 1 or index > len(entries):
                 await ctx.send('You do not know that spell.')

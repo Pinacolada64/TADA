@@ -101,7 +101,7 @@ async def main(ctx: GameContext) -> None:
 
         raw = await ctx.prompt(
             'Your Choice',
-            preamble_lines=['Your Choice (?=List, Q to leave)'])
+            preamble_lines=['Your Choice (?=List, [Q] Leave)'])
         if raw is None:
             return
         choice = raw.strip().upper()

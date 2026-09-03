@@ -389,7 +389,7 @@ async def _guss_blackjack(ctx: GameContext) -> None:
 
         raw = await ctx.prompt(
             'Bet',
-            preamble_lines=[f'"How much ya wanna bet?" ({player.return_key} or Q to leave)'])
+            preamble_lines=[f'"How much ya wanna bet?" ({player.return_key} or [Q] Leave)'])
         if raw is None or raw.strip().upper() in ('', 'Q'):
             return
 

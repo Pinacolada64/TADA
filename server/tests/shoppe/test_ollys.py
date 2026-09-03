@@ -227,7 +227,7 @@ class TestAmmoSectionPurchase(unittest.IsolatedAsyncioTestCase):
         player = _funded_player(1000)
         ctx = _FakeCtx(['xyz', 'q'], player)
         await _ammo_section(ctx, player, player.inventory, self.objects_by_num)
-        self.assertIn('Enter a number, ? to list, [I]nventory, or Q to leave.', ctx._flat())
+        self.assertIn('Enter a number, ? to list, [I]nventory, or [Q] Leave.', ctx._flat())
 
     async def test_question_mark_relists(self):
         player = _funded_player(1000)
@@ -341,7 +341,7 @@ class TestOllysMainDispatch(unittest.IsolatedAsyncioTestCase):
         ctx = _FakeCtx(['zzz', 'q'], player)
         with patch('shoppe.ollys.try_global_command', new=AsyncMock(return_value=False)):
             await ollys_main(ctx)
-        self.assertIn('[A]mmo, [B]ooby traps, [H]elp, or Q to leave.', ctx._flat())
+        self.assertIn('[A]mmo, [B]ooby traps, [H]elp, or [Q] Leave.', ctx._flat())
 
 
 if __name__ == '__main__':
