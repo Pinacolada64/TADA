@@ -319,7 +319,7 @@ class NewsCommand(Command):
     async def _pick_lifetime(self, ctx, allow_skip: bool = False) -> dict | None:
         from parse_date import parse_date_range
 
-        prompt_extra = ' (or Enter to keep current)' if allow_skip else ''
+        prompt_extra = f' (or {ctx.player.return_key} to keep current)' if allow_skip else ''
         raw = await ctx.prompt(
             'Lifetime',
             preamble_lines=[

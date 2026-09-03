@@ -155,7 +155,7 @@ async def _apply_loan(ctx: GameContext, hn: str, dl: str) -> None:
 
     raw = await ctx.prompt(
         'Amount',
-        preamble_lines=[f'How much? (1–{headroom:,}, Enter to cancel)'])
+        preamble_lines=[f'How much? (1–{headroom:,}, {player.return_key} to cancel)'])
     if not raw or not raw.strip():
         await ctx.send(f'{_NPC} looks offended. {_AP}What? Was it sometin{_AP} I said?{_AP}')
         return
@@ -225,7 +225,7 @@ async def _pay_loan(ctx: GameContext, hn: str, dl: str) -> None:
              f'  Loan outstanding: {loan:>8,}s',
              f'  Minimum payment : {min_pay:>8,}s',
              '',
-             f'  [Enter] to cancel  |  A = pay all  |  or enter an amount',
+             f'  [{player.return_key}] to cancel  |  A = pay all  |  or enter an amount',
              '']
     await ctx.send(lines)
 
@@ -306,7 +306,7 @@ async def _store_money(ctx: GameContext, dl: str) -> None:
              f'  Already stored  : {in_bar:>8,}s',
              f'  Can deposit max : {can_store:>8,}s',
              '',
-             f'  [Enter] to cancel  |  A = all  |  or enter an amount',
+             f'  [{player.return_key}] to cancel  |  A = all  |  or enter an amount',
              '']
     await ctx.send(lines)
 
@@ -347,7 +347,7 @@ async def _get_money(ctx: GameContext, dl: str) -> None:
     lines = ['',
              f'  Stored in bar   : {in_bar:>8,}s',
              '',
-             f'  [Enter] to cancel  |  A = all  |  or enter an amount',
+             f'  [{player.return_key}] to cancel  |  A = all  |  or enter an amount',
              '']
     await ctx.send(lines)
 

@@ -88,7 +88,7 @@ async def pick_ally(
 
     raw = await ctx.prompt(
         'Choice',
-        preamble_lines=[f'{prompt} (1-{len(allies)}, Enter to cancel)'])
+        preamble_lines=[f'{prompt} (1-{len(allies)}, {ctx.player.return_key} to cancel)'])
     if not raw or not raw.strip():
         return None
     try:

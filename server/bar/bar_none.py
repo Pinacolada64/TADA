@@ -274,7 +274,7 @@ async def _guss_flip(ctx: GameContext) -> None:
 
         raw = await ctx.prompt(
             'Bet',
-            preamble_lines=['"How much ya wanna bet?" (Enter to leave)'])
+            preamble_lines=[f'"How much ya wanna bet?" ({player.return_key} to leave)'])
         if raw is None or not raw.strip() or raw.strip().upper() == 'Q':
             return
 
@@ -389,7 +389,7 @@ async def _guss_blackjack(ctx: GameContext) -> None:
 
         raw = await ctx.prompt(
             'Bet',
-            preamble_lines=['"How much ya wanna bet?" (Enter or Q to leave)'])
+            preamble_lines=[f'"How much ya wanna bet?" ({player.return_key} or Q to leave)'])
         if raw is None or raw.strip().upper() in ('', 'Q'):
             return
 

@@ -82,12 +82,12 @@ async def _general_store(ctx: GameContext, *, numbers: object = None) -> None:
             have = carried_qty.get(num, 0)
             suffix = f'  (have {have})' if have else ''
             lines.append(f'  {len(available):>2}. {name:<20} {kind:<6}  {price:>4}s{suffix}')
-        lines += ['', '[Enter] to leave', '']
+        lines += ['', f'[{player.return_key}] to leave', '']
         await ctx.send(lines)
 
         raw = await ctx.prompt(
             'Item #',
-            preamble_lines=[f'Buy which item (1-{len(available)}, Enter to leave{shop_menu_hint(player)})'])
+            preamble_lines=[f'Buy which item (1-{len(available)}, {player.return_key} to leave{shop_menu_hint(player)})'])
         if not raw or not raw.strip():
             return
 

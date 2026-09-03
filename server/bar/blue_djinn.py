@@ -184,7 +184,7 @@ async def _hire(ctx: GameContext) -> None:
     while True:
         raw = await ctx.prompt(
             'Name',
-            preamble_lines=['Player name (? to list, Enter to cancel)'])
+            preamble_lines=[f'Player name (? to list, {player.return_key} to cancel)'])
         if not raw or not raw.strip():
             return
 
@@ -230,7 +230,7 @@ async def _hire(ctx: GameContext) -> None:
             await ctx.send(lines)
             raw2 = await ctx.prompt(
                 'Choice',
-                preamble_lines=[f'Choose (1–{len(names)}, Enter to cancel)'])
+                preamble_lines=[f'Choose (1–{len(names)}, {player.return_key} to cancel)'])
             if not raw2 or not raw2.strip():
                 return
             try:

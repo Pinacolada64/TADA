@@ -512,7 +512,7 @@ async def _choose_username(ctx, prefill: Optional[str] = None,
                 "<http://www.commodoreserver.com> and has no bearing on "
                 "gameplay yet.)"]
     if default_username:
-        preamble.append(f"Press Enter to use '{default_username}'.")
+        preamble.append(f"Press {ctx.player.return_key} to use '{default_username}'.")
     preamble.append("")
 
     # TODO: capture this from CommodoreServer account name
@@ -1433,7 +1433,7 @@ async def _final_review(ctx) -> bool:
         if fn:
             await fn(ctx)   # re-run that step; loop back to summary afterwards
         else:
-            await ctx.send(f"Enter a number 1–{len(dispatch)}, or press Enter to accept.")
+            await ctx.send(f"Enter a number 1–{len(dispatch)}, or press {ctx.player.return_key} to accept.")
 
 
 # ---------------------------------------------------------------------------

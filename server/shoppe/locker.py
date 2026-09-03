@@ -123,7 +123,7 @@ async def _put(ctx: GameContext, player) -> None:
     await ctx.send([''] + _list_lines('You are carrying', entries) + [''])
     raw = await ctx.prompt(
         'Item #',
-        preamble_lines=['Put which item? (Enter to cancel)'])
+        preamble_lines=[f'Put which item? ({player.return_key} to cancel)'])
     if not raw or not raw.strip():
         return
     try:
@@ -156,7 +156,7 @@ async def _take(ctx: GameContext, player) -> None:
     await ctx.send([''] + _list_lines('The locker contains', entries) + [''])
     raw = await ctx.prompt(
         'Item #',
-        preamble_lines=['Take which item? (Enter to cancel)'])
+        preamble_lines=[f'Take which item? ({player.return_key} to cancel)'])
     if not raw or not raw.strip():
         return
     try:

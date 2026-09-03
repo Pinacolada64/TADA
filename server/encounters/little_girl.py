@@ -238,7 +238,7 @@ async def _handle_give(ctx: 'GameContext') -> None:
 
     raw = await ctx.prompt(
         'Item #',
-        preamble_lines=[f'Give which item? (1-{len(entries)}, Enter to cancel)'])
+        preamble_lines=[f'Give which item? (1-{len(entries)}, {ctx.player.return_key} to cancel)'])
     if not raw or not raw.strip():
         return
     try:

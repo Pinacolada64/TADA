@@ -81,7 +81,7 @@ async def inventory_main(ctx: GameContext) -> None:
             for index, entry in enumerate(inv, 1):
                 lines.append(_format_entry(entry, index))
                 lines.extend(_container_lines(entry))
-        lines += ['', '[S]ort by category, [D]rop an item, [Enter] to leave', '']
+        lines += ['', f'[S]ort by category, [D]rop an item, [{player.return_key}] to leave', '']
         await ctx.send(lines)
 
         raw = await ctx.prompt('Pack')
@@ -96,7 +96,7 @@ async def inventory_main(ctx: GameContext) -> None:
         elif cmd == 'd':
             await _drop_item(ctx, player, inv)
         else:
-            await ctx.send('Unrecognized. [S]ort, [D]rop, or Enter to leave.')
+            await ctx.send(f'Unrecognized. [S]ort, [D]rop, or {player.return_key} to leave.')
 
 
 async def _drop_item(ctx: GameContext, player, inv) -> None:
@@ -107,7 +107,7 @@ async def _drop_item(ctx: GameContext, player, inv) -> None:
     entries = list(inv)
     raw = await ctx.prompt(
         'Item #',
-        preamble_lines=[f'Drop which item (1-{len(entries)}, Enter to cancel)'])
+        preamble_lines=[f'Drop which item (1-{len(entries)}, {player.return_key} to cancel)'])
     if raw is None or not raw.strip():
         return
     try:
@@ -153,12 +153,12 @@ async def transfer_main(ctx: GameContext) -> None:
     lines = ['', 'Your pack:', '']
     for index, entry in enumerate(entries, 1):
         lines.append(_format_entry(entry, index))
-    lines += ['', '[Enter] to cancel']
+    lines += ['', f'[{player.return_key}] to cancel']
     await ctx.send(lines)
 
     raw = await ctx.prompt(
         'Item #',
-        preamble_lines=[f'Transfer which item (1-{len(entries)}, Enter to cancel)'])
+        preamble_lines=[f'Transfer which item (1-{len(entries)}, {player.return_key} to cancel)'])
     if raw is None or not raw.strip():
         return
     try:
@@ -175,12 +175,12 @@ async def transfer_main(ctx: GameContext) -> None:
     lines = ['', 'Send to:', '']
     for i, ally in enumerate(allies, 1):
         lines.append(f'  {i}. {ally.name}')
-    lines += ['', '[Enter] to cancel']
+    lines += ['', f'[{player.return_key}] to cancel']
     await ctx.send(lines)
 
     raw = await ctx.prompt(
         'Recipient #',
-        preamble_lines=[f'Recipient (1-{len(allies)}, Enter to cancel)'])
+        preamble_lines=[f'Recipient (1-{len(allies)}, {player.return_key} to cancel)'])
     if raw is None or not raw.strip():
         return
     try:

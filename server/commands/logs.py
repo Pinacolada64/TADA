@@ -217,10 +217,10 @@ class LogsCommand(Command):
         return CommandResult.ok()
 
     async def _choose_filters(self, ctx: GameContext, source: str) -> tuple[str | None, str | None]:
-        player_filter = await self._prompt_optional(ctx, 'Filter by player (Enter for all)')
+        player_filter = await self._prompt_optional(ctx, f'Filter by player ({ctx.player.return_key} for all)')
         module_filter = None
         if source == 'system':
-            module_filter = await self._prompt_optional(ctx, 'Filter by module (Enter for all)')
+            module_filter = await self._prompt_optional(ctx, f'Filter by module ({ctx.player.return_key} for all)')
         return player_filter, module_filter
 
     async def _prompt_optional(self, ctx: GameContext, message: str) -> str | None:
