@@ -202,7 +202,7 @@ General-purpose utilities. Mix of async (ctx-aware) and pure sync functions.
 | `set_logging_level(ctx)`                                                                | ✅ OK | async — shows current root logger level, prompts via `input_string`, applies D/I/W/E/C choice |
 | `text_pager(ctx, text_lines)`                                                           | GONE | Confirmed this pass: no longer exists anywhere in `tada_utilities.py`. Only reference left in the tree is a commented-out import in `threaded_messages.py`; the former live call in `create_character.py` went away with that file's deletion 8/11/26. |
 | `header(ctx, header_text)`                                                              | ✅ OK       | async, sends underlined header                 |
-| `format_quote(quote_text, reader_name)`                                                 | *(new, undocumented)* | Not in original doc                 |
+| `format_quote(quote_text, reader_name)`                                                 | *(new)* | Renders a player's personal quote for one viewer, substituting the first `$` with the *viewer's* name (per-reader personalization, SPUR `MISC2.S`). Use wherever someone's quote is shown (who / examine). |
 
 ### Pure / sync (no ctx)
 | Function                                           | Status | Notes                                      |
@@ -236,8 +236,8 @@ Hierarchical menu system. All functions now take `ctx` (GameContext or TerminalC
 |-------------------------------------------|--------------------------------------------------------------------------------------|
 | `MenuItem` (dataclass)                    | `text`, `shortcuts`, `dot_leader_handler`, `submenu`, `action`; `is_header` property |
 | `Menu` (dataclass)                        | `title` (str or callable, re-evaluated per redraw), `columns`, `menu_items`; `selectable`/`rendered_title` properties |
-| `_vis_len(s)`                              | *(new, undocumented)* visible-width helper (strips `\|token\|` markup)               |
-| `_InvalidChoice` / `INVALID_CHOICE`       | *(new, undocumented)* sentinel — distinguishes "bad input, redisplay menu" from "cancel" |
+| `_vis_len(s)`                              | *(new)* Visible-width helper (strips `\|token\|` markup) so column math ignores colour codes |
+| `_InvalidChoice` / `INVALID_CHOICE`       | *(new)* Sentinel returned by `get_user_choice` — lets `navigate_menu` tell "bad input, redisplay the menu" apart from `None` = "cancel / pop a level" |
 | `format_menu_lines(ctx, menu)`            | Returns `list[str]`; reads screen width from `ctx.player.client_settings`            |
 | `print_menu(ctx, menu)`                   | async — formats and sends menu via `ctx.send()`                                      |
 | `get_user_choice(ctx, menu, stack_depth)` | async — prompts via `ctx.prompt()`, returns `MenuItem`, `None` (cancel), or `INVALID_CHOICE` |
@@ -275,15 +275,15 @@ Called by `ctx.send()` before writing to wire or terminal.
 | `make_header(text, char)`                              | Returns `[text, underline]` as `list[str]`                                                                                 |
 | `make_rule(width, char)`                               | Returns a horizontal rule string                                                                                           |
 | `make_box(lines, title, width)`                        | Wraps lines in an ASCII box, returns `list[str]`                                                                           |
-| `make_box_for_settings(...)`                           | *(new, undocumented)*                                                                                                      |
-| `plain_encode(text)` / `plain_encode_lines(lines)`     | *(new, undocumented)* strips `{token}` markup for ASCII/screenreader mode                                                  |
-| `_visible_len(s)`                                      | *(new, undocumented)* visible-width helper (mirrors `menu_system.py`'s `_vis_len`)                                         |
-| `border_style_for_ctx(ctx)`                             | *(new, undocumented)*                                                                                                      |
-| `hrule_char(ctx)`                                      | *(new, undocumented)*                                                                                                      |
-| `guild_sigil_for(ctx, alignment)`                       | *(new, undocumented)* colorized/terminal-appropriate guild sigil                                                           |
-| `underline(text)`                                      | *(new, undocumented)*                                                                                                      |
-| `_build_color_name_to_token()` / module `__getattr__`  | *(new, undocumented)* — the dunder is unusual, worth a closer look during the full rewrite                                |
-| `_MockSettings`                                        | *(new, undocumented)* test helper                                                                                          |
+| `make_box_for_settings(settings, lines, title, width, frame_color, title_color, text_color)` | *(new)* Like `make_box`, but colour-aware: takes a settings object + per-part colour tokens so a boxed panel's frame/title/text adapt to the player's client (PETSCII vs ANSI vs plain). |
+| `plain_encode(text)` / `plain_encode_lines(lines)`     | *(new)* Strips `{token}` markup for ASCII/screenreader mode                                                  |
+| `_visible_len(s)`                                      | *(new)* Visible-width helper (mirrors `menu_system.py`'s `_vis_len`) — measure a string ignoring `{token}`/`\|token\|` markup so alignment math is right |
+| `border_style_for_ctx(ctx)`                             | *(new)* Returns the border-style name (`'petscii'`/`'single'`/…) to pass to `Table`/`make_box` for this player's client. Call instead of hard-coding a style so real Commodore clients get box glyphs. |
+| `hrule_char(ctx)`                                      | *(new)* The single horizontal-rule character matching this client's border style — use when drawing a manual rule so it matches the boxes. |
+| `guild_sigil_for(ctx, alignment)`                       | *(new)* Colorized/terminal-appropriate guild sigil                                                           |
+| `underline(text, ctx)`                                 | *(new)* Returns `[text, rule]` with the rule char matching the client's border style — a ctx-aware header underline. |
+| `_build_color_name_to_token()` / module `__getattr__`  | *(new)* Lazily builds the `ColorName → token` map the first time `formatting.COLOR_NAME_TO_TOKEN` is read (PEP 562 module `__getattr__`), breaking an import cycle with `terminal.py`. Don't call these — just read `COLOR_NAME_TO_TOKEN`. |
+| `_MockSettings`                                        | *(new)* Test helper — a stand-in settings object                                                             |
 
 Resolved this pass: the "PETSCII full palette TODO" note is **stale — the palette is complete**. `PETSCIICodec`'s own docstring now states plainly: "Full 16-color palette is available via `\|token\|` substitution in `petscii_encode()` — see `PETSCII_CONTROL_CODES` below." `PETSCII_CONTROL_CODES` contains all 16 CBM color codes (`black`, `white`, `red`, `cyan`, `purple`, `green`, `blue`, `yellow`, `orange`, `brown`, `light_red`, `dark_gray`, `mid_gray`, `light_green`, ...) plus cursor/case control tokens. No TODO remains in the source.
 
@@ -295,10 +295,10 @@ Monster data and flag definitions. Shared by editor and game server.
 | `monster_flag_labels` (dict)    | Snake_case key → human-readable label |
 | `load_monsters(path)`           | Returns `list[dict]` from JSON        |
 | `save_monsters(monsters, path)` | Writes `list[dict]` to JSON           |
-| `get_monster(monsters, number)` | *(new, undocumented)* look up one monster dict by number |
-| `monster_flags` (list)          | *(new, undocumented)* raw symbol/key tuples `monster_flag_labels` is derived from |
-| `monster_sizes`                 | *(new, undocumented)*                 |
-| `all_monster_keys`              | *(new, undocumented)*                 |
+| `get_monster(monsters, number)` | *(new)* Look up one monster dict by its number — use instead of scanning the list yourself |
+| `monster_flags` (list)          | *(new)* Raw `(symbol, key)` tuples that `monster_flag_labels` is derived from; use when you need the parse symbols, not the labels |
+| `monster_sizes`                 | *(new)* `int → size-name` dict (1=`huge` … 6=`small`); turns a monster's numeric size field into a label |
+| `all_monster_keys`              | *(new)* Flat list of every monster-flag key; iterate all flags or build an all-False default dict |
 
 ---
 
@@ -348,8 +348,8 @@ Binary file reader for SPUR/GBBS/ACOS data files.
 | `iter_records(data, record_size, skip_first)` | Yields `(record_num, fields)` tuples                     |
 | `read_count(data, record_size)`               | Reads record count from record 0                         |
 | `record_size_for(filename)`                   | Looks up record size from `RECORD_INFO`                  |
-| `_has_high_bits(data)`                        | *(new, undocumented)*                                     |
-| `_split_record(...)`                          | *(new, undocumented)*                                     |
+| `_has_high_bits(data)`                        | *(new)* True if most non-null bytes have bit 7 set — the heuristic `normalize()` uses to decide whether a file needs Apple-II high-bit stripping |
+| `_split_record(chunk)`                        | *(new)* Splits one raw record chunk into cleaned string fields (drop nulls, split on CR, strip, drop empties); internal helper for `iter_records` |
 
 ---
 
@@ -551,7 +551,7 @@ Skip's Eats: once-per-day meal counter.
 | Function         | Notes                                                                                              |
 |------------------|----------------------------------------------------------------------------------------------------|
 | `main(ctx, bar)` | async — once-per-day gate; approach `broadcast_area` fires only after gate passes; leave broadcast |
-| `_improve_stat(player, stat, rng)` | *(new, undocumented)* stat-training mechanic |
+| `_improve_stat(player, stat, rng)` | *(new)* Bumps *stat* by `randint(1, rng)` capped at the stat ceiling; returns the amount actually gained (0 if already capped). Backs Skip's meal stat-training reward. |
 
 ---
 
@@ -563,9 +563,9 @@ blackjack minigame**.
 | Function         | Notes                                                                              |
 |------------------|------------------------------------------------------------------------------------|
 | `main(ctx, bar)` | async — approach `broadcast_area`; leave broadcast on empty input only (not on EOF) |
-| `Bartender(Ally)` | *(new, undocumented)* |
+| `Bartender(Ally)` | *(new)* An `Ally` subclass that carries a `greetings` list — lets a bar NPC (Mae, Guss) be a real character with randomized banter instead of a bare name |
 | `_guss_talk(ctx, ...)`, `_scan_chat(text, ...)` | *(new)* Chat with Guss: scans player input for keywords (profanity caught/filtered) and returns a matching, possibly-random reply |
-| `_guss_flip`, `_guss_blackjack`, `_draw_card`, `_hand_total`, `_fmt_hand`, `_guss_session` | *(new, undocumented)* Guss blackjack minigame |
+| `_guss_flip`, `_guss_blackjack`, `_draw_card`, `_hand_total`, `_fmt_hand`, `_guss_session` | *(new)* Guss gambling minigame: `_guss_session` is the interaction loop, `_guss_flip` coin-flip betting, `_guss_blackjack` the full card game; `_draw_card`/`_hand_total`/`_fmt_hand` are its pure card helpers (Aces 11→1 on bust, hidden hole card) |
 
 ---
 
@@ -578,7 +578,7 @@ Fat Olaf's Servant Trade: buy/sell party allies.
 | `_buy_servant(ctx, allies)`           | async — numbered menu to select and purchase a servant                   |
 | `_sell_servant(ctx)`                  | ✅ No longer a stub — fully implemented                                  |
 | `filter_allies(ally_list, status)`    | Pure — returns allies matching `AllyStatus`. **Confirmed this pass: still duplicated, byte-for-byte identical** (same signature, same docstring, same body) in both `bar/fat_olaf.py:41` and `bar/allies.py:14`. Not a live bug — `fat_olaf.py` doesn't import the `bar/allies.py` copy (it only imports `pick_ally` from there), so there's no shadowing/override conflict, just dead duplication that should be collapsed to one definition. |
-| `_maintain_servant`, `_owned_allies`, `_purchased_allies`, `_sync_to_roster`, `_free_allies_for_sale`, `_ally_price`, `_ally_sellback`, `_is_elite` | *(new, undocumented)* |
+| `_maintain_servant`, `_owned_allies`, `_purchased_allies`, `_sync_to_roster`, `_free_allies_for_sale`, `_ally_price`, `_ally_sellback`, `_is_elite` | *(new)* Servant-trade bookkeeping: `_owned_allies`/`_purchased_allies` filter the player's party; `_free_allies_for_sale` lists what's buyable; `_ally_price`/`_ally_sellback` are the strength×100 / ×50 (×2 for Elite) price formulas; `_is_elite` a flag check; `_sync_to_roster` writes a status/owner change back to the persisted roster; `_maintain_servant` is the repair-to-ceiling upkeep flow |
 
 ---
 
@@ -592,7 +592,7 @@ Madame Zelda's: spy on player stats or resurrect monsters.
 | `_resurrect_monsters(ctx)` | ✅ TODO resolved — now writes via `_append_battle_log` (new, undocumented) |
 | `get_player_info(stats, id_pattern)` | Pure sync — reads player JSON from `run/server/player-<id>.json` |
 | `_zelda_menu(ctx)`         | async — prints available options                                          |
-| `_tell_fortune`, `_clear_monsters_killed_offline`, `_find_online_player`, `_player_json_path` | *(new, undocumented)* |
+| `_tell_fortune`, `_clear_monsters_killed_offline`, `_find_online_player`, `_player_json_path` | *(new)* `_player_json_path` locates a player's save file by name (case-insensitive); `_find_online_player` returns the live `Player` if that name is connected; `_clear_monsters_killed_offline` edits `dead_monsters` straight in the save file (Zelda's monster-resurrect service); `_tell_fortune` is flavor fortune-telling |
 
 ---
 
@@ -605,10 +605,10 @@ Ally/servant data definitions used by Fat Olaf.
 | `Ally` (dataclass)                       | `name`, `strength`, `status`, `flags`, `breed`/`color` *(new, undocumented — `Optional[HorseBreed]`/`Optional[HorseColor]` from `base_classes.py`, only meaningful when `AllyFlags.MOUNT` is set)* |
 | `load_allies()`                          | Returns `list[Ally]` from JSON                |
 | `assign_random_statuses(allies)`         | Pure — randomly assigns `SERVANT`/`IN_PARTY`  |
-| `AllyPosition` (Enum)                     | *(new, undocumented)*                         |
-| `load_ally_roster()` / `save_ally_roster(...)` | *(new, undocumented)*                    |
-| `find_duplicate_allies(...)`             | *(new, undocumented)*                         |
-| `print_allies(...)`                      | *(new, undocumented)*                         |
+| `AllyPosition` (Enum)                     | *(new)* Tactical slot for an ally — `EMPTY`/`POINT`/`FLANK`/`REAR`; for formation/positioning logic |
+| `load_ally_roster()` / `save_ally_roster(allies)` | *(new)* Load/persist `ally_roster.json` (ownership + stat overrides). `save` only writes allies that deviate from baseline (owned or non-FREE) so the file stays small. Use to make Fat-Olaf purchases and stat changes survive a restart. |
+| `find_duplicate_allies(ally_list)`       | *(new)* Returns the names appearing more than once — a data-integrity check for `allies.json` |
+| `print_allies(ally_data)`               | *(new)* `print()`s a formatted ally table to stdout — a CLI/debug dump, not player output |
 
 **New, related module — `bar/allies.py`** (separate from `ally_data.py`):
 `filter_allies`, `owned_allies`, `purchased_allies`, `find_mount`, `pick_ally`.
@@ -1056,7 +1056,7 @@ section's clarifying note above; no naming confusion once both are read.
 | `edit_screen_columns(player)` / `edit_screen_rows(player)`    | Nested inside `tab_edit`/module scope                                                                |
 | `horizontal_ruler(player)`                                     | Renders a column-width ruler for the old editor                                                      |
 | `keyboard_settings(player)` / `color_settings(player)` / `test_graphics_output(player)` | Further old menu-driven editor screens                                                  |
-| `CommodoreClient` (dataclass)                                  | *(new, undocumented)* -- distinct from, and not to be confused with, `net_client.py`'s `CommodoreClient(Client)` |
+| `CommodoreClient` (dataclass)                                  | *(new)* A preset dataclass of Commodore terminal defaults (40×25, PETSCII, CR line ending, colour) — a lightweight stand-in for `ClientSettings`. Distinct from, and not to be confused with, `net_client.py`'s `CommodoreClient(Client)`. |
 | `Output` (class)                                                | `__init__(player)`, `.output(message)`, `.process_message(player, message)` -- old direct-print output helper, superseded by `ctx.send()` |
 
 No behavior was invented here -- `grep -rn "terminal\.settings_menu\|terminal\.tab_edit\|terminal\.Output"` across the tree (outside `terminal.py` itself) returns nothing, confirming these are dead in the current game, not merely undocumented.
