@@ -105,7 +105,9 @@ async def _drop_item(ctx: GameContext, player, inv) -> None:
         return
 
     entries = list(inv)
-    raw = await ctx.prompt(f'Drop which item (1-{len(entries)}, Enter to cancel)')
+    raw = await ctx.prompt(
+        'Item #',
+        preamble_lines=[f'Drop which item (1-{len(entries)}, Enter to cancel)'])
     if raw is None or not raw.strip():
         return
     try:
@@ -118,7 +120,9 @@ async def _drop_item(ctx: GameContext, player, inv) -> None:
 
     entry = entries[choice]
     name = getattr(entry.item, 'name', 'item')
-    confirm = await ctx.prompt(f'Discard the {name} for good? This cannot be undone (y/N)')
+    confirm = await ctx.prompt(
+        'Confirm',
+        preamble_lines=[f'Discard the {name} for good? This cannot be undone (y/N)'])
     if not confirm or confirm.strip().lower() not in ('y', 'yes'):
         await ctx.send('Never mind.')
         return
@@ -152,7 +156,9 @@ async def transfer_main(ctx: GameContext) -> None:
     lines += ['', '[Enter] to cancel']
     await ctx.send(lines)
 
-    raw = await ctx.prompt(f'Transfer which item (1-{len(entries)}, Enter to cancel)')
+    raw = await ctx.prompt(
+        'Item #',
+        preamble_lines=[f'Transfer which item (1-{len(entries)}, Enter to cancel)'])
     if raw is None or not raw.strip():
         return
     try:
@@ -172,7 +178,9 @@ async def transfer_main(ctx: GameContext) -> None:
     lines += ['', '[Enter] to cancel']
     await ctx.send(lines)
 
-    raw = await ctx.prompt(f'Recipient (1-{len(allies)}, Enter to cancel)')
+    raw = await ctx.prompt(
+        'Recipient #',
+        preamble_lines=[f'Recipient (1-{len(allies)}, Enter to cancel)'])
     if raw is None or not raw.strip():
         return
     try:

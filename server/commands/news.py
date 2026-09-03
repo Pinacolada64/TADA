@@ -120,8 +120,8 @@ class NewsCommand(Command):
                 lines.append('')
 
                 raw = await ctx.prompt(
-                    f'Read which (# or {ctx.player.return_key} to exit)',
-                    preamble_lines=lines,
+                    '#',
+                    preamble_lines=lines + [f'Read which (# or {ctx.player.return_key} to exit)'],
                 )
                 if raw is None or not raw.strip():
                     return CommandResult.ok('Exited news.')
@@ -298,9 +298,12 @@ class NewsCommand(Command):
                 return title
 
             raw = await ctx.prompt(
-                f"A news item titled '{existing.get('title', '')}' already exists "
-                f"(#{existing['id']}). [E]dit it, [C]hange this title, or "
-                f"{ctx.player.return_key} to abort",
+                'Choice',
+                preamble_lines=[
+                    f"A news item titled '{existing.get('title', '')}' already exists "
+                    f"(#{existing['id']}). [E]dit it, [C]hange this title, or "
+                    f"{ctx.player.return_key} to abort",
+                ],
             )
             choice = (raw or '').strip().lower()[:1]
             if choice == 'e':

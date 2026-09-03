@@ -67,7 +67,9 @@ async def maybe_trigger_thug_attack(ctx: GameContext) -> None:
                      'set -- ambushing anyway', player.name)
 
     if player.query_flag(PlayerFlags.DEBUG_MODE):
-        raw = await ctx.prompt('[DEBUG] Thug Attack pending -- skip the ambush? (Y/N)')
+        raw = await ctx.prompt(
+            'Y/N',
+            preamble_lines=['[DEBUG] Thug Attack pending -- skip the ambush? (Y/N)'])
         if raw and raw.strip().lower().startswith('y'):
             await ctx.send('[DEBUG] Skipping thug ambush -- left pending for next login.')
             return

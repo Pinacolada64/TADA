@@ -79,7 +79,9 @@ async def main(ctx: GameContext) -> None:
             '',
         ])
 
-        raw = await ctx.prompt('[D]eposit, [W]ithdraw, [T]ransfer, or Q to leave')
+        raw = await ctx.prompt(
+            'Choice',
+            preamble_lines=['[D]eposit, [W]ithdraw, [T]ransfer, or Q to leave'])
         if raw is None:
             return
         cmd = raw.strip().upper()[:1]

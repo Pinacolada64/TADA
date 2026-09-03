@@ -145,7 +145,9 @@ async def _study_player(ctx: GameContext) -> None:
     if not player.query_flag(PlayerFlags.EXPERT_MODE):
         await ctx.send('[?] lists players.  Wildcards * and ? are supported.')
 
-    raw = await ctx.prompt('"Study which player?" (? to list, wildcards ok)')
+    raw = await ctx.prompt(
+        'Name',
+        preamble_lines=['"Study which player?" (? to list, wildcards ok)'])
     if raw is None:
         return
     look_up = raw.strip()
@@ -291,7 +293,9 @@ async def _resurrect_monsters(ctx: GameContext) -> None:
     if not player.query_flag(PlayerFlags.EXPERT_MODE):
         await ctx.send('[?] lists players.  Wildcards * and ? are supported.')
 
-    raw = await ctx.prompt(f'{_NPC}: "Whooose monsters shall I briiiiing back to liiiiife?" (? to list)')
+    raw = await ctx.prompt(
+        'Name',
+        preamble_lines=[f'{_NPC}: "Whooose monsters shall I briiiiing back to liiiiife?" (? to list)'])
     if raw is None:
         return
     target = raw.strip()
@@ -343,7 +347,9 @@ async def _resurrect_monsters(ctx: GameContext) -> None:
         return
 
     # Anonymous option (SPUR.BAR.S: "Dooo you wish to be unknown?")
-    raw4 = await ctx.prompt(f'{_NPC}: "Dooo you wish to be unknown?" (Y/N)')
+    raw4 = await ctx.prompt(
+        'Y/N',
+        preamble_lines=[f'{_NPC}: "Dooo you wish to be unknown?" (Y/N)'])
     anonymous  = raw4 is not None and raw4.strip().upper() == 'Y'
     benefactor = 'SOMEBODY' if anonymous else player.name
 
@@ -471,7 +477,9 @@ async def main(ctx: GameContext, bar=None) -> None:
 
     while True:
         await ctx.send('')
-        raw = await ctx.prompt(f'{_NPC}: "What dooooo you wiiiiiish?"')
+        raw = await ctx.prompt(
+            'Choice',
+            preamble_lines=[f'{_NPC}: "What dooooo you wiiiiiish?"'])
         if raw is None:
             break
 

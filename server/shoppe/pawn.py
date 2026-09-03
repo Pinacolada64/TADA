@@ -87,7 +87,9 @@ async def main(ctx: GameContext) -> None:
         ]
         stock = ctx.server.pawn_stock
 
-        raw = await ctx.prompt(f'[S]ell, [B]uy, [Q]uit{shop_menu_hint(player)}')
+        raw = await ctx.prompt(
+            'Choice',
+            preamble_lines=[f'[S]ell, [B]uy, [Q]uit{shop_menu_hint(player)}'])
         if raw is None:
             return
         cmd = raw.strip().upper()[:1]
@@ -109,7 +111,9 @@ async def main(ctx: GameContext) -> None:
             lines.append('')
             await ctx.send(lines)
 
-            raw = await ctx.prompt('Buy which item number? (Q to cancel)')
+            raw = await ctx.prompt(
+                'Item #',
+                preamble_lines=['Buy which item number? (Q to cancel)'])
             if raw is None:
                 return
             choice = raw.strip().upper()
@@ -164,7 +168,9 @@ async def main(ctx: GameContext) -> None:
         lines.append('')
         await ctx.send(lines)
 
-        raw = await ctx.prompt('Sell which item number? (Q to cancel)')
+        raw = await ctx.prompt(
+            'Item #',
+            preamble_lines=['Sell which item number? (Q to cancel)'])
         if raw is None:
             return
         choice = raw.strip().upper()

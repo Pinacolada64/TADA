@@ -104,7 +104,7 @@ async def _food_locker(ctx: GameContext, player, state: dict, info: dict) -> Non
     await ctx.send('Lurch takes you to the food locker..')
 
     while True:
-        raw = await ctx.prompt('G)ive or T)ake food? (Q to leave)')
+        raw = await ctx.prompt('Choice', preamble_lines=['G)ive or T)ake food? (Q to leave)'])
         if raw is None:
             return
         cmd = raw.strip().upper()[:1]
@@ -129,7 +129,9 @@ async def _food_locker(ctx: GameContext, player, state: dict, info: dict) -> Non
             lines.append('')
             await ctx.send(lines)
 
-            raw = await ctx.prompt('Give which ration number? (Q to cancel)')
+            raw = await ctx.prompt(
+                '#',
+                preamble_lines=['Give which ration number? (Q to cancel)'])
             if raw is None:
                 return
             choice = raw.strip().upper()
@@ -172,7 +174,9 @@ async def _food_locker(ctx: GameContext, player, state: dict, info: dict) -> Non
             lines.append('')
             await ctx.send(lines)
 
-            raw = await ctx.prompt('Take which food number? (Q to cancel)')
+            raw = await ctx.prompt(
+                '#',
+                preamble_lines=['Take which food number? (Q to cancel)'])
             if raw is None:
                 return
             choice = raw.strip().upper()
@@ -218,7 +222,9 @@ async def _item_locker(ctx: GameContext, player, state: dict, info: dict) -> Non
     await ctx.send('Lurch shows you to the Items room..')
 
     while True:
-        raw = await ctx.prompt('G)ive or T)ake item? (Q to leave)')
+        raw = await ctx.prompt(
+            'Choice',
+            preamble_lines=['G)ive or T)ake item? (Q to leave)'])
         if raw is None:
             return
         cmd = raw.strip().upper()[:1]
@@ -241,7 +247,9 @@ async def _item_locker(ctx: GameContext, player, state: dict, info: dict) -> Non
             lines.append('')
             await ctx.send(lines)
 
-            raw = await ctx.prompt('Give which item number? (Q to cancel)')
+            raw = await ctx.prompt(
+                '#',
+                preamble_lines=['Give which item number? (Q to cancel)'])
             if raw is None:
                 return
             choice = raw.strip().upper()
@@ -289,7 +297,9 @@ async def _item_locker(ctx: GameContext, player, state: dict, info: dict) -> Non
             lines.append('')
             await ctx.send(lines)
 
-            raw = await ctx.prompt('Take which item number? (Q to cancel)')
+            raw = await ctx.prompt(
+                '#',
+                preamble_lines=['Take which item number? (Q to cancel)'])
             if raw is None:
                 return
             choice = raw.strip().upper()
@@ -342,7 +352,9 @@ async def _guild_bank(ctx: GameContext, player, state: dict, info: dict) -> None
             '',
         ])
 
-        raw = await ctx.prompt('R)eview, P)ay, T)ake, or Q to leave')
+        raw = await ctx.prompt(
+            'Choice',
+            preamble_lines=['R)eview, P)ay, T)ake, or Q to leave'])
         if raw is None:
             return
         cmd = raw.strip().upper()[:1]
@@ -524,7 +536,9 @@ async def _weapons_box(ctx: GameContext, player, state: dict, info: dict) -> Non
         return
 
     # Box is empty — offer to deposit a weapon
-    raw = await ctx.prompt('The box is empty. Put in a weapon? y/[N]')
+    raw = await ctx.prompt(
+        'Y/N',
+        preamble_lines=['The box is empty. Put in a weapon? y/[N]'])
     if raw is None or raw.strip().upper() != 'Y':
         return
 

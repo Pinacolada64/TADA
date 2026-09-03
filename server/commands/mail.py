@@ -191,8 +191,9 @@ class MailCommand(Command):
                     return CommandResult.ok('No mail.')
 
                 raw = await ctx.prompt(
-                    f"Read which (#, 'd<n>' to delete, or {ctx.player.return_key} to exit)",
-                    preamble_lines=self._render_listing(ctx, [m for _, m in entries]),
+                    '#',
+                    preamble_lines=self._render_listing(ctx, [m for _, m in entries])
+                    + [f"Read which (#, 'd<n>' to delete, or {ctx.player.return_key} to exit)"],
                 )
                 if raw is None or not raw.strip():
                     return CommandResult.ok('Exited mail.')
@@ -336,8 +337,11 @@ class MailCommand(Command):
                 )
 
                 raw = await ctx.prompt(
-                    f'[R]eply, [D]elete, [A]rchive, [K]eep, Read [O]ver, '
-                    f'or {ctx.player.return_key} for next',
+                    'Choice',
+                    preamble_lines=[
+                        f'[R]eply, [D]elete, [A]rchive, [K]eep, Read [O]ver, '
+                        f'or {ctx.player.return_key} for next',
+                    ],
                 )
                 if raw is None:
                     return CommandResult.ok('Exited mail.')

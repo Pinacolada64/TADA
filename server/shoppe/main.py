@@ -85,7 +85,9 @@ async def _general_store(ctx: GameContext, *, numbers: object = None) -> None:
         lines += ['', '[Enter] to leave', '']
         await ctx.send(lines)
 
-        raw = await ctx.prompt(f'Buy which item (1-{len(available)}, Enter to leave{shop_menu_hint(player)})')
+        raw = await ctx.prompt(
+            'Item #',
+            preamble_lines=[f'Buy which item (1-{len(available)}, Enter to leave{shop_menu_hint(player)})'])
         if not raw or not raw.strip():
             return
 
@@ -179,7 +181,9 @@ async def _player_list(ctx: GameContext) -> None:
         'Examples:  *  (everyone),  r*  (names starting with R).',
         '',
     ])
-    raw = await ctx.prompt('Search pattern (or * for all)')
+    raw = await ctx.prompt(
+        'Pattern',
+        preamble_lines=['Search pattern (or * for all)'])
     if raw is None:
         return
     pattern = raw.strip() or '*'

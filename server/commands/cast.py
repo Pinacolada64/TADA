@@ -455,7 +455,9 @@ class CastCommand(Command):
         await ctx.send(spell_list_lines(ctx))
 
         while True:
-            raw = await ctx.prompt('Cast which spell number? (?=list, Q to leave)')
+            raw = await ctx.prompt(
+                'Spell #',
+                preamble_lines=['Cast which spell number? (?=list, Q to leave)'])
             if raw is None:
                 return CommandResult.ok()
             choice = raw.strip()

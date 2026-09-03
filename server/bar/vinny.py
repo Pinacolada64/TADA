@@ -154,8 +154,8 @@ async def _apply_loan(ctx: GameContext, hn: str, dl: str) -> None:
         )
 
     raw = await ctx.prompt(
-        f'How much? (1–{headroom:,}, Enter to cancel)'
-    )
+        'Amount',
+        preamble_lines=[f'How much? (1–{headroom:,}, Enter to cancel)'])
     if not raw or not raw.strip():
         await ctx.send(f'{_NPC} looks offended. {_AP}What? Was it sometin{_AP} I said?{_AP}')
         return
@@ -181,7 +181,9 @@ async def _apply_loan(ctx: GameContext, hn: str, dl: str) -> None:
         f'atta average of {daily:,}s a day, or else!{_AP}'
     )
 
-    raw2 = await ctx.prompt(f'Can youse handle dis, {hn}? (Y/N)')
+    raw2 = await ctx.prompt(
+        'Y/N',
+        preamble_lines=[f'Can youse handle dis, {hn}? (Y/N)'])
     if not raw2 or raw2.strip().upper() != 'Y':
         await ctx.send(f'{_NPC} smirks. {_AP}Hah. Thought not.{_AP}')
         return

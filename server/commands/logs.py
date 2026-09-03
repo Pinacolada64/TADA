@@ -224,7 +224,7 @@ class LogsCommand(Command):
         return player_filter, module_filter
 
     async def _prompt_optional(self, ctx: GameContext, message: str) -> str | None:
-        raw = await ctx.prompt(message)
+        raw = await ctx.prompt('Filter', preamble_lines=[message])
         return raw.strip() if raw and raw.strip() else None
 
     async def _choose_source(self, ctx: GameContext) -> str | None:
@@ -233,7 +233,9 @@ class LogsCommand(Command):
             lines.append(f'{i}. {_SOURCE_LABELS[key]}')
         await ctx.send(lines)
 
-        raw = await ctx.prompt(f'View which log? (1-{len(_SOURCE_ORDER)}, blank to cancel)')
+        raw = await ctx.prompt(
+            'Log #',
+            preamble_lines=[f'View which log? (1-{len(_SOURCE_ORDER)}, blank to cancel)'])
         if not raw or not raw.strip():
             return None
         choice = raw.strip().lower()

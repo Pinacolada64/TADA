@@ -283,7 +283,9 @@ async def _booby_section(ctx: GameContext, player, inv, objects_by_num: dict) ->
 
     while True:
         await ctx.send(f'Cost=1000.  Purchase Booby Trap.')
-        raw = await ctx.prompt(f'Disarm code [{_BOOBY_CODES}] or Q to leave{shop_menu_hint(player)}')
+        raw = await ctx.prompt(
+            'Code',
+            preamble_lines=[f'Disarm code [{_BOOBY_CODES}] or Q to leave{shop_menu_hint(player)}'])
         if raw is None:
             return
         stripped = raw.strip()
@@ -481,7 +483,9 @@ async def main(ctx: GameContext) -> None:
     from shoppe.inventory_tools import handle_shop_key, shop_menu_hint
 
     while True:
-        raw = await ctx.prompt(f'[A]mmo, [B]ooby traps, [H]elp, or Q to leave{shop_menu_hint(player)}')
+        raw = await ctx.prompt(
+            'Choice',
+            preamble_lines=[f'[A]mmo, [B]ooby traps, [H]elp, or Q to leave{shop_menu_hint(player)}'])
         if raw is None:
             return
         cmd = raw.strip().upper()[:1]

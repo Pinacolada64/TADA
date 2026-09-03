@@ -213,7 +213,8 @@ class EditCommand(Command):
         data = load_recovery_file(recovery_path)
         label = data.get('activity_label') or 'writing something'
         choice = await ctx.prompt(
-            f'Before the server went down, you were {label}. Resume editing? y/n')
+            'y/n',
+            preamble_lines=[f'Before the server went down, you were {label}. Resume editing? y/n'])
         if not (choice or '').strip().lower().startswith('y'):
             delete_recovery_file(recovery_path)
             await ctx.send('Recovery text discarded.')

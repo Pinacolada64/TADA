@@ -1131,7 +1131,9 @@ async def _pick_client_type(ctx) -> None:
                         f'{translation.name} translation.')
         return
 
-    raw_trans = await ctx.prompt('PETSCII, ANSI color, or Plain text? (T/A/P)')
+    raw_trans = await ctx.prompt(
+        'T/A/P',
+        preamble_lines=['PETSCII, ANSI color, or Plain text? (T/A/P)'])
     ans_trans = (raw_trans or '').strip().lower()
     if ans_trans.startswith('t'):
         translation = Translation.PETSCII

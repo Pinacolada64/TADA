@@ -47,7 +47,9 @@ _COST_TRACKING   = 750
 async def _confirm_and_charge(ctx: GameContext, ally: Ally, label: str, cost: int) -> bool:
     """Prompt for confirmation, then charge *cost* gold.  Returns True on success."""
     player = ctx.player
-    raw = await ctx.prompt(f'Ye want {ally.name} {label} for {cost} gold? y/N')
+    raw = await ctx.prompt(
+        'Confirm (y/N)',
+        preamble_lines=[f'Ye want {ally.name} {label} for {cost} gold? y/N'])
     if not raw or raw.strip().upper() != 'Y':
         return False
     if not player.subtract_silver(PlayerMoneyTypes.IN_HAND, cost):
