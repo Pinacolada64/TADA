@@ -167,7 +167,9 @@ async def main(ctx: GameContext, bar=None) -> None:
 
                 selection = None
                 while True:
-                    raw_sel = await ctx.prompt(f'Choose (1-{len(patrons)})')
+                    raw_sel = await ctx.prompt(
+                        '#',
+                        preamble_lines=[f'Choose (1-{len(patrons)})'])
                     if raw_sel is None:
                         break
                     try:

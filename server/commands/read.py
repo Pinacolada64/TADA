@@ -145,11 +145,15 @@ async def _read_scrap_of_paper(ctx: GameContext, player) -> None:
 
     existing = combos.get(CombinationTypes.ELEVATOR)
     if existing is None:
-        raw = await ctx.prompt("A voice whispers, 'Art thou true of heart?' [Y/N]")
+        raw = await ctx.prompt(
+            'Y/N',
+            preamble_lines=["A voice whispers, 'Art thou true of heart?' [Y/N]"])
         # SPUR doesn't branch on the answer -- it's flavor only.
         _ = raw
 
-        raw = await ctx.prompt("'Wilt thou use this information for Good or Evil?' [G/E]")
+        raw = await ctx.prompt(
+            'G/E',
+            preamble_lines=["'Wilt thou use this information for Good or Evil?' [G/E]"])
         if (raw or '').strip().upper().startswith('E'):
             honor = int(getattr(player, 'honor', 0) or 0)
             if honor > 2:

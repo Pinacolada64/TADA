@@ -34,11 +34,12 @@ from tada_utilities import input_yes_no
 
 
 class _FakePlayer:
-    is_expert = False
-    gender    = 'male'
-    age       = None
-    birthday  = None
-    name      = None
+    is_expert  = False
+    gender     = 'male'
+    age        = None
+    birthday   = None
+    name       = None
+    return_key = 'Enter'
 
 
 class _FakeCtx:

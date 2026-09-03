@@ -91,7 +91,9 @@ async def _mae_session(ctx: GameContext, mae: Bartender) -> None:
     await broadcast_area(ctx, 'bar', f'{player.name} pulls up a stool at {mae.name}{_AP}s bar.')
 
     while True:
-        raw = await ctx.prompt(f"1-{len(displayed_items)}, [L]ist, [X]pert")
+        raw = await ctx.prompt(
+            'Choice',
+            preamble_lines=[f"1-{len(displayed_items)}, [L]ist, [X]pert"])
         if raw is None:
             await ctx.send(f'{mae.name} nods as you head for the door. "See you around."')
             break
@@ -270,7 +272,9 @@ async def _guss_flip(ctx: GameContext) -> None:
             await ctx.send('Guss says, "Yer too rich for me!"')
             return
 
-        raw = await ctx.prompt('"How much ya wanna bet?" (Enter to leave)')
+        raw = await ctx.prompt(
+            'Bet',
+            preamble_lines=[f'"How much ya wanna bet?" ({player.return_key} to leave)'])
         if raw is None or not raw.strip() or raw.strip().upper() == 'Q':
             return
 
@@ -291,7 +295,9 @@ async def _guss_flip(ctx: GameContext) -> None:
 
         # Call the toss
         while True:
-            raw2 = await ctx.prompt("Call it! [H]eads or [T]ails?")
+            raw2 = await ctx.prompt(
+                'H/T',
+                preamble_lines=["Call it! [H]eads or [T]ails?"])
             if raw2 is None:
                 # Carrier drop — refund and exit
                 player.subtract_silver(PlayerMoneyTypes.IN_HAND, -bet)
@@ -381,7 +387,9 @@ async def _guss_blackjack(ctx: GameContext) -> None:
             await ctx.send('Guss says, "Yer too rich for me!"')
             return
 
-        raw = await ctx.prompt('"How much ya wanna bet?" (Enter or Q to leave)')
+        raw = await ctx.prompt(
+            'Bet',
+            preamble_lines=[f'"How much ya wanna bet?" ({player.return_key} or [Q] Leave)'])
         if raw is None or raw.strip().upper() in ('', 'Q'):
             return
 
@@ -442,7 +450,9 @@ async def _guss_blackjack(ctx: GameContext) -> None:
                 f'Guss shows: {_fmt_hand(g_hand, hide_hole=True)}',
             ])
 
-            raw2 = await ctx.prompt('[H]it, [D]ouble, [S]tand')
+            raw2 = await ctx.prompt(
+                'Choice',
+                preamble_lines=['[H]it, [D]ouble, [S]tand'])
             if raw2 is None:
                 # Carrier drop — forfeit bet and exit
                 player.unsaved_changes = True
@@ -594,7 +604,7 @@ async def main(ctx: GameContext, bar=None) -> None:
     if not player.is_expert:
         tip_lines = tip(ctx, "Mae the Bartender",
                         "Mae is the owner and bartender of 'Bar None.' "
-                        "You can (L)ist the menu at any time, or enter a number to buy something.")
+                        "You can [L]ist the menu at any time, or enter a number to buy something.")
         description_lines = []
         if tip_lines:
             description_lines.append("")

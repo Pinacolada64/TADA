@@ -184,4 +184,4 @@ async def _ship_session(ctx: GameContext, player) -> None:
             await matched(ctx)
         else:
             keys = '/'.join(k for k, _, _ in _MENU)
-            await ctx.send(f'"{raw.strip()}"? ({keys}/SALVAGE/TR/X to choose)')
+            await ctx.send(f'"{raw.strip()}"? ({keys}/SALVAGE/TR/[X] Leave)')

@@ -205,7 +205,7 @@ async def _elevator_session(ctx: GameContext, player) -> None:
         lines += ['', '  [L]eave elevator', '']
         await ctx.send(lines)
 
-        raw = await ctx.prompt('Level (or L to leave)')
+        raw = await ctx.prompt('Level (or [L] Leave)')
         if raw is None:
             break
         cmd = raw.strip().lower()
@@ -248,7 +248,7 @@ async def _elevator_session(ctx: GameContext, player) -> None:
             if processor:
                 await processor.process_input(raw.strip(), ctx=ctx)
             else:
-                await ctx.send(f'Please enter a level number (1–{len(available)}) or L to leave.')
+                await ctx.send(f'Please enter a level number (1–{len(available)}) or [L] Leave.')
 
 
 # ---------------------------------------------------------------------------

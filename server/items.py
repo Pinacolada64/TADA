@@ -306,7 +306,9 @@ async def ready_weapon(ctx, player, weapons_data: list['Weapon']) -> Optional['W
     await list_weapons(ctx, carried)
 
     while True:
-        raw = await ctx.prompt(f"Ready which weapon number? (or {ctx.player.client_settings.return_key} to cancel) ")
+        raw = await ctx.prompt(
+            'Weapon #',
+            preamble_lines=[f"Ready which weapon number? (or {ctx.player.client_settings.return_key} to cancel)"])
         if not raw or raw.strip() == "":
             return None
 

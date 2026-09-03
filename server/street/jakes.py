@@ -137,7 +137,9 @@ async def _buy_ration(ctx: GameContext, ration_num: int) -> None:
         await ctx.send('You do not have enough gold.')
         return
 
-    raw = await ctx.prompt(f"You choose {chosen['name']} for {price} gold? (Y/N)")
+    raw = await ctx.prompt(
+        'Confirm (Y/N)',
+        preamble_lines=[f"You choose {chosen['name']} for {price} gold? (Y/N)"])
     if not raw or raw.strip().upper() != 'Y':
         return
 
@@ -171,7 +173,9 @@ async def _buy_item(ctx: GameContext, item_num: int) -> None:
         await ctx.send('You do not have enough gold.')
         return
 
-    raw = await ctx.prompt(f'You choose {name} for {price} gold? (Y/N)')
+    raw = await ctx.prompt(
+        'Confirm (Y/N)',
+        preamble_lines=[f'You choose {name} for {price} gold? (Y/N)'])
     if not raw or raw.strip().upper() != 'Y':
         return
 
@@ -206,7 +210,9 @@ async def _train_horse(ctx: GameContext) -> None:
         await ctx.send('Thy mount already IS trained!')
         return
 
-    raw = await ctx.prompt(f'Ye want me to train yer horse for {_TRAIN_COST} gold? (Y/N)')
+    raw = await ctx.prompt(
+        'Confirm (Y/N)',
+        preamble_lines=[f'Ye want me to train yer horse for {_TRAIN_COST} gold? (Y/N)'])
     if not raw or raw.strip().upper() != 'Y':
         return
     if not player.subtract_silver(PlayerMoneyTypes.IN_HAND, _TRAIN_COST):

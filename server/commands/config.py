@@ -75,7 +75,7 @@ async def _prompt_new_value(ctx, key: str, label: str, desc: str) -> None:
         hint = " Type '?' to list eligible items." if key == _VICTORY_ITEM_KEY else ''
         raw = await ctx.prompt(
             f'New value for {label}',
-            preamble_lines=['', desc, f'Current: {current}  —  blank to cancel{hint}'],
+            preamble_lines=['', desc, f'Current: {current}  —  {ctx.player.return_key} to cancel{hint}'],
         )
         if raw is None or not raw.strip():
             return

@@ -82,10 +82,12 @@ async def _general_store(ctx: GameContext, *, numbers: object = None) -> None:
             have = carried_qty.get(num, 0)
             suffix = f'  (have {have})' if have else ''
             lines.append(f'  {len(available):>2}. {name:<20} {kind:<6}  {price:>4}s{suffix}')
-        lines += ['', '[Enter] to leave', '']
+        lines += ['', f'[{player.return_key}] to leave', '']
         await ctx.send(lines)
 
-        raw = await ctx.prompt(f'Buy which item (1-{len(available)}, Enter to leave{shop_menu_hint(player)})')
+        raw = await ctx.prompt(
+            'Item #',
+            preamble_lines=[f'Buy which item (1-{len(available)}, {player.return_key} to leave{shop_menu_hint(player)})'])
         if not raw or not raw.strip():
             return
 
@@ -179,7 +181,9 @@ async def _player_list(ctx: GameContext) -> None:
         'Examples:  *  (everyone),  r*  (names starting with R).',
         '',
     ])
-    raw = await ctx.prompt('Search pattern (or * for all)')
+    raw = await ctx.prompt(
+        'Pattern',
+        preamble_lines=['Search pattern (or * for all)'])
     if raw is None:
         return
     pattern = raw.strip() or '*'
@@ -336,7 +340,7 @@ async def _shoppe_session(ctx: GameContext, player) -> None:
             pass
         else:
             keys = '/'.join(k for k, _, _ in menu)
-            await ctx.send(f'"{raw.strip()}"? ({keys}/X to choose)')
+            await ctx.send(f'"{raw.strip()}"? ({keys}/[X] Leave)')
 
 
 # ---------------------------------------------------------------------------

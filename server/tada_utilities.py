@@ -162,7 +162,9 @@ async def input_number_range(ctx: 'GameContext',
     oob = out_of_bounds_msg or f'Please enter a number between {min_value} and {max_value}.'
 
     while True:
-        raw = await ctx.prompt(ctx, prompt_text=f'{prompt_msg} [{min_value}-{max_value}]: ')
+        raw = await ctx.prompt(
+            '#',
+            preamble_lines=[f'{prompt_msg} [{min_value}-{max_value}]'])
 
         if raw == '':
             return default

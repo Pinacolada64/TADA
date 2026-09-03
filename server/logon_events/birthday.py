@@ -226,7 +226,9 @@ async def _fist_birthday_party(ctx, player, hn: str, dl: str) -> list[str]:
 
     from bar.vinny import _NPC
 
-    raw = await ctx.prompt(f"{_NPC} eyes you. 'Wanna have a party, {hn}?' (Y/N)")
+    raw = await ctx.prompt(
+        'Y/N',
+        preamble_lines=[f"{_NPC} eyes you. 'Wanna have a party, {hn}?' (Y/N)"])
     if not raw or raw.strip().upper() != 'Y':
         return []
 

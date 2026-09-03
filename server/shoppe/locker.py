@@ -121,7 +121,9 @@ async def _put(ctx: GameContext, player) -> None:
         return
 
     await ctx.send([''] + _list_lines('You are carrying', entries) + [''])
-    raw = await ctx.prompt('Put which item? (Enter to cancel)')
+    raw = await ctx.prompt(
+        'Item #',
+        preamble_lines=[f'Put which item? ({player.return_key} to cancel)'])
     if not raw or not raw.strip():
         return
     try:
@@ -152,7 +154,9 @@ async def _take(ctx: GameContext, player) -> None:
         return
 
     await ctx.send([''] + _list_lines('The locker contains', entries) + [''])
-    raw = await ctx.prompt('Take which item? (Enter to cancel)')
+    raw = await ctx.prompt(
+        'Item #',
+        preamble_lines=[f'Take which item? ({player.return_key} to cancel)'])
     if not raw or not raw.strip():
         return
     try:
@@ -187,7 +191,7 @@ async def _look(ctx: GameContext, player) -> None:
 async def _locker_session(ctx: GameContext, player) -> None:
     await ctx.send(['', 'PRIVATE LOCKER', ''])
     while True:
-        raw = await ctx.prompt('P)ut, T)ake, L)ook, Q)uit')
+        raw = await ctx.prompt('Choice', preamble_lines=['[P]ut, [T]ake, [L]ook, [Q]uit'])
         if raw is None:
             return
         cmd = raw.strip().upper()[:1]
@@ -201,7 +205,7 @@ async def _locker_session(ctx: GameContext, player) -> None:
         elif cmd == 'L':
             await _look(ctx, player)
         else:
-            await ctx.send('P)ut, T)ake, L)ook, Q)uit')
+            await ctx.send('[P]ut, [T]ake, [L]ook, [Q]uit')
 
 
 # ---------------------------------------------------------------------------

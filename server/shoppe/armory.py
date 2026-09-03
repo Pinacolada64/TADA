@@ -65,14 +65,18 @@ async def _buy(ctx: GameContext, player, inv, all_weapons) -> None:
     while True:
         if _owned_count() >= _WEAPON_MAX:
             raw = await ctx.prompt(
-                'I am sorry, but you have no room for more weapons.  '
-                'Do you wish to sell a weapon?'
-            )
+                'Sell one?',
+                preamble_lines=[
+                    'I am sorry, but you have no room for more weapons.  '
+                    'Do you wish to sell a weapon?'
+                ])
             if raw and raw.strip().upper() == 'Y':
                 await _sell(ctx, player, inv, all_weapons)
             return
 
-        raw = await ctx.prompt(f'Your Choice (?=List, Q to leave{shop_menu_hint(player)})')
+        raw = await ctx.prompt(
+            'Your Choice',
+            preamble_lines=[f'(?=List, [Q] Leave{shop_menu_hint(player)})'])
         if raw is None:
             return
         choice = raw.strip().upper()
@@ -92,7 +96,7 @@ async def _buy(ctx: GameContext, player, inv, all_weapons) -> None:
         except ValueError:
             if await try_global_command(ctx, raw):
                 continue
-            await ctx.send('Enter a weapon number, ? to list, or Q to leave.')
+            await ctx.send('Enter a weapon number, ? to list, or [Q] Leave.')
             continue
 
         matched = next((w for w in all_weapons if w['number'] == wnum), None)
@@ -108,7 +112,7 @@ async def _buy(ctx: GameContext, player, inv, all_weapons) -> None:
         price  = matched['price']
         await ctx.send(f"You choose the {matched['name']} for {price} silver,")
 
-        raw = await ctx.prompt('Do you wish to try it out first?')
+        raw = await ctx.prompt('Try it?', preamble_lines=['Do you wish to try it out first?'])
         if raw and raw.strip().upper() == 'Y':
             wc = matched.get('weapon_class', '')
             await ctx.send([
@@ -187,7 +191,9 @@ async def _sell(ctx: GameContext, player, inv, all_weapons) -> None:
             lines.append(f"  {i}. {entry.item.name}")
         await ctx.send(lines)
 
-        raw = await ctx.prompt(f'Which (Q to leave{shop_menu_hint(player)})')
+        raw = await ctx.prompt(
+            'Which',
+            preamble_lines=[f'Which ([Q] Leave{shop_menu_hint(player)})'])
         if raw is None or raw.strip().upper() == 'Q':
             return
         choice = raw.strip().upper()
@@ -231,7 +237,7 @@ async def _sell(ctx: GameContext, player, inv, all_weapons) -> None:
                 offer = a * 14
 
         await ctx.send(f"I will give you {offer} silver for the {entry.item.name}.")
-        raw = await ctx.prompt("Doest thou accept MY offer?")
+        raw = await ctx.prompt('Accept?', preamble_lines=["Doest thou accept MY offer?"])
         if raw is None or raw.strip().upper() != 'Y':
             continue
 
@@ -313,10 +319,12 @@ async def _repair(ctx: GameContext, player, inv) -> None:
             label     = _condition_label(condition)
             lines.append(f'  {i:>3}. {e.item.name:<22} {condition:>3}%  '
                          f'IN {label} CONDITION{_worn_tag(e.item)}')
-        lines += ['', 'Q to leave', '']
+        lines += ['', '[Q] Leave', '']
         await ctx.send(lines)
 
-        raw = await ctx.prompt('Repair which (?=List, Q to leave)')
+        raw = await ctx.prompt(
+            'Item #',
+            preamble_lines=['Repair which (?=List, [Q] Leave)'])
         if raw is None:
             return
         choice = raw.strip().upper()
@@ -410,10 +418,12 @@ async def protection(ctx: GameContext, *, item_ids: set[int] | None = None) -> N
             kind  = it['type'].capitalize()
             price = it['price'] * 100  # SPUR: it=it*100
             lines.append(f"  {i:>3}. {it['name']:<22} ({kind})  {price:>6}s")
-        lines += ['', 'R to repair', 'Q to leave', '']
+        lines += ['', '[R]epair', '[Q] Leave', '']
         await ctx.send(lines)
 
-        raw = await ctx.prompt(f'Your Choice (?=List{shop_menu_hint(player)})')
+        raw = await ctx.prompt(
+            'Your Choice',
+            preamble_lines=[f'Your Choice (?=List{shop_menu_hint(player)})'])
         if raw is None:
             return
         choice = raw.strip().upper()
@@ -504,7 +514,9 @@ async def main(ctx: GameContext, *, item_ids: set[int] | None = None) -> None:
     await ctx.send('The weapons master eyes you, grinning with a mouthful of yellowed teeth.')
 
     while True:
-        raw = await ctx.prompt('Wouldst thou be interested in [P]rotection or [W]eaponry?')
+        raw = await ctx.prompt(
+            'Choice',
+            preamble_lines=['Wouldst thou be interested in [P]rotection or [W]eaponry?'])
         if raw is None:
             return
         cmd = raw.strip().upper()[:1]
@@ -523,7 +535,7 @@ async def main(ctx: GameContext, *, item_ids: set[int] | None = None) -> None:
         all_weapons = [w for w in all_weapons if w.get('number') in item_ids]
 
     while True:
-        raw = await ctx.prompt('Wouldst thou [B]uy or [S]ell?')
+        raw = await ctx.prompt('Choice', preamble_lines=['Wouldst thou [B]uy or [S]ell?'])
         if raw is None or raw.strip().upper()[:1] in ('', 'Q'):
             return
         cmd = raw.strip().upper()[:1]
