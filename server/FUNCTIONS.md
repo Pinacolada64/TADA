@@ -1216,6 +1216,116 @@ including from `net_server.py` or `player.py` despite the similar name.
 
 ---
 
+## guild_hq/main.py + guild_hq/state.py
+Guild Headquarters (SPUR `GUILD.S` port). One shared code path for all
+three guilds (Claw / Sword / Fist); `movement.py` calls `main(ctx,
+guild_key)` when a player steps into a room whose alignment matches their
+guild.
+
+### guild_hq/main.py
+| Function                        | Why you'd call it                                                                                      |
+|---------------------------------|-------------------------------------------------------------------------------------------------------|
+| `main(ctx, guild_key)`          | async — HQ entry point (`guild_key` = `'CLAW'`/`'SWORD'`/`'FIST'`). Gates non-members out, then runs the HQ menu. The only thing `movement.py` calls here. |
+| `_hq_session(ctx, player, guild_key, info)` | async — the inner menu loop that dispatches to the rooms below                              |
+| `_guild_key_for(player)`        | The player's own guild key (or `None`) — used for the membership gate                                  |
+| `_chalkboard(ctx, …)`           | async — read / post the guild's shared message board                                                  |
+| `_food_locker(ctx, …)` / `_item_locker(ctx, …)` | async — deposit/withdraw rations / items in shared guild storage (caps `FOOD_LOCKER_MAX` / `ITEM_LOCKER_MAX`) |
+| `_guild_bank(ctx, …)`           | async — deposit/withdraw from the shared guild treasury                                                |
+| `_weapons_box(ctx, …)`          | async — shared weapon cache: stash a weapon or take one out                                            |
+| `_territory_report(ctx, …)`     | async — who controls each turf right now, read from `run/server/guild_control.json`                    |
+| `_view_log(ctx, …)`             | async — print the guild activity log (written by `state.add_log`)                                      |
+| `_ban_management(ctx, …)` / `_can_manage_bans(player)` | async / pure — officers ban a player from the HQ; the second is the permission check   |
+| `_help(ctx, …)`                 | async — HQ help screen                                                                                 |
+
+### guild_hq/state.py
+Per-guild persisted state (`run/server/guild_<key>.json`): lockers, treasury, bans, activity log.
+
+| Function                                    | Why you'd call it                                                       |
+|---------------------------------------------|------------------------------------------------------------------------|
+| `load(guild_key)` / `save(guild_key, state)` | Read / write one guild's state dict                                    |
+| `add_log(state, player_name, action, detail)` | Append one entry to that guild's activity log (shown by `_view_log`)  |
+| `_state_path(guild_key)`                     | Private — resolves the JSON path                                       |
+
+---
+
+## street/allies_guild.py
+The Allies' Guild (NPC: Bubba) — pay silver to permanently train an owned
+ally. Ported from SPUR `MISC8.S`. Entry: `main(ctx, bar=None)`.
+
+| Function                                              | Why you'd call it                                                                                       |
+|------------------------------------------------------|-------------------------------------------------------------------------------------------------------|
+| `main(ctx, bar=None)`                                 | async — entry point: `enter_area`, then the training menu loop                                         |
+| `_guild_session(ctx, player)`                         | async — inner loop: pick an owned ally, pick a training                                                |
+| `_confirm_and_charge(ctx, ally, label, cost)`         | async → bool — shared "that costs N silver, pay? → deduct it" helper for every option                  |
+| `_train_flag(ctx, ally, flag, label, cost)`           | async — generic "charge, then set one `AllyFlags` bit"; the specific trainings wrap it                 |
+| `_train_armor` / `_train_discipline` / `_train_combat` / `_train_tracking` | async — buy `ARMORED` / `ELITE` / `COMBAT_TRAINED` / `TRACKING` for an ally (armor & tracking refused for MOUNTs) |
+| `_train_body(ctx, ally)`                              | async — incremental strength training: +3 Str/level, cost `(level+1)×120`, caps at level 8             |
+
+---
+
+## street/jakes.py
+Jake's Stable (NPC: Jake) — mount supplies and horse training. Ported from
+SPUR `MISC8.S`. Entry: `main(ctx, bar=None)`.
+
+| Function                                          | Why you'd call it                                                                                      |
+|--------------------------------------------------|-----------------------------------------------------------------------------------------------------|
+| `main(ctx, bar=None)`                             | async — entry point + menu loop                                                                       |
+| `_stable_session(ctx)`                            | async — inner command loop                                                                            |
+| `_buy_ration(ctx, ration_num)` / `_buy_item(ctx, item_num)` | async — buy oats / sugar cubes; buy lasso / saddle / horse armor (same pattern as `shoppe/main._general_store` and `shoppe/ollys`) |
+| `_train_horse(ctx)`                               | async — 2,000 silver: upgrade an owned MOUNT that's already SADDLED + ARMORED to `ELITE`               |
+| `_tips(ctx)`                                      | async — print `messages.json` tip entries (canned-line fallback)                                      |
+| `_find_mount(player)`                             | Pure — the player's MOUNT ally, or `None`                                                              |
+| `_load_rations()` / `_load_objects()`            | Load the JSON data files this shop sells from                                                          |
+
+---
+
+## annex/main.py
+The Annex (SPUR `ANNEX.S` port) — an information / social hub, separate
+from the Merchant Shoppe: guild standings, news, player rosters, duel
+records. Entry: `main(ctx)`.
+
+| Function                                                    | Why you'd call it                                                    |
+|------------------------------------------------------------|--------------------------------------------------------------------|
+| `main(ctx)`                                                 | async — entry point + ~17-option menu loop                          |
+| `_show_menu(ctx)`                                           | async — render the menu                                             |
+| `_school_info` / `_school_spells`                           | async — school blurb / spell list                                  |
+| `_system_message` / `_tips`                                 | async — sysop bulletin / rotating tips                             |
+| `_news_new(ctx)` / `_news_old(ctx)`                         | async — unread vs. all news items (see `news.py`)                  |
+| `_guild_standings(ctx)`                                     | async — current guild turf / score standings                      |
+| `_personal_records(ctx)`                                    | async — the caller's own duel W/L and stats                        |
+| `_message_board_1` / `_2` / `_3(ctx)`                       | async — the three Annex message boards                             |
+| `_list_civilians` / `_list_claw` / `_list_sword` / `_list_fist` / `_list_outlaws(ctx)` | async — roster dumps: unaligned players, each guild's members, flagged outlaws |
+| `_view_system_data(ctx)`                                    | async — admin-only game-state viewer (currently a stub)            |
+
+---
+
+## news.py
+News / bulletin-board storage + visibility rules (`run/server/news.json`).
+Live — used by `logon_events/news.py`, `annex/main.py`, `commands/news.py`.
+
+| Function                                                      | Why you'd call it                                                                                     |
+|-------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+| `load_news(path=None)` / `save_news(items, path=None)`         | Read / write the whole news list                                                                     |
+| `next_id(items)`                                               | Next free integer id when posting a new item                                                         |
+| `is_visible(item, player_name, today=None, last_played=None)`  | The gatekeeper — is this item active for this player now? Handles `permanent` / `range` (date window) / `once` (per-player `seen_by` + last-login fallback) |
+| `is_new_since(item, since)`                                    | Was it posted after the player's given timestamp? — drives "new" vs "old" news                        |
+| `mark_seen(item, player_name)`                                 | Record that this player has now seen a `once` item                                                   |
+| `format_item(item, ctx)`                                       | Render one item to display lines for this client                                                     |
+| `_parse_iso_date` / `_format_lifetime`                         | Private helpers                                                                                      |
+
+---
+
+## command_version.py
+Backs the `#version` / `#ver` command switch — "when was this command last
+changed?"
+
+| Function                              | Why you'd call it                                                                            |
+|---------------------------------------|--------------------------------------------------------------------------------------------|
+| `get_command_version(command)`        | The only public entry: given a `Command` class/instance, return a date string from `git log` (falls back to file mtime) |
+| `_repo_root` / `_git_log_date` / `_mtime_date` | Private — path + lookup helpers                                                     |
+
+---
+
 ## Not yet covered by this doc (full-rewrite backlog)
 
 Significant modules/packages that exist in the codebase but this doc never
@@ -1250,26 +1360,13 @@ can look like real modules at a glance. (A same-named, similarly untracked
 `message.py` was checked and deleted — a dead, unused,
 incompatible early draft of what `net_common.py`'s real `Message`/
 `MessageType` classes actually shipped as; nothing imported it.)
-- `guild_hq/` — `main.py` (now **829 lines**), `state.py` — still
-  undocumented; has a `_can_manage_bans`/`_ban_management` guild-ban feature
-  plus chalkboard, food/item lockers, guild bank, weapons box, activity log
-- `street/` — `allies_guild.py` (180 lines, ally training), `jakes.py`
-  (305 lines, rations/items/horse training/tips) — still undocumented,
-  content description still accurate, spot-checked this pass
-- `annex/` — `main.py` (202 lines: school info, spells, news, guild
-  standings, personal records, message-board reading, outlaw/guild player
-  lists) — still undocumented, content description still accurate,
-  spot-checked this pass
+- `guild_hq/` (`main.py` + `state.py`), `street/` (`allies_guild.py`,
+  `jakes.py`), `annex/main.py` — **now have their own `##` sections above**
+  (brief "why you'd call it" tables, added this pass).
 
 **New top-level modules:**
-- `news.py` — still undocumented; spot-checked this pass, claimed function
-  list (`load_news`, `save_news`, `next_id`, `is_visible`, `is_new_since`,
-  `mark_seen`, `format_item`) is still accurate and complete (plus private
-  `_parse_iso_date`/`_format_lifetime` helpers not previously mentioned)
-- `command_version.py` — still undocumented; spot-checked this pass,
-  `get_command_version(command)` is still the only public function (git log
-  / mtime lookup for the `#version`/`#ver` switch); three private helpers
-  (`_repo_root`, `_git_log_date`, `_mtime_date`) not previously mentioned
+- `news.py`, `command_version.py` — **now have their own `##` sections
+  above** (added this pass).
 - `bar/vinny.py` (523 lines), `bar/thug_attack.py`, `bar/allies.py` — see
   their respective sections above
 
