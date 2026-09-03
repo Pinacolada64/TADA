@@ -161,4 +161,4 @@ async def main(ctx: GameContext) -> None:
                 await ctx.send(f'Transfer failed — could not find account for {target_name}.')
 
         else:
-            await ctx.send('D)eposit, W)ithdraw, T)ransfer, or Q to leave.')
+            await ctx.send('[D]eposit, [W]ithdraw, [T]ransfer, or Q to leave.')

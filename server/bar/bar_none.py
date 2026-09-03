@@ -604,7 +604,7 @@ async def main(ctx: GameContext, bar=None) -> None:
     if not player.is_expert:
         tip_lines = tip(ctx, "Mae the Bartender",
                         "Mae is the owner and bartender of 'Bar None.' "
-                        "You can (L)ist the menu at any time, or enter a number to buy something.")
+                        "You can [L]ist the menu at any time, or enter a number to buy something.")
         description_lines = []
         if tip_lines:
             description_lines.append("")

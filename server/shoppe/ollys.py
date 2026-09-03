@@ -160,7 +160,7 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
         except ValueError:
             if await try_global_command(ctx, raw):
                 continue
-            await ctx.send('Enter a number, ? to list, I)nventory, or Q to leave.')
+            await ctx.send('Enter a number, ? to list, [I]nventory, or Q to leave.')
             continue
 
         it = index_to_item.get(num)
@@ -502,4 +502,4 @@ async def main(ctx: GameContext) -> None:
         elif await try_global_command(ctx, raw):
             pass
         else:
-            await ctx.send('A)mmo, B)ooby traps, H)elp, or Q to leave.')
+            await ctx.send('[A]mmo, [B]ooby traps, [H]elp, or Q to leave.')

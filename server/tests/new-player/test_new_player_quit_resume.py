@@ -125,7 +125,7 @@ class TestMainFlowAbandonOrResumePrompt(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.error, 'abandoned')
         text = ctx._flat()
         self.assertIn("Resuming later isn't possible yet", text)
-        self.assertNotIn('(R)esume', text)
+        self.assertNotIn('[R]esume', text)
 
     async def test_quit_after_username_offers_abandon_or_resume_prompt(self):
         from player import Player
@@ -133,8 +133,8 @@ class TestMainFlowAbandonOrResumePrompt(unittest.IsolatedAsyncioTestCase):
         ctx = _Ctx(['Thorgar', '', 'quit'])  # name, username(blank->default), quit at prefs
         result = await main_flow(ctx, player=player)
         self.assertFalse(result.success)
-        self.assertIn('(A)bandon', ctx._flat())
-        self.assertIn('(R)esume later', ctx._flat())
+        self.assertIn('[A]bandon', ctx._flat())
+        self.assertIn('[R]esume later', ctx._flat())
 
     async def test_choosing_abandon_discards_everything(self):
         from player import Player

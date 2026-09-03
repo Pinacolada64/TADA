@@ -132,9 +132,9 @@ async def _confirm_quit_or_continue(ctx) -> None:
     """
     can_resume = bool(getattr(ctx.player, 'id', None))
     if can_resume:
-        options, label = "(A)bandon, (R)esume later, or (C)ontinue (don't quit)?", "A/R/C"
+        options, label = "[A]bandon, [R]esume later, or [C]ontinue (don't quit)?", "A/R/C"
     else:
-        options = ("(A)bandon, or (C)ontinue (don't quit)? (Resuming later isn't "
+        options = ("[A]bandon, or [C]ontinue (don't quit)? (Resuming later isn't "
                    "possible yet -- a username hasn't been chosen.)")
         label = "A/C"
     choice = await ctx.prompt(label, preamble_lines=['', f"Do you want to {options}"])

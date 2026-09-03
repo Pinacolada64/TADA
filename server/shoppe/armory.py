@@ -418,7 +418,7 @@ async def protection(ctx: GameContext, *, item_ids: set[int] | None = None) -> N
             kind  = it['type'].capitalize()
             price = it['price'] * 100  # SPUR: it=it*100
             lines.append(f"  {i:>3}. {it['name']:<22} ({kind})  {price:>6}s")
-        lines += ['', 'R to repair', 'Q to leave', '']
+        lines += ['', '[R]epair', 'Q to leave', '']
         await ctx.send(lines)
 
         raw = await ctx.prompt(

@@ -191,7 +191,7 @@ async def _look(ctx: GameContext, player) -> None:
 async def _locker_session(ctx: GameContext, player) -> None:
     await ctx.send(['', 'PRIVATE LOCKER', ''])
     while True:
-        raw = await ctx.prompt('Choice', preamble_lines=['P)ut, T)ake, L)ook, Q)uit'])
+        raw = await ctx.prompt('Choice', preamble_lines=['[P]ut, [T]ake, [L]ook, [Q]uit'])
         if raw is None:
             return
         cmd = raw.strip().upper()[:1]
@@ -205,7 +205,7 @@ async def _locker_session(ctx: GameContext, player) -> None:
         elif cmd == 'L':
             await _look(ctx, player)
         else:
-            await ctx.send('P)ut, T)ake, L)ook, Q)uit')
+            await ctx.send('[P]ut, [T]ake, [L]ook, [Q]uit')
 
 
 # ---------------------------------------------------------------------------

@@ -150,7 +150,7 @@ async def try_encounter(ctx: 'GameContext') -> None:
     await ctx.send_room(f'A little girl approaches {name}.', exclude_self=True)
 
     while True:
-        raw = await ctx.prompt('Choice', preamble_lines=['G)ive, I)gnore, A)ttack'])
+        raw = await ctx.prompt('Choice', preamble_lines=['[G]ive, [I]gnore, [A]ttack'])
         choice = (raw or '').strip().upper()[:1]
         if choice == 'G':
             await _handle_give(ctx)
@@ -161,7 +161,7 @@ async def try_encounter(ctx: 'GameContext') -> None:
         if choice == 'A':
             await _handle_attack(ctx)
             return
-        await ctx.send('Please choose G)ive, I)gnore, or A)ttack.')
+        await ctx.send('Please choose [G]ive, [I]gnore, or [A]ttack.')
 
 
 async def _reveal_and_attack(ctx: 'GameContext') -> None:

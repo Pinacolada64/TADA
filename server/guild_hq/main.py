@@ -104,7 +104,7 @@ async def _food_locker(ctx: GameContext, player, state: dict, info: dict) -> Non
     await ctx.send('Lurch takes you to the food locker..')
 
     while True:
-        raw = await ctx.prompt('Choice', preamble_lines=['G)ive or T)ake food? (Q to leave)'])
+        raw = await ctx.prompt('Choice', preamble_lines=['[G]ive or [T]ake food? (Q to leave)'])
         if raw is None:
             return
         cmd = raw.strip().upper()[:1]
@@ -207,7 +207,7 @@ async def _food_locker(ctx: GameContext, player, state: dict, info: dict) -> Non
                 state['food_locker'].insert(idx, it)
                 await ctx.send('Your pack is full.')
         else:
-            await ctx.send('G)ive or T)ake food? (Q to leave)')
+            await ctx.send('[G]ive or [T]ake food? (Q to leave)')
 
 
 # ---------------------------------------------------------------------------
@@ -224,7 +224,7 @@ async def _item_locker(ctx: GameContext, player, state: dict, info: dict) -> Non
     while True:
         raw = await ctx.prompt(
             'Choice',
-            preamble_lines=['G)ive or T)ake item? (Q to leave)'])
+            preamble_lines=['[G]ive or [T]ake item? (Q to leave)'])
         if raw is None:
             return
         cmd = raw.strip().upper()[:1]
@@ -329,7 +329,7 @@ async def _item_locker(ctx: GameContext, player, state: dict, info: dict) -> Non
                 state['item_locker'].insert(idx, it)
                 await ctx.send('Your pack is full.')
         else:
-            await ctx.send('G)ive or T)ake item? (Q to leave)')
+            await ctx.send('[G]ive or [T]ake item? (Q to leave)')
 
 
 # ---------------------------------------------------------------------------
@@ -354,7 +354,7 @@ async def _guild_bank(ctx: GameContext, player, state: dict, info: dict) -> None
 
         raw = await ctx.prompt(
             'Choice',
-            preamble_lines=['R)eview, P)ay, T)ake, or Q to leave'])
+            preamble_lines=['[R]eview, [P]ay, [T]ake, or Q to leave'])
         if raw is None:
             return
         cmd = raw.strip().upper()[:1]
@@ -409,7 +409,7 @@ async def _guild_bank(ctx: GameContext, player, state: dict, info: dict) -> None
             await ctx.send('Lurch hands it to you.')
 
         else:
-            await ctx.send('R)eview, P)ay, T)ake, or Q to leave.')
+            await ctx.send('[R]eview, [P]ay, [T]ake, or Q to leave.')
 
 
 # ---------------------------------------------------------------------------

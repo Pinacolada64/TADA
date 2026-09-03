@@ -1567,7 +1567,7 @@ def _combinations_menu(ctx) -> Menu:
             f'{combo_type.value} (xx-xx-xx)',
             preamble_lines=[
                 f'Current: {_fmt(combo_type)}',
-                'Enter three numbers like 04-05-09, R to randomize, X to '
+                'Enter three numbers like 04-05-09, [R]andomize, X to '
                 f'clear, or {ctx.player.return_key} to cancel:',
             ],
         )
