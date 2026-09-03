@@ -241,7 +241,7 @@ async def _prompt_int(ctx, label: str, current: int,
     while True:
         raw = await ctx.prompt(
             f'{label} [{lo}-{hi}]',
-            preamble_lines=[f'Current: {current}  —  blank to cancel'],
+            preamble_lines=[f'Current: {current}  —  {ctx.player.return_key} to cancel'],
         )
         if raw is None or not raw.strip():
             return None
@@ -268,7 +268,7 @@ async def _prompt_battle_exp_value(ctx, label: str, current: int,
             f'{label} battle experience',
             preamble_lines=[
                 f'Current: {current}  (enter {lo}-{hi}, or +N/-N to adjust)  '
-                '—  blank to cancel'
+                f'—  {ctx.player.return_key} to cancel'
             ],
         )
         if raw is None or not raw.strip():
@@ -611,7 +611,7 @@ def _map_info_menu(ctx) -> Menu:
                 'Room Number',
                 preamble_lines=[
                     f'Current: {_room_label(ctx, level, cur)}  —  '
-                    "blank to cancel, '?' to list rooms on this level"
+                    f"{ctx.player.return_key} to cancel, '?' to list rooms on this level"
                 ],
             )
             if raw is None or not raw.strip():
@@ -1266,7 +1266,7 @@ def _names_menu(ctx) -> Menu:
         gender/breed/colour and prompts for a name exactly like a real
         LASSO capture (ally_events/capture_horse.py's capture_mount()):
         same "Your horse seems to be..." announcement and the same
-        prompt_horse_name() (typed name, 'R' for random, blank to cancel).
+        prompt_horse_name() (typed name, 'R' for random, Enter to cancel).
         """
         import random
         from ally_events.capture_horse import prompt_horse_name
@@ -1427,7 +1427,7 @@ def _names_menu(ctx) -> Menu:
         while True:
             raw = await ctx.prompt(
                 'Ally name',
-                preamble_lines=["Ally name to add (or part of name, '?' to list all, blank to cancel)"],
+                preamble_lines=[f"Ally name to add (or part of name, '?' to list all, {ctx.player.return_key} to cancel)"],
             )
             if raw and raw.strip() == '?':
                 await _send_labeled_list(ctx, 'Available allies', available, _roster_label)
@@ -1568,7 +1568,7 @@ def _combinations_menu(ctx) -> Menu:
             preamble_lines=[
                 f'Current: {_fmt(combo_type)}',
                 'Enter three numbers like 04-05-09, R to randomize, X to '
-                'clear, or blank to cancel:',
+                f'clear, or {ctx.player.return_key} to cancel:',
             ],
         )
         if not raw or not raw.strip():
@@ -1935,7 +1935,7 @@ def _statistics_menu(ctx) -> Menu:
             'Defeated by',
             preamble_lines=[
                 f'Current: {cur or "(not set)"}',
-                "Type 'clear' to unset, blank to cancel:",
+                f"Type 'clear' to unset, {ctx.player.return_key} to cancel:",
             ],
         )
         if not raw or not raw.strip():
@@ -2116,7 +2116,7 @@ async def _pick_from_matches(ctx, matches: list, label_fn) -> Optional[object]:
         lines.append(f'  {i:>2}. {label_fn(item)}')
     await ctx.send(lines)
 
-    raw = await ctx.prompt('Choice', preamble_lines=[f'Choose 1-{len(matches)}, or blank to cancel'])
+    raw = await ctx.prompt('Choice', preamble_lines=[f'Choose 1-{len(matches)}, or {ctx.player.return_key} to cancel'])
     if not raw or not raw.strip():
         return None
     try:
@@ -2288,7 +2288,7 @@ async def _transfer_item(ctx) -> None:
         return
 
     await _show_inventory(ctx)
-    raw = await ctx.prompt('Item #', preamble_lines=['Transfer which item # (blank to cancel)'])
+    raw = await ctx.prompt('Item #', preamble_lines=[f'Transfer which item # ({ctx.player.return_key} to cancel)'])
     if not raw or not raw.strip():
         return
     try:
@@ -2358,7 +2358,7 @@ async def _drop_item(ctx) -> None:
         return
 
     await _show_inventory(ctx)
-    raw = await ctx.prompt('Item #', preamble_lines=['Drop which item # (blank to cancel)'])
+    raw = await ctx.prompt('Item #', preamble_lines=[f'Drop which item # ({ctx.player.return_key} to cancel)'])
     if not raw or not raw.strip():
         return
     try:

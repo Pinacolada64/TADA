@@ -235,7 +235,7 @@ class LogsCommand(Command):
 
         raw = await ctx.prompt(
             'Log #',
-            preamble_lines=[f'View which log? (1-{len(_SOURCE_ORDER)}, blank to cancel)'])
+            preamble_lines=[f'View which log? (1-{len(_SOURCE_ORDER)}, {ctx.player.return_key} to cancel)'])
         if not raw or not raw.strip():
             return None
         choice = raw.strip().lower()
