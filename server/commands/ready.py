@@ -109,6 +109,37 @@ def _ally_weapon_entries(player):
     return result
 
 
+def _weapon_needs_ammo(item) -> bool:
+    """True if *item* is a projectile/energy weapon that consumes ammo.
+
+    Mirrors combat/resolution.py's ally_attacks() gate (weapon_class in
+    projectile/energy, STORM excluded). An ally readying one of these with
+    no rounds loaded auto-misses every swing until the player GIVEs it
+    ammo -- and an ally has no USE command to load its own.
+    """
+    wc = getattr(item, 'weapon_class', None)
+    wc_str = (wc.value if hasattr(wc, 'value') else str(wc or '')).lower()
+    if wc_str not in ('projectile', 'energy'):
+        return False
+    return 'STORM' not in (getattr(item, 'name', '') or '').upper()
+
+
+def _matching_ammo_in_inventory(player, weapon):
+    """First loaded ammo item in the player's pack that fits *weapon*, or None."""
+    inv = getattr(player, 'inventory', None)
+    if inv is None:
+        return None
+    from commands.use import ammo_load_error, is_ammo_item
+    for entry in inv.entries():
+        item  = entry.item
+        flags = getattr(item, 'flags', None)
+        if not is_ammo_item(flags) or int(flags.get('rounds', 0) or 0) <= 0:
+            continue
+        if ammo_load_error(weapon, flags) is None:
+            return item
+    return None
+
+
 def _ally_has_readied(ally, item) -> bool:
     """True if *item* is the weapon *ally* currently has readied."""
     cur = getattr(ally, 'readied_weapon', None)
@@ -138,6 +169,18 @@ async def _toggle_ally_weapon(ctx, player, ally, item) -> CommandResult:
         await ctx.send(f'{ally.name} readies the {name}!')
         await ctx.send_room(f'{pself} has {ally.name} ready the {name}!',
                             exclude_self=True)
+        # The ammo reset above always leaves a freshly-readied weapon with
+        # zero rounds. For a projectile/energy weapon that's dead weight --
+        # combat/resolution.py's ally_attacks() auto-misses on rounds < 1 --
+        # so tell the player now rather than let them find out mid-fight.
+        if _weapon_needs_ammo(item):
+            await ctx.send(f'{ally.name} has no ammunition loaded for the {name}.')
+            if not getattr(player, 'is_expert', False):
+                ammo = _matching_ammo_in_inventory(player, item)
+                if ammo is not None:
+                    await ctx.send(f'(GIVE {ally.name} the {ammo.name} to load it.)')
+                else:
+                    await ctx.send(f'({ally.name} will need ammunition before it fires.)')
     return CommandResult.ok()
 
 

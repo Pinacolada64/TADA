@@ -388,6 +388,56 @@ class TestReadyAllyWeapons(unittest.IsolatedAsyncioTestCase):
         self.assertIs(ally.readied_weapon, ally_bow)
         self.assertIsNone(player.readied_weapon)
 
+    async def test_readying_ally_projectile_weapon_warns_no_ammo(self):
+        bow = _weapon('LONG BOW', item_id=4, weapon_class='projectile')
+        player = _FakePlayer(weapons=[])
+        ally = self._party_with_ally(player, [bow])
+        ctx = _FakeCtx(player)
+        await ReadyCommand().execute(ctx, 'alan')
+        self.assertIs(ally.readied_weapon, bow)
+        self.assertIn('ALAN OF YOR has no ammunition loaded for the LONG BOW', ctx.sent())
+        self.assertIn('will need ammunition', ctx.sent())
+
+    async def test_ammo_warning_points_at_matching_ammo_in_pack(self):
+        from items import Item, ItemCategory
+        bow = _weapon('LONG BOW', item_id=4, weapon_class='projectile')
+        arrows = Item(id_number=104, name='QUIVER OF ARROWS', category=ItemCategory.ITEM,
+                      flags={'rounds': 20, 'damage': 3, 'used_with': 'long bow'})
+        player = _FakePlayer(weapons=[], extra_items=[arrows])
+        ally = self._party_with_ally(player, [bow])
+        ctx = _FakeCtx(player)
+        await ReadyCommand().execute(ctx, 'alan')
+        self.assertIn('has no ammunition loaded', ctx.sent())
+        self.assertIn('GIVE ALAN OF YOR the QUIVER OF ARROWS to load it.', ctx.sent())
+
+    async def test_no_ammo_warning_for_melee_ally_weapon(self):
+        sword = _weapon('SHORT SWORD', item_id=3, weapon_class='hack_slash_bash')
+        player = _FakePlayer(weapons=[])
+        ally = self._party_with_ally(player, [sword])
+        ctx = _FakeCtx(player)
+        await ReadyCommand().execute(ctx, 'alan')
+        self.assertIs(ally.readied_weapon, sword)
+        self.assertNotIn('ammunition', ctx.sent().lower())
+
+    async def test_no_ammo_warning_when_repacking(self):
+        bow = _weapon('LONG BOW', item_id=4, weapon_class='projectile')
+        player = _FakePlayer(weapons=[])
+        ally = self._party_with_ally(player, [bow])
+        ally.readied_weapon = bow
+        ctx = _FakeCtx(player)
+        await ReadyCommand().execute(ctx, 'alan')
+        self.assertIsNone(ally.readied_weapon)
+        self.assertNotIn('ammunition', ctx.sent().lower())
+
+    async def test_expert_gets_terse_ammo_warning(self):
+        bow = _weapon('LONG BOW', item_id=4, weapon_class='projectile')
+        player = _FakePlayer(weapons=[], is_expert=True)
+        ally = self._party_with_ally(player, [bow])
+        ctx = _FakeCtx(player)
+        await ReadyCommand().execute(ctx, 'alan')
+        self.assertIn('has no ammunition loaded', ctx.sent())
+        self.assertNotIn('will need ammunition', ctx.sent())
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
