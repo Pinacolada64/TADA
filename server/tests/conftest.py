@@ -187,9 +187,13 @@ async def perform_login_as_guest(reader, writer, timeout: float = 3.0) -> str | 
     _handle_guest() actually sends over the wire -- CommandResult.message
     (e.g. 'Connected as <name>.') is never relayed to the client, so matching
     on that (as this helper used to) waits forever.
+
+    Also drains any post-login '-- More/End --' pagination before
+    returning, same as perform_login() -- see _wait_for_game_prompt()'s
+    docstring for why stopping at the first 'Welcome' sighting isn't
+    enough on its own.
     """
-    import time
-    from simple_client import perform_handshake, send_message, receive_message
+    from simple_client import perform_handshake, send_message
     from net_common import Message, Mode
 
     await perform_handshake(reader, writer)
@@ -197,21 +201,23 @@ async def perform_login_as_guest(reader, writer, timeout: float = 3.0) -> str | 
     await _skip_login_banner_pagination(reader, writer, timeout=timeout)
     await send_message(writer, Message(lines=['connect guest'], mode=Mode.login))
 
-    assigned_username = None
-    start = time.time()
-    while time.time() - start < timeout:
-        msg = await receive_message(reader)
-        if not msg:
-            break
+    assigned_username_holder: list[str] = []
+
+    def _capture_welcome(msg) -> bool:
         lines = msg.get('lines') if isinstance(msg, dict) else None
-        if lines:
-            for ln in lines:
-                if isinstance(ln, str) and ln.startswith('Welcome, ') and ln.endswith('!'):
-                    assigned_username = ln[len('Welcome, '):-1]
-                    break
-        if assigned_username:
-            break
-    return assigned_username
+        if not lines:
+            return False
+        for ln in lines:
+            if isinstance(ln, str) and ln.startswith('Welcome, ') and ln.endswith('!'):
+                assigned_username_holder.append(ln[len('Welcome, '):-1])
+                return True
+        return False
+
+    reached_prompt = await _wait_for_game_prompt(reader, writer, timeout=timeout,
+                                                  success_check=_capture_welcome)
+    if not reached_prompt or not assigned_username_holder:
+        return None
+    return assigned_username_holder[0]
 
 
 def seed_test_account(username: str, password: str, *,
@@ -244,14 +250,78 @@ def seed_test_account(username: str, password: str, *,
     assert player.save(force=True), f'failed to seed player save file for {username!r}'
 
 
+async def _wait_for_game_prompt(reader, writer, *, timeout: float,
+                                success_check) -> bool:
+    """Drain messages until the real 'main> ' game-loop prompt arrives,
+    auto-continuing past any '-- More/End [n/m] --' pagination along the
+    way, and return whether `success_check(msg)` matched at any point.
+
+    simple_server._login() returns as soon as ConnectCommand reports
+    `authenticated`, and simple_server._game_loop() then sends its own
+    ctx.prompt('main') -- but everything ConnectCommand/connect.py send
+    in between (welcome block, tips, last-connected date, status lines,
+    ...) is real content the player's own MORE_PROMPT setting can
+    paginate, exactly like _skip_login_banner_pagination() already has to
+    handle for the pre-login ANSI banner. A caller that stops reading the
+    instant it spots the 'Welcome, <name>!' line -- instead of waiting
+    for the actual 'main> ' prompt -- can leave a live '-- More --' page
+    sitting unread; the next thing it sends (e.g. a movement command)
+    then gets silently consumed as that page's continue keystroke instead
+    of ever reaching the game loop. This bit tests/movement/test_move_
+    south_room1.py live: MORE_PROMPT is on by default for a fresh account, and
+    whether the post-login welcome content actually exceeds page_size
+    varies with things like today's date string and which daily tip
+    happened to be picked, so this can start failing (or passing) again
+    on its own with no code change at all -- draining to the real prompt
+    sidesteps the line-count race entirely rather than chasing it.
+
+    Bounded by `timeout` overall, same reasoning as
+    _skip_login_banner_pagination(): if the expected prompt text is ever
+    reworded and stops matching, this fails instead of hanging forever.
+    """
+    import asyncio
+    import time
+    from simple_client import send_message, receive_message
+    from net_common import Message, Mode
+
+    matched = False
+    start = time.time()
+    while True:
+        remaining = timeout - (time.time() - start)
+        if remaining <= 0:
+            return matched
+        try:
+            msg = await asyncio.wait_for(receive_message(reader), timeout=remaining)
+        except asyncio.TimeoutError:
+            return matched
+        if not msg:
+            return matched
+
+        if success_check(msg):
+            matched = True
+
+        prompt = msg.get('prompt') if isinstance(msg, dict) else None
+        if isinstance(prompt, str) and ('-- More' in prompt or '-- End' in prompt):
+            await send_message(writer, Message(lines=[''], mode=Mode.app))
+            continue
+
+        # Suffix match, not equality: PlayerFlags.HOURGLASS prefixes a
+        # '[HH:MM] ' clock onto every prompt (network_context.py's
+        # GameContext.prompt()), same reasoning as bot_epic_battle.py's
+        # own is_main_prompt() helper.
+        if isinstance(prompt, str) and prompt.rstrip().endswith('main>'):
+            return matched
+
+
 async def perform_login(reader, writer, username: str, password: str,
                          timeout: float = 3.0) -> bool:
     """Complete handshake + terminal negotiation, then log in with real credentials.
 
-    Returns True once the server confirms the login (its 'Welcome, <name>!' line).
+    Returns True once the server confirms the login (its 'Welcome, <name>!' line)
+    AND the connection has actually reached the real game-loop prompt --
+    see _wait_for_game_prompt()'s docstring for why the second half matters.
     """
-    import time
-    from simple_client import perform_handshake, send_message, receive_message
+    from simple_client import perform_handshake, send_message
     from net_common import Message, Mode
 
     await perform_handshake(reader, writer)
@@ -259,14 +329,11 @@ async def perform_login(reader, writer, username: str, password: str,
     await _skip_login_banner_pagination(reader, writer, timeout=timeout)
     await send_message(writer, Message(lines=[f'connect {username} {password}'], mode=Mode.login))
 
-    start = time.time()
-    while time.time() - start < timeout:
-        msg = await receive_message(reader)
-        if not msg:
-            break
+    def _is_welcome(msg) -> bool:
         lines = msg.get('lines') if isinstance(msg, dict) else None
-        if lines and any(isinstance(ln, str) and ln.startswith(f'Welcome, {username}')
-                          for ln in lines):
-            return True
-    return False
+        return bool(lines) and any(
+            isinstance(ln, str) and ln.startswith(f'Welcome, {username}') for ln in lines
+        )
+
+    return await _wait_for_game_prompt(reader, writer, timeout=timeout, success_check=_is_welcome)
 
