@@ -732,7 +732,7 @@ class Map(object):
         Define the level map layout
         """
         self.rooms = {}    # backward-compat alias: same dict as self.levels[1]
-        self.levels = {}   # {map_level (1-7): {room_number: Room}}
+        self.levels = {}   # {map_level (1-8): {room_number: Room}}
 
     def read_map(self, filename: str, level: int = 1):
         """
@@ -747,7 +747,8 @@ class Map(object):
                  <>0: room #, or 0=Shoppe)
         https://github.com/Pinacolada64/TADA/blob/master/text/s_t_level-1-data.txt
 
-        *level* selects which dungeon floor (SPUR's cl, 1-7) this file's rooms
+        *level* selects which dungeon floor (SPUR's cl: 1-7, plus 8 added
+        by this port) this file's rooms
         belong to; room numbers are only unique within a single level.  Pass
         level=1 (the default) for the original single-level JSON shape.
         """

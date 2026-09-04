@@ -1,0 +1,5481 @@
+{
+ "rooms": [
+  {
+   "number": 1,
+   "name": "FOREST",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 2,
+    "south": 18
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are wandering aimlessly around in the Forest of Canolbarth. This appears to be as far northwest as you can proceed."
+  },
+  {
+   "number": 2,
+   "name": "FOREST",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 3,
+    "south": 19,
+    "west": 1
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "There appears to be evidence of some logging in this area; there are deep ruts in the soft ground. There are many tree stumps, more stumps than there are whole trees. The trees that remain here seem to be either dead or dying."
+  },
+  {
+   "number": 3,
+   "name": "FOREST",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 4,
+    "south": 20,
+    "west": 2
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Several of the shorter trees here appear to be mutilated and horribly twisted. Whether they were victims of disease or intentional abuse, you may never know."
+  },
+  {
+   "number": 4,
+   "name": "FOREST",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 5,
+    "south": 21,
+    "west": 3
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "A few scattered trees here bear tooth marks on the lower part of their trunks and gnawed bark hangs down in large rough strips. A giant oak tree which stands directly in front of you has been blackened; most likely, from a lightning strike. The leaves are gone and the tree itself is cracked into three pieces."
+  },
+  {
+   "number": 5,
+   "name": "FOREST",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 22,
+    "west": 4,
+    "up": 252
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are standing at the base of a majestic oak tree that towers many feet above you. The foliage is quite dense and you cannot see very far up into the tree. A series of rickety wooden planks is clumsily nailed to the side of the tree, allowing passage to the crown of the tree."
+  },
+  {
+   "number": 6,
+   "name": "TREASURE ROOM",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 24
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "There is a rough path through the middle of this room, and along the path at intervals stand richly decorated suits of armor, like knights guarding the treasure. In between the suits of armor on either side of the path are shelves covered with precious baubles: necklaces, chalices, rings, golden bowls, long tusks of ivory and gold; brooches, amulets, and chains of silver and platinum; heaps of unset stones lying in great piles as if they were marbles - diamonds, rubies, carbuncles, topazes and amethysts. And underneath the shelves are large chests of oak strengthened with iron and heavily padlocked. Everything has a thin layer of dust on it, and there is an air of sadness and gloom about the place."
+  },
+  {
+   "number": 7,
+   "name": "STUDY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 25
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The walls in this room are filled with shelves which are filled with books with such strange names as \"The Life and Letters of Silenus\" or \"Nymphs and Their Ways\" or \"Men, Monks, and Game-Keepers: A Study In Popular Legend.\" There are numerous chairs scattered around the room which look as if they used to be extremely inviting and comfortable. Oil lamps look as if they provided pleasant if not adequate reading light. A desk in the middle of the room is covered with dusty, complicated-looking magical machinery and ancient symbols. The stuff looks so dangerous, and the runes so forbidding, that you hesitate to go near any of it."
+  },
+  {
+   "number": 8,
+   "name": "PANTRY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 9
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Floor to ceiling shelves hold many yellowing boxes and crumbling wooden barrels of food. Many different shapes of packages done up with frayed cord are on the shelves, and small grease-stained bags of unknown origin fill the cracks up."
+  },
+  {
+   "number": 9,
+   "name": "KITCHEN",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 10
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Rusty pots and pans hang from hooks on the stone wall. A wood stove used for cooking is thickly covered in cobwebs and is quickly falling to disrepair. Large dusty counters still hold their collections of old kitchen utensils and rotting meats. A great stone fireplace is in the north corner of the room; it has been cold for many years. A doorway leads into what appears to be a small pantry."
+  },
+  {
+   "number": 10,
+   "name": "WEST DINING HALL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 11,
+    "south": 28
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Several differently sized human skeletons are clustered in groups around the central circular table; most are wearing tattered rags and some have their forks halfway to their mouths; one hapless diner was in the process of chewing when he died. To the west is a stone archway through which you see a kitchen."
+  },
+  {
+   "number": 11,
+   "name": "EAST DINING HALL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {},
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Here too, skeletons are sitting on rough benches next to the tables. Plates of unappealing-looking food lie next to a sword that is permanently stuck in the table at a rakish angle, almost up to its hilt. Muddy rodent tracks lead to a small crack in the southwest corner. Bones and rotten food litter the floor. A shattered wine glass lies next to a yellowed pack of playing cards."
+  },
+  {
+   "number": 12,
+   "name": "BEDCHAMBER",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 30
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Furnishings here are threadbare and worn, but look as if they used to be in good shape and well made. A giant four-poster canopy bed is the most impressive work of carpentry you've seen to date. Intricate scroll-work adorns the bed, and even though time has obscured many details, you can still make out several bas-relief figures which hold up the canopy."
+  },
+  {
+   "number": 13,
+   "name": "TOWER NW",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 14,
+    "south": 31
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The view from here is magnificent: you can see the whole forest and the mountains which are bathed in a gentle pink and yellow glow of the setting sun. To the south are some stairs which lead down."
+  },
+  {
+   "number": 14,
+   "name": "TOWER NE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 32,
+    "west": 13
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the northeast corner of the abandoned tower. A loud and steady dripping noise can be heard, and you can smell the faint cloying odor of vanilla."
+  },
+  {
+   "number": 15,
+   "name": "PRECIPICE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {},
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You look down on lush green and brown squares of land, just barely visible from this height. The flood basin certainly has blessed the land with fertility."
+  },
+  {
+   "number": 16,
+   "name": "STONE STEPS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 17,
+    "up": 15
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are climbing a set of roughly carved stone steps. A vast precipice with a wonderful view of the valley below is to your west, and Ettinsmoor lies to your east."
+  },
+  {
+   "number": 17,
+   "name": "ETTINSMOOR",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 35,
+    "west": 16
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This lonely moor is situated to the north of Watersmeet. It is rumored that witches and hags use the area for their secret ceremonies on clear nights when the moon is full. A brisk wind blows off the surface of the murky waters, chilling you momentarily. Gaunt trees bent almost double from the blast remind you of tortured souls praying for mercy in the hands of cruel and torturous captors. To the west lies a set of giant stone steps that lead upward."
+  },
+  {
+   "number": 18,
+   "name": "FOREST",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 1,
+    "south": 41
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This is a pleasantly quiet place. A birch tree with large roots invites comfortable repose against the smooth bark. Long green grass begs you to remove your shoes and frolic in the softness for but a moment..."
+  },
+  {
+   "number": 19,
+   "name": "FOREST GLEN",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 2,
+    "south": 42
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This glen is filled with bushy pine trees. Their needles snap and crunch when you step on them, and the air seems very dry. The droning hum of insects makes you slightly drowsy."
+  },
+  {
+   "number": 20,
+   "name": "CLEARING",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 3,
+    "south": 43
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The path widens momentarily here; trees are growing in a rough semicircle around the edges of the path. You have some breathing room at last, and the sun shines brightly down."
+  },
+  {
+   "number": 21,
+   "name": "FOREST",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 4,
+    "south": 44
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The glare of the sun momentarily blinds you as you walk into this area. Most of the trees here are saplings and offer no protection from the heat."
+  },
+  {
+   "number": 22,
+   "name": "CLEARING",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 5,
+    "east": 23,
+    "south": 45,
+    "up": 85
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are standing next to a tall tree. There is a branch just within your reach; you might be able to climb up and grab hold of it if you wished."
+  },
+  {
+   "number": 23,
+   "name": "FENCE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 22
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You have come as far east as you can. A stout iron fence (fairly new too, from the look of it) stops you from going any farther."
+  },
+  {
+   "number": 24,
+   "name": "END OF CORRIDOR",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 6,
+    "east": 25,
+    "south": 47
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "There is a small doorway to the south. Silver and gold light twinkles from between the cracks around a closed and heavily barred oak-paneled door to the north which has a brass handle. Faint rodent-like squeaking noises can be heard from within the room on the other side of the door. Several sets of red beady eyes glare malevolently at you from a large crack in the masonry in the northeast corner of the room."
+  },
+  {
+   "number": 25,
+   "name": "CORRIDOR",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 7,
+    "east": 26,
+    "west": 24
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are near the west end of a long corridor. Several bats brush carelessly against you. Spiderwebs cling all over the walls and floor. A disused torch rests in a rusty sconce on the wall to the south. To the north lies a door."
+  },
+  {
+   "number": 26,
+   "name": "CORRIDOR",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 27,
+    "west": 25
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the east wing of a long corridor. A large stone fireplace is before you, cold and covered in cobwebs from years of disuse."
+  },
+  {
+   "number": 27,
+   "name": "GREAT HALL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 28,
+    "south": 50,
+    "west": 26
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the Great Hall, in the middle of a long corridor. Several menacing looking suits of armor stand before you, flanking the entryways to the east and west as well as the exit to the south. They hold sharp axes which are permanently raised as if to challenge your right to be here. You can almost imagine eyes glaring at you through the visor."
+  },
+  {
+   "number": 28,
+   "name": "CORRIDOR",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 10,
+    "east": 29,
+    "west": 27
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the middle of a long corridor. The east end of the dining hall can be seen to the north. The drawbridge is to the southwest, as seen through chinks in the masonry."
+  },
+  {
+   "number": 29,
+   "name": "CORRIDOR",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 30,
+    "west": 28
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are nearing the east end of a long corridor. Many faded banners occupy space on the stone walls. The most magnificent one hangs down in the middle of the archway to the east. A pleasant shade of blue, it seems to draw attention to itself quite readily on its own merit."
+  },
+  {
+   "number": 30,
+   "name": "CORRIDOR",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 12,
+    "west": 29,
+    "up": 31
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are near the east end of a long corridor. Simply constructed spiral stone stairs lead up to a darkened balcony, and dusty green tile stairs edged with dull brass trim lead up towards a doorway to the north."
+  },
+  {
+   "number": 31,
+   "name": "TOWER SW",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 13,
+    "east": 32,
+    "down": 30
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "An enormous bookcase groaning under the weight of musty magic books fills virtually all of the southwest corner of this abandoned tower. Some of the more distinguishable titles are \"The Art Of Magic Pleasantlie Open'd to Tender Wits\" or \"Popular Wizardry Volume One: Abracadabra to Hocus-Pocus\" or \"Cantrips: Are They Really All They're Cracked Up To Be? A Definitive Study By Gandalf, Wizard; Esq.\""
+  },
+  {
+   "number": 32,
+   "name": "TOWER SE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 14,
+    "west": 31
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the southeast corner of the abandoned tower. Yellowed scrolls and strange magical paraphernalia which are covered with a thick layer of dust reside on a rickety set of shelves next to a paneless window."
+  },
+  {
+   "number": 33,
+   "name": "WATZ UPP DOCK",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 34,
+    "south": 58
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are standing on the edge of a dock which extends out into the water. Looking towards the east, you can see the river which flows gently past... Pebble Beach is towards the south."
+  },
+  {
+   "number": 34,
+   "name": "RIVER SHRIBBLE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 35,
+    "west": 33
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The river slowly but surely comes to a near-standstill here; the channel gets narrower and the water gets choppier. Way off in the distance towards the east, you can see the short squat pilings of Watz Upp Dock, and land."
+  },
+  {
+   "number": 35,
+   "name": "WATERSMEET",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 17,
+    "east": 36,
+    "south": 60,
+    "west": 34
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This large, blue, deep, wet lake gets its name from the fact that there are many smaller tributaries from different provinces of the land that end up here. You feel almost lost; an insignificant speck in the vastness of the lake (small ocean?). You begin to give up hope of finding your way back, then you spy a small piece of land against the horizon to the north. The east, south, and west are completely devoid of any detail. You decide to use it as a landmark and not let it out of your sight. Meanwhile, it is incredibly relaxing to float around without a care in the world. The sun is hot but not unpleasantly so; the light breeze from the water keeps you cool. You bob around in your dinghy, letting the gentle waves take you wherever they may."
+  },
+  {
+   "number": 36,
+   "name": "NARROW RIVER",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 37,
+    "west": 35
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This narrow, swift river quickly takes you thrice the length you expected to go in half the time. Without even thinking, you let the current carry you on."
+  },
+  {
+   "number": 37,
+   "name": "THE CAY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 38,
+    "south": 61,
+    "west": 36
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This is a fine sandy beach near which to put in if you wished to. The current is slow and lazily meanders over the smooth bottom. You could most likely get out right here, and walk to the south, towing the dinghy; the water is fairly warm and not too deep."
+  },
+  {
+   "number": 38,
+   "name": "RIVER",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 39,
+    "west": 37
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The river sluggishly moves on: the banks are narrow and tall, and you can see the different-colored layers of rock and soil."
+  },
+  {
+   "number": 39,
+   "name": "RUSHING RIVER",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 40,
+    "west": 38
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The speed of the foaming water has not decreased much, it pushes you and your dinghy along at a furious rate, almost as if by an invisible hand of some sort."
+  },
+  {
+   "number": 40,
+   "name": "ARAGAIN FALLS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 39
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "WOW! That was some ride! You fell about 100 feet straight down, plunged headlong into the frigid foaming water, but still managed to hang on to the side of the dinghy. Your teeth are chattering violently and you can't stop shivering. There is a light fog from the waterfall, and the thunderous noise will most likely deafen you if you stay here much longer! You simply must find somewhere to dry off!"
+  },
+  {
+   "number": 41,
+   "name": "FOREST",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 18
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "A stand of poplar trees blocks your way to the south. A squat stump is in the middle of the ring of trees; it has fungus growing on it and flabby white wild mushrooms growing off the top of it."
+  },
+  {
+   "number": 42,
+   "name": "SHADY PATH",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 19,
+    "south": 63
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This path is lined with coarse gravel and looking up you notice a thickly interwoven canopy of branches and leaves overhead which provides pleasantly cool shade from the sun."
+  },
+  {
+   "number": 43,
+   "name": "FOREST",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 20
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Groups of wind-swept trees remind you of old women huddled together gossiping. There are trees which you cannot identify, and you surmise that they must have been transplanted from Archenland or perhaps Alfheim."
+  },
+  {
+   "number": 44,
+   "name": "FOREST",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 21,
+    "east": 45
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Rows of logs, both thick and thin, lie lashed together using stout cord in neat piles alongside the rutted road through the trees. Wide open spaces are becoming more common as the push for colonization increases and logging activity increases. Happily, though, most loggers replant two trees for each one they cut down."
+  },
+  {
+   "number": 45,
+   "name": "CLEARING",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 22,
+    "south": 66,
+    "west": 44,
+    "up": 46
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This solemn-looking place is mostly gently rolling hills covered with dried grass. To the east is a sheer rock face, the top of which cannot be seen. Crude handholds may make passage upwards possible."
+  },
+  {
+   "number": 46,
+   "name": "ROC'S NEST",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "down": 45
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You throw yourself upon the top of the rock face, panting with exertion. A giant nest, made of various sizes of twigs and small tree branches scavenged from the forest floor takes up most of the area here. At first glance, it appears that two small stone statues and a larger statue are currently occupying this nest."
+  },
+  {
+   "number": 47,
+   "name": "DRAFTY ROOM",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 24,
+    "east": 48
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The wind whistles fiercely through this room, the reason being there is little left of the southwest wall to prevent it from doing so. A tree must have fallen down upon it in a terrible windstorm years ago. The east wall holds what remains of a small bookshelf."
+  },
+  {
+   "number": 48,
+   "name": "SECRET PASSAGE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 49,
+    "west": 47
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This passage has not been used in years. You can see a very dim light to the east. The walls look weak back here, and large wooden timbers serve as braces so they don't fall down."
+  },
+  {
+   "number": 49,
+   "name": "STORAGE ROOM",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 48
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "There are boxes and boxes of dusty glass and crystal bottles with twirly writing on them. Trunks filled with faintly scented cloths in faded colors and chipped beakers and flexible tubing and funnels and other things you cannot find the words to describe fill this ancient room. Perhaps it was an alchemy laboratory in earlier times?"
+  },
+  {
+   "number": 50,
+   "name": "FOUNTAIN COURT",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 27,
+    "east": 51,
+    "south": 70
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "A large statue of a woman dominates the center of this room. She is smiling beatifically, and seems to be offering you something in her outstretched hands."
+  },
+  {
+   "number": 51,
+   "name": "MIDDLE OF HALLWAY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 52,
+    "west": 50
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are at the middle of a large narrow hallway which is filled with remarkably lifelike sculptures of men and beasts. Paintings of the forest, strangely distorted yet oddly vivid, line the walls."
+  },
+  {
+   "number": 52,
+   "name": "WAITING ROOM",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 53,
+    "west": 51
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This used to be Mananan's waiting room for magical consultation among his colleagues; chairs here have seen much use. Pictures on the back wall seem to move when you are not looking directly at them."
+  },
+  {
+   "number": 53,
+   "name": "OFFICE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 52
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Here a pale greenish light emanates from nowhere in particular and the desk and walls are covered with arcane symbols and spooky magical stuff that no doubt maintained Mananan's image but don't impress you. Much."
+  },
+  {
+   "number": 54,
+   "name": "BOILING WELL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 74
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The humid air in here makes you sweat a lot. Peering down a hole that is in the middle of the floor, you are hit in the face by a blast of steam. Faint bubbling and cooking-popping noises come from down below. The strong smell of sulfur does nothing to improve the general state of things."
+  },
+  {
+   "number": 55,
+   "name": "GUEST QUARTERS W",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 56,
+    "south": 75
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The spacious guest lodgings so graciously provided by your hosts actually turn out to be not that bad. Silken pillows help calm your jangled nerves as you sink down into them. A sizable hole has been cut in the ceiling, and it is open to the sky. A net has been attached to prevent small animals and debris from falling down onto people's heads. The East Quarters are to (where else?) the east."
+  },
+  {
+   "number": 56,
+   "name": "GUEST QUARTERS E",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 55
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Comfortable futon beds and a small yet useful writing desk occupy this wing. Several tasteful and moderately handsome sect masks adorn the simple walls. They have pleasant smiles, and invite a restful night's sleep."
+  },
+  {
+   "number": 57,
+   "name": "STONE CHAMBER",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 77
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "In the center of the wall opposite the entrance to this large room is a carved wooden face that fills the area from floor to ceiling. The carving is highly polished, and flashes with reflections of light. The mouth is slightly open, and the eyes seem to glare at you for a split second, then the expression softens. In the center of the room sits a pedestal with a perfectly preserved stuffed or otherwise immobilized hummingbird."
+  },
+  {
+   "number": 58,
+   "name": "PEBBLE BEACH",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 33,
+    "south": 78
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This narrow strip of land is covered with every imaginable kind of pebble known in creation. Little ones, big ones, shiny ones, dull ones, round ones, square ones... well, you get the idea. There are lots of pebbles here. To the north is the water, to the south is a deep smoking crack in the earth."
+  },
+  {
+   "number": 59,
+   "name": "WINDING TRAIL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 60,
+    "south": 79
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "A twisting, turning trail leads upwards to the south and down towards the east."
+  },
+  {
+   "number": 60,
+   "name": "WINDING TRAIL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 35,
+    "west": 59
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "A twisting, turning trail leads upwards to the west and down and south towards Watersmeet."
+  },
+  {
+   "number": 61,
+   "name": "INLET",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 37,
+    "south": 82
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This looks like a likely spot to pull in. The water is calm and unhurried, there's no chance of the dinghy being swept out to the river again once you beach it. A meandering path that snakes between two stately elms can be seen to the south."
+  },
+  {
+   "number": 62,
+   "name": "MERCHANT'S ANNEX",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "up": 63
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the Merchant's Annex."
+  },
+  {
+   "number": 63,
+   "name": "AUTODUEL SQUARE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 42,
+    "east": 64,
+    "south": 86,
+    "down": 62
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "A path leads down into the ground to the west, and other paths lead off to the north, east and south."
+  },
+  {
+   "number": 64,
+   "name": "WATERFRONT VIEW",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 65,
+    "south": 87,
+    "west": 63
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "To the south is a grand view of the waterfront district; a nice dock can be seen down that way.."
+  },
+  {
+   "number": 65,
+   "name": "LAKE VIEW",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 66,
+    "west": 64
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "A magnificent lake is to the south, you can see it over the slight rise in the land. It looks very cool and refreshing."
+  },
+  {
+   "number": 66,
+   "name": "HILL TOP",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 45,
+    "east": 67,
+    "west": 65
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Your path takes a sudden zig-zag route as the grade of the hill increases sharply. Luckily, the road is hard-packed dirt and not slippery gravel. You fight your way to the top of the hill and turn for a moment to survey your surroundings. High in the sky circles a lone eagle, and for a moment it is as if you are the only two beings in the world. You turn away, and with renewed spirit continue on your way."
+  },
+  {
+   "number": 67,
+   "name": "WASHED OUT CANYON",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 68,
+    "west": 66
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Your way is partially blocked by a rock pile that has buried some hapless adventurer. A skeletal hand is sticking out of the rocks still clutching a useless rusty sword."
+  },
+  {
+   "number": 68,
+   "name": "BOX CANYON",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 69,
+    "west": 67
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "High sandstone walls surround you, blocking the sun's warmth. Faint traces of ancient rock paintings catch your eye. Looking more closely, the image of a bear takes form."
+  },
+  {
+   "number": 69,
+   "name": "CANYON",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 91,
+    "west": 68
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The canyon takes a sharp turn here to the west. The canyon floor is fairly smooth and easy to travel on."
+  },
+  {
+   "number": 70,
+   "name": "IN FRONT OF MOAT",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 50,
+    "south": 92
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You stand on the edge of a dry moat in front of a run-down castle. The drawbridge is closed. An unearthly voice whispers faintly, \"What is the password?\" and fades away to be replaced by the steady yet unobtrusive (almost pleasant) chirping of crickets."
+  },
+  {
+   "number": 71,
+   "name": "HILL VALLEY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 72
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "To say that this place is a dust bowl would be entirely correct. In fact, that's basically what this place IS. A giant dust bowl. (Sorry, it's nothing like a sugar bowl or even the Super Bowl.) The wind whips stinging sand granules into your face with painful accuracy."
+  },
+  {
+   "number": 72,
+   "name": "TWIN PINES",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 73,
+    "south": 94,
+    "west": 71
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You stumble over the rough ground, cursing the lack of a path. Two stately pine trees stand here to your right. To the east lies a dark tunnel leading into a hillside. To the west is a giant expanse of shifting sands. Leading south, a path winds up to a windswept hilltop."
+  },
+  {
+   "number": 73,
+   "name": "BADGER'S BURROW",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 93,
+    "west": 72
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This almost-but-not-quite pitch black hole in the ground is hard to navigate around, there are lots of bumps and rocks you keep tripping over. As near as you can tell, there are exits to the west and south."
+  },
+  {
+   "number": 74,
+   "name": "HUMMINGBIRD CHAMBER",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 54,
+    "south": 96
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This room is lavishly adorned with likenesses of hummingbirds on the walls, floor, ceiling, and altar."
+  },
+  {
+   "number": 75,
+   "name": "HALL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 55,
+    "south": 97
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You stand in a quiet hall. A multicolored beaded curtain hangs between you and the guest quarters. Smooth tiles, aqua hued, chill your feet."
+  },
+  {
+   "number": 76,
+   "name": "POOL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 98
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You stand just behind a sparkling azure pool. The water is calm and you can see the tiny blue tiles on the bottom."
+  },
+  {
+   "number": 77,
+   "name": "PRIESTESS CHAMBER",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 57,
+    "south": 99
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You notice several priestesses lying down on simple mats, resting from the exertion of praying. The walls are covered in masks and tapestries."
+  },
+  {
+   "number": 78,
+   "name": "DRAGON DROP",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "up": 58
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This ledge is terrifyingly steep. You kick a pebble over the edge, listening for any noise. You don't hear any."
+  },
+  {
+   "number": 79,
+   "name": "CAVE MOUTH",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 59,
+    "east": 80,
+    "south": 100
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "To the east is an underground river. To the south appear to be some catacombs. To the north is a winding trail."
+  },
+  {
+   "number": 80,
+   "name": "UNDERGROUND RIVER",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 79
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This wide, dark roaring river flows swiftly towards the east."
+  },
+  {
+   "number": 81,
+   "name": "OLD BRIDGE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 82
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The bridge is broken in half. Towards the west you can see a vast underground river. You can still turn back the way you came towards the east."
+  },
+  {
+   "number": 82,
+   "name": "SUBTERRANEAN CAVERNS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 61,
+    "west": 81
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "These caverns are quite large, the ceiling is lost in the shadows above your head."
+  },
+  {
+   "number": 83,
+   "name": "THE BROKEN LANDS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 84
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Volcanic and seismic activity has thrust the ground up into hundreds of chunks. Crackling of fire underneath your feet and smoking holes in the ground make this area dangerous."
+  },
+  {
+   "number": 84,
+   "name": "OGRE'S LAIR",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 101,
+    "west": 83
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You have stumbled into an ogre's lair. Each chamber in this cavern complex is lit by a crude, smoking torch. The dim, flickering illumination reveals burial chambers, littered with old bones, skulls, and rotting shrouds. You hear a fierce grating roar! Prepare to do battle!"
+  },
+  {
+   "number": 85,
+   "name": "IN TALL TREE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "down": 22
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the crown of a tall oak tree. To the north you can see the Merchant's Annex. To the east you can see a hilltop. To the south you can see a lake and mountain."
+  },
+  {
+   "number": 86,
+   "name": "LONELY PATH",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 63,
+    "south": 102
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are on a lonely, narrow, dark path. Treasures, perils, and mysteries await the adventuresome."
+  },
+  {
+   "number": 87,
+   "name": "DOCK",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 64,
+    "east": 88
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are standing on a dock which extends towards the east."
+  },
+  {
+   "number": 88,
+   "name": "LAKE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 89,
+    "west": 87
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "A small lake stretches out before you to the east. Another dock can be seen down that way as well."
+  },
+  {
+   "number": 89,
+   "name": "OLD HOUSE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 104,
+    "east": 90,
+    "west": 88,
+    "up": 105
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You get out of your dinghy, moor it on the dock, and knock at the door of this house... Receiving no reply, you try the door. Finding it unlocked, you decide to come in and poke around a little, being an adventurer. So now you are standing in the front room. There are some stairs which go down towards the east, and another room towards the east. Some stairs that go up towards the south are here too, trying hard not to be noticed."
+  },
+  {
+   "number": 90,
+   "name": "LIVING ROOM",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 89,
+    "down": 227
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a comfortable-looking living room. Dark wood paneling adds warmth to the tasteful decor. Several stools and a couch are arranged around the room next to a bookcase and a stone hearth. A finely woven Oriental rug is in the middle of the room."
+  },
+  {
+   "number": 91,
+   "name": "CANYON",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 69
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This canyon stretches out for quite a distance."
+  },
+  {
+   "number": 92,
+   "name": "TELMARINE HILLS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 70,
+    "south": 108
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "If you've ever read \"The Chronicles of Narnia\" you'll probably know who the Telmarines are. Anyway, these are the Telmarine Hills."
+  },
+  {
+   "number": 93,
+   "name": "CAVE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 109
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You're in a cave with paths going every which-way. Well, not [every] which-way. Just [some] which-ways. Check the line \"Ye may travel:\" and you'll see [which] which-ways... (Still with me?)"
+  },
+  {
+   "number": 94,
+   "name": "HILLTOP",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 72,
+    "east": 95,
+    "south": 110
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You're on a central hilltop overlooking this cute 3x3 grid which is the stomping grounds of that stinking, sodding, no-good rotten Dwarf. Of course, if you've already killed him, the Dwarf is gone and there's really no point in reading this, but I just display the text like it is. I [could] check to see if the Dwarf was dead, but that would be extra work. And we all know how Pinacolada hates work. Especially programming adventure games. So talk to [him], and don't complain to [me] about it. I'm just the [program] that he wrote and I'm doing [exactly] what he told me to. So if your inventory goes [plooie] or you wake up some dark day and find your stats have been altered to all -1e+90, you know who to rag on. [Not me!] Ok, anyway, you're on a hilltop. [Author's note:] I did not write this. Really. The program wrote it. We all know how crafty commodore 64's can be! [Program note:] Did! You liar! Hey you out there - don't listen to him! [Author's note:] Did not! Be afraid. Be very afraid... I'd be careful if I were you! That's enough of this. Back to the game."
+  },
+  {
+   "number": 95,
+   "name": "LONG TUNNEL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 111,
+    "west": 94
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Well, it's just what it says. A LONG TUNNEL. If you have any questions leave feedback."
+  },
+  {
+   "number": 96,
+   "name": "PRIVATE ALTAR",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 74,
+    "east": 97
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This is quite a beautiful altar, all decked out in silver and gold and shiny stuff. Pretty impressive."
+  },
+  {
+   "number": 97,
+   "name": "HALL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 75,
+    "east": 98,
+    "south": 113,
+    "west": 96
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This hall is pretty HALLowed."
+  },
+  {
+   "number": 98,
+   "name": "MINERAL CRUSTS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 76,
+    "west": 97
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "How this stuff got here you'll never know. It's kind of interesting, kind of like that stuff you put in the bottom of fish tanks."
+  },
+  {
+   "number": 99,
+   "name": "PRIEST CHAMBER",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 77,
+    "south": 115
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "For being priests these guys aren't acting very holy! At least not today. Looks like they're having a toga party (how appropriate!) and crushing beer cans with their foreheads and reading girlie magazines."
+  },
+  {
+   "number": 100,
+   "name": "CASTLE CATACOMBS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 79,
+    "south": 116,
+    "up": 226
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "These catacombs are quite extensive. Dark passageways lead off in almost any direction, but something tells you (perhaps this very sentence) you'd better only go south or north if you want to wake up in one piece tomorrow morning."
+  },
+  {
+   "number": 101,
+   "name": "STEEP PATH",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 84,
+    "south": 117
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This path IS pretty steep. It makes Mount Everest look like a walk in the park. Oh well. It's always good to push yourself. Or better yet, have someone push YOU. In a wheelchair. When you get old."
+  },
+  {
+   "number": 102,
+   "name": "NARROW PATH",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 86,
+    "east": 103
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This path IS pretty narrow. It makes tightrope walking look easy. Oh well. It's always good to get vertigo once in awhile. It builds character."
+  },
+  {
+   "number": 103,
+   "name": "STONE PLATFORM",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 118,
+    "west": 102
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Hello, what's this? A giant temple looms in front of you. This must be the place where you get in."
+  },
+  {
+   "number": 104,
+   "name": "BASEMENT",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "up": 89
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This too is a sensible basement, everything laid out logically. Dirty clothes are laid in two neat piles for lights and darks. A spacious conversation pit is in the middle of the room. Stairs go up. Well, actually YOU go up THEM. But you know what I mean."
+  },
+  {
+   "number": 105,
+   "name": "UPSTAIRS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "down": 89
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This upstairs bedroom is one of the nicest and most sensible looking bedrooms you've seen. Carpeted in green, the room has a large water bed and a closet. A framed picture sits on top of a box which lies at the head of the bed next to a silver heart-shaped locket, a ring, and a scroll. A key is also on a bureau which is against the eastern wall."
+  },
+  {
+   "number": 106,
+   "name": "CANYON",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 91,
+    "east": 107,
+    "south": 122
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The canyon continues on to the west. Trondheim is to the east."
+  },
+  {
+   "number": 107,
+   "name": "TRONDHEIM",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 108,
+    "west": 106
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This is a natural bowl-shaped depression in solid rock. Acoustics are excellent, leaving you to wonder why no one has staged a concert here? Harpsichords and pianofortes would sound GREAT! Maybe a little something by Bach, or perhaps Pachelbel's \"Canon In D\"... Too bad Queensryche or Metallica isn't around yet! THAT would be a concert to be talked about for CENTURIES. Speaking of which, it'll be about five till either of these guys show up, so be patient. Listen to a little something on your Ye Olde Walkman (or Discman, whichever you prefer) to pass the time."
+  },
+  {
+   "number": 108,
+   "name": "SHADOWLANDS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 92,
+    "west": 107
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "True to its name, this place is dark. You get uneasy, sensing great evil at work here."
+  },
+  {
+   "number": 109,
+   "name": "ROCKHOME",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 93,
+    "east": 110
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The Stone Warrior's lair is here. Giant chunks of basalt and granite litter the rocky ground."
+  },
+  {
+   "number": 110,
+   "name": "GRAVEL PILE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 94,
+    "east": 111,
+    "west": 109
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This is a giant gravel pile."
+  },
+  {
+   "number": 111,
+   "name": "IN THE OPEN",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 95,
+    "south": 241,
+    "west": 110
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You're in the open. The hot sun beats down on you relentlessly, and you feel tired and thirsty. The horizon shimmers, lost in silvery mirages. Dry grass crunches underneath your feet. Shading your eyes from the oppressive glare, you can see a path that leads to the south towards a gray indistinct mass. To the north appears to be a small cave."
+  },
+  {
+   "number": 112,
+   "name": "LIBRARY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 113
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "In this library resides food for the imagination and inquiring mind. A lectern is against the north wall, and there are shelves upon shelves of books here. Tables and chairs are spaced out in the middle of the room, and several skylights provide plenty of light for reading or studying. The exit is towards the east."
+  },
+  {
+   "number": 113,
+   "name": "HALL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 97,
+    "east": 114,
+    "west": 112
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a T-junction with halls leading towards the north, east, and west."
+  },
+  {
+   "number": 114,
+   "name": "HALL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 115,
+    "west": 113
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You stand in the middle of a hall. To the east appears to be the entrance to the temple, and to the west is an intersection of halls."
+  },
+  {
+   "number": 115,
+   "name": "ENTRANCE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 99,
+    "west": 114,
+    "down": 119
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This is the entrance to the main temple. It is lavishly decorated in sect masks, ornamental trinkets, shrunken heads, jawbones, feathered totems, and other primitive tribal symbols. Two spears are crossed against each other, point up, above the doorway. Three steps lead up to a square landing a few feet off the ground. Stone feet and ankles straddle the stairs, all that is left of an ancient statue. The stairs descend to the east towards the exit, and rough wooden planking leads off towards the north and west."
+  },
+  {
+   "number": 116,
+   "name": "STONE STAIRS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 100,
+    "south": 132
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Almost identical to those at Watersmeet - perhaps built by the same craftspeople - these roughly carved stone steps go up towards the north and down towards the south. Minute cracks can be seen in the steps, which is not surprising since it often rains quite hard here and the steps seem almost porous."
+  },
+  {
+   "number": 117,
+   "name": "STEEP PATH",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 101,
+    "south": 138
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This is a very steep path. Climbing this once a day for a month will put you in great physical shape! As you huff and puff to get to the top, your lungs wheezing in protest, you feel lightheaded and notice the air is much thinner at this great altitude."
+  },
+  {
+   "number": 118,
+   "name": "FOYER",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 103,
+    "south": 140
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "There is a gilded crystal chandelier hanging from the stone ceiling. A tall ladder leans against the wall, providing access to the candle holders within. The fireplace, lit, is crackling loudly and occasionally spits sparks out at you. The flickering light casts eerie shadows on the walls, elongating your shadow until you look like a giant. A stone table sits in the corner, next to a rattan chair and a pile of rushes."
+  },
+  {
+   "number": 119,
+   "name": "ANTEROOM",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 120,
+    "west": 115
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The entrance to the Inner Sanctum of the priest area seems to faintly echo with the prayers of priests within. Although shrouded in semi-darkness, you can sense movement somewhere along the western wall. You begin to feel spiritually uplifted as you get closer to the prayer area."
+  },
+  {
+   "number": 120,
+   "name": "HALLWAY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 119,
+    "down": 121
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are on some stairs which lead to the Inner Sanctum. Faint vibrations of chanting worshipers can be heard, as they are carried fairly well by the old wooden floors. You feel a tingling sensation in your body. If you didn't know better, you'd think your soul felt it too."
+  },
+  {
+   "number": 121,
+   "name": "LANDING",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "up": 120,
+    "down": 143
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are on a landing between several flights of stairs. Cheerful spiritual decorations line the walls, and the windows shine their dusty light down on you. It feels like their deity is smiling upon you as you stand there, staring out and towards the heavens."
+  },
+  {
+   "number": 122,
+   "name": "CANYON",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 106,
+    "south": 144
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are walking along this incredibly long canyon. The ground is hard and rocky, and travel is rough. The high walls seem to close in on you, and what little sunlight gets through the suddenly cloudy sky is pale and dim."
+  },
+  {
+   "number": 123,
+   "name": "GRAIN STORAGE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 146
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You have entered the grain storage complex for the town stables. Bins of oats, barley, hay, and mash line the walls. Horse-smells abound, and there is a slight thumping noise as you hear a horse bumping into its stall, chewing its food contentedly."
+  },
+  {
+   "number": 124,
+   "name": "INN",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "down": 125
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the Sulidam Inn. It's an immense structure of clapboard and brick that has clearly seen better days. The shingle roof sags, and the paint is losing its battle with the salt air. Still, there's something inviting about the place. The building somehow shrugs off its looks and offers you a warm welcome."
+  },
+  {
+   "number": 125,
+   "name": "LANDING",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 148,
+    "up": 124
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are on a river-rock landing that leads up to a set of stairs that go to the Sulidam Inn. Pretty flowers line the stone planters in front of you, and thin trees assert themselves in small clusters all along the shaded avenue."
+  },
+  {
+   "number": 126,
+   "name": "RUTTED ALLEY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 127,
+    "south": 149
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This alley was apparently used as a major artery of travel for quite a while a long time ago, and looks it. Having been bypassed with a new road and forgotten as the primary means of travel years ago, the rutted, muddy road now leads to what appears to be a medium-sized city nestled in back of the immense palace."
+  },
+  {
+   "number": 127,
+   "name": "SLUMS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 128,
+    "west": 126
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Several bony donkeys are tethered to large clumps of dead grass and are nibbling pitifully at what little food the townspeople can spare, here in what may as well be described as the \"outskirts\" of the tent city. Farther down to the east, villagers can be seen living their lives in isolation, desperation, abject poverty, and hopelessness."
+  },
+  {
+   "number": 128,
+   "name": "SLUMS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 129,
+    "west": 127
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Crumbling stucco buildings line the rutted avenue. People glumly go about their business, though what there is to do in this sad place, you cannot for the life if you imagine. A dead tree sags limply against a burned wooden building, and salvaged rough-hewn boards are stacked in wobbly piles which encircle the shell of the building. Small children sit on their parents laps, looking curiously but silently at you as you enter."
+  },
+  {
+   "number": 129,
+   "name": "SLUMS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 130,
+    "west": 128
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Tall dead brown grass partially obscures a rusted saw blade that is lying on the ground next to a wooden wagon wheel. Piles of trash litter the ground. Several frightened children are here who regard you with suspicion: they know you are a stranger in their small city. Parents look at you with pleading expressions, wordlessly begging for help, money, or food..."
+  },
+  {
+   "number": 130,
+   "name": "SLUMS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 129
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "A stout stone wall impedes your progress east. Flat stones that paved the rough ground here are cracked or missing entirely. Thick patches of dead grass heave smaller paving stones up. An old man lies against the wall, his knees tucked up about his chin, grinning at you toothlessly, holding a battered tin cup which he jingles every so often. A few pennies can be heard rattling around in the echoing depths of the tin. Suddenly you feel rage choking you. Why has the king allowed his subjects to degenerate into what you see before you? These stories were all lies - Sulidam may have [been] a prosperous, happy city, but look at it now! A hot tear trickles down your dusty cheek..."
+  },
+  {
+   "number": 131,
+   "name": "DEEP CREVICE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 132
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This crevice seems to go down forever. It gets very narrow towards the bottom. You fear you may trap your foot in the crack and never be able to get it out again, so you stay as high up as you possibly can."
+  },
+  {
+   "number": 132,
+   "name": "SINKHOLE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 116,
+    "east": 133,
+    "south": 155,
+    "west": 131
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The sandy ground here slopes sharply towards a gaping hole in the earth, making passage around it dangerous, and footing becomes treacherous. A distant cave can be seen towards the east, and there are rough and rocky paths leading off in the remaining three directions."
+  },
+  {
+   "number": 133,
+   "name": "GUARDIANS' LAIR",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 134,
+    "west": 132
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You have entered a dimly lit cavern. A rattling and hissing noise alerts you to the presence of a dangerous snake, possibly several. Best be careful, they strike quickly and can leave you mortally wounded!"
+  },
+  {
+   "number": 134,
+   "name": "OLD WALLS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 135,
+    "south": 156,
+    "west": 133
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The shale walls of the interior of this cave are dusty, crumbly, and light filters poorly from chinks in the ceiling. You can see a bit ahead to the east, and in back of you to the west, are tunnels which snake through the heart of this cave. To the south is some sort of hastily boarded up area."
+  },
+  {
+   "number": 135,
+   "name": "SLOPING PASSAGEWAY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 136,
+    "west": 134
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The slope down of this dusty tunnel is dangerous: the slippery gravel and fragments of rock provide very poor traction and you end up slipping and sliding down most of the way. Just be careful you don't break an ankle or something."
+  },
+  {
+   "number": 136,
+   "name": "FLOODED ROOM",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 137,
+    "west": 135
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You stop short in surprise: this being the lowest point in the cave, it is the logical place for all water to seep into and runoff to end up in. The center of the room has been transformed into a small lake, having nowhere else to go. Evaporation is not possible, what with the solid rock faces present. The walls are muddy and black with dead algae. You bravely try to skirt the edge, but fail because of impassible rock formations."
+  },
+  {
+   "number": 137,
+   "name": "DAMP ROOM",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 138,
+    "west": 136
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The cave floor is damp and muck-filled with mud and debris that lodged here, apparently from flooding. The sodden ground squishes disgustingly, sucking at your feet. A foul stench wafts into the room, carried on air currents from the east."
+  },
+  {
+   "number": 138,
+   "name": "GARGOYLE'S LAIR",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 117,
+    "west": 137
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You nearly pass out from the horrible odor, as of something dead or dying, but upon closer inspection, you notice a nest of gargoyles. The small ones are almost *cute*! You long to reach out and pet one, but remember that their grating scream would undoubtedly awaken the mother or father (whichever it is who is laying next to them, asleep as well) and they would tear into you in half a second."
+  },
+  {
+   "number": 139,
+   "name": "CEMETARY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 161
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You pause a moment, and push the door open... The room is filled with large stone statues of noble-looking people. Each face seems to stare past your eyes and into your soul. Aside from these statues, the room seems to be fairly empty, the floor thick with dust and debris. Several exits lead to the north and west, but should you really continue?"
+  },
+  {
+   "number": 140,
+   "name": "HALL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 118,
+    "south": 162
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This hall has formidable stone arches and ivory torches rest in brass sconces on the walls. Luxurious carpets feel wonderful beneath your tired feet, and a large fireplace which has a fire cheerily burning in it and a stone hearth dominates the southern wall."
+  },
+  {
+   "number": 141,
+   "name": "FIRE PIT",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 142,
+    "south": 163
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This fire pit is filled with dusty ash and charred bits of smoking wood. The rough stone floor circling the pit is littered with woven sleeping mats, chipped pottery, and eating utensils made of bone. There is a rough ten foot by ten foot hole in the ceiling, and is open to the sky. A net has been fastened across this opening to prevent debris and small creatures from entering. A rope hangs down from one corner of the opening to the floor."
+  },
+  {
+   "number": 142,
+   "name": "ALTAR",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 164,
+    "west": 141
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This altar is simply constructed of slabs of stone set on top of each other in a staggered pyramid fashion. The room contains several items used by the priests in the worship of their gods. Bone rhythm sticks, a crumbling bamboo flute, and the remains of a feather fan are here."
+  },
+  {
+   "number": 143,
+   "name": "WALKWAY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 165
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are on some stairs, approaching a landing. Carved out of the angled back walls of the stairwell are two bas-reliefs of humans holding lighted braziers."
+  },
+  {
+   "number": 144,
+   "name": "GULLY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 122,
+    "south": 166
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "A rain washed gully provides fairly good footing, gravel has been swept downstream leaving the hard-packed dirt to walk on in relative ease and comfort."
+  },
+  {
+   "number": 145,
+   "name": "STABLES",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 146
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You have entered the stables of Sulidam where all the town's horses are kept. A sign is tacked on the wall, but you cannot quite make out what it says. A hand bell and book of some kind are here. Although faint clanking noises can be heard to the north, no humans are in sight."
+  },
+  {
+   "number": 146,
+   "name": "STABLES",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 123,
+    "south": 168,
+    "west": 145
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Here the splendor continues: Row upon row of horses of every shape and color you can possibly imagine are here, quietly neighing and stamping in their stalls. Although the faint smells of hay and manure linger in the air, that is to be expected in any horse stable. The place is very well kept by caring and competent owners, whoever they are, and is mighty impressive."
+  },
+  {
+   "number": 147,
+   "name": "ALCOVE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 223,
+    "south": 169
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You have entered a quiet alcove. Set back from the hustle and bustle of everyday life in this town, it seems to radiate a certain sense of tranquility and peace. And no wonder: a small sign fashioned in the shape of an arrow points towards the north, the entrance of a local chapel."
+  },
+  {
+   "number": 148,
+   "name": "MUSIC CLUB",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 125,
+    "south": 170
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You enter a comfortable, darkened room. Amateur musicians sit around, tuning their strange instruments and talking shoppe..."
+  },
+  {
+   "number": 149,
+   "name": "YELLOW BRICK ROADWAY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 126,
+    "east": 150,
+    "south": 171
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This is most unusual: You've seen stripes in the middle of roads before, but whoever was in charge of painting the stripe widened it so that the whole width of the road appears yellow. Apparently they were not of sound mind, and went insane. You notice a manhole cover set off to one side which appears to be closed. Of several exits here, one leads to the north towards a grubby little alley, the other heads off to the west and to the south is an outdoor pavilion."
+  },
+  {
+   "number": 150,
+   "name": "ARTISAN'S DISTRICT",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 151,
+    "west": 149
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You find yourself at the edge of an artisan's district. Skilled craftspeople call out to you, hoping to pique your curiosity and interest about their wares. You weave in and out of rows of tables full of finely made curios, housewares, weapons, and clothing, chatting with people for a few minutes as they point out their skill and handiwork."
+  },
+  {
+   "number": 151,
+   "name": "ARTISAN'S DISTRICT",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 152,
+    "west": 150
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Here a large booth has been set up in order to showcase fine bone and wood carvings, mostly incarnations of local spirits and animals. You stare in your admiration of the many fine details of each and every piece. You believe it to be truly amazing that such cold and impersonal tools as the hammer and chisel can create such delicate and beautiful designs, but the results before your eyes clearly disprove that way of thinking."
+  },
+  {
+   "number": 152,
+   "name": "ARTISAN'S DISTRICT",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 153,
+    "west": 151
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "A small cottage nestled in some low grassy hills next to a small stream catches your eye. Obviously a woodcutter lives there, there are bales of saplings tied with strong cord laying about in neat piles, and an axe has been driven into a stump next to a well. A wide ribbon of vegetables winds around in back of the cottage, and a tall majestic oak tree belies the presence of children with a swing which hangs down from one of the lower branches."
+  },
+  {
+   "number": 153,
+   "name": "ARTISAN'S DISTRICT",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 152
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You have come to the end of the artisan's district. A botanical garden of sorts dominates your field of vision. Beautiful arrangements of plants and flowers have been carefully arranged in interesting geometrical patterns here. Even the gravel has been raked into ridges around the path and between the rows of the garden."
+  },
+  {
+   "number": 154,
+   "name": "NARROW PASSAGEWAY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 155,
+    "south": 176
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Only by holding your breath and barely squeezing past the claustrophobic stone walls can you enter or exit this area. The walls encompass you, and it is very dark."
+  },
+  {
+   "number": 155,
+   "name": "NARROW PASSAGEWAY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 132,
+    "west": 154
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This passage is barely wide enough for you to go through. Your body scrapes the walls, and you feel uncomfortable trying to squeeze through, but you manage anyway."
+  },
+  {
+   "number": 156,
+   "name": "GOLD VEIN",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 134,
+    "east": 157
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Faint traces of gold sparkle hypnotically in the dark walls of the cave. Glittering dust sits undisturbed on the sloping floor."
+  },
+  {
+   "number": 157,
+   "name": "GOLD VEIN",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 158,
+    "west": 156
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Here and there, golden flashes of light tease your eye. The floor becomes more rough the farther along the corridor you proceed."
+  },
+  {
+   "number": 158,
+   "name": "GOLD VEIN",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 159,
+    "west": 157
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The golden glitter is very faint and well spaced out here. Cold breezes whistle through the passageway, and it gets increasingly darker and the footing gets more treacherous."
+  },
+  {
+   "number": 159,
+   "name": "ROCK FACE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 158
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The passageway ends here at a sheer rock face, as if the tunnel diggers decided to quit all of a sudden. There is practically no trace of gold around here, save for maybe one or two sparkles in the uppermost reaches of the ceiling."
+  },
+  {
+   "number": 160,
+   "name": "CAVE-IN",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 177
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You stand before a massive cave-in. Piles of rock and debris necessitate picking your way around them carefully. You look up often, fearing that the weak-looking ceiling will collapse any second, but thankfully it does not."
+  },
+  {
+   "number": 161,
+   "name": "ENTRANCE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 139,
+    "east": 162
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The lonely path you have been following ends at a stout stone wall. To the north lies a heavy wooden door, and to the east lies the pavilion."
+  },
+  {
+   "number": 162,
+   "name": "PAVILLION",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 140,
+    "east": 163,
+    "south": 180,
+    "west": 161
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This pavilion has colorful tiles placed in interesting patterns on the floor and walls. Twin pillars mark all four compass directions, and a bubbling fountain filled with some kind of orange liquid sits in the center of the room. Stairs lead off to the south, and a doorway can be seen to the east."
+  },
+  {
+   "number": 163,
+   "name": "un-named room",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 141,
+    "east": 164,
+    "west": 162
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You step into this sparsely furnished room in the southwest corner of the main hall and look around. The hall is about fifty feet square, two stories high with balconies running along three sides of the second story. This quarter is simply decorated in a few ornamental tapestries, nothing more."
+  },
+  {
+   "number": 164,
+   "name": "MIRROR ROOM",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 142,
+    "west": 163
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This is a large, brightly lit place, decorated with candles held in finely crafted candle holders so the wax doesn't spill. Hung on the wall is a large mirror of polished silver and bronze, patterned in shapes of fantastic animals and plants the likes of which you have never seen before. Flecks of mica glimmer in the stones of the wall, and sheets of feldspar and quartz dangle near the candles, scattering points of light everywhere."
+  },
+  {
+   "number": 165,
+   "name": "WALKWAY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 143,
+    "down": 183
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You're walking on a slightly elevated ramp which leads to a landing just ahead to the north. The delicious aroma of incense wafts unobtrusively into your nostrils."
+  },
+  {
+   "number": 166,
+   "name": "RAVINE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 144,
+    "east": 167
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This rugged, rocky and shallow valley comes to an end here. To the north lies the rest of the valley, and to the east lies a black metal gate set into a cut out portion of the canyon wall."
+  },
+  {
+   "number": 167,
+   "name": "GREAT GATE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 168,
+    "west": 166
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are just inside a black metal gate, which is the entrance to Sulidam. However, despite the city's reputation as being one of the richest cities on the continent, you have heard tales of beggars and peasants within, stories too numerous to be counted, and therefore may be true. From what you can see, the area bustles with activity and life, and so far it appears to be a very nice place in which to live."
+  },
+  {
+   "number": 168,
+   "name": "TOWN SQUARE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 146,
+    "east": 169,
+    "south": 186,
+    "west": 167
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You have entered the town square. Crowds of people, carts, and assorted livestock are all seemingly trying to occupy the same space at once. People mill about, engaged in conversations on just about anything."
+  },
+  {
+   "number": 169,
+   "name": "MARKETPLACE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 147,
+    "east": 170,
+    "west": 168
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a well-to-do area, there are large mansions all over. You stand in the center of the palace gardens. Colorful sprays of exotic flowers burst forth from the planters, and benches are thoughtfully provided for those weary of standing. There is a rich looking palace to the southeast. To the west and east lie roadways, to the south lies a particularly extravagant looking mansion, and the local music club lies to the north."
+  },
+  {
+   "number": 170,
+   "name": "PALACE GARDENS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 148,
+    "east": 171,
+    "south": 187,
+    "west": 169
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This is the lavish entrance to the King's palace. Guards mutter about royal business you cannot hope to understand but still listen to with half an ear. Suddenly you feel somehow embarrassed to be here."
+  },
+  {
+   "number": 171,
+   "name": "OPEN-AIR PAVILLION",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 149,
+    "south": 188,
+    "west": 170
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This hallway snakes around in the inner portion of the King's castle. At the end of what you can see towards the east the hall turns yet again."
+  },
+  {
+   "number": 172,
+   "name": "HALL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 173,
+    "south": 189
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Polished oak parquet floors dominate this part of the hall and interesting paintings line the hall. They show the King when he was a small boy, smiling happily."
+  },
+  {
+   "number": 173,
+   "name": "HALL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 174,
+    "west": 172
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Wonderful tapestries hang on the walls here. Embroidered with rich hues of blue, green and the warm glow of yellow makes them a pleasure to look at."
+  },
+  {
+   "number": 174,
+   "name": "HALL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 175,
+    "west": 173
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "A magnificent clock towers above you in all its royal majesty. A spectacular cabochon crystal mounted with golden brackets is on the top of the clock. Twelve diamonds are set in the clock face. The clock has a pleasantly mellow and soothing sound when it ticks."
+  },
+  {
+   "number": 175,
+   "name": "HALL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 192,
+    "west": 174
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You slosh through this passageway, ankle-deep in brackish water. A steady dripping noise can be heard, and echoes eerily throughout the cavern."
+  },
+  {
+   "number": 176,
+   "name": "NARROW PASSAGE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 154,
+    "south": 193
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Everything in this room is coated with a thick layer of chalk dust; you can barely make out where to step, it is so dim."
+  },
+  {
+   "number": 177,
+   "name": "DIM PASSAGE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 160,
+    "south": 200
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You go down the creaky steps and climb around back of the house to a rocky path. You are now standing just inside the door of a rickety tool shed, as there is not much space available to move about within. Light filters poorly through the small cobweb-laced window, revealing piles of rusty pickaxes, dusty gold pans, frayed rope, moldy sacks, and wire mesh boxes. The only exit is the way you came."
+  },
+  {
+   "number": 178,
+   "name": "TOOL SHED",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 179
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You stand in the center of a small one-room shack. The roof looks in need of much repair, leaking badly through sizable holes. The walls and floor are thick with dust, the sink is piled high with unwashed dishes, and a sagging table sits against one wall with a broken lamp toppled sideways sitting on it. Towards the east you can see what appears to be a shed of some sort."
+  },
+  {
+   "number": 179,
+   "name": "SHACK",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 178,
+    "up": 202
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Stairs lead up to a balcony which circles the room below."
+  },
+  {
+   "number": 180,
+   "name": "BALCONY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 162,
+    "up": 181
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You climb some stairs and find yourself on the second floor of the hall, on the balcony that runs along the wall above the entrance."
+  },
+  {
+   "number": 181,
+   "name": "WALKWAY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 182,
+    "down": 180
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Beautiful jade and ruby statues line the hall, and golden shafts of sunlight make the walls sparkle and shine."
+  },
+  {
+   "number": 182,
+   "name": "WALKWAY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 181,
+    "up": 183
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are on a landing flanked with red marble pillars. The hall is decorated with paintings of glyphs and spiritual gatherings."
+  },
+  {
+   "number": 183,
+   "name": "LANDING",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 182,
+    "up": 165
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The room is dominated by a large dais leading up to a beautiful altar. Torches burn a heavy, sweet-smelling incense which makes you drowsy. The air rings with unearthly-sounding bells, and the room shimmers and fades, glowing oddly then growing dim as if seen through thick fog. A muffled voice speaks in a strange language, and you can hear a light drumming noise coming from somewhere in the room..."
+  },
+  {
+   "number": 184,
+   "name": "ALTAR AND DAIS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 207
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the northwest corner of the temple. Here monks in coarse hooded robes are shrouded in ceremonial smoke. The room is filled with an ominous sounding mantra of some sort. Looking more closely at the proceedings you see they are trying to revive a wounded eagle that has been shot with an arrow."
+  },
+  {
+   "number": 185,
+   "name": "NW TEMPLE OF MARTENS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 186,
+    "south": 209
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the northeast corner of the temple, next to the door. Statues made of bronze and gold act as spiritual watchdogs to ward off evil presences in the midst of the temple. They give you the creeps anyway. The temple's motto is lettered in gold at the top of the main doorway: \"We Serve To Protect And We Protect So You May Serve.\" Serve what? Or whom? you wonder."
+  },
+  {
+   "number": 186,
+   "name": "NE TEMPLE OF MARTENS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 168,
+    "west": 185
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You poke your head in the door. Looking inside, you can hear that a REALLY loud party is in progress. People in various strange-looking costumes are running around, and what is that group over there in the corner doing?? GOODNESS! A short, chubby, merry-looking fellow greets you at the door to the mansion. \"Welcome to my humble abode!\" he says. \"You are just in time for the party!\" With a wide grin, he invites you in."
+  },
+  {
+   "number": 187,
+   "name": "MANSION",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 170,
+    "south": 212
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This is a bright and cheery courtyard. It has a bird of paradise singing in one of the tallest trees, and you can hear the tinkle of a fountain in the distance. To the south is the palace reception area, to the east is the King's anteroom."
+  },
+  {
+   "number": 188,
+   "name": "COURTYARD",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 171,
+    "east": 189,
+    "south": 213
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The King's bedchamber totally takes your breath away. Everywhere you look gold and silver glitter enticingly, just barely within your reach. Plush and luxurious carpets, no doubt from rare and exotic animals, line the floor of the chamber. More pictures of the King, now later on in years, are on the walls. He still looks happy. There is a beautiful woman, probably his Queen, in a few of the pictures."
+  },
+  {
+   "number": 189,
+   "name": "ANTE ROOM",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 172,
+    "west": 188
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This is the entrance to the King's bedchamber. An ornate sign, proclaiming that \"Visitors are welcome, but please don't touch anything. (You break it, you buy it.) Thanks - King Dwalin.\" is posted outside the fabled monarch's quarters. A burly guard is here, his arms crossed defiantly over his chest."
+  },
+  {
+   "number": 190,
+   "name": "KING'S BEDCHAMBER",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 191
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are near the end of the hallway that leads to the King's bedchamber."
+  },
+  {
+   "number": 191,
+   "name": "HALL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 192,
+    "west": 190
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are crawling on hands and knees on a rough cobblestone path. The ceiling is very low, and it is very dim."
+  },
+  {
+   "number": 192,
+   "name": "HALL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 175,
+    "west": 191
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "In the center of this section of hallway is a short staircase that leads up to a platform. The platform stands just above the water level. The floor of the platform is damp and covered with pale fungus. Beyond the platform the steps lead back down into the flooded hall. You see a a small stream of air bubbles floating to the surface of the water."
+  },
+  {
+   "number": 193,
+   "name": "COBBLE CRAWL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 176,
+    "east": 194
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This badly flooded room has a dais set in the middle of the room. There are what appear to be thin wires laying against the surface of the muddy water encircling the dais. You can only wonder as to their purpose. Sitting on the dais, high and dry, is an oyster."
+  },
+  {
+   "number": 194,
+   "name": "CROCODILE POOL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 195,
+    "west": 193
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are at the east end of a natural cavern of great size. The air is hot, steamy, and fouled by volcanic gases. Here the floor of the cavern is a field of bubbling mud pots, small geysers, hot springs, and mineral crusts. Many vivid colors such as rich reds, browns, and yellows combine with blacks and grays. Terraces crusted with deposits from mineral springs extend from the sides of the cavern at several points. Stalactites hang from the ceiling, merging with stalagmites in a few places to form pillars from the roof to the floor."
+  },
+  {
+   "number": 195,
+   "name": "OYSTER ROOM",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 196,
+    "west": 194
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Occasional flares of ruddy light combined with great bursts of steam of some of the hot springs briefly illuminate small points in the room. Set on the topmost terrace, directly underneath a dripping stalactite, sits a throne upon which is a grinning skeleton. Mineral-rich waters falling from the ceiling for years have encrusted the skeleton and hide all but the most general features. A sword, partially hidden by the mineral crust, lies directly before the throne."
+  },
+  {
+   "number": 196,
+   "name": "MUD POTS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 197,
+    "west": 195
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "As you move down this hallway, you see many large, rough holes in the walls just above the water level."
+  },
+  {
+   "number": 197,
+   "name": "MINERAL SPRINGS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 198,
+    "west": 196
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This area is covered in rubble, making passage difficult."
+  },
+  {
+   "number": 198,
+   "name": "RAT LAIR",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 199,
+    "west": 197
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This area is covered in rubble, making passage difficult."
+  },
+  {
+   "number": 199,
+   "name": "RUBBLE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 200,
+    "west": 198
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Many crystalline ice formations meet your eyes as you venture inside the frigid caves. This vast cavern awes you with its sheer magnitude; the ceiling is thirty-five feet above your head. The walls seem to stretch on forever, and you feel small and insignificant in comparison. Icy columns are scattered everywhere, breaking what little sunlight there is into rainbows that shower different colors on the walls and floor."
+  },
+  {
+   "number": 200,
+   "name": "RUBBLE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 177,
+    "west": 199
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You stand on a snowy trail. Your feet crunch through the crust of snow and ice, and a few scattered trees have thick layers of fluffy powder stuck to them. The whole place seems to glow with a dim radiance as subdued rays of sunshine are scattered a hundredfold by the prism effect of the crystalline snow."
+  },
+  {
+   "number": 201,
+   "name": "ICE CAVES",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 202,
+    "up": 218
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You stand on a snowy trail. The crust of snow is weaker here, and you kick up a fine powder while shuffling through the snow."
+  },
+  {
+   "number": 202,
+   "name": "SNOWY TRAIL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 179,
+    "west": 201,
+    "up": 219,
+    "down": 203
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are inside your dinghy, bouncing along the length of an old flume."
+  },
+  {
+   "number": 203,
+   "name": "SNOWY TRAIL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 220,
+    "up": 202
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are inside your dinghy, bouncing along the length of an old flume."
+  },
+  {
+   "number": 204,
+   "name": "FLUME",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "down": 307
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You stand in front of an iron grate. This houses the priest and protects both your identities."
+  },
+  {
+   "number": 205,
+   "name": "FLUME",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "down": 204
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You enter a vaulted room. On the ceiling there are rosettes and stars. The walls are covered in paintings and ornamental bands."
+  },
+  {
+   "number": 206,
+   "name": "CONFESSIONAL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 207
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Shelves almost audibly groaning under the weight of supplies for the church are all along three sides of the room. Everything is neatly boxed and labeled."
+  },
+  {
+   "number": 207,
+   "name": "CHAPEL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 184,
+    "east": 208,
+    "south": 223,
+    "west": 206
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the southwest corner of the temple. A desk is set up with a crudely handwritten sign above it which reads: <<<<<<<<<<<<<<< HEALING >>>>>>>>>>>>>>> >>>>>>>>>>>>>>> is done <<<<<<<<<<<<<<< <<<<<<<<<<<<<<< here! >>>>>>>>>>>>>>>"
+  },
+  {
+   "number": 208,
+   "name": "STORE ROOM",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 207
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the southeast corner of the temple. A large window looks out to the south towards lush rolling green hills. Monks sit here, their heads bowed in concentration, and meditate."
+  },
+  {
+   "number": 209,
+   "name": "SW TEMPLE OF MARTENS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 185,
+    "east": 210
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "These living quarters are quite spacious, befitting for a mansion as impressive as this one is. This chubby guy, whoever he is, sure has lots of gold... and he doesn't hoard it, either. From what you can see of these quarters, nearly five thousand gold has been invested in the gilt work alone!"
+  },
+  {
+   "number": 210,
+   "name": "SE TEMPLE OF MARTENS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 186,
+    "west": 209
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are on a landing that leads up to the owner's quarters."
+  },
+  {
+   "number": 211,
+   "name": "LIVING QUARTERS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 212
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "A long red carpet stretches from here to the throne at the end of the room. Brass sconces adhered to the glowing terra cotta walls cast a pleasantly warm light upon your face."
+  },
+  {
+   "number": 212,
+   "name": "LANDING",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 187,
+    "west": 211
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You look up and notice the King looking kindly at you from a distance. He is saying something to you but at this distance you can't quite make out what. A guard is here, standing in front of a wooden door to the south."
+  },
+  {
+   "number": 213,
+   "name": "RECEPTION AREA",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 188,
+    "east": 214
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "Many people go before the King, you think to yourself. They know what to do and say. As for you, you have no idea how to act, and quite frankly, you're nervous."
+  },
+  {
+   "number": 214,
+   "name": "HALLWAY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 215,
+    "south": 226,
+    "west": 213
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "King Dwalin motions you to come closer, smiling kindly. Looking into his face, you promptly decide it's one of the kindest-looking faces you've seen since you started this whole adventuring business."
+  },
+  {
+   "number": 215,
+   "name": "HALLWAY",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 216,
+    "west": 214
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "The King allows you to come even closer and talk to him. He says to you, \"Rub the lamp! It could use a good shine by someone as pure of heart as you are, my friend.\" Strange, since you could have sworn it wasn't there a second ago... You are immediately wary, yet you don't want to offend him... Should you comply with his request?"
+  },
+  {
+   "number": 216,
+   "name": "un-named room",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 217,
+    "west": 215
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You stand on the mountain peak just below the summit which is separated by a vast expanse of slick ice. The trees end just below this point, and the path is now framed by the dark colored rock of the mountain. The path still gives the only clear way to travel, though. You see hard snow drifts, sculpted by the wind, looking like frozen wave froth on the ocean. The whipping wind chills you to the bone, and a few fat flakes of snow splatter against your face."
+  },
+  {
+   "number": 217,
+   "name": "THRONE ROOM",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 216
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are on the mountain summit, and stand on a large, flat, open expanse of snow and ice. Beneath your feet is a thick sheet of ice that glitters in the weak sunlight. A light snow, which has crystallized from the cold air, blows by you."
+  },
+  {
+   "number": 218,
+   "name": "GLACIER PEAK",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 201
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You stand by the edge of a sluice gate, peering down at a dangerous-looking descent along an ancient flume. Your heart beats faster, and you wonder if you're really in your right mind to go through with this... [More adventurous players might want to type 'D.']"
+  },
+  {
+   "number": 219,
+   "name": "SUMMIT",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "down": 202
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are inside your dinghy, bouncing along the length of an old flume."
+  },
+  {
+   "number": 220,
+   "name": "SLUICE GATES",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 203,
+    "east": 221
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are inside your dinghy, bouncing along the length of an old flume."
+  },
+  {
+   "number": 221,
+   "name": "FLUME",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 222,
+    "up": 220
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You have entered a peaceful-looking arcade area, the entrance to what appears to be a chapel. Round stone planters house creeping vines and ivy which lends a pleasant touch to the venerable brick building."
+  },
+  {
+   "number": 222,
+   "name": "FLUME",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "up": 205
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You're at the bottom of the hill next to an old well. The rolling plains make this the only significant landmark in quite a distance, really."
+  },
+  {
+   "number": 223,
+   "name": "COURTYARD",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 207,
+    "south": 147
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This wine cellar appears to have been recently used... here the dusty footprints continue from the previous room and several bottles look like they've been moved up to the front of the rack."
+  },
+  {
+   "number": 224,
+   "name": "WELL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 237,
+    "west": 66
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "This room appears to have been recently used... the dusty floor has been disturbed with footprints leading to the southwest."
+  },
+  {
+   "number": 225,
+   "name": "WINE CELLAR",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 226,
+    "south": 239
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the wine cellar."
+  },
+  {
+   "number": 226,
+   "name": "DUSTY ROOM",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 214,
+    "west": 225,
+    "down": 100
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the dusty room."
+  },
+  {
+   "number": 227,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 228,
+    "south": 242,
+    "up": 90
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 228,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 229,
+    "west": 227
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 229,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 230,
+    "south": 244,
+    "west": 228
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 230,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 231,
+    "west": 229
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 231,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 246,
+    "west": 230
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 232,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 233
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 233,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 234,
+    "west": 232
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 234,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 235,
+    "west": 233
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 235,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 250,
+    "west": 234
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 236,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 251
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 237,
+   "name": "TOP OF HILL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 224,
+    "east": 238
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the top of hill."
+  },
+  {
+   "number": 238,
+   "name": "GENTLE SLOPE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 239,
+    "west": 237
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the gentle slope."
+  },
+  {
+   "number": 239,
+   "name": "BASE OF HILL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 240,
+    "west": 238
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the base of hill."
+  },
+  {
+   "number": 240,
+   "name": "ROCKY RIDGE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 255,
+    "west": 239
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the rocky ridge."
+  },
+  {
+   "number": 241,
+   "name": "GREAT LEAP",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "up": 256,
+    "down": 111
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the great leap."
+  },
+  {
+   "number": 242,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 227,
+    "south": 258
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 243,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 259
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 244,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 229
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 245,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 261
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 246,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 231,
+    "south": 262
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 247,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 248,
+    "south": 263
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 248,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 249,
+    "west": 257
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 249,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 248
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 250,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 235,
+    "south": 266
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 251,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 236,
+    "south": 267
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 252,
+   "name": "PHANATON SETTLEMENT",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 253,
+    "up": 5
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the phanaton settlement."
+  },
+  {
+   "number": 253,
+   "name": "PHANATON SETTLEMENT",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 269,
+    "west": 252
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the phanaton settlement."
+  },
+  {
+   "number": 254,
+   "name": "PHANATON SETTLEMENT",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 270
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the phanaton settlement."
+  },
+  {
+   "number": 255,
+   "name": "WINDY GORGE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 240,
+    "south": 271
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the windy gorge."
+  },
+  {
+   "number": 256,
+   "name": "WHISPERING FALLS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 241,
+    "south": 272
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the whispering falls."
+  },
+  {
+   "number": 257,
+   "name": "BASE OF MOUNTAIN",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 274,
+    "up": 203
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the base of mountain."
+  },
+  {
+   "number": 258,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 242,
+    "east": 259,
+    "south": 276
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 259,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 243,
+    "east": 260,
+    "west": 258
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 260,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 261,
+    "west": 259
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 261,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 245,
+    "west": 260
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 262,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 246,
+    "south": 280
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 263,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 247,
+    "south": 281
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 264,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 282
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 265,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 266,
+    "south": 283
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 266,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 250,
+    "west": 265
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 267,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 251,
+    "south": 285
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 268,
+   "name": "PHANATON SETTLEMENT",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 269
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the phanaton settlement."
+  },
+  {
+   "number": 269,
+   "name": "PHANATON SETTLEMENT",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 253,
+    "east": 270,
+    "west": 268
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the phanaton settlement."
+  },
+  {
+   "number": 270,
+   "name": "PHANATON SETTLEMENT",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 254,
+    "west": 269
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the phanaton settlement."
+  },
+  {
+   "number": 271,
+   "name": "WINDY GORGE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 255,
+    "south": 287
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the windy gorge."
+  },
+  {
+   "number": 272,
+   "name": "GREAT WOODS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 256,
+    "south": 288
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the great woods."
+  },
+  {
+   "number": 273,
+   "name": "ROCKY TRAIL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "up": 289,
+    "down": 274
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the rocky trail."
+  },
+  {
+   "number": 274,
+   "name": "CREVASSE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 257,
+    "east": 275,
+    "south": 290,
+    "up": 273
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the crevasse."
+  },
+  {
+   "number": 275,
+   "name": "CHASM",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 291,
+    "west": 274
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the chasm."
+  },
+  {
+   "number": 276,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 258,
+    "south": 293
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 277,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 278,
+    "south": 294
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 278,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 279,
+    "south": 295,
+    "west": 277
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 279,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 280,
+    "south": 296,
+    "west": 278
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 280,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 262,
+    "west": 279
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 281,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 263,
+    "south": 298
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 282,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 264,
+    "east": 283
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 283,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 265,
+    "south": 300,
+    "west": 282
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 284,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 285,
+    "south": 301
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 285,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 267,
+    "west": 284
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 286,
+   "name": "CAVERN WELL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 303
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the cavern well."
+  },
+  {
+   "number": 287,
+   "name": "FIST HQ",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 271,
+    "east": 288,
+    "south": 304
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the fist hq."
+  },
+  {
+   "number": 288,
+   "name": "PATTERTWIG BLUFF",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 272,
+    "east": 289,
+    "south": 305,
+    "west": 287
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the pattertwig bluff."
+  },
+  {
+   "number": 289,
+   "name": "SCRAMBLE DOWN",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 288,
+    "down": 274
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the scramble down."
+  },
+  {
+   "number": 290,
+   "name": "PRECIPICE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 274
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the precipice."
+  },
+  {
+   "number": 291,
+   "name": "PLATEAU",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 275,
+    "east": 292
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the plateau."
+  },
+  {
+   "number": 292,
+   "name": "BAR",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 291
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the bar."
+  },
+  {
+   "number": 293,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 276,
+    "south": 308
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 294,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 277,
+    "south": 309
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 295,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 278,
+    "east": 296
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 296,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 279,
+    "west": 295
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 297,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 298,
+    "south": 312
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 298,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 281,
+    "east": 299,
+    "south": 313,
+    "west": 297
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 299,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 298
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 300,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 283,
+    "south": 315
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 301,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 284,
+    "south": 316
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 302,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 317
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 303,
+   "name": "CAVERN LEDGE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 286,
+    "east": 304,
+    "south": 318
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the cavern ledge."
+  },
+  {
+   "number": 304,
+   "name": "CAVERN ENTRANCE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 287,
+    "west": 303
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the cavern entrance."
+  },
+  {
+   "number": 305,
+   "name": "CANYON OVERLOOK",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 288
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the canyon overlook."
+  },
+  {
+   "number": 306,
+   "name": "RIVER",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 307,
+    "south": 321
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the river."
+  },
+  {
+   "number": 307,
+   "name": "RIVER",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 306
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the river."
+  },
+  {
+   "number": 308,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 293,
+    "south": 322
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 309,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 294,
+    "east": 310
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 310,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 311,
+    "south": 324,
+    "west": 309
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 311,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 312,
+    "west": 310
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 312,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 297,
+    "south": 326,
+    "west": 311
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 313,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 298,
+    "east": 314
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 314,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 328,
+    "west": 313
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 315,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 300,
+    "south": 329
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 316,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 301,
+    "east": 317
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 317,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 302,
+    "south": 331,
+    "west": 316
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 318,
+   "name": "CAVERN AMPHITHEATRE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 303
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the cavern amphitheatre."
+  },
+  {
+   "number": 319,
+   "name": "WHIRLPOOL",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 320,
+    "south": 334
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the whirlpool."
+  },
+  {
+   "number": 320,
+   "name": "RIVER",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 321,
+    "south": 335,
+    "west": 319
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the river."
+  },
+  {
+   "number": 321,
+   "name": "RIVER",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 305,
+    "west": 320
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the river."
+  },
+  {
+   "number": 322,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 308,
+    "east": 323,
+    "south": 336
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 323,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "west": 322
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 324,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 310,
+    "south": 338
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 325,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 339
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 326,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 312,
+    "south": 340
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 327,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 328,
+    "south": 341
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 328,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 314,
+    "west": 327
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 329,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 315,
+    "south": 343
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 330,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 331,
+    "south": 344
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 331,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 317,
+    "west": 330
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 332,
+   "name": "ARAGAIN FALLS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "up": 40
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the aragain falls."
+  },
+  {
+   "number": 333,
+   "name": "RAPIDS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 334,
+    "west": 332
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the rapids."
+  },
+  {
+   "number": 334,
+   "name": "RAPIDS",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 319,
+    "east": 335,
+    "west": 333
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the rapids."
+  },
+  {
+   "number": 335,
+   "name": "RIVER BEND",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 320,
+    "west": 334
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in the river bend."
+  },
+  {
+   "number": 336,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 322,
+    "south": 346
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 337,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 338
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 338,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 324,
+    "east": 339,
+    "west": 337
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 339,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 325,
+    "west": 338
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 340,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 326,
+    "south": 350
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 341,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 327,
+    "east": 342
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 342,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 352,
+    "west": 341
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 343,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 329,
+    "south": 353
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 344,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 330,
+    "east": 345
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 345,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "south": 355,
+    "west": 344
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 346,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 336,
+    "east": 347,
+    "south": 356
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 347,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 348,
+    "west": 346
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 348,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 349
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 349,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 350,
+    "west": 348
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 350,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 340,
+    "west": 349
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 351,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 352,
+    "south": 361
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 352,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 342,
+    "west": 351
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 353,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 343,
+    "east": 354,
+    "south": 363
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 354,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 355,
+    "south": 364,
+    "west": 353
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 355,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 345,
+    "west": 354
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 356,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 346
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 357,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 358
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 358,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 359,
+    "west": 357
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 359,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 360,
+    "west": 358
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 360,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 361,
+    "west": 359
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 361,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 351,
+    "east": 362,
+    "west": 360
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 362,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 363
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 363,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 353,
+    "west": 362
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 364,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "north": 354,
+    "east": 365
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  },
+  {
+   "number": 365,
+   "name": "MAZE",
+   "room_alignment": "neutral",
+   "flags": [],
+   "exits": {
+    "east": 33,
+    "west": 364
+   },
+   "monster": 0,
+   "item": 0,
+   "weapon": 0,
+   "food": 0,
+   "desc": "You are in a maze of twisting little passages, all alike."
+  }
+ ]
+}
