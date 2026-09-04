@@ -83,10 +83,18 @@ except Exception:  # noqa: BLE001
 LEVEL_NAMES: dict[int, str] = {
     i + 1: name for i, name in enumerate(_ELEVATOR_LEVEL_NAMES)
 }
+# level 8 is this port's addition and isn't in the elevator's list
+LEVEL_NAMES.setdefault(8, "Forest of Canolbarth")
 
 CARDINALS = ("north", "south", "east", "west")
+VERTICAL = ("up", "down")
 # (col, row) delta for each cardinal, screen coords (row grows downward).
 DIR_DELTA = {"north": (0, -1), "south": (0, 1), "east": (1, 0), "west": (-1, 0)}
+
+# Levels whose room numbers are NOT a fixed-width grid (see derive_width);
+# these get a breadth-first directional placement instead. Level 8 (this
+# port's hand-authored addition) is the first.
+GRAPH_LAYOUT_LEVELS = {8}
 
 
 def load_json(name: str):
@@ -155,20 +163,26 @@ class MapRenderer:
             and not any(r.get(k) for k in ("monster", "item", "weapon", "food"))
         )
         self.rooms = {n: r for n, r in all_rooms.items() if n not in self.orphans}
-        self.width = derive_width(self.rooms, level)
+        self.graph_layout = level in GRAPH_LAYOUT_LEVELS
+        self.parked: list[int] = []  # graph layout: rooms the walk never reached
+        self.width = None if self.graph_layout else derive_width(self.rooms, level)
 
         self.monsters = name_index(load_json("monsters.json"))
         self.weapons = name_index(load_json("weapons.json"))
         self.rations = name_index(load_json("rations.json"))
         self.items = name_index(load_json("objects.json")["items"])
 
-        # Grid position for every room, then trim to the populated bbox so
+        # Cell position for every room, then trim to the populated bbox so
         # sparse levels (e.g. level 6: 292 rooms in a 30-wide grid) don't
-        # carry acres of empty margin.
-        self.pos = {
-            num: ((num - 1) % self.width, (num - 1) // self.width)
-            for num in self.rooms
-        }
+        # carry acres of empty margin. Grid levels derive the position
+        # straight from the room number; level 8 is walked breadth-first.
+        if self.graph_layout:
+            self.pos = self._graph_layout()
+        else:
+            self.pos = {
+                num: ((num - 1) % self.width, (num - 1) // self.width)
+                for num in self.rooms
+            }
         cols = [c for c, _ in self.pos.values()]
         rows = [r for _, r in self.pos.values()]
         self.min_col, self.min_row = min(cols), min(rows)
@@ -261,26 +275,144 @@ class MapRenderer:
             my += 12
         return s
 
+    def _graph_layout(self) -> dict[int, tuple[int, int]]:
+        """Breadth-first directional placement for a non-grid level.
+
+        Start at the lowest-numbered room with a cardinal exit, then walk
+        the graph placing each room one cell off its neighbour in the
+        exit's direction. Occupied cells push the newcomer to the nearest
+        free cell (drawn later as a dashed jog). up/down don't move you on
+        the sheet -- they become labelled portal stubs in _draw_connectors.
+        """
+        from collections import deque
+
+        rooms = self.rooms
+        start = next((n for n in sorted(rooms)
+                      if any(d in rooms[n]["exits"] for d in CARDINALS)),
+                     min(rooms))
+        pos: dict[int, tuple[int, int]] = {start: (0, 0)}
+        occupied = {(0, 0)}
+
+        # pass 1 follows only cardinals (keeps the geography honest); later
+        # sweeps also follow up/down, repeating to a fixpoint so a wing
+        # joined to the map only by staircases (the castle, the temples)
+        # still gets drawn next to whatever it connects to.
+        def _put(near_cell, delta):
+            dcol, drow = delta
+            target = (near_cell[0] + dcol, near_cell[1] + drow)
+            if target in occupied:
+                target = self._nearest_free(target, occupied)
+            occupied.add(target)
+            return target
+
+        def grow(dirs):
+            """Forward: place rooms hanging off an already-placed room's exit."""
+            q = deque(pos)
+            placed = False
+            while q:
+                cur = q.popleft()
+                for d in dirs:
+                    dest = rooms[cur]["exits"].get(d)
+                    if not isinstance(dest, int) or dest not in rooms or dest in pos:
+                        continue
+                    pos[dest] = _put(pos[cur], DIR_DELTA.get(d, (1, 1)))
+                    q.append(dest)
+                    placed = True
+            return placed
+
+        def pull(dirs):
+            """Reverse: place an unplaced room that has a one-way exit INTO a
+            placed room (the 2014 data has many non-reciprocal links)."""
+            placed = False
+            for n in sorted(rooms):
+                if n in pos:
+                    continue
+                for d in dirs:
+                    dest = rooms[n]["exits"].get(d)
+                    if isinstance(dest, int) and dest in pos:
+                        back = DIR_DELTA.get(_opposite(d), (-1, -1))
+                        pos[n] = _put(pos[dest], back)
+                        placed = True
+                        break
+            return placed
+
+        grow(CARDINALS)
+        alldirs = CARDINALS + VERTICAL
+        while grow(alldirs) or pull(alldirs):
+            pass
+
+        # disconnected leftovers -- rooms the walk never reached from the
+        # start room by any n/e/s/w/up/down chain. Park them in a column to
+        # the right; record them so the legend can flag it.
+        self.parked = sorted(n for n in rooms if n not in pos)
+        if self.parked:
+            col = max(x for x, _ in pos.values()) + 3
+            row_span = max(y for _, y in pos.values()) + 1
+            row = 0
+            for n in self.parked:
+                while (col, row) in occupied:
+                    row += 1
+                    if row > row_span:
+                        row, col = 0, col + 1
+                pos[n] = (col, row)
+                occupied.add((col, row))
+                row += 1
+        return pos
+
+    @staticmethod
+    def _nearest_free(cell, occupied):
+        from itertools import count
+        cx, cy = cell
+        for r in count(1):
+            for dx in range(-r, r + 1):
+                for dy in range(-r, r + 1):
+                    if max(abs(dx), abs(dy)) != r:
+                        continue
+                    c = (cx + dx, cy + dy)
+                    if c not in occupied:
+                        return c
+
     def _draw_connectors(self, num: int) -> list[str]:
         room = self.rooms[num]
         cx, cy = self.center(num)
+        src = self.pos[num]
         s: list[str] = []
         for direction in CARDINALS:
             dest = room["exits"].get(direction)
-            if not isinstance(dest, int) or dest == 0:
+            if not isinstance(dest, int) or dest == 0 or dest not in self.rooms:
+                if isinstance(dest, int) and dest not in self.rooms:
+                    s.append(self._portal(num, dest, direction.upper()[:1], cx, cy))
                 continue
             dcol, drow = DIR_DELTA[direction]
-            expected = num + dcol + drow * self.width
-            reciprocal = (
-                dest in self.rooms
-                and self.rooms[dest]["exits"].get(_opposite(direction)) == num
-            )
-            if dest == expected and dest in self.rooms:
-                # tidy grid neighbour: draw a stub across the shared gutter
+            want = (src[0] + dcol, src[1] + drow)
+            reciprocal = self.rooms[dest]["exits"].get(_opposite(direction)) == num
+            if self.pos.get(dest) == want:
+                # tidy neighbour: draw a stub across the shared gutter
                 s.append(self._grid_stub(num, dest, direction, reciprocal))
             else:
-                # irregular jump -- dashed portal line + legend note
+                # displaced / non-adjacent: dashed portal line + legend note
                 s.append(self._portal(num, dest, direction.upper()[:1], cx, cy))
+        # up / down exits: a dashed link if the far room is on the sheet,
+        # otherwise a labelled stub. Always a legend note.
+        for direction in VERTICAL:
+            dest = room["exits"].get(direction)
+            if not isinstance(dest, int) or dest == 0:
+                continue
+            tag = direction[0].upper()  # U / D
+            if dest in self.rooms:
+                self.portal_notes.append(
+                    f"{tag}: #{num} {room['name'].strip() or '(unnamed)'} "
+                    f"→ #{dest} {self.rooms[dest]['name'].strip() or '(unnamed)'}")
+            if dest in self.pos:
+                bx, by = self.center(dest)
+                mx, my = (cx + bx) / 2, (cy + by) / 2
+                s.append(
+                    f'<path d="M {cx:.1f} {cy:.1f} L {bx:.1f} {by:.1f}" '
+                    f'class="vlink" marker-end="url(#arrow)"/>'
+                    f'<text x="{mx:.1f}" y="{my:.1f}" class="ptag" '
+                    f'text-anchor="middle">{tag}</text>')
+            else:
+                s.append(self._stub_text(num, f"{tag}&#8594;#{dest}"))
         # rt = room transporter -> a room number
         rt = room["exits"].get("rt")
         if isinstance(rt, int) and rt != 0:
@@ -363,8 +495,9 @@ class MapRenderer:
             f'<text x="{self.MARGIN}" y="{self.MARGIN - 24}" class="title">'
             f'{escape(self._title())}</text>',
             f'<text x="{self.MARGIN}" y="{self.MARGIN - 6}" class="subtitle">'
-            f'{len(self.rooms)} rooms &#183; grid width {self.width} &#183; '
-            f'generated {date.today().isoformat()}</text>',
+            f'{len(self.rooms)} rooms &#183; '
+            f'{"walked breadth-first" if self.graph_layout else f"grid width {self.width}"}'
+            f' &#183; generated {date.today().isoformat()}</text>',
         ]
         # connectors first so room boxes paint on top of the line ends
         for num in sorted(self.rooms):
@@ -392,6 +525,11 @@ class MapRenderer:
         if self.orphans:
             slots = ", ".join(f"#{n}" for n in self.orphans)
             lines.append(f"Unmapped room slots (empty in the data): {slots}")
+        if self.parked:
+            slots = ", ".join(f"#{n}" for n in self.parked)
+            lines.append(
+                f"Parked at right ({len(self.parked)} rooms) -- reachable from the "
+                f"start room only by up/down stairs or not at all: {slots}")
         if self.portal_notes:
             lines.append("")
             lines.extend(sorted(set(self.portal_notes)))
@@ -413,8 +551,8 @@ class MapRenderer:
 
 
 def _opposite(direction: str) -> str:
-    return {"north": "south", "south": "north",
-            "east": "west", "west": "east"}[direction]
+    return {"north": "south", "south": "north", "east": "west", "west": "east",
+            "up": "down", "down": "up"}.get(direction, direction)
 
 
 _STYLE = """<style>
@@ -431,6 +569,7 @@ _STYLE = """<style>
   .link { stroke: #444; stroke-width: 2; }
   .link.oneway { stroke: #444; }
   .portal { stroke: #6a1b9a; stroke-width: 1.6; stroke-dasharray: 5 4; fill: none; }
+  .vlink { stroke: #2e7d32; stroke-width: 1.3; stroke-dasharray: 2 3; fill: none; opacity: 0.75; }
   .ptag { font-size: 9px; fill: #6a1b9a; font-weight: bold; }
   .legend { font-size: 11px; fill: #444; }
 </style>"""
@@ -445,7 +584,7 @@ _DEFS = """<defs>
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--level", type=int, help="render only this level (1-7)")
+    ap.add_argument("--level", type=int, help="render only this level (1-8)")
     ap.add_argument("--cell", type=int, default=None,
                     help=f"room cell size in px (default {MapRenderer.CELL})")
     ap.add_argument("--out", type=Path, default=Path(__file__).resolve().parent / "level_maps",
@@ -466,7 +605,10 @@ def main() -> None:
         r = MapRenderer(level, cell=args.cell)
         svg_path = args.out / f"level_{level}.svg"
         svg_path.write_text(r.render())
-        note = f"{r.n_cols}x{r.n_rows} grid, {len(r.rooms)} rooms"
+        layout = "walk" if r.graph_layout else "grid"
+        note = f"{r.n_cols}x{r.n_rows} {layout}, {len(r.rooms)} rooms"
+        if r.parked:
+            note += f", {len(r.parked)} parked (no walkable link from start)"
         print(f"level {level}: {svg_path}  ({note})")
         if rsvg:
             pdf_path = args.out / f"level_{level}.pdf"
