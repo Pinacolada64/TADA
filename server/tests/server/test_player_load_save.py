@@ -411,7 +411,7 @@ class TestPartyPersistence(unittest.TestCase):
     earlier fixes. Found live while playtesting
     encounters/ally_starvation.py: a player's allies silently vanished on
     every reconnect, so no party-dependent mechanic
-    (ally_events.try_ally_find_gold, try_hungry_ally, try_ally_death_save,
+    (ally_events.try_ally_find_silver, try_hungry_ally, try_ally_death_save,
     encounters/ally_starvation.py) could ever actually fire against a
     real, persisted ally."""
 

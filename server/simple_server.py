@@ -1270,8 +1270,8 @@ class Server:
         await self._show_room_then_encounter(ctx, level=level, room_no=int(dest))
         from encounters.desert import try_desert_sweat
         await try_desert_sweat(ctx)
-        from ally_events import try_ally_find_gold
-        await try_ally_find_gold(ctx)
+        from ally_events import try_ally_find_silver
+        await try_ally_find_silver(ctx)
         from wild_horse_events import try_wandering_horse_encounter
         await try_wandering_horse_encounter(ctx)
         from encounters.dwarf import maybe_relocate, try_steal
@@ -1386,8 +1386,8 @@ class Server:
         await self._show_room_then_encounter(ctx, level=target_level, room_no=target_room)
         from encounters.desert import try_desert_sweat
         await try_desert_sweat(ctx)
-        from ally_events import try_ally_find_gold
-        await try_ally_find_gold(ctx)
+        from ally_events import try_ally_find_silver
+        await try_ally_find_silver(ctx)
         from wild_horse_events import try_wandering_horse_encounter
         await try_wandering_horse_encounter(ctx)
         from encounters.dwarf import maybe_relocate, try_steal
