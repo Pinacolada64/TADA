@@ -21,3 +21,6 @@ bot_epic_battle_*.events.json
 # tools/bot_credentials.py -- local-only test-account passwords, see that
 # file's docstring
 tools/.bot_credentials.json
+
+# generated level maps (tools/gen_level_maps.py) -- regenerate, do not commit
+tools/level_maps/
