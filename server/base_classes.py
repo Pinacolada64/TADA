@@ -768,7 +768,7 @@ class Map(object):
                     room_kwargs['alignment'] = _parse_room_alignment(raw_alignment)
                     room = Room(**room_kwargs)
                     rooms[room.number] = room
-                    logging.debug('%i: %s' % (room.number, room.name))
+                logging.info('read_map: level %d: loaded %d rooms' % (level, len(rooms)))
                 self.levels[level] = rooms
                 if level == 1:
                     self.rooms = rooms
