@@ -41,6 +41,17 @@ DESCS = REPO_ROOT / "text" / "s.t.roomdescs 8.txt"
 OUT = SERVER_DIR / "level_8.json"
 
 DIRS = ("north", "east", "south", "west", "up", "down")
+
+# Hand-added exit flags the 2014 .lbl format has no column for (it only
+# carries the six DIRS above). rc/rt are the same "elevator" mechanism
+# levels 1-7 use: rc=2 with no rt means "down" here drops the player into
+# the shared Merchant Shoppe (commands/movement.py's _enter_shoppe), same
+# as level 1's room 1 ("MERCHANT LOBBY +") and level 2's room 1
+# ("Merchant Annex"). Room 62 here is named "MERCHANT'S ANNEX" -- Ryan's
+# request, 2026-09-04.
+SPECIAL_EXITS: dict[int, dict] = {
+    62: {"rc": 2},
+}
 _EXITLINE_RE = re.compile(r"^\s*\d+(?:\s*,\s*\d+){5}\s*$")
 _ROOMMARK_RE = re.compile(r"^\s*#\d+\s*$")
 _DATA_RE = re.compile(r'^\s*DATA\s+(.+?)\s*$')
@@ -132,12 +143,14 @@ def build() -> tuple[list[dict], dict]:
         if not desc:
             desc = fallback_desc(r["name"])
             synthesized.append(n)
+        exits = dict(r["exits"])
+        exits.update(SPECIAL_EXITS.get(n, {}))
         rooms.append({
             "number": n,
             "name": r["name"] or "un-named room",
             "room_alignment": "neutral",
             "flags": [],
-            "exits": r["exits"],
+            "exits": exits,
             "monster": 0,
             "item": 0,
             "weapon": 0,
@@ -151,6 +164,8 @@ def build() -> tuple[list[dict], dict]:
     dangling, nonrecip = [], []
     for r in rooms:
         for d, dest in r["exits"].items():
+            if d not in opp:  # rc/rt: an elevator flag, not a room link
+                continue
             if dest not in present:
                 dangling.append((r["number"], d, dest))
             elif rooms[dest - 1]["exits"].get(opp[d]) != r["number"]:

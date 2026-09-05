@@ -918,7 +918,8 @@
    "room_alignment": "neutral",
    "flags": [],
    "exits": {
-    "up": 63
+    "up": 63,
+    "rc": 2
    },
    "monster": 0,
    "item": 0,
