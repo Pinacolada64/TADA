@@ -259,7 +259,7 @@ class Player:
             SCRAP OF PAPER is randomly placed on level 1 with a random elevator combination
             BOAT does not actually need to be carried around in inventory, I don't suppose, just a flag?
         """
-        self.map_level = kwargs.get('map_level', 1)  # cl (current dungeon level, 1-7)
+        self.map_level = kwargs.get('map_level', 1)  # cl (current dungeon level, 1-8)
         self.xp_level = kwargs.get('xp_level', 1)  # SPUR's xp/yn (character level, from experience)
         # Per-level "have you been here" bitfield (visited_rooms.py), keyed
         # by str(level), one bit per room number, hex-encoded -- same
