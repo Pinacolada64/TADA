@@ -737,6 +737,23 @@ say/shout/whisper/page — no `Command` subclass of its own, despite the name.
 
 ---
 
+## inventory_select.py
+Shared "pick an item of type X" plumbing for READY/UNREADY (USE/DROP to follow):
+gather a numbered list from the player's pack plus each party ally's pack, then
+resolve a typed name or run the numbered prompt down to one choice.
+
+| Symbol / Function                       | Notes                                                                                         |
+|-----------------------------------------|----------------------------------------------------------------------------------------------|
+| `ItemChoice` (dataclass)                | One selectable item: `item`, `entry`, `owner` (None = player, else the Ally), `readied`; `.is_ally` / `.name` / `.owner_name` |
+| `_party_allies(player)` / `party_allies` | Living party allies in party order (moved here from commands/ready.py)                        |
+| `same_item(a, b)`                        | Pure — identity, then `id_number` *within the same category*                                  |
+| `owner_has_readied(owner, item)`         | Pure — is `item` the weapon `owner` (player or Ally) has readied                              |
+| `gather_items(player, *, category=, predicate=, include_player=, include_allies=, allies=)` | Numbered `list[ItemChoice]`; player's pack first, then each ally's, grouped by ally |
+| `resolve_or_prompt(ctx, choices, *, args, prompt_text, label_fn, match_fn=, group_fn=, list_header=, ambiguous_header=, no_match_msg=, invalid_msg=, auto_select_single=)` | async — name match or numbered menu → one `ItemChoice` or `None` (empty/no-match/cancel/bad-input) |
+| `choices_menu(choices, label_fn, *, header=)` | Pure — a flat numbered menu block (list of lines for `ctx.send`)                          |
+
+---
+
 ## item_system.py
 Weapon and item data layer: loading from JSON, class/race bonuses, async display helpers.
 

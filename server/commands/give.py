@@ -438,8 +438,9 @@ class GiveCommand(Command):
             # changed hands (they might already be wielding something they
             # prefer, or the player may be handing over a spare). The
             # player now decides who wields what, and when, via READY,
-            # which lists allies' carried weapons (commands/ready.py's
-            # _ally_weapon_entries / _toggle_ally_weapon).
+            # which lists allies' carried weapons (inventory_select.
+            # gather_items(include_allies=True) / ready.py's
+            # _toggle_ally_weapon).
             from items import Weapon
             from bar.ally_data import add_ally_item
             if isinstance(item, Weapon):
