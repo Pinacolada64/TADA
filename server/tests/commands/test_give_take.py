@@ -939,6 +939,25 @@ class TestTakeFromAlly(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.player.inventory.entries()), 1)
         self.assertNotIn('give to whom', self.ctx.sent().lower())
 
+    async def test_take_named_item_skips_the_destination_step(self):
+        """Even with several servants, naming the item outright
+        ('take <item> from <ally>') goes straight to your own pack -- the
+        reroute step is only for the browse forms."""
+        conan = _make_ally('CONAN')
+        conan.items = [InventoryEntry(item=_make_item('TORCH', item_id=20))]
+        self.player.party.add_member(self.player, conan)
+
+        # A single answer of '2' would pick CONAN as a destination if the
+        # step fired; it must not.
+        self.ctx._prompt_answer = '2'
+        await self.cmd.execute(self.ctx, 'lantern', 'from', 'gandalf')
+
+        self.assertNotIn('give to whom', self.ctx.sent().lower())
+        self.assertEqual(len(self.player.inventory.entries()), 1)
+        self.assertEqual(self.player.inventory.entries()[0].item.name, 'LANTERN')
+        self.assertEqual(len(self.ally.items), 0)                       # left Gandalf
+        self.assertEqual([e.item.name for e in conan.items], ['TORCH'])  # Conan untouched
+
 
 # ---------------------------------------------------------------------------
 # get command no longer aliases 'take'

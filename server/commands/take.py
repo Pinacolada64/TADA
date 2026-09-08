@@ -156,10 +156,15 @@ class TakeCommand(Command):
         chosen_entry = choice.entry
         iname        = getattr(chosen_entry.item, 'name', 'it')
 
-        # Destination. With another servant available, offer to route the
-        # item straight to them (JoyfulColor's shortcut); with only the
-        # source servant in play, the sole destination is you -- unchanged.
-        others    = [a for a in active if a is not src_ally]
+        # Destination. The reroute step is for the *browse* forms -- bare
+        # TAKE, or "take from <ally>" -- where you picked the item off a
+        # list, so picking a destination off a list is a natural next
+        # step (JoyfulColor's shortcut). When the item was named outright
+        # ("take sword", "take sword from bob") the player has been
+        # explicit: it goes straight into their own pack, exactly as
+        # before, no extra prompt. And with no other servant to route to,
+        # there's nothing to ask either way.
+        others    = [] if item_words else [a for a in active if a is not src_ally]
         dest_ally = None                       # None => the player
         if others:
             options = [('yourself', None)] + [(a.name, a) for a in others]
