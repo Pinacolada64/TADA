@@ -121,6 +121,10 @@ def owner_has_readied(owner, item) -> bool:
 # ---------------------------------------------------------------------------
 
 def _matches(item, category, predicate) -> bool:
+    """True when *item* clears both filters. Each is optional and each can
+    only ever *exclude* an item, so they combine as a plain logical AND --
+    pass both, or the filter simply wasn't supplied. (Nothing bitwise
+    here; it's two `if ...: return False` gates.)"""
     if category is not None and str(getattr(item, 'category', '')) != str(category):
         return False
     if predicate is not None and not predicate(item):
@@ -141,7 +145,19 @@ def gather_items(
 
     category   -- an ItemCategory (or its str) to keep; None keeps every
                   category.
-    predicate  -- optional extra test, ANDed with *category*.
+    predicate  -- an optional `callable(item) -> bool` used as a *second
+                  filter*, on top of *category*. An item survives only if
+                  it clears both tests -- a plain `and`, not a bitwise
+                  operation. This is the parameter to reach for whenever
+                  the thing you're selecting on isn't a category:
+                    * USE wants "everything that isn't a weapon"
+                      (`predicate=_not_a_weapon`, no category at all);
+                    * a name substring -- `lambda it: 'BOW' in it.name`;
+                    * an id range, a flag check ("has ammo loaded"),
+                      "worth more than N silver", and so on.
+                  `None` (the default) means no second filter. Passing
+                  *only* a predicate and leaving *category* as None is a
+                  normal call -- that's how USE uses it.
     include_player  -- include the player's own pack (default True).
     include_allies  -- also walk each living party ally's `.items`.
     allies     -- override the ally list (defaults to _party_allies()).
