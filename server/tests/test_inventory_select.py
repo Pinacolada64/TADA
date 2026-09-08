@@ -121,6 +121,14 @@ class TestGatherItems(unittest.TestCase):
                            predicate=lambda it: 'BOW' in it.name)
         self.assertEqual([c.name for c in got], ['SHORT BOW'])
 
+    def test_predicate_alone_no_category(self):
+        # How USE selects: no category, a "not a weapon" predicate.
+        p = _FakePlayer(items=[_weapon('SWORD', 1), _thing('LANTERN', 2),
+                               _thing('COMPASS', 3)])
+        not_weapon = lambda it: str(it.category) != str(ItemCategory.WEAPON)
+        got = gather_items(p, predicate=not_weapon)
+        self.assertEqual([c.name for c in got], ['LANTERN', 'COMPASS'])
+
     def test_readied_flag_set_for_player(self):
         w = _weapon('SWORD', 1)
         p = _FakePlayer(items=[w], readied_weapon=w)
@@ -230,6 +238,17 @@ class TestResolveOrPrompt(unittest.IsolatedAsyncioTestCase):
             label_fn=lambda c: c.name)
         self.assertIsNone(got)
         self.assertIn('Invalid selection.', ctx.sent())
+
+    async def test_invalid_msg_override(self):
+        # USE keeps SPUR's "You don't have that item." for a bad pick.
+        ctx = _FakeCtx(_FakePlayer(), answers=['9'])
+        got = await resolve_or_prompt(
+            ctx, self._choices(), args=[], prompt_text='Use which item',
+            label_fn=lambda c: c.name,
+            invalid_msg="You don't have that item.")
+        self.assertIsNone(got)
+        self.assertIn("You don't have that item.", ctx.sent())
+        self.assertNotIn('Invalid selection.', ctx.sent())
 
     async def test_empty_choices_returns_none(self):
         ctx = _FakeCtx(_FakePlayer())

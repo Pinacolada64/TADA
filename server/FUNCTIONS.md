@@ -738,9 +738,10 @@ say/shout/whisper/page — no `Command` subclass of its own, despite the name.
 ---
 
 ## inventory_select.py
-Shared "pick an item of type X" plumbing for READY/UNREADY (USE/DROP to follow):
-gather a numbered list from the player's pack plus each party ally's pack, then
-resolve a typed name or run the numbered prompt down to one choice.
+Shared "pick an item of type X" plumbing for READY, UNREADY, USE and DROP:
+gather a numbered list from the player's pack (plus each party ally's pack, for
+READY/UNREADY), then resolve a typed name or run the numbered prompt down to one
+choice.
 
 | Symbol / Function                       | Notes                                                                                         |
 |-----------------------------------------|----------------------------------------------------------------------------------------------|

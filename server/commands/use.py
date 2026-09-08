@@ -40,6 +40,7 @@ from typing import Optional
 
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
+from inventory_select import gather_items, resolve_or_prompt
 from item_system import ItemType
 from items import Item, ItemCategory
 from network_context import GameContext
@@ -359,13 +360,10 @@ async def _communicator_malfunction(ctx, player) -> None:
     await ctx.server._teleport_to(ctx, target_level, target_room)
 
 
-def _usable_entries(player):
-    """Return inventory entries that are not weapons (weapons use `ready`)."""
-    inv = getattr(player, 'inventory', None)
-    if inv is None:
-        return []
-    weapon_cat = str(ItemCategory.WEAPON)
-    return [e for e in inv.entries() if str(getattr(e.item, 'category', '')) != weapon_cat]
+def _not_a_weapon(item) -> bool:
+    """USE covers everything READY doesn't -- weapons are readied, not used.
+    Passed to inventory_select.gather_items() as its predicate."""
+    return str(getattr(item, 'category', '')) != str(ItemCategory.WEAPON)
 
 
 class UseCommand(Command):
@@ -426,41 +424,26 @@ class UseCommand(Command):
                     player.hit_points = hp + 4
             return CommandResult.ok()
 
-        entries = _usable_entries(player)
+        choices = gather_items(player, predicate=_not_a_weapon)
 
-        if not entries:
+        if not choices:
             await ctx.send('You have nothing to use.')
             return CommandResult.ok()
 
-        # Resolve by name arg or interactive prompt
-        if args:
-            pattern = ' '.join(args).lower()
-            matches = [e for e in entries
-                       if pattern in (getattr(e.item, 'name', '') or '').lower()]
-            if not matches:
-                await ctx.send(f'You are not carrying anything matching "{" ".join(args)}".')
-                return CommandResult.ok()
-            entry = matches[0]
-        else:
-            lines = ['', 'Items:']
-            for i, e in enumerate(entries, 1):
-                lines.append(f'  {i:>2}. {getattr(e.item, "name", "?")}')
-            lines.append('')
-            await ctx.send(lines)
-            raw = await ctx.prompt(preamble_lines=f'(1-{len(entries)}, {ctx.player.return_key} to cancel)',
-                                   prompt_text="Use which item")
-            if not raw or not raw.strip():
-                return CommandResult.ok()
-            try:
-                idx = int(raw.strip()) - 1
-                if not (0 <= idx < len(entries)):
-                    raise ValueError
-            except ValueError:
-                await ctx.send("You don't have that item.")
-                return CommandResult.ok()
-            entry = entries[idx]
+        # Name match, or the numbered "Items:" menu -- via the shared
+        # picker (inventory_select). Naming several items now narrows with
+        # a "Which one?" sub-prompt instead of silently USEing the first.
+        choice = await resolve_or_prompt(
+            ctx, choices, args=args, prompt_text='Use which item',
+            label_fn=lambda c: c.name,
+            list_header='Items:',
+            no_match_msg=lambda q: f'You are not carrying anything matching "{q}".',
+            invalid_msg="You don't have that item.",
+        )
+        if choice is None:
+            return CommandResult.ok()
 
-        item     = entry.item
+        item     = choice.item
         item_no  = getattr(item, 'number', None) or getattr(item, 'id_number', None)
         item_cat = getattr(item, 'category', None)
 
