@@ -17,6 +17,7 @@ from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from bar.allies import purchased_allies
 from flags import PlayerFlags
+from inventory_select import gather_items, resolve_or_prompt
 from network_context import GameContext
 
 _RING_ID = 67  # ring of invisibility (objects.json) -- see commands/wear.py
@@ -319,42 +320,23 @@ class GiveCommand(Command):
         else:
             item_words = arg_list
 
-        # Build the item pool from inventory
-        entries = list(inventory.entries()) if inventory else []
-        if not entries:
+        # Pick the item from your own pack -- name match or the numbered
+        # "Items you carry:" menu, via the shared picker (inventory_select).
+        choices = gather_items(player)
+        if not choices:
             await ctx.send('You have nothing to give.')
             return CommandResult.ok()
 
-        # Resolve item
-        if item_words:
-            pattern = ' '.join(item_words).lower()
-            matches = [e for e in entries
-                       if pattern in (getattr(e.item, 'name', '') or '').lower()]
-            if not matches:
-                await ctx.send(
-                    f'You are not carrying anything matching "{" ".join(item_words)}".')
-                return CommandResult.ok()
-            entry = matches[0]
-        else:
-            lines = ['', 'Items you carry:']
-            for i, e in enumerate(entries, 1):
-                lines.append(f'  {i:>2}. {getattr(e.item, "name", "?")}')
-            lines.append('')
-            await ctx.send(lines)
-            raw = await ctx.prompt(preamble_lines=f'(1-{len(entries)}, {ctx.player.return_key} to cancel)',
-                                   prompt_text="Give which item")
-            if not raw or not raw.strip():
-                return CommandResult.ok()
-            try:
-                idx = int(raw.strip()) - 1
-                if not (0 <= idx < len(entries)):
-                    raise ValueError
-            except ValueError:
-                await ctx.send('Invalid selection.')
-                return CommandResult.ok()
-            entry = entries[idx]
+        choice = await resolve_or_prompt(
+            ctx, choices, args=item_words, prompt_text='Give which item',
+            label_fn=lambda c: c.name,
+            list_header='Items you carry:',
+            no_match_msg=lambda q: f'You are not carrying anything matching "{q}".',
+        )
+        if choice is None:
+            return CommandResult.ok()
 
-        item  = entry.item
+        item  = choice.item
         iname = getattr(item, 'name', 'it')
 
         # Ring of invisibility (#67): can't give it away while worn
@@ -384,23 +366,16 @@ class GiveCommand(Command):
             if not allies:
                 await ctx.send('Give it to whom?  (Try: give <item> to <name>)')
                 return CommandResult.ok()
-            lines = ['', 'Give to which ally:']
-            for i, a in enumerate(allies, 1):
-                lines.append(f'  {i:>2}. {a.name}')
-            lines.append('')
-            await ctx.send(lines)
-            raw = await ctx.prompt(preamble_lines=f'(1-{len(allies)}, {ctx.player.return_key} to cancel)',
-                                   prompt_text="Give to whom")
-            if not raw or not raw.strip():
+            # Same shared picker as the item list -- Ally objects carry a
+            # .name, so resolve_or_prompt() lists them directly.
+            picked = await resolve_or_prompt(
+                ctx, allies, args=[], prompt_text='Give to whom',
+                label_fn=lambda a: a.name,
+                list_header='Give to whom?',
+            )
+            if picked is None:
                 return CommandResult.ok()
-            try:
-                idx = int(raw.strip()) - 1
-                if not (0 <= idx < len(allies)):
-                    raise ValueError
-            except ValueError:
-                await ctx.send('Invalid selection.')
-                return CommandResult.ok()
-            target = allies[idx].name.lower()
+            target = picked.name.lower()
         else:
             target = ' '.join(target_words).lower()
 

@@ -201,19 +201,19 @@ def gather_items(
 _UNSET = object()
 
 
-def _default_match(choice: ItemChoice, pattern: str) -> bool:
-    return pattern in (choice.name or '').lower()
+def _default_match(choice, pattern: str) -> bool:
+    return pattern in (getattr(choice, 'name', '') or '').lower()
 
 
 async def resolve_or_prompt(
     ctx,
-    choices: list[ItemChoice],
+    choices: list,
     *,
     args,
     prompt_text: str,
-    label_fn: Callable[[ItemChoice], str],
-    match_fn: Optional[Callable[[ItemChoice, str], bool]] = None,
-    group_fn: Optional[Callable[[ItemChoice], str]] = None,
+    label_fn: Callable[[object], str],
+    match_fn: Optional[Callable[[object, str], bool]] = None,
+    group_fn: Optional[Callable[[object], str]] = None,
     list_header: Optional[str] = None,
     ambiguous_header: str = 'Which one?',
     no_match_msg: Optional[Callable[[str], str]] = None,
@@ -221,6 +221,13 @@ async def resolve_or_prompt(
     auto_select_single: bool = False,
 ) -> Optional[ItemChoice]:
     """Resolve *choices* down to one, by name or by numbered prompt.
+
+    *choices* is usually a list of ItemChoice, but any list of objects
+    works: only *label_fn* (always) and the default *match_fn* (a
+    substring test on `choice.name`) look inside an element, so a list of
+    Ally objects, or of (label, payload) tuples with a custom label_fn,
+    is fine too -- GIVE's "which ally?" and TAKE's "give to whom?" prompts
+    reuse this on non-item lists.
 
     args        -- the raw command args; when non-empty they're joined and
                    matched (case-insensitive, substring) against each

@@ -102,6 +102,14 @@ class _FakeCtx:
         self._sent:  list[str] = []
         self._sent_room: list[str] = []
         self._prompt_answer: str = ''
+        self._prompt_answers: list[str] | None = None
+
+    def set_answers(self, seq) -> None:
+        """Queue a sequence of prompt replies (consumed in order); once
+        exhausted, prompts read as an empty cancel. Use this when a flow
+        asks more than one question -- e.g. bare TAKE's item pick followed
+        by its 'give to whom?' step."""
+        self._prompt_answers = list(seq)
 
     async def send(self, msg, **kwargs):
         if isinstance(msg, list):
@@ -113,6 +121,8 @@ class _FakeCtx:
         self._sent_room.append(str(msg))
 
     async def prompt(self, *args, **kwargs) -> str:
+        if self._prompt_answers is not None:
+            return self._prompt_answers.pop(0) if self._prompt_answers else ''
         return self._prompt_answer
 
     def sent(self) -> str:
@@ -895,11 +905,39 @@ class TestTakeFromAlly(unittest.IsolatedAsyncioTestCase):
         second_ally.items = [InventoryEntry(item=extra_item)]
         self.player.party.add_member(self.player, second_ally)
 
-        self.ctx._prompt_answer = '2'   # pick Conan's torch
+        # Two servants -> a 'give to whom?' step follows the item pick;
+        # answer 1 = "yourself" for the classic take-into-your-own-pack.
+        self.ctx.set_answers(['2', '1'])   # item 2 (Conan's torch), then "yourself"
         await self.cmd.execute(self.ctx)
         entries = self.player.inventory.entries()
         self.assertEqual(len(entries), 1)
         self.assertEqual(entries[0].item.name, 'TORCH')
+
+    async def test_take_reroutes_item_from_one_ally_to_another(self):
+        """Two servants: pick an item off one, hand it straight to the
+        other -- it never touches the player's inventory."""
+        conan      = _make_ally('CONAN')
+        torch      = _make_item('TORCH', item_id=20)
+        conan.items = [InventoryEntry(item=torch)]
+        self.player.party.add_member(self.player, conan)
+
+        # item 1 = Gandalf's LANTERN; destination 2 = CONAN
+        self.ctx.set_answers(['1', '2'])
+        await self.cmd.execute(self.ctx)
+
+        self.assertEqual(len(self.player.inventory.entries()), 0)
+        self.assertEqual(len(self.ally.items), 0)          # left Gandalf
+        conan_item_names = [e.item.name for e in conan.items]
+        self.assertIn('LANTERN', conan_item_names)         # arrived at Conan
+        self.assertIn('CONAN', self.ctx.sent().upper())
+        self.assertTrue(self.player.unsaved_changes)
+
+    async def test_take_single_servant_still_goes_straight_to_you(self):
+        """One servant -> no 'give to whom?' step, unchanged behaviour."""
+        self.ctx._prompt_answer = '1'
+        await self.cmd.execute(self.ctx, 'from', 'gandalf')
+        self.assertEqual(len(self.player.inventory.entries()), 1)
+        self.assertNotIn('give to whom', self.ctx.sent().lower())
 
 
 # ---------------------------------------------------------------------------
