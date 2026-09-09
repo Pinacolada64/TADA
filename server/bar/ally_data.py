@@ -12,6 +12,47 @@ from base_classes import Gender, Alignment, HorseBreed, HorseColor
 _ROSTER_FILE = Path('run') / 'server' / 'net' / 'ally-roster.json'
 
 
+# ---------------------------------------------------------------------------
+# Canonical stat ceilings
+#
+# SPUR's sysop editor (SPUR.SYSOP.S ed.a.str / ed.a.hit) let an operator set
+# ally strength 1-20 and to-hit 1-9 (a percent-to-hit x10, so 9 == 90%).
+# Fat Olaf's hire adds a flat +5 on top of the catalog value (SPUR.BAR.S
+# buy: `a1 = x2 + 5`), so 25 is the highest strength a legitimately-obtained
+# ally can reach. SPUR has no separate ally hit-point stat at all -- combat
+# drains `a1` (strength) directly -- so the port's TADA-only
+# `hit_points = strength * HP_PER_STRENGTH` is bounded by the same ceiling.
+#
+# These are the single source of truth: bar/fat_olaf.py, street/allies_guild.py,
+# commands/editplayer.py, spells/charm.py and party.py all clamp against them,
+# and load_allies() / Party.from_json() re-clamp on load so a save that
+# predates the caps (or was hand-edited) self-heals on next login.
+ALLY_HP_PER_STRENGTH = 2
+ALLY_STRENGTH_MAX    = 25
+ALLY_TO_HIT_MIN      = 0    # SPUR's range is 1-9; 0 == "unused" (mounts sit here)
+ALLY_TO_HIT_MAX      = 9
+ALLY_HP_MAX          = ALLY_STRENGTH_MAX * ALLY_HP_PER_STRENGTH   # 50
+
+
+def clamp_ally_stats(ally: 'Ally') -> bool:
+    """Clamp *ally*'s strength / to_hit / hit_points into the canonical
+    ranges above, in place. Returns True if anything actually changed."""
+    changed = False
+    s = max(1, min(int(ally.strength or 1), ALLY_STRENGTH_MAX))
+    if s != ally.strength:
+        ally.strength = s
+        changed = True
+    t = max(ALLY_TO_HIT_MIN, min(int(ally.to_hit or 0), ALLY_TO_HIT_MAX))
+    if t != ally.to_hit:
+        ally.to_hit = t
+        changed = True
+    hp = max(0, min(int(ally.hit_points or 0), ALLY_HP_MAX))
+    if hp != (ally.hit_points or 0):
+        ally.hit_points = hp
+        changed = True
+    return changed
+
+
 class AllyFlags(Enum):
     GOD = auto()
     GODDESS = auto()
@@ -246,6 +287,21 @@ def save_ally_roster(allies: List['Ally']) -> None:
 _ALLIES_FILE = Path(__file__).parent.parent / 'allies.json'
 
 
+def base_ally_strength(name: str) -> Optional[int]:
+    """Return *name*'s pristine strength straight from allies.json, ignoring
+    any roster or session overrides. SPUR's Fat Olaf MAINTAIN (SPUR.BAR.S
+    `maint`) only restores a combat-drained ally back up to this catalog
+    value -- it's a repair, never a growth mechanic -- so bar/fat_olaf.py
+    needs the un-inflated number to know when to stop."""
+    try:
+        for entry in json.loads(_ALLIES_FILE.read_text()):
+            if entry.get('name') == name:
+                return entry.get('strength')
+    except Exception:
+        logging.exception('base_ally_strength: failed to read %s', _ALLIES_FILE)
+    return None
+
+
 def load_allies() -> list:
     """Loads ally information from allies.json (name, gender, strength,
     to_hit, flags, and an optional description shown by LOOK <ally> --
@@ -290,6 +346,12 @@ def load_allies() -> list:
             a.strength = entry['strength']
         if 'hit_points' in entry:
             a.hit_points = entry['hit_points']
+        # A roster written before the stat caps existed (or hand-edited)
+        # can carry a wildly inflated strength/HP -- pull it back into range
+        # so the ally self-heals on this load rather than needing a manual
+        # editplayer pass.
+        if clamp_ally_stats(a):
+            logging.info('load_allies: clamped out-of-range stats for %s', name)
 
     return ally_data
 
