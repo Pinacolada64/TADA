@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import unittest
+import unittest.mock
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -501,6 +502,113 @@ class TestCommandSettingsNewsMenu(unittest.IsolatedAsyncioTestCase):
         await item.action(ctx)
         self.assertEqual(ctx.player.command_settings.news.last_read, '2026-08-19T00:00:00')
         self.assertIn("Didn't understand that date.", ctx.sent)
+
+
+class TestCommandSettingsReplyTargetMenu(unittest.IsolatedAsyncioTestCase):
+    """'Last Paged' / 'Last Whispered' entries -- the '#reply'/'#r' target
+    for commands/page.py and commands/whisper.py, editable by an admin."""
+
+    def _item(self, ctx, text):
+        menu = _command_settings_menu(ctx)
+        return next(i for i in menu.selectable if i.text == text)
+
+    def _ctx(self, responses=None):
+        import types
+        ctx = _MockCtx(responses=responses)
+        ctx.server = types.SimpleNamespace(clients={})
+        return ctx
+
+    async def test_dot_leader_shows_none_when_unset(self):
+        ctx = self._ctx()
+        self.assertEqual(self._item(ctx, 'Last Paged').dot_leader_handler(ctx), '(none)')
+        self.assertEqual(self._item(ctx, 'Last Whispered').dot_leader_handler(ctx), '(none)')
+
+    async def test_dot_leader_shows_name_when_set(self):
+        ctx = self._ctx()
+        ctx.player.command_settings.page.last_paged = 'Alice'
+        self.assertEqual(self._item(ctx, 'Last Paged').dot_leader_handler(ctx), 'Alice')
+
+    async def test_blank_leaves_unchanged(self):
+        ctx = self._ctx(responses=[''])
+        ctx.player.command_settings.page.last_paged = 'Alice'
+        await self._item(ctx, 'Last Paged').action(ctx)
+        self.assertEqual(ctx.player.command_settings.page.last_paged, 'Alice')
+        self.assertFalse(ctx.player.unsaved_changes)
+
+    async def test_dash_clears(self):
+        ctx = self._ctx(responses=['-'])
+        ctx.player.command_settings.whisper.last_whispered = 'Bob'
+        await self._item(ctx, 'Last Whispered').action(ctx)
+        self.assertIsNone(ctx.player.command_settings.whisper.last_whispered)
+        self.assertTrue(ctx.player.unsaved_changes)
+
+    async def test_sets_to_existing_player_canonical_casing(self):
+        ctx = self._ctx(responses=['alice'])
+        with unittest.mock.patch('tada_utilities.player_exists', return_value=True), \
+             unittest.mock.patch('tada_utilities.find_players', return_value=['Alice']):
+            await self._item(ctx, 'Last Paged').action(ctx)
+        self.assertEqual(ctx.player.command_settings.page.last_paged, 'Alice')
+        self.assertTrue(ctx.player.unsaved_changes)
+
+    async def test_unknown_player_rejected(self):
+        ctx = self._ctx(responses=['Nobody'])
+        with unittest.mock.patch('tada_utilities.player_exists', return_value=False):
+            await self._item(ctx, 'Last Paged').action(ctx)
+        self.assertIsNone(ctx.player.command_settings.page.last_paged)
+        self.assertFalse(ctx.player.unsaved_changes)
+        self.assertIn('No such player "Nobody".', ctx.sent)
+
+
+class TestCommandSettingsLastHistoryMenu(unittest.IsolatedAsyncioTestCase):
+    """'Page/Whisper #last Limit' and 'Page/Whisper History' entries."""
+
+    def _item(self, ctx, text):
+        menu = _command_settings_menu(ctx)
+        return next(i for i in menu.selectable if i.text == text)
+
+    async def test_limit_dot_leader_reflects_value(self):
+        ctx = _MockCtx()
+        item = self._item(ctx, 'Page #last Limit')
+        self.assertEqual(item.dot_leader_handler(ctx), '5')
+        ctx.player.command_settings.page.last_limit = 8
+        self.assertEqual(item.dot_leader_handler(ctx), '8')
+
+    async def test_limit_edit_sets_and_marks_unsaved(self):
+        ctx = _MockCtx(responses=['3'])
+        await self._item(ctx, 'Page #last Limit').action(ctx)
+        self.assertEqual(ctx.player.command_settings.page.last_limit, 3)
+        self.assertTrue(ctx.player.unsaved_changes)
+
+    async def test_limit_edit_out_of_range_keeps_prompting_then_cancels(self):
+        # 99 rejected, then blank cancels -> unchanged
+        ctx = _MockCtx(responses=['99', ''])
+        await self._item(ctx, 'Whisper #last Limit').action(ctx)
+        self.assertEqual(ctx.player.command_settings.whisper.last_limit, 5)
+
+    async def test_history_dot_leader_shows_count(self):
+        ctx = _MockCtx()
+        ctx.player.command_settings.page.history = [
+            {'name': 'Alice', 'at': 'x'}, {'name': 'Bob', 'at': 'x'}]
+        self.assertEqual(
+            self._item(ctx, 'Page History').dot_leader_handler(ctx), '2 entries')
+
+    async def test_history_empty_reports_and_no_prompt(self):
+        ctx = _MockCtx()
+        await self._item(ctx, 'Page History').action(ctx)
+        self.assertIn('Page History: (empty)', ctx.sent)
+
+    async def test_history_clear_on_yes(self):
+        ctx = _MockCtx(responses=['y'])
+        ctx.player.command_settings.whisper.history = [{'name': 'Alice', 'at': 'x'}]
+        await self._item(ctx, 'Whisper History').action(ctx)
+        self.assertEqual(ctx.player.command_settings.whisper.history, [])
+        self.assertTrue(ctx.player.unsaved_changes)
+
+    async def test_history_kept_on_blank(self):
+        ctx = _MockCtx(responses=[''])
+        ctx.player.command_settings.page.history = [{'name': 'Alice', 'at': 'x'}]
+        await self._item(ctx, 'Page History').action(ctx)
+        self.assertEqual(len(ctx.player.command_settings.page.history), 1)
 
 
 # ---------------------------------------------------------------------------

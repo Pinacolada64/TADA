@@ -20,7 +20,9 @@ import unittest.mock
 from command_settings import CommandSettings
 from commands.messaging import (
     parse_targets, expand_groups, find_online,
-    prompt_player_choice,
+    prompt_player_choice, substitute_reply,
+    record_message_target, render_last_history, parse_last_limit,
+    _relative_age, LAST_HISTORY_CAP, LAST_LIMIT_MAX,
 )
 from tada_utilities import online_player_names, is_online, player_exists, find_players
 from commands.groups import GroupsCommand
@@ -827,7 +829,7 @@ class TestPageControlWords(unittest.TestCase):
         ctx, server = _setup_sender('Rulan', room=1)
         result = self._run(ctx, '#haven')
         self.assertTrue(result.success)
-        self.assertTrue(ctx.player.command_settings.haven)
+        self.assertTrue(ctx.player.command_settings.page.haven)
         self.assertTrue(ctx.player.unsaved_changes)
 
         sender_ctx = _add_player(server, 'Alice', room=1)
@@ -837,16 +839,16 @@ class TestPageControlWords(unittest.TestCase):
 
     def test_unhaven_reverses_haven(self):
         ctx, _ = _setup_sender('Rulan')
-        ctx.player.command_settings.haven = True
+        ctx.player.command_settings.page.haven = True
         result = self._run(ctx, '#unhaven')
         self.assertTrue(result.success)
-        self.assertFalse(ctx.player.command_settings.haven)
+        self.assertFalse(ctx.player.command_settings.page.haven)
 
     def test_ignore_blocks_specific_sender(self):
         ctx, server = _setup_sender('Rulan', room=1)
         result = self._run(ctx, '#ignore', 'Bob')
         self.assertTrue(result.success)
-        self.assertIn('Bob', ctx.player.command_settings.ignored_pagers)
+        self.assertIn('Bob', ctx.player.command_settings.page.ignored_pagers)
 
         bob_ctx = _add_player(server, 'Bob', room=1)
         self._run(bob_ctx, 'Rulan=hi there')
@@ -862,10 +864,10 @@ class TestPageControlWords(unittest.TestCase):
 
     def test_unignore_reverses_ignore(self):
         ctx, server = _setup_sender('Rulan', room=1)
-        ctx.player.command_settings.ignored_pagers = ['Bob']
+        ctx.player.command_settings.page.ignored_pagers = ['Bob']
         result = self._run(ctx, '#unignore', 'Bob')
         self.assertTrue(result.success)
-        self.assertNotIn('Bob', ctx.player.command_settings.ignored_pagers)
+        self.assertNotIn('Bob', ctx.player.command_settings.page.ignored_pagers)
 
         bob_ctx = _add_player(server, 'Bob', room=1)
         self._run(bob_ctx, 'Rulan=hi again')
@@ -1028,6 +1030,384 @@ class TestPageOfflineMail(unittest.TestCase):
             self.assertEqual(saved[0]['from'], 'Rulan')
             self.assertEqual(saved[0]['body'], 'hello there')
             self.assertFalse(saved[0]['read'])
+
+
+# ---------------------------------------------------------------------------
+# substitute_reply
+# ---------------------------------------------------------------------------
+
+class TestSubstituteReply(unittest.TestCase):
+
+    def test_no_token_passthrough(self):
+        out, unresolved = substitute_reply(['Alice', 'Bob'], 'Carol')
+        self.assertEqual(out, ['Alice', 'Bob'])
+        self.assertFalse(unresolved)
+
+    def test_reply_token_replaced(self):
+        out, unresolved = substitute_reply(['#reply'], 'Carol')
+        self.assertEqual(out, ['Carol'])
+        self.assertFalse(unresolved)
+
+    def test_short_token_replaced(self):
+        out, unresolved = substitute_reply(['#r'], 'Carol')
+        self.assertEqual(out, ['Carol'])
+        self.assertFalse(unresolved)
+
+    def test_token_case_insensitive(self):
+        out, _ = substitute_reply(['#Reply'], 'Carol')
+        self.assertEqual(out, ['Carol'])
+
+    def test_token_mixed_with_plain_names(self):
+        out, _ = substitute_reply(['Alice', '#r'], 'Carol')
+        self.assertEqual(out, ['Alice', 'Carol'])
+
+    def test_unresolved_when_no_last_name(self):
+        out, unresolved = substitute_reply(['#r'], None)
+        self.assertEqual(out, ['#r'])
+        self.assertTrue(unresolved)
+
+    def test_no_token_and_no_last_name_is_fine(self):
+        out, unresolved = substitute_reply(['Alice'], None)
+        self.assertEqual(out, ['Alice'])
+        self.assertFalse(unresolved)
+
+
+# ---------------------------------------------------------------------------
+# WhisperCommand — #reply / #r
+# ---------------------------------------------------------------------------
+
+class TestWhisperReply(unittest.TestCase):
+
+    def _run(self, ctx, *args):
+        return asyncio.run(WhisperCommand().execute(ctx, *args))
+
+    def test_reply_with_nothing_saved_errors(self):
+        ctx, _ = _setup_sender('Rulan')
+        result = self._run(ctx, "#r=hello")
+        self.assertFalse(result.success)
+        self.assertIn("haven't whispered", ctx.sent_text().lower())
+
+    def test_send_records_last_whispered_on_both_sides(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        alice_ctx   = _add_player(server, 'Alice', room=1)
+        self._run(ctx, 'Alice=hi')
+        self.assertEqual(ctx.player.command_settings.whisper.last_whispered, 'Alice')
+        self.assertEqual(alice_ctx.player.command_settings.whisper.last_whispered, 'Rulan')
+        self.assertTrue(ctx.player.unsaved_changes)
+        self.assertTrue(alice_ctx.player.unsaved_changes)
+
+    def test_reply_targets_last_correspondent(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        alice_ctx   = _add_player(server, 'Alice', room=1)
+        # Alice whispers Rulan first; Rulan replies with #r
+        asyncio.run(WhisperCommand().execute(alice_ctx, 'Rulan=you there?'))
+        self._run(ctx, '#r=yes I am')
+        self.assertIn('yes I am', alice_ctx.sent_text())
+        self.assertIn('Rulan whispers to you', alice_ctx.sent_text())
+
+    def test_reply_short_and_long_forms_equivalent(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        alice_ctx   = _add_player(server, 'Alice', room=1)
+        ctx.player.command_settings.whisper.last_whispered = 'Alice'
+        self._run(ctx, '#reply=one')
+        self._run(ctx, '#r=two')
+        self.assertIn('one', alice_ctx.sent_text())
+        self.assertIn('two', alice_ctx.sent_text())
+
+
+# ---------------------------------------------------------------------------
+# PageCommand — #reply / #r
+# ---------------------------------------------------------------------------
+
+class TestPageReply(unittest.TestCase):
+
+    def _run(self, ctx, *args):
+        return asyncio.run(PageCommand().execute(ctx, *args))
+
+    def test_reply_with_nothing_saved_errors(self):
+        ctx, _ = _setup_sender('Rulan')
+        result = self._run(ctx, '#r=hello')
+        self.assertFalse(result.success)
+        self.assertIn("haven't paged", ctx.sent_text().lower())
+
+    def test_send_records_last_paged_on_both_sides(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        alice_ctx   = _add_player(server, 'Alice', room=7)
+        self._run(ctx, 'Alice=ping')
+        self.assertEqual(ctx.player.command_settings.page.last_paged, 'Alice')
+        self.assertEqual(alice_ctx.player.command_settings.page.last_paged, 'Rulan')
+
+    def test_reply_targets_last_correspondent(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        alice_ctx   = _add_player(server, 'Alice', room=7)
+        asyncio.run(PageCommand().execute(alice_ctx, 'Rulan=where are you?'))
+        self._run(ctx, '#r=on my way')
+        self.assertIn('on my way', alice_ctx.sent_text())
+        self.assertIn('Rulan pages you', alice_ctx.sent_text())
+
+    def test_reply_updates_pointer_after_use(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        alice_ctx   = _add_player(server, 'Alice', room=7)
+        ctx.player.command_settings.page.last_paged = 'Alice'
+        self._run(ctx, '#r=hi')
+        self.assertEqual(ctx.player.command_settings.page.last_paged, 'Alice')
+        self.assertIn('hi', alice_ctx.sent_text())
+
+
+class TestReplySettingsRoundTrip(unittest.TestCase):
+
+    def test_last_fields_default_none(self):
+        cs = CommandSettings()
+        self.assertIsNone(cs.page.last_paged)
+        self.assertIsNone(cs.whisper.last_whispered)
+
+    def test_round_trip_preserves_last_fields(self):
+        cs = CommandSettings()
+        cs.page.last_paged = 'Alice'
+        cs.whisper.last_whispered = 'Bob'
+        restored = CommandSettings.from_dict(json.loads(json.dumps(cs.to_dict())))
+        self.assertEqual(restored.page.last_paged, 'Alice')
+        self.assertEqual(restored.whisper.last_whispered, 'Bob')
+
+    def test_from_dict_migrates_legacy_flat_haven_and_ignored(self):
+        # Older save files stored haven / ignored_pagers as flat
+        # CommandSettings fields, before the command_settings.page namespace.
+        restored = CommandSettings.from_dict({
+            'haven': True,
+            'ignored_pagers': ['Bob', 'Carol'],
+        })
+        self.assertTrue(restored.page.haven)
+        self.assertEqual(restored.page.ignored_pagers, ['Bob', 'Carol'])
+
+    def test_from_dict_prefers_nested_page_over_legacy_flat(self):
+        restored = CommandSettings.from_dict({
+            'haven': True,                       # legacy, should be ignored
+            'page': {'haven': False, 'last_limit': 9},
+        })
+        self.assertFalse(restored.page.haven)
+        self.assertEqual(restored.page.last_limit, 9)
+
+
+# ---------------------------------------------------------------------------
+# #last history helpers
+# ---------------------------------------------------------------------------
+
+class TestRecordMessageTarget(unittest.TestCase):
+
+    def test_prepends_newest_first(self):
+        h = []
+        record_message_target(h, 'Alice')
+        record_message_target(h, 'Bob')
+        self.assertEqual([e['name'] for e in h], ['Bob', 'Alice'])
+
+    def test_each_entry_has_timestamp(self):
+        h = []
+        record_message_target(h, 'Alice')
+        self.assertIn('at', h[0])
+        # parseable isoformat
+        import datetime
+        datetime.datetime.fromisoformat(h[0]['at'])
+
+    def test_dedupes_case_insensitively_and_moves_to_front(self):
+        h = []
+        for n in ('Alice', 'Bob', 'alice'):
+            record_message_target(h, n)
+        self.assertEqual([e['name'] for e in h], ['alice', 'Bob'])
+
+    def test_capped_at_history_cap(self):
+        h = []
+        for i in range(LAST_HISTORY_CAP + 5):
+            record_message_target(h, f'P{i}')
+        self.assertEqual(len(h), LAST_HISTORY_CAP)
+        self.assertEqual(h[0]['name'], f'P{LAST_HISTORY_CAP + 4}')
+
+
+class TestRelativeAge(unittest.TestCase):
+
+    def _iso_ago(self, **kw):
+        import datetime
+        return (datetime.datetime.now() - datetime.timedelta(**kw)).isoformat()
+
+    def test_just_now(self):
+        self.assertEqual(_relative_age(self._iso_ago(seconds=5)), 'just now')
+
+    def test_minutes(self):
+        self.assertEqual(_relative_age(self._iso_ago(minutes=10)), '10m ago')
+
+    def test_hours(self):
+        self.assertEqual(_relative_age(self._iso_ago(hours=3)), '3h ago')
+
+    def test_days(self):
+        self.assertEqual(_relative_age(self._iso_ago(days=2)), '2d ago')
+
+    def test_garbage_returns_placeholder(self):
+        self.assertEqual(_relative_age('not-a-date'), '?')
+        self.assertEqual(_relative_age(None), '?')
+
+
+class TestRenderLastHistory(unittest.TestCase):
+
+    def test_empty(self):
+        lines = render_last_history([], 5, verb='paged')
+        self.assertEqual(lines, ['You have not paged anyone yet.'])
+
+    def test_singular_header(self):
+        h = [{'name': 'Alice', 'at': 'not-a-date'}]
+        lines = render_last_history(h, 5, verb='paged')
+        self.assertEqual(lines[0], 'Last person you paged:')
+        self.assertIn('Alice', lines[1])
+
+    def test_plural_header_and_limit(self):
+        h = [{'name': f'P{i}', 'at': 'x'} for i in range(8)]
+        lines = render_last_history(h, 3, verb='whispered')
+        self.assertEqual(lines[0], 'Last 3 people you whispered:')
+        self.assertEqual(len(lines), 4)  # header + 3
+
+
+class TestParseLastLimit(unittest.TestCase):
+
+    def test_no_tokens_means_display_only(self):
+        self.assertEqual(parse_last_limit(()), (None, None))
+
+    def test_valid_number(self):
+        self.assertEqual(parse_last_limit(('5',)), (5, None))
+
+    def test_boundary_values(self):
+        self.assertEqual(parse_last_limit(('1',)), (1, None))
+        self.assertEqual(parse_last_limit((str(LAST_LIMIT_MAX),)), (LAST_LIMIT_MAX, None))
+
+    def test_zero_rejected(self):
+        limit, err = parse_last_limit(('0',))
+        self.assertIsNone(limit)
+        self.assertIn('1 to', err)
+
+    def test_over_max_rejected(self):
+        limit, err = parse_last_limit((str(LAST_LIMIT_MAX + 1),))
+        self.assertIsNone(limit)
+        self.assertIn('1 to', err)
+
+    def test_non_numeric_rejected(self):
+        limit, err = parse_last_limit(('abc',))
+        self.assertIsNone(limit)
+        self.assertIn('Usage', err)
+
+
+# ---------------------------------------------------------------------------
+# PageCommand / WhisperCommand — #last
+# ---------------------------------------------------------------------------
+
+class TestPageLast(unittest.TestCase):
+
+    def _run(self, ctx, *args):
+        return asyncio.run(PageCommand().execute(ctx, *args))
+
+    def test_empty_history_message(self):
+        ctx, _ = _setup_sender('Rulan')
+        result = self._run(ctx, '#last')
+        self.assertTrue(result.success)
+        self.assertIn('have not paged anyone', ctx.sent_text().lower())
+
+    def test_lists_after_paging(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        _add_player(server, 'Alice', room=2)
+        _add_player(server, 'Bob', room=2)
+        self._run(ctx, 'Alice=hi')
+        self._run(ctx, 'Bob=yo')
+        ctx._sent.clear()
+        self._run(ctx, '#last')
+        text = ctx.sent_text()
+        self.assertIn('Bob', text)
+        self.assertIn('Alice', text)
+        # newest first
+        self.assertLess(text.index('Bob'), text.index('Alice'))
+
+    def test_multi_target_records_all(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        _add_player(server, 'Alice', room=1)
+        _add_player(server, 'Bob', room=1)
+        self._run(ctx, 'Alice,Bob=party')
+        names = [e['name'] for e in ctx.player.command_settings.page.history]
+        self.assertCountEqual(names, ['Alice', 'Bob'])
+
+    def test_repeat_page_dedupes_history(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        _add_player(server, 'Alice', room=2)
+        self._run(ctx, 'Alice=one')
+        self._run(ctx, 'Alice=two')
+        self.assertEqual(
+            [e['name'] for e in ctx.player.command_settings.page.history], ['Alice'])
+
+    def test_number_sets_persisted_limit(self):
+        ctx, _ = _setup_sender('Rulan')
+        self._run(ctx, '#last', '3')
+        self.assertEqual(ctx.player.command_settings.page.last_limit, 3)
+        self.assertTrue(ctx.player.unsaved_changes)
+
+    def test_number_out_of_range_rejected(self):
+        ctx, _ = _setup_sender('Rulan')
+        result = self._run(ctx, '#last', '99')
+        self.assertFalse(result.success)
+        self.assertEqual(ctx.player.command_settings.page.last_limit, 5)
+
+    def test_limit_caps_displayed_rows(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        for i in range(6):
+            _add_player(server, f'P{i}', room=2)
+            self._run(ctx, f'P{i}=hi')
+        self._run(ctx, '#last', '2')
+        ctx._sent.clear()
+        self._run(ctx, '#last')
+        # header + exactly 2 rows
+        body = [ln for ln in ctx.sent_text().splitlines() if ln.strip()]
+        self.assertEqual(len(body), 3)
+
+
+class TestWhisperLast(unittest.TestCase):
+
+    def _run(self, ctx, *args):
+        return asyncio.run(WhisperCommand().execute(ctx, *args))
+
+    def test_empty_history_message(self):
+        ctx, _ = _setup_sender('Rulan')
+        result = self._run(ctx, '#last')
+        self.assertTrue(result.success)
+        self.assertIn('have not whispered anyone', ctx.sent_text().lower())
+
+    def test_lists_after_whispering(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        _add_player(server, 'Alice', room=1)
+        self._run(ctx, 'Alice=hi')
+        ctx._sent.clear()
+        self._run(ctx, '#last')
+        self.assertIn('Alice', ctx.sent_text())
+
+    def test_number_sets_persisted_limit(self):
+        ctx, _ = _setup_sender('Rulan')
+        self._run(ctx, '#last', '7')
+        self.assertEqual(ctx.player.command_settings.whisper.last_limit, 7)
+
+    def test_non_numeric_arg_rejected(self):
+        ctx, _ = _setup_sender('Rulan')
+        result = self._run(ctx, '#last', 'foo')
+        self.assertFalse(result.success)
+
+
+class TestLastSettingsRoundTrip(unittest.TestCase):
+
+    def test_defaults(self):
+        cs = CommandSettings()
+        self.assertEqual(cs.page.history, [])
+        self.assertEqual(cs.whisper.history, [])
+        self.assertEqual(cs.page.last_limit, 5)
+        self.assertEqual(cs.whisper.last_limit, 5)
+
+    def test_round_trip(self):
+        cs = CommandSettings()
+        cs.page.history = [{'name': 'Alice', 'at': '2026-09-09T12:00:00'}]
+        cs.whisper.last_limit = 8
+        restored = CommandSettings.from_dict(json.loads(json.dumps(cs.to_dict())))
+        self.assertEqual(restored.page.history, [{'name': 'Alice', 'at': '2026-09-09T12:00:00'}])
+        self.assertEqual(restored.whisper.last_limit, 8)
 
 
 if __name__ == '__main__':

@@ -9,9 +9,20 @@ Syntax:
   page #unignore <name>      remove that block
   page #haven                block ALL incoming pages
   page #unhaven               allow pages again
+  page #reply=<message>      page whoever you last paged with
+  page #r=<message>          short form of #reply
+  page #last [N]             list the last people you paged; #last N
+                              (1-10) also sets how many to show
 
-#ignore/#unignore/#haven/#unhaven are reserved control words, so a saved
-group cannot be named "ignore", "unignore", "haven", or "unhaven".
+#reply/#r stand in for your last page correspondent (set both when you
+send a page and when you receive one -- command_settings.page.last_paged),
+so you can answer without retyping the name.  #last reads back a running
+history of who you've paged (command_settings.page.history), newest first,
+with a relative timestamp on each.
+
+#ignore/#unignore/#haven/#unhaven/#last are reserved control words, so a
+saved group cannot be named "ignore", "unignore", "haven", "unhaven", or
+"last".
 
 If a target isn't currently online, offers to leave the message as mail
 for them (mail.py's add_message() -- read back via the `mail` command,
@@ -22,6 +33,9 @@ Examples:
     page Alice,Bob=Party at the inn
     page "Dark Lord"=Surrender now
     page #friends=Where is everyone?
+    page #r=on my way
+    page #last
+    page #last 5
     page #ignore Bob
     page #haven
 """
@@ -30,11 +44,14 @@ from __future__ import annotations
 import mail as mail_store
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
-from commands.messaging import parse_targets, expand_groups, find_online, is_in_combat
+from commands.messaging import (
+    parse_targets, expand_groups, find_online, is_in_combat, substitute_reply,
+    record_message_target, render_last_history, parse_last_limit,
+)
 from network_context import GameContext
 from tada_utilities import player_exists
 
-_CONTROL_WORDS = {'#ignore', '#unignore', '#haven', '#unhaven'}
+_CONTROL_WORDS = {'#ignore', '#unignore', '#haven', '#unhaven', '#last'}
 
 
 class PageCommand(Command):
@@ -49,6 +66,8 @@ class PageCommand(Command):
             ('page <name>=<message>',           'Page one player'),
             ('page <name>,<name2>=<message>',   'Page multiple players'),
             ('page #<group>=<message>',         'Page everyone in a group'),
+            ('page #r=<message>',               'Page back to your last correspondent'),
+            ('page #last [N]',                  'List the last people you paged (N: how many, 1-10)'),
             ('page #ignore <name>',             'Block <name> from paging you'),
             ('page #unignore <name>',           'Remove that block'),
             ('page #haven',                     'Block all incoming pages'),
@@ -65,6 +84,14 @@ class PageCommand(Command):
             ('page #friends=Where is everyone?','A saved GROUPS name (see GROUPS) works '
                                                  "as a target too, paging everyone in it "
                                                  'without listing them by name.'),
+            ('page #r=on my way',              "'#reply' (or '#r') stands in for the "
+                                                 'last player you paged with -- either '
+                                                 'direction -- so you can answer a page '
+                                                 "without retyping their name."),
+            ('page #last 5',                   "'#last' lists who you've paged recently, "
+                                                 'newest first, with how long ago.  '
+                                                 "'#last 5' also saves 5 as the number "
+                                                 'of entries to show (1-10).'),
             ('p Bob=Meet me at the inn',        "'p' (also 'tell'/'msg') is a shorter "
                                                  'alias for page -- all work the same '
                                                  'way.'),
@@ -98,7 +125,7 @@ class PageCommand(Command):
     # ------------------------------------------------------------------
 
     async def _control(self, ctx: GameContext, word: str, rest: tuple) -> CommandResult:
-        cs = ctx.player.command_settings
+        cs = ctx.player.command_settings.page
 
         if word == '#haven':
             cs.haven = True
@@ -111,6 +138,19 @@ class PageCommand(Command):
             ctx.player.unsaved_changes = True
             await ctx.send('You can receive pages again.')
             return CommandResult.ok('Haven off.')
+
+        if word == '#last':
+            new_limit, err = parse_last_limit(rest)
+            if err:
+                await ctx.send(err)
+                return CommandResult.fail(err, error='bad_args')
+            if new_limit is not None and new_limit != cs.last_limit:
+                cs.last_limit = new_limit
+                ctx.player.unsaved_changes = True
+                await ctx.send(f'page #last now shows up to {new_limit}.')
+            await ctx.send(render_last_history(
+                cs.history, cs.last_limit, verb='paged'))
+            return CommandResult.ok('Shown.')
 
         if not rest:
             await ctx.send(f'Usage: page {word} <name>')
@@ -157,6 +197,13 @@ class PageCommand(Command):
             await ctx.send('Page whom?  Usage: page <name[[,name2]]>=<message>')
             return CommandResult.fail('Missing target name.')
 
+        # '#reply' / '#r' -> whoever you last paged with
+        target_names, unresolved_reply = substitute_reply(
+            target_names, ctx.player.command_settings.page.last_paged)
+        if unresolved_reply:
+            await ctx.send("You haven't paged anyone yet.")
+            return CommandResult.fail('No one to reply to.')
+
         my_name = ctx.player.name
 
         # Remove self from target list silently
@@ -178,8 +225,9 @@ class PageCommand(Command):
         deliverable = []
         for tctx in found_ctxs:
             tcs     = getattr(tctx.player, 'command_settings', None)
-            haven   = getattr(tcs, 'haven', False) if tcs else False
-            ignored = getattr(tcs, 'ignored_pagers', []) if tcs else []
+            tpage   = getattr(tcs, 'page', None) if tcs else None
+            haven   = getattr(tpage, 'haven', False) if tpage else False
+            ignored = getattr(tpage, 'ignored_pagers', []) if tpage else []
             if haven:
                 await ctx.send(f'{tctx.player.name} is not accepting pages right now.')
                 continue
@@ -212,10 +260,21 @@ class PageCommand(Command):
                 queued_names.append(tctx.player.name)
             else:
                 await tctx.send(f'{my_name} pages you, "{message}"')
+            # Recipient's '#reply' now points back at the sender (the
+            # queued case still delivers, just later).
+            tctx.player.command_settings.page.last_paged = my_name
+            tctx.player.unsaved_changes = True
+            # ...and this recipient joins the sender's 'page #last' history.
+            record_message_target(
+                ctx.player.command_settings.page.history, tctx.player.name)
 
         if queued_names:
             await ctx.send(f'({", ".join(queued_names)} {"is" if len(queued_names) == 1 else "are"} '
                             f'in combat -- your page will show up for them after.)')
+
+        # Sender's '#reply' points at the last person actually reached.
+        ctx.player.command_settings.page.last_paged = deliverable[-1].player.name
+        ctx.player.unsaved_changes = True
 
         return CommandResult.ok()
 

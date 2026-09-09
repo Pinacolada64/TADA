@@ -760,6 +760,100 @@ def _command_settings_menu(ctx) -> Menu:
         dot_leader_handler=lambda ctx: (p.command_settings.news.last_read or '(never)')[:10],
         action=edit_news_last_read,
     ))
+
+    # command_settings.page.* / command_settings.whisper.*: the '#reply'
+    # target and the '#last' history/limit, normally maintained by
+    # commands/page.py and commands/whisper.py themselves. Exposed here so
+    # an admin can repoint or clear a stale reply target, wipe a history,
+    # or tune the show limit.
+    async def _edit_reply_target(ctx, ns, field: str, label: str) -> None:
+        from tada_utilities import find_players, player_exists
+
+        current = getattr(ns, field)
+        raw = await ctx.prompt(
+            label,
+            preamble_lines=[
+                f'Current: {current or "(none)"}  '
+                f'(name, - to clear, {ctx.player.return_key} to cancel)'
+            ],
+        )
+        if raw is None or not raw.strip():
+            return
+        text = raw.strip()
+        if text == '-':
+            setattr(ns, field, None)
+            p.unsaved_changes = True
+            await ctx.send(f'{label}: (none)')
+            return
+        if not player_exists(ctx.server, text):
+            await ctx.send(f'No such player "{text}".')
+            return
+        # Prefer the canonical stored casing if we can find it.
+        matches = find_players(ctx.server, text)
+        name    = next((m for m in matches if m.lower() == text.lower()), text)
+        setattr(ns, field, name)
+        p.unsaved_changes = True
+        await ctx.send(f'{label}: {name}')
+
+    async def _edit_last_limit(ctx, ns, label: str) -> None:
+        val = await _prompt_int(ctx, label, ns.last_limit, 1, 10)
+        if val is None:
+            return
+        ns.last_limit = val
+        p.unsaved_changes = True
+        await ctx.send(f'{label}: {val}')
+
+    async def _view_clear_history(ctx, ns, label: str, verb: str) -> None:
+        from commands.messaging import render_last_history
+
+        if not ns.history:
+            await ctx.send(f'{label}: (empty)')
+            return
+        await ctx.send(render_last_history(ns.history, len(ns.history), verb=verb))
+        raw = await ctx.prompt(
+            'Clear it?',
+            preamble_lines=[f'y to clear, {ctx.player.return_key} to keep'])
+        if raw and raw.strip().lower().startswith('y'):
+            ns.history.clear()
+            p.unsaved_changes = True
+            await ctx.send(f'{label}: cleared.')
+
+    menu.add_item(MenuItem(
+        'Last Paged', shortcuts='lp',
+        dot_leader_handler=lambda ctx: p.command_settings.page.last_paged or '(none)',
+        action=lambda ctx: _edit_reply_target(
+            ctx, p.command_settings.page, 'last_paged', 'Last Paged'),
+    ))
+    menu.add_item(MenuItem(
+        'Last Whispered', shortcuts='lw',
+        dot_leader_handler=lambda ctx: p.command_settings.whisper.last_whispered or '(none)',
+        action=lambda ctx: _edit_reply_target(
+            ctx, p.command_settings.whisper, 'last_whispered', 'Last Whispered'),
+    ))
+    menu.add_item(MenuItem(
+        'Page #last Limit', shortcuts='pl',
+        dot_leader_handler=lambda ctx: str(p.command_settings.page.last_limit),
+        action=lambda ctx: _edit_last_limit(
+            ctx, p.command_settings.page, 'Page #last Limit'),
+    ))
+    menu.add_item(MenuItem(
+        'Whisper #last Limit', shortcuts='wl',
+        dot_leader_handler=lambda ctx: str(p.command_settings.whisper.last_limit),
+        action=lambda ctx: _edit_last_limit(
+            ctx, p.command_settings.whisper, 'Whisper #last Limit'),
+    ))
+    menu.add_item(MenuItem(
+        'Page History', shortcuts='ph',
+        dot_leader_handler=lambda ctx: f'{len(p.command_settings.page.history)} entries',
+        action=lambda ctx: _view_clear_history(
+            ctx, p.command_settings.page, 'Page History', 'paged'),
+    ))
+    menu.add_item(MenuItem(
+        'Whisper History', shortcuts='wht',
+        dot_leader_handler=lambda ctx: f'{len(p.command_settings.whisper.history)} entries',
+        action=lambda ctx: _view_clear_history(
+            ctx, p.command_settings.whisper, 'Whisper History', 'whispered'),
+    ))
     return menu
 
 
