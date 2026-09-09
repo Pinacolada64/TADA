@@ -102,6 +102,13 @@ class BaseContext:
                      preamble_lines: list[str] | None = None) -> str:
         raise NotImplementedError
 
+    async def flush_turn(self, *, paginate: bool = True) -> None:
+        """Emit any output buffered during the current turn. No-op by
+        default; GameContext overrides it to make the combined-output
+        "-- More --" pagination decision. Safe to call on any context so
+        the server loop needn't special-case the transport."""
+        return None
+
     def _pop_pending_pages(self) -> list[str]:
         """Pop and format any pages queued while this player was busy (in
         combat -- see commands/messaging.py's is_in_combat() and
@@ -142,16 +149,43 @@ class GameContext(BaseContext):
 
     _prompt: str = field(default='> ', repr=False)
 
+    # --- Per-turn output buffering (see flush_turn) -----------------------
+    # send() accumulates a turn's output here instead of sending each call
+    # immediately, so the "-- More --" pagination decision is made once
+    # against the cumulative total rather than per send() call. See
+    # ALPHA_TESTERS.md, "More Prompt doesn't trigger when output is split
+    # across separate send() calls".
+    #
+    # Plain class attributes rather than dataclass fields on purpose: a few
+    # tests build a context via GameContext.__new__() without running
+    # __init__, and prompt()/send() must still work then (buffer just stays
+    # inert). _turn_buffer is lazily replaced with a per-instance list on
+    # first use, so the None default is never mutated.
+    _turn_buffer = None
+    _in_turn     = False   # armed by prompt() while a command runs
+    _paginating  = False   # guard: _paginate()'s own prompts don't re-buffer
+    _buffering_enabled = False   # set True once in the game loop; login/negotiation
+                                 # output keeps its old immediate-send behavior
+                                 # (it has its own e2e pagination-drain helpers)
+
     # -----------------------------------------------------------------------
     # Core I/O
     # -----------------------------------------------------------------------
 
-    async def send(self, *lines) -> None:
+    async def send(self, *lines, flush: bool = False) -> None:
         """
         Format and send text to this player over the JSON wire.
         Lines are word-wrapped and bracket-highlighted for this player's
         terminal settings before being packed into a Message.
         Automatically paginates when output exceeds the player's screen height.
+
+        While a command is running (self._in_turn, armed by prompt()) the
+        formatted lines are appended to a per-turn buffer instead of being
+        sent right away; the buffer is flushed -- and the pagination
+        decision made against its cumulative length -- at the next prompt()
+        or an explicit flush_turn(). Pass flush=True to force this call
+        (and anything already buffered) out immediately, e.g. for a
+        long-running command that wants incremental output while it runs.
         """
         from formatting import (
             format_lines, codec_for_settings, flatten_send_args,
@@ -166,11 +200,45 @@ class GameContext(BaseContext):
         elif isinstance(codec, PlainCodec):
             formatted = plain_encode_lines(formatted)
 
+        if self._in_turn and not self._paginating:
+            if self._turn_buffer is None:
+                self._turn_buffer = []
+            self._turn_buffer.extend(formatted)
+            if flush:
+                await self.flush_turn()
+            return
+        await self._emit(formatted)
+
+    async def _emit(self, formatted: list[str]) -> None:
+        """Send formatted lines now, paginating if they exceed a screenful
+        and More Prompt is on. The single choke point both send() (when not
+        buffering) and flush_turn() funnel through."""
         page_size = max(1, self.player.client_settings.screen_rows - 1)
         if self._wants_pagination(formatted, page_size):
             await self._paginate(formatted, page_size)
         else:
             await self._send_formatted(formatted)
+
+    async def flush_turn(self, *, paginate: bool = True) -> None:
+        """Emit everything send() buffered during this turn as one combined
+        block, so the "-- More --" pagination decision is made against the
+        cumulative total instead of per send() call (ALPHA_TESTERS.md:
+        "More Prompt doesn't trigger when output is split across separate
+        send() calls").
+
+        Called at the natural end-of-turn points: the top of prompt(), and
+        explicitly after each command dispatch in simple_server's login /
+        game loops. paginate=False drains the buffer without ever showing a
+        More prompt -- used on the disconnect path, where blocking for a
+        keypress on a closing socket makes no sense.
+        """
+        if not self._turn_buffer:
+            return
+        buf, self._turn_buffer = self._turn_buffer, []
+        if paginate:
+            await self._emit(buf)
+        else:
+            await self._send_formatted(buf)
 
     def _wants_pagination(self, formatted: list[str], page_size: int) -> bool:
         """Whether output should pause between screenfuls (PlayerFlags.MORE_PROMPT)
@@ -204,6 +272,13 @@ class GameContext(BaseContext):
         B or -        — previous page
         Q             — stop reading early
         """
+        self._paginating = True   # our own prompt() calls below must not re-buffer or re-flush
+        try:
+            await self._paginate_loop(formatted, page_size)
+        finally:
+            self._paginating = False
+
+    async def _paginate_loop(self, formatted: list[str], page_size: int) -> None:
         total      = len(formatted)
         total_pgs  = max(1, (total + page_size - 1) // page_size)
         idx        = 0
@@ -283,6 +358,15 @@ class GameContext(BaseContext):
         if preamble_lines:
             await self.send(preamble_lines)
 
+        # End of the previous turn: flush its buffered output (deciding
+        # pagination against the cumulative total) and disarm buffering
+        # while we block for input, so out-of-band sends from other players
+        # (say/page/wall) still reach this client immediately. _paginate()'s
+        # own prompt() calls set self._paginating and skip all of this.
+        if not self._paginating:
+            await self.flush_turn()
+            self._in_turn = False
+
         from tada_utilities import substitute_tokens
         prompt_text = substitute_tokens(prompt_text, self.player)
 
@@ -300,14 +384,23 @@ class GameContext(BaseContext):
             if isinstance(obj, dict):
                 lines = obj.get('lines')
                 if isinstance(lines, list) and lines:
-                    return str(lines[0]).strip()
-                return str(obj.get('text', '')).strip()
-            return ''
+                    text = str(lines[0]).strip()
+                else:
+                    text = str(obj.get('text', '')).strip()
+            else:
+                text = ''
         except asyncio.IncompleteReadError:
             return None         # EOF mid-stream — client dropped
         except Exception:
             logging.exception('GameContext.prompt: error reading response')
             return None         # treat unrecoverable errors as disconnect
+
+        # Got real input: arm buffering so the resulting command's send()
+        # calls accumulate into one screenful-aware block. Only in the game
+        # loop -- login/negotiation output streams immediately as before.
+        if not self._paginating and self._buffering_enabled:
+            self._in_turn = True
+        return text
 
     # -----------------------------------------------------------------------
     # Helpers
@@ -411,20 +504,26 @@ class PETSCIINetworkContext(GameContext):
     LINE_ENDING: bytes = b'\r'          # Commodore CR
     CODEC_NAME:  str   = 'petscii_c64en_lc'
 
-    async def send(self, *lines) -> None:
+    async def send(self, *lines, flush: bool = False) -> None:
         """Encode and send as raw PETSCII bytes — no JSON envelope.
-        Automatically paginates when output exceeds the player's screen height."""
+        Automatically paginates when output exceeds the player's screen height.
+
+        Like GameContext.send(): buffers into the per-turn buffer while a
+        command runs (see flush_turn); flush=True forces it out now."""
         from formatting import codec_for_settings
         from tada_utilities import substitute_tokens
         raw       = [substitute_tokens(line, self.player) for line in flatten_send_args(*lines)]
         codec     = codec_for_settings(self.player.client_settings)
         formatted = format_lines(raw, self.player.client_settings, codec)
 
-        page_size = max(1, self.player.client_settings.screen_rows - 1)
-        if self._wants_pagination(formatted, page_size):
-            await self._paginate(formatted, page_size)
-        else:
-            await self._send_formatted(formatted)
+        if self._in_turn and not self._paginating:
+            if self._turn_buffer is None:
+                self._turn_buffer = []
+            self._turn_buffer.extend(formatted)
+            if flush:
+                await self.flush_turn()
+            return
+        await self._emit(formatted)
 
     def _text_codec_name(self) -> str:
         """Codec name for encoding this player's outgoing text.
@@ -503,6 +602,12 @@ class PETSCIINetworkContext(GameContext):
             preamble_lines = pending + list(preamble_lines or [])
         if preamble_lines:
             await self.send(preamble_lines)
+        # End of the previous turn -- see GameContext.prompt() for the full
+        # rationale: flush its buffered output as one screenful-aware block,
+        # then disarm buffering while we block for input.
+        if not self._paginating:
+            await self.flush_turn()
+            self._in_turn = False
         from tada_utilities import substitute_tokens
         prompt_text = substitute_tokens(prompt_text, self.player)
         if self.player.query_flag(PlayerFlags.HOURGLASS):
@@ -537,6 +642,8 @@ class PETSCIINetworkContext(GameContext):
             # from formatting import petscii_encode
             # self.writer.write(petscii_encode(text, self.CODEC_NAME) + self.LINE_ENDING)
             # await self.writer.drain()
+            if not self._paginating and self._buffering_enabled:
+                self._in_turn = True   # arm buffering for the resulting command (game loop only)
             return text
         except asyncio.IncompleteReadError:
             return None         # EOF — Commodore client disconnected
