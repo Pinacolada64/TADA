@@ -17,6 +17,7 @@ player with only their own weapon readied keeps SPUR's direct repack.
 """
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
+from inventory_select import ItemChoice, party_allies, resolve_or_prompt
 from network_context import GameContext
 
 
@@ -102,9 +103,8 @@ class UnreadyCommand(Command):
             return CommandResult.ok()
 
         # Bare UNREADY. Gather every readied weapon in the party.
-        from commands.ready import _party_allies
         own = getattr(player, 'readied_weapon', None)
-        ally_readied = [(a, w) for a in _party_allies(player)
+        ally_readied = [(a, w) for a in party_allies(player)
                         if (w := getattr(a, 'readied_weapon', None)) is not None]
 
         # No ally is wielding anything -- unchanged SPUR behaviour.
@@ -115,33 +115,22 @@ class UnreadyCommand(Command):
             return await _repack_player(ctx, player, own)
 
         # An ally has a weapon readied: offer the list (player's own first,
-        # if any, then each ally's). One candidate needs no menu.
-        candidates = ([('p', None, own)] if own is not None else [])
-        candidates += [('a', a, w) for (a, w) in ally_readied]
+        # if any, then each ally's) via the shared numbered-pick helper.
+        # A lone candidate needs no menu -- resolve_or_prompt() returns it
+        # outright.
+        choices = ([ItemChoice(item=own, owner=None, readied=True)]
+                   if own is not None else [])
+        choices += [ItemChoice(item=w, owner=a, readied=True)
+                    for (a, w) in ally_readied]
 
-        if len(candidates) == 1:
-            _, a, w = candidates[0]
-            return await _repack_ally(ctx, player, a, w)
-
-        lines = ['Weapons readied:', '']
-        for n, (kind, a, w) in enumerate(candidates, 1):
-            who = 'You' if kind == 'p' else a.name
-            lines.append(f'  {n:>2}. {who}: {getattr(w, "name", "?")}')
-        lines.append('')
-        await ctx.send(lines)
-        return_key = getattr(player, 'return_key', 'RETURN')
-        raw = await ctx.prompt(preamble_lines=f'(1-{len(candidates)}, {return_key} to cancel)',
-                               prompt_text='Unready which')
-        if not raw or not raw.strip():
+        choice = await resolve_or_prompt(
+            ctx, choices, args=[], prompt_text='Unready which',
+            label_fn=lambda c: f'{c.owner_name}: {c.name}',
+            list_header='Weapons readied:',
+            auto_select_single=True,
+        )
+        if choice is None:
             return CommandResult.ok()
-        try:
-            pick = int(raw.strip()) - 1
-            if not (0 <= pick < len(candidates)):
-                raise ValueError
-        except ValueError:
-            await ctx.send('Invalid selection.')
-            return CommandResult.ok()
-        kind, a, w = candidates[pick]
-        if kind == 'p':
-            return await _repack_player(ctx, player, w)
-        return await _repack_ally(ctx, player, a, w)
+        if choice.is_ally:
+            return await _repack_ally(ctx, player, choice.owner, choice.item)
+        return await _repack_player(ctx, player, choice.item)
