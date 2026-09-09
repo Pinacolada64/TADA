@@ -6,8 +6,8 @@ Part of the same random-event dispatcher as encounters/little_girl.py,
 encounters/meteor.py, and encounters/djinn_sighting.py -- see
 little_girl.py's docstring for why this rolls its own flat composite
 share instead of a shared dispatcher for now. (The dispatcher's sibling
-sub-event, an ally finding gold / SPUR's `al.find`, already exists as
-ally_events/__init__.py's try_ally_find_gold() -- not duplicated here.
+sub-event, an ally finding silver / SPUR's `al.find`, already exists as
+ally_events/__init__.py's try_ally_find_silver() -- not duplicated here.
 Lives in ally_events/ rather than encounters/ for that reason: it's a
 sibling of that existing ally mechanic, not one of the encounters/
 package's own room/NPC events.)

@@ -55,7 +55,7 @@ async def main(ctx: GameContext) -> bool:
             break
         await ctx.send('Wrong!')
 
-    raw = await ctx.prompt('LEVEL: [1] [2] [3] [4] [5]->')
+    raw = await ctx.prompt('LEVEL ->', preamble_lines=['LEVEL: [1] [2] [3] [4] [5]->'])
     if raw is None:
         return False
     try:

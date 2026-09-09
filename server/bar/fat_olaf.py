@@ -177,7 +177,9 @@ async def _buy_servant(ctx: GameContext, master_list: List[Ally]) -> None:
                   '']
         await ctx.send(lines)
 
-        raw = await ctx.prompt(f'{_NPC}: {_AP}Buy vich vun? (1-{len(available)}, ? to list){_AP}')
+        raw = await ctx.prompt(
+            'Choice',
+            preamble_lines=[f'{_NPC}: {_AP}Buy vich vun? (1-{len(available)}, ? to list){_AP}'])
         if raw is None or raw.strip() == '':
             await ctx.send(f'{_NPC} dismisses you with a wave. {_AP}Hokay, vine. See yu later!{_AP}')
             return
@@ -204,9 +206,10 @@ async def _buy_servant(ctx: GameContext, master_list: List[Ally]) -> None:
 
         elite_line = f'(An Elite ally!)\n' if _is_elite(chosen) else ''
         raw2 = await ctx.prompt(
-            f'{elite_line}{_NPC}: {_AP}Vell, {chosen.name} iz a vine specimen — '
-            f'{price}s. Hokay?{_AP} (Y/N)'
-        )
+            'Y/N',
+            preamble_lines=[
+                f'{elite_line}{_NPC}: {_AP}Vell, {chosen.name} iz a vine specimen — '
+                f'{price}s. Hokay?{_AP} (Y/N)'])
         if not raw2 or raw2.strip().upper() != 'Y':
             await ctx.send(f'{_NPC}: {_AP}Vell, too bad!{_AP}')
             continue
@@ -284,9 +287,10 @@ async def _sell_servant(ctx: GameContext, master_list: List[Ally]) -> None:
 
     # Olaf makes his offer and asks for confirmation (SPUR.BAR.S)
     raw2 = await ctx.prompt(
-        f'{_NPC}: {_AP}He dun{_AP}t look teu gud, but I gus I cun give yu {offer}s. '
-        f'Hokay?{_AP} (Y/N)'
-    )
+        'Y/N',
+        preamble_lines=[
+            f'{_NPC}: {_AP}He dun{_AP}t look teu gud, but I gus I cun give yu {offer}s. '
+            f'Hokay?{_AP} (Y/N)'])
     if not raw2 or raw2.strip().upper() != 'Y':
         await ctx.send(f'{_NPC}: {_AP}Hoh vell.{_AP}')
         return
@@ -344,8 +348,8 @@ async def _maintain_servant(ctx: GameContext, master_list: List[Ally]) -> None:
     silver = player.get_silver(PlayerMoneyTypes.IN_HAND)
 
     raw2 = await ctx.prompt(
-        f'{_NPC}: {_AP}Dat vill be {cost}s. Yu hav {silver}s. Hokay?{_AP} (Y/N)'
-    )
+        'Y/N',
+        preamble_lines=[f'{_NPC}: {_AP}Dat vill be {cost}s. Yu hav {silver}s. Hokay?{_AP} (Y/N)'])
     if not raw2 or raw2.strip().upper() != 'Y':
         await ctx.send(f'{_NPC} shrugs.')
         return

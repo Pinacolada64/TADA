@@ -44,7 +44,7 @@ def test_move_broadcasts_and_changes_room():
     ctx.send      = AsyncMock()
     ctx.send_room = AsyncMock()
 
-    with patch('ally_events.try_ally_find_gold', new=AsyncMock()):
+    with patch('ally_events.try_ally_find_silver', new=AsyncMock()):
         res = asyncio.run(MoveCommand().execute(ctx, direction))
 
     assert res.success is True

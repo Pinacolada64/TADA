@@ -98,7 +98,9 @@ async def prompt_reply_title(ctx, default_title: str) -> str | None:
     that way. Returns None if the player disconnected mid-prompt.
     Shared by this module's own _reply() and commands/board_reply.py's
     interactive reply flow."""
-    raw = await ctx.prompt(f'Enter title of reply, [{ctx.player.return_key} keeps same]')
+    raw = await ctx.prompt(
+        'Title',
+        preamble_lines=[f'Enter title of reply, [{ctx.player.return_key} keeps same]'])
     if raw is None:
         return None
     raw = raw.strip()

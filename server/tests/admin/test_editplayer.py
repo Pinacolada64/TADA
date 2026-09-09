@@ -84,6 +84,10 @@ class _MockPlayer:
     def query_flag(self, flag) -> bool:
         return flag in self._flags
 
+    @property
+    def return_key(self) -> str:
+        return self.client_settings.return_key
+
     def set_flag(self, flag) -> None:
         self._flags.add(flag)
 

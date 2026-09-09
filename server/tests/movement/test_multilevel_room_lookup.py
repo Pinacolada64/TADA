@@ -89,7 +89,7 @@ class TestMoveRespectsLevel(unittest.IsolatedAsyncioTestCase):
         ctx.send = AsyncMock()
         ctx.send_room = AsyncMock()
 
-        with patch('ally_events.try_ally_find_gold', new=AsyncMock()):
+        with patch('ally_events.try_ally_find_silver', new=AsyncMock()):
             await server._move(ctx, 'north')
 
         # Level 2 room 1 has a north exit to room 2; if the level-1 alias

@@ -132,9 +132,9 @@ async def _confirm_quit_or_continue(ctx) -> None:
     """
     can_resume = bool(getattr(ctx.player, 'id', None))
     if can_resume:
-        options, label = "(A)bandon, (R)esume later, or (C)ontinue (don't quit)?", "A/R/C"
+        options, label = "[A]bandon, [R]esume later, or [C]ontinue (don't quit)?", "A/R/C"
     else:
-        options = ("(A)bandon, or (C)ontinue (don't quit)? (Resuming later isn't "
+        options = ("[A]bandon, or [C]ontinue (don't quit)? (Resuming later isn't "
                    "possible yet -- a username hasn't been chosen.)")
         label = "A/C"
     choice = await ctx.prompt(label, preamble_lines=['', f"Do you want to {options}"])
@@ -512,7 +512,7 @@ async def _choose_username(ctx, prefill: Optional[str] = None,
                 "<http://www.commodoreserver.com> and has no bearing on "
                 "gameplay yet.)"]
     if default_username:
-        preamble.append(f"Press Enter to use '{default_username}'.")
+        preamble.append(f"Press {ctx.player.return_key} to use '{default_username}'.")
     preamble.append("")
 
     # TODO: capture this from CommodoreServer account name
@@ -594,7 +594,7 @@ async def _choose_password(ctx, prefill: Optional[str] = None) -> Optional[str]:
             "Choose a password",
             preamble_lines=[
                 "",
-                "Choose a password, or 'R' for a random pronounceable one.",
+                "Choose a password, or [R]andom for a pronounceable one.",
             ],
         )
         if pw1 is None:
@@ -664,7 +664,7 @@ async def _choose_age(ctx) -> bool:
     preamble = [
         "",
         "How old is your character?",
-        "Enter a number (15–50), or 'R' for a random age:",
+        "Enter a number (15–50), or [R]andom age:",
     ]
     while True:
         raw = await _prompt_or_quit(ctx, "age", preamble_lines=preamble)
@@ -683,7 +683,7 @@ async def _choose_age(ctx) -> bool:
                     break
         elif ans.isdigit():
             age = int(ans)
-            help_msg = "Please enter a number between 15 and 50, or 'R' to choose a random age."
+            help_msg = "Please enter a number between 15 and 50, or [R]andom to choose an age."
             if age < 15:
                 apostrophe = "'"
                 await ctx.send(f'"Oh, come off it! You{apostrophe}re not even old enough to handle a '
@@ -1211,7 +1211,7 @@ async def _roll_stats(ctx) -> bool:
             return True
         if ans in ("r", "reroll", "re-roll"):
             continue
-        await ctx.send("Enter 'Y' to accept or 'R' to re-roll.")
+        await ctx.send("Enter [Y] to accept or [R]e-roll.")
 
 
 async def _assign_equipment(ctx) -> bool:
@@ -1433,7 +1433,7 @@ async def _final_review(ctx) -> bool:
         if fn:
             await fn(ctx)   # re-run that step; loop back to summary afterwards
         else:
-            await ctx.send(f"Enter a number 1–{len(dispatch)}, or press Enter to accept.")
+            await ctx.send(f"Enter a number 1–{len(dispatch)}, or press {ctx.player.return_key} to accept.")
 
 
 # ---------------------------------------------------------------------------
