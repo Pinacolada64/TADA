@@ -17,6 +17,10 @@ server_config.json
 /tada-venv/
 # bot session logs
 *.log
+# date-rotated client logs, e.g. client.log.2026-09-08 -- the `*.log` rule
+# above does NOT catch these (suffix is the date, not `.log`); a batch of
+# them once rode onto master via PR #30 for exactly this reason.
+client.log.*
 bot_epic_battle_*.events.json
 # tools/bot_credentials.py -- local-only test-account passwords, see that
 # file's docstring
