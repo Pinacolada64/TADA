@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import mail as mail_store
+from command_settings import PageSettings, WhisperSettings
 from commands.mail import MailCommand
 from flags import PlayerFlags
 
@@ -22,9 +23,10 @@ def run(coro):
 class _FakeCommandSettings:
     def __init__(self, groups=None):
         self.groups = groups or {}
-        # PageCommand records the last correspondent for '#reply'/'#r'
-        self.last_paged = None
-        self.last_whispered = None
+        # PageCommand / WhisperCommand touch command_settings.page.* /
+        # command_settings.whisper.* (#reply target + #last history).
+        self.page = PageSettings()
+        self.whisper = WhisperSettings()
 
 
 class _FakePlayer:
