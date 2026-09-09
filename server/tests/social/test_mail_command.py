@@ -22,6 +22,9 @@ def run(coro):
 class _FakeCommandSettings:
     def __init__(self, groups=None):
         self.groups = groups or {}
+        # PageCommand records the last correspondent for '#reply'/'#r'
+        self.last_paged = None
+        self.last_whispered = None
 
 
 class _FakePlayer:

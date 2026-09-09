@@ -20,7 +20,7 @@ import unittest.mock
 from command_settings import CommandSettings
 from commands.messaging import (
     parse_targets, expand_groups, find_online,
-    prompt_player_choice,
+    prompt_player_choice, substitute_reply,
 )
 from tada_utilities import online_player_names, is_online, player_exists, find_players
 from commands.groups import GroupsCommand
@@ -1028,6 +1028,144 @@ class TestPageOfflineMail(unittest.TestCase):
             self.assertEqual(saved[0]['from'], 'Rulan')
             self.assertEqual(saved[0]['body'], 'hello there')
             self.assertFalse(saved[0]['read'])
+
+
+# ---------------------------------------------------------------------------
+# substitute_reply
+# ---------------------------------------------------------------------------
+
+class TestSubstituteReply(unittest.TestCase):
+
+    def test_no_token_passthrough(self):
+        out, unresolved = substitute_reply(['Alice', 'Bob'], 'Carol')
+        self.assertEqual(out, ['Alice', 'Bob'])
+        self.assertFalse(unresolved)
+
+    def test_reply_token_replaced(self):
+        out, unresolved = substitute_reply(['#reply'], 'Carol')
+        self.assertEqual(out, ['Carol'])
+        self.assertFalse(unresolved)
+
+    def test_short_token_replaced(self):
+        out, unresolved = substitute_reply(['#r'], 'Carol')
+        self.assertEqual(out, ['Carol'])
+        self.assertFalse(unresolved)
+
+    def test_token_case_insensitive(self):
+        out, _ = substitute_reply(['#Reply'], 'Carol')
+        self.assertEqual(out, ['Carol'])
+
+    def test_token_mixed_with_plain_names(self):
+        out, _ = substitute_reply(['Alice', '#r'], 'Carol')
+        self.assertEqual(out, ['Alice', 'Carol'])
+
+    def test_unresolved_when_no_last_name(self):
+        out, unresolved = substitute_reply(['#r'], None)
+        self.assertEqual(out, ['#r'])
+        self.assertTrue(unresolved)
+
+    def test_no_token_and_no_last_name_is_fine(self):
+        out, unresolved = substitute_reply(['Alice'], None)
+        self.assertEqual(out, ['Alice'])
+        self.assertFalse(unresolved)
+
+
+# ---------------------------------------------------------------------------
+# WhisperCommand — #reply / #r
+# ---------------------------------------------------------------------------
+
+class TestWhisperReply(unittest.TestCase):
+
+    def _run(self, ctx, *args):
+        return asyncio.run(WhisperCommand().execute(ctx, *args))
+
+    def test_reply_with_nothing_saved_errors(self):
+        ctx, _ = _setup_sender('Rulan')
+        result = self._run(ctx, "#r=hello")
+        self.assertFalse(result.success)
+        self.assertIn("haven't whispered", ctx.sent_text().lower())
+
+    def test_send_records_last_whispered_on_both_sides(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        alice_ctx   = _add_player(server, 'Alice', room=1)
+        self._run(ctx, 'Alice=hi')
+        self.assertEqual(ctx.player.command_settings.last_whispered, 'Alice')
+        self.assertEqual(alice_ctx.player.command_settings.last_whispered, 'Rulan')
+        self.assertTrue(ctx.player.unsaved_changes)
+        self.assertTrue(alice_ctx.player.unsaved_changes)
+
+    def test_reply_targets_last_correspondent(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        alice_ctx   = _add_player(server, 'Alice', room=1)
+        # Alice whispers Rulan first; Rulan replies with #r
+        asyncio.run(WhisperCommand().execute(alice_ctx, 'Rulan=you there?'))
+        self._run(ctx, '#r=yes I am')
+        self.assertIn('yes I am', alice_ctx.sent_text())
+        self.assertIn('Rulan whispers to you', alice_ctx.sent_text())
+
+    def test_reply_short_and_long_forms_equivalent(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        alice_ctx   = _add_player(server, 'Alice', room=1)
+        ctx.player.command_settings.last_whispered = 'Alice'
+        self._run(ctx, '#reply=one')
+        self._run(ctx, '#r=two')
+        self.assertIn('one', alice_ctx.sent_text())
+        self.assertIn('two', alice_ctx.sent_text())
+
+
+# ---------------------------------------------------------------------------
+# PageCommand — #reply / #r
+# ---------------------------------------------------------------------------
+
+class TestPageReply(unittest.TestCase):
+
+    def _run(self, ctx, *args):
+        return asyncio.run(PageCommand().execute(ctx, *args))
+
+    def test_reply_with_nothing_saved_errors(self):
+        ctx, _ = _setup_sender('Rulan')
+        result = self._run(ctx, '#r=hello')
+        self.assertFalse(result.success)
+        self.assertIn("haven't paged", ctx.sent_text().lower())
+
+    def test_send_records_last_paged_on_both_sides(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        alice_ctx   = _add_player(server, 'Alice', room=7)
+        self._run(ctx, 'Alice=ping')
+        self.assertEqual(ctx.player.command_settings.last_paged, 'Alice')
+        self.assertEqual(alice_ctx.player.command_settings.last_paged, 'Rulan')
+
+    def test_reply_targets_last_correspondent(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        alice_ctx   = _add_player(server, 'Alice', room=7)
+        asyncio.run(PageCommand().execute(alice_ctx, 'Rulan=where are you?'))
+        self._run(ctx, '#r=on my way')
+        self.assertIn('on my way', alice_ctx.sent_text())
+        self.assertIn('Rulan pages you', alice_ctx.sent_text())
+
+    def test_reply_updates_pointer_after_use(self):
+        ctx, server = _setup_sender('Rulan', room=1)
+        alice_ctx   = _add_player(server, 'Alice', room=7)
+        ctx.player.command_settings.last_paged = 'Alice'
+        self._run(ctx, '#r=hi')
+        self.assertEqual(ctx.player.command_settings.last_paged, 'Alice')
+        self.assertIn('hi', alice_ctx.sent_text())
+
+
+class TestReplySettingsRoundTrip(unittest.TestCase):
+
+    def test_last_fields_default_none(self):
+        cs = CommandSettings()
+        self.assertIsNone(cs.last_paged)
+        self.assertIsNone(cs.last_whispered)
+
+    def test_round_trip_preserves_last_fields(self):
+        cs = CommandSettings()
+        cs.last_paged = 'Alice'
+        cs.last_whispered = 'Bob'
+        restored = CommandSettings.from_dict(json.loads(json.dumps(cs.to_dict())))
+        self.assertEqual(restored.last_paged, 'Alice')
+        self.assertEqual(restored.last_whispered, 'Bob')
 
 
 if __name__ == '__main__':

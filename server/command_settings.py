@@ -126,6 +126,14 @@ class CommandSettings:
     # 'say' preferences: comma-split dialogue attribution, custom verb
     # override (commands/say.py)
     say: SaySettings = field(default_factory=SaySettings)
+    # Last correspondent on each private channel, for the '#reply' / '#r'
+    # target token (commands/page.py, commands/whisper.py). Updated both
+    # when you send on that channel and when you receive on it, so
+    # 'page #r=...' / 'whisper #r=...' always points at the other party in
+    # the most recent exchange. Stored with original casing; None until
+    # the first page/whisper either way.
+    last_paged: Optional[str] = None
+    last_whispered: Optional[str] = None
 
     def to_dict(self) -> dict:
         return asdict(self)

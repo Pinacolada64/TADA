@@ -36,6 +36,29 @@ def parse_targets(targets_str: str) -> list[str]:
     return [t for t in tokens if t]
 
 
+# '#reply' / '#r' target tokens (commands/page.py, commands/whisper.py):
+# stand in for "whoever I last exchanged this kind of message with" so you
+# don't retype the name. Resolved by substitute_reply() *before*
+# expand_groups(), so they always win over a same-named saved group (same
+# as page.py's #ignore/#haven control words shadowing group names).
+REPLY_TOKENS = {'#reply', '#r'}
+
+
+def substitute_reply(targets: list[str],
+                     last_name: 'str | None') -> tuple[list[str], bool]:
+    """Replace any '#reply' / '#r' token in *targets* with *last_name*.
+
+    Returns (new_targets, unresolved).  *unresolved* is True when a reply
+    token was present but *last_name* is None -- the caller should report
+    "no one to reply to" and stop rather than send anything.
+    """
+    if not any(t.lower() in REPLY_TOKENS for t in targets):
+        return targets, False
+    if not last_name:
+        return targets, True
+    return [last_name if t.lower() in REPLY_TOKENS else t for t in targets], False
+
+
 def expand_groups(player, targets: list[str]) -> tuple[list[str], list[str]]:
     """Replace #groupname tokens with the player's stored member lists.
 

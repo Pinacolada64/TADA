@@ -9,6 +9,12 @@ Syntax:
   page #unignore <name>      remove that block
   page #haven                block ALL incoming pages
   page #unhaven               allow pages again
+  page #reply=<message>      page whoever you last paged with
+  page #r=<message>          short form of #reply
+
+#reply/#r stand in for your last page correspondent (set both when you
+send a page and when you receive one -- CommandSettings.last_paged), so
+you can answer without retyping the name.
 
 #ignore/#unignore/#haven/#unhaven are reserved control words, so a saved
 group cannot be named "ignore", "unignore", "haven", or "unhaven".
@@ -22,6 +28,7 @@ Examples:
     page Alice,Bob=Party at the inn
     page "Dark Lord"=Surrender now
     page #friends=Where is everyone?
+    page #r=on my way
     page #ignore Bob
     page #haven
 """
@@ -30,7 +37,9 @@ from __future__ import annotations
 import mail as mail_store
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
-from commands.messaging import parse_targets, expand_groups, find_online, is_in_combat
+from commands.messaging import (
+    parse_targets, expand_groups, find_online, is_in_combat, substitute_reply,
+)
 from network_context import GameContext
 from tada_utilities import player_exists
 
@@ -49,6 +58,7 @@ class PageCommand(Command):
             ('page <name>=<message>',           'Page one player'),
             ('page <name>,<name2>=<message>',   'Page multiple players'),
             ('page #<group>=<message>',         'Page everyone in a group'),
+            ('page #r=<message>',               'Page back to your last correspondent'),
             ('page #ignore <name>',             'Block <name> from paging you'),
             ('page #unignore <name>',           'Remove that block'),
             ('page #haven',                     'Block all incoming pages'),
@@ -65,6 +75,10 @@ class PageCommand(Command):
             ('page #friends=Where is everyone?','A saved GROUPS name (see GROUPS) works '
                                                  "as a target too, paging everyone in it "
                                                  'without listing them by name.'),
+            ('page #r=on my way',              "'#reply' (or '#r') stands in for the "
+                                                 'last player you paged with -- either '
+                                                 'direction -- so you can answer a page '
+                                                 "without retyping their name."),
             ('p Bob=Meet me at the inn',        "'p' (also 'tell'/'msg') is a shorter "
                                                  'alias for page -- all work the same '
                                                  'way.'),
@@ -157,6 +171,13 @@ class PageCommand(Command):
             await ctx.send('Page whom?  Usage: page <name[[,name2]]>=<message>')
             return CommandResult.fail('Missing target name.')
 
+        # '#reply' / '#r' -> whoever you last paged with
+        target_names, unresolved_reply = substitute_reply(
+            target_names, ctx.player.command_settings.last_paged)
+        if unresolved_reply:
+            await ctx.send("You haven't paged anyone yet.")
+            return CommandResult.fail('No one to reply to.')
+
         my_name = ctx.player.name
 
         # Remove self from target list silently
@@ -212,10 +233,18 @@ class PageCommand(Command):
                 queued_names.append(tctx.player.name)
             else:
                 await tctx.send(f'{my_name} pages you, "{message}"')
+            # Recipient's '#reply' now points back at the sender (the
+            # queued case still delivers, just later).
+            tctx.player.command_settings.last_paged = my_name
+            tctx.player.unsaved_changes = True
 
         if queued_names:
             await ctx.send(f'({", ".join(queued_names)} {"is" if len(queued_names) == 1 else "are"} '
                             f'in combat -- your page will show up for them after.)')
+
+        # Sender's '#reply' points at the last person actually reached.
+        ctx.player.command_settings.last_paged = deliverable[-1].player.name
+        ctx.player.unsaved_changes = True
 
         return CommandResult.ok()
 

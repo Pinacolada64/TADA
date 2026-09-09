@@ -760,6 +760,52 @@ def _command_settings_menu(ctx) -> Menu:
         dot_leader_handler=lambda ctx: (p.command_settings.news.last_read or '(never)')[:10],
         action=edit_news_last_read,
     ))
+
+    # last_paged / last_whispered: the target for the '#reply' / '#r' token
+    # in commands/page.py and commands/whisper.py -- normally maintained by
+    # those commands themselves (set on both send and receive). Editable
+    # here so an admin can point a player's reply target at someone else or
+    # clear a stale one.
+    async def _edit_reply_target(ctx, field: str, label: str) -> None:
+        from tada_utilities import find_players, player_exists
+
+        cs      = p.command_settings
+        current = getattr(cs, field)
+        raw = await ctx.prompt(
+            label,
+            preamble_lines=[
+                f'Current: {current or "(none)"}  '
+                f'(name, - to clear, {ctx.player.return_key} to cancel)'
+            ],
+        )
+        if raw is None or not raw.strip():
+            return
+        text = raw.strip()
+        if text == '-':
+            setattr(cs, field, None)
+            p.unsaved_changes = True
+            await ctx.send(f'{label}: (none)')
+            return
+        if not player_exists(ctx.server, text):
+            await ctx.send(f'No such player "{text}".')
+            return
+        # Prefer the canonical stored casing if we can find it.
+        matches = find_players(ctx.server, text)
+        name    = next((m for m in matches if m.lower() == text.lower()), text)
+        setattr(cs, field, name)
+        p.unsaved_changes = True
+        await ctx.send(f'{label}: {name}')
+
+    menu.add_item(MenuItem(
+        'Last Paged', shortcuts='lp',
+        dot_leader_handler=lambda ctx: p.command_settings.last_paged or '(none)',
+        action=lambda ctx: _edit_reply_target(ctx, 'last_paged', 'Last Paged'),
+    ))
+    menu.add_item(MenuItem(
+        'Last Whispered', shortcuts='lw',
+        dot_leader_handler=lambda ctx: p.command_settings.last_whispered or '(none)',
+        action=lambda ctx: _edit_reply_target(ctx, 'last_whispered', 'Last Whispered'),
+    ))
     return menu
 
 

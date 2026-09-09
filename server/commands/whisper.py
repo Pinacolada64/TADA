@@ -4,15 +4,22 @@ Syntax:  whisper <targets>=<message>
 Targets: a comma- or space-delimited list of names; quote names that contain
          spaces; use #groupname to address everyone in a saved group.
 
+Use #reply (or #r) as the target to whisper back to whoever you last
+whispered with, without retyping their name -- the last correspondent is
+remembered in CommandSettings.last_whispered.
+
 Examples:
     whisper Bob=Did you see that?
     whisper Alice,Bob=Let's sneak out
     whisper "Dark Lord"=I come in peace
     whisper #friends=Meet at the inn
+    whisper #r=me too
 """
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
-from commands.messaging import parse_targets, expand_groups, find_online
+from commands.messaging import (
+    parse_targets, expand_groups, find_online, substitute_reply,
+)
 from network_context import GameContext
 
 
@@ -29,6 +36,7 @@ class WhisperCommand(Command):
             ('whisper <name>=<message>',           'Whisper to one player'),
             ('whisper <name>,<name2>=<message>',   'Whisper to multiple players'),
             ('whisper #<group>=<message>',         'Whisper to everyone in a group'),
+            ('whisper #r=<message>',               'Whisper back to your last correspondent'),
         ],
         examples = [
             ('whisper Bob=Did you see that?',      "WHISPER sends a message only the "
@@ -46,6 +54,10 @@ class WhisperCommand(Command):
                                                     'target too, whispering to everyone '
                                                     'in it who happens to be in the room '
                                                     'with you.'),
+            ('whisper #r=me too',                  "'#reply' (or '#r') stands in for the "
+                                                    'last player you whispered with -- '
+                                                    'either direction -- so you can '
+                                                    "answer without retyping their name."),
         ],
         notes = ['Target must be in the same room.  Use [page] for cross-room messages.'],
     )
@@ -75,6 +87,13 @@ class WhisperCommand(Command):
             await ctx.send('Whisper to whom?  Usage: whisper <name[[,name2]]>=<message>')
             return CommandResult.fail('Missing target name.')
 
+        # '#reply' / '#r' -> whoever you last whispered with
+        target_names, unresolved_reply = substitute_reply(
+            target_names, ctx.player.command_settings.last_whispered)
+        if unresolved_reply:
+            await ctx.send("You haven't whispered with anyone yet.")
+            return CommandResult.fail('No one to reply to.')
+
         my_name = ctx.player.name
 
         # Remove self from target list silently
@@ -102,5 +121,12 @@ class WhisperCommand(Command):
         await ctx.send(f'You whisper to {names_str}, "{message}"')
         for tctx in found_ctxs:
             await tctx.send(f'{my_name} whispers to you, "{message}"')
+            # Recipient's '#reply' now points back at the sender.
+            tctx.player.command_settings.last_whispered = my_name
+            tctx.player.unsaved_changes = True
+
+        # Sender's '#reply' points at the last person actually reached.
+        ctx.player.command_settings.last_whispered = found_ctxs[-1].player.name
+        ctx.player.unsaved_changes = True
 
         return CommandResult.ok()

@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import unittest
+import unittest.mock
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -501,6 +502,61 @@ class TestCommandSettingsNewsMenu(unittest.IsolatedAsyncioTestCase):
         await item.action(ctx)
         self.assertEqual(ctx.player.command_settings.news.last_read, '2026-08-19T00:00:00')
         self.assertIn("Didn't understand that date.", ctx.sent)
+
+
+class TestCommandSettingsReplyTargetMenu(unittest.IsolatedAsyncioTestCase):
+    """'Last Paged' / 'Last Whispered' entries -- the '#reply'/'#r' target
+    for commands/page.py and commands/whisper.py, editable by an admin."""
+
+    def _item(self, ctx, text):
+        menu = _command_settings_menu(ctx)
+        return next(i for i in menu.selectable if i.text == text)
+
+    def _ctx(self, responses=None):
+        import types
+        ctx = _MockCtx(responses=responses)
+        ctx.server = types.SimpleNamespace(clients={})
+        return ctx
+
+    async def test_dot_leader_shows_none_when_unset(self):
+        ctx = self._ctx()
+        self.assertEqual(self._item(ctx, 'Last Paged').dot_leader_handler(ctx), '(none)')
+        self.assertEqual(self._item(ctx, 'Last Whispered').dot_leader_handler(ctx), '(none)')
+
+    async def test_dot_leader_shows_name_when_set(self):
+        ctx = self._ctx()
+        ctx.player.command_settings.last_paged = 'Alice'
+        self.assertEqual(self._item(ctx, 'Last Paged').dot_leader_handler(ctx), 'Alice')
+
+    async def test_blank_leaves_unchanged(self):
+        ctx = self._ctx(responses=[''])
+        ctx.player.command_settings.last_paged = 'Alice'
+        await self._item(ctx, 'Last Paged').action(ctx)
+        self.assertEqual(ctx.player.command_settings.last_paged, 'Alice')
+        self.assertFalse(ctx.player.unsaved_changes)
+
+    async def test_dash_clears(self):
+        ctx = self._ctx(responses=['-'])
+        ctx.player.command_settings.last_whispered = 'Bob'
+        await self._item(ctx, 'Last Whispered').action(ctx)
+        self.assertIsNone(ctx.player.command_settings.last_whispered)
+        self.assertTrue(ctx.player.unsaved_changes)
+
+    async def test_sets_to_existing_player_canonical_casing(self):
+        ctx = self._ctx(responses=['alice'])
+        with unittest.mock.patch('tada_utilities.player_exists', return_value=True), \
+             unittest.mock.patch('tada_utilities.find_players', return_value=['Alice']):
+            await self._item(ctx, 'Last Paged').action(ctx)
+        self.assertEqual(ctx.player.command_settings.last_paged, 'Alice')
+        self.assertTrue(ctx.player.unsaved_changes)
+
+    async def test_unknown_player_rejected(self):
+        ctx = self._ctx(responses=['Nobody'])
+        with unittest.mock.patch('tada_utilities.player_exists', return_value=False):
+            await self._item(ctx, 'Last Paged').action(ctx)
+        self.assertIsNone(ctx.player.command_settings.last_paged)
+        self.assertFalse(ctx.player.unsaved_changes)
+        self.assertIn('No such player "Nobody".', ctx.sent)
 
 
 # ---------------------------------------------------------------------------
