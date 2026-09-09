@@ -15,7 +15,7 @@ SPUR source:
     preferentially the win-condition item if carried, else a random one.
     No-op in water/vacuum ("@@") rooms.
   - SPUR.MISC.S:385-388 ("p.a4"): on death, awards his entire accumulated
-    hoard to the killer and resets it to a 500-gold floor (dh=0:dl=500),
+    hoard to the killer and resets it to a 500-silver floor (dh=0:dl=500),
     not zero -- so an immediate re-kill still nets something.
 
 Deviates from SPUR (Ryan's explicit request, not a ported mechanic): the
@@ -363,8 +363,8 @@ async def on_killed(ctx: 'GameContext') -> list[str]:
         current = player.get_silver(PlayerMoneyTypes.IN_HAND)
         player.set_silver_absolute(PlayerMoneyTypes.IN_HAND, current + hoard)
         player.unsaved_changes = True
-    # SPUR.MISC.S "p.a3": dh=0:dl=500 -- the hoard resets to a 500 floor,
-    # not zero, so an unlucky immediate re-kill still nets something.
+    # SPUR.MISC.S "p.a3": dh=0:dl=500 -- the hoard resets to a 500-silver
+    # floor, not zero, so an unlucky immediate re-kill still nets something.
     config.dwarf_silver = 500
     ctx.player.clear_flag(PlayerFlags.DWARF_ALIVE)
 
