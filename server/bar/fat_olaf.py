@@ -15,7 +15,16 @@ import logging
 import random
 from typing import List, Optional
 
-from bar.ally_data import AllyFlags, AllyStatus, Ally, load_allies, save_ally_roster
+from bar.ally_data import (
+    ALLY_HP_MAX,
+    ALLY_STRENGTH_MAX,
+    AllyFlags,
+    AllyStatus,
+    Ally,
+    base_ally_strength,
+    load_allies,
+    save_ally_roster,
+)
 from bar.allies import pick_ally
 from base_classes import PlayerMoneyTypes
 from flags import PlayerFlags
@@ -29,6 +38,9 @@ _AP         = "'"
 _MAX_ALLIES = 3
 _STRENGTHEN_BASE_COST = 20   # cost per point of current strength (TADA extension)
 _HP_PER_STRENGTH      = 2    # hit_points seeded as strength × this on purchase (TADA extension)
+_HIRE_STR_BONUS       = 5    # flat strength added on hire (SPUR.BAR.S buy: a1 = x2 + 5)
+_FREE_SPIRIT_STR_CEIL = 15   # MAINTAIN target for an ally with no catalog entry
+                             # (SPUR.BAR.S maint: `if zs=0 x2=15`)
 _HONOR_SELL_LOSS      = 50   # honour lost when selling (t_bar_olaf.lbl :185)
 _HONOR_MAINTAIN_GAIN  = 5    # honour gained when maintaining (SPUR.BAR.S maint)
 
@@ -177,7 +189,9 @@ async def _buy_servant(ctx: GameContext, master_list: List[Ally]) -> None:
                   '']
         await ctx.send(lines)
 
-        raw = await ctx.prompt(f'{_NPC}: {_AP}Buy vich vun? (1-{len(available)}, ? to list){_AP}')
+        raw = await ctx.prompt(
+            'Choice',
+            preamble_lines=[f'{_NPC}: {_AP}Buy vich vun? (1-{len(available)}, ? to list){_AP}'])
         if raw is None or raw.strip() == '':
             await ctx.send(f'{_NPC} dismisses you with a wave. {_AP}Hokay, vine. See yu later!{_AP}')
             return
@@ -204,9 +218,10 @@ async def _buy_servant(ctx: GameContext, master_list: List[Ally]) -> None:
 
         elite_line = f'(An Elite ally!)\n' if _is_elite(chosen) else ''
         raw2 = await ctx.prompt(
-            f'{elite_line}{_NPC}: {_AP}Vell, {chosen.name} iz a vine specimen — '
-            f'{price}s. Hokay?{_AP} (Y/N)'
-        )
+            'Y/N',
+            preamble_lines=[
+                f'{elite_line}{_NPC}: {_AP}Vell, {chosen.name} iz a vine specimen — '
+                f'{price}s. Hokay?{_AP} (Y/N)'])
         if not raw2 or raw2.strip().upper() != 'Y':
             await ctx.send(f'{_NPC}: {_AP}Vell, too bad!{_AP}')
             continue
@@ -219,14 +234,16 @@ async def _buy_servant(ctx: GameContext, master_list: List[Ally]) -> None:
         player.unsaved_changes = True
         chosen.status = AllyStatus.SERVANT
         chosen.owner  = player.name
-        # Strength +5 on hire (SPUR.BAR.S: a1=x2+5 — ally is emboldened by new contract)
-        chosen.strength = chosen.strength + 5
+        # Strength +5 on hire (SPUR.BAR.S: a1=x2+5 — ally is emboldened by new
+        # contract), capped at the canonical ceiling (catalog max 20 + this
+        # bonus == ALLY_STRENGTH_MAX).
+        chosen.strength = min(chosen.strength + _HIRE_STR_BONUS, ALLY_STRENGTH_MAX)
         # Allies are created with hit_points=0 (bar/ally_data.py) and nothing else
         # initializes it, which left purchased allies unable to fight or take
         # damage (combat/engine.py gates ally participation on hit_points > 0).
         # Seed HP from strength on purchase (TADA extension; no canonical SPUR
         # source found for this formula).
-        chosen.hit_points = chosen.strength * _HP_PER_STRENGTH
+        chosen.hit_points = min(chosen.strength * _HP_PER_STRENGTH, ALLY_HP_MAX)
         save_ally_roster(master_list)
         await player.party.add(ctx, player, chosen)
         await ctx.send(f'{_NPC}: {_AP}May {chosen.name} serve yu vell!{_AP}')
@@ -284,9 +301,10 @@ async def _sell_servant(ctx: GameContext, master_list: List[Ally]) -> None:
 
     # Olaf makes his offer and asks for confirmation (SPUR.BAR.S)
     raw2 = await ctx.prompt(
-        f'{_NPC}: {_AP}He dun{_AP}t look teu gud, but I gus I cun give yu {offer}s. '
-        f'Hokay?{_AP} (Y/N)'
-    )
+        'Y/N',
+        preamble_lines=[
+            f'{_NPC}: {_AP}He dun{_AP}t look teu gud, but I gus I cun give yu {offer}s. '
+            f'Hokay?{_AP} (Y/N)'])
     if not raw2 or raw2.strip().upper() != 'Y':
         await ctx.send(f'{_NPC}: {_AP}Hoh vell.{_AP}')
         return
@@ -310,13 +328,30 @@ async def _sell_servant(ctx: GameContext, master_list: List[Ally]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# MAINTAIN  (SPUR.BAR.S maint — strengthens ally; honour +5)
+# MAINTAIN  (SPUR.BAR.S maint — restores a combat-drained ally; honour +5)
 #
 # t_bar_olaf.lbl routes this to {:999} (end label) — never implemented there.
-# SPUR.BAR.S has partial logic: reads new strength (x2), stores it back,
-# gives +5 honour, prints "Olaf does something mysterious... DER!! NAOW IZ BEDDER!!"
-# TADA fills in the cost and stat increase details.
+# SPUR.BAR.S `maint` is a *repair*, not a growth mechanic: it re-reads the
+# ally's catalog record (`gosub slv.srch` sets x2 = original strength, or
+# x2 = 15 for a free spirit), refuses once current >= that (`x2-zr < 1`),
+# charges `(x2 - zr) * 20` gold, then snaps strength straight back to the
+# catalog value (`a1 = x2`) and grants +5 honour (`vk = vk + 5 if vk < 2000`).
+# The earlier TADA port instead added random(1,3) every visit with no
+# ceiling, which is how allies ran away to absurd strength -- this restores
+# the SPUR behaviour, with the ceiling nudged up by the hire bonus so a
+# servant can be repaired to the strength it was actually bought at.
 # ---------------------------------------------------------------------------
+
+def _maintain_ceiling(ally: Ally) -> int:
+    """Highest strength MAINTAIN will restore *ally* to: its catalog value
+    plus the hire bonus (so a bought servant repairs to as-hired strength),
+    or _FREE_SPIRIT_STR_CEIL when it has no catalog entry -- never above
+    ALLY_STRENGTH_MAX."""
+    base = base_ally_strength(ally.name)
+    if base is None:
+        return _FREE_SPIRIT_STR_CEIL
+    return min(base + _HIRE_STR_BONUS, ALLY_STRENGTH_MAX)
+
 
 async def _maintain_servant(ctx: GameContext, master_list: List[Ally]) -> None:
     player = ctx.player
@@ -329,23 +364,34 @@ async def _maintain_servant(ctx: GameContext, master_list: List[Ally]) -> None:
             await ctx.send(f'{_NPC} shrugs. {_AP}Yu hav no servants to maintain!{_AP}')
         return
 
+    def _restore_cost(a: Ally) -> int:
+        return max(0, _maintain_ceiling(a) - a.strength) * _STRENGTHEN_BASE_COST
+
     await ctx.send('Servant condition:')
     chosen = await pick_ally(
         ctx, owned,
         f'{_NPC}: {_AP}Vich servant du yu vish to strengthen?{_AP}',
         extra_fn=lambda a: (f'HP: {a.hit_points}' if a.hit_points else 'HP: unknown')
-                           + f'  (strengthen: {a.strength * _STRENGTHEN_BASE_COST}s)',
+                           + (f'  (restore: {_restore_cost(a)}s)' if _restore_cost(a)
+                              else '  (at full strength)'),
         # invalid_msg=f'{_NPC}: {_AP}Com com, 1 teu {{len(owned)}}! (Enter aborts){_AP}',
     )
     if chosen is None:
         await ctx.send(f'{_NPC} shrugs.')
         return
-    cost   = chosen.strength * _STRENGTHEN_BASE_COST
+
+    ceiling = _maintain_ceiling(chosen)
+    if chosen.strength >= ceiling:
+        # SPUR: `if (x2-zr) < 1 print "I CON DU NUTIN VER HIM!"` -- no charge.
+        await ctx.send(f'{_NPC} looks {chosen.name} over. {_AP}I con du nutin ver him!{_AP}')
+        return
+
+    cost   = _restore_cost(chosen)
     silver = player.get_silver(PlayerMoneyTypes.IN_HAND)
 
     raw2 = await ctx.prompt(
-        f'{_NPC}: {_AP}Dat vill be {cost}s. Yu hav {silver}s. Hokay?{_AP} (Y/N)'
-    )
+        'Y/N',
+        preamble_lines=[f'{_NPC}: {_AP}Dat vill be {cost}s. Yu hav {silver}s. Hokay?{_AP} (Y/N)'])
     if not raw2 or raw2.strip().upper() != 'Y':
         await ctx.send(f'{_NPC} shrugs.')
         return
@@ -357,9 +403,9 @@ async def _maintain_servant(ctx: GameContext, master_list: List[Ally]) -> None:
         return
 
     player.subtract_silver(PlayerMoneyTypes.IN_HAND, cost)
-    # Strengthen (SPUR.BAR.S: updates x2 new-strength back into slot)
-    gain = random.randint(1, 3)
-    chosen.strength += gain
+    # SPUR.BAR.S: `a1 = x2` — strength snaps back to the catalog ceiling.
+    gained = ceiling - chosen.strength
+    chosen.strength = ceiling
     _sync_to_roster(master_list, chosen.name, chosen.status, chosen.owner, chosen.strength)
     # Honour bonus for investing in servant (SPUR.BAR.S: vk=vk+5 if vk<2000)
     if getattr(player, 'honor', 0) < 2000:
@@ -369,7 +415,7 @@ async def _maintain_servant(ctx: GameContext, master_list: List[Ally]) -> None:
     await ctx.send([
         f'Olaf does something mysterious...',
         f'{_NPC}: {_AP}Der!! Naow iz bedder!!{_AP}',
-        f'{chosen.name} gained {gain} strength (now {chosen.strength}).',
+        f'{chosen.name} recovered {gained} strength (now {chosen.strength}).',
     ])
 
 

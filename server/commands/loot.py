@@ -163,7 +163,9 @@ class LootCommand(Command):
         lines.append('')
         await ctx.send(lines)
 
-        raw = await ctx.prompt(f'Loot which Adventurer (1-{len(mates)}, {player.return_key} to abort)')
+        raw = await ctx.prompt(
+            'Adventurer #',
+            preamble_lines=[f'Loot which Adventurer (1-{len(mates)}, {player.return_key} to abort)'])
         if not raw or not raw.strip():
             return CommandResult.ok()
         try:
@@ -202,7 +204,9 @@ class LootCommand(Command):
         lines.append('')
         await ctx.send(lines)
 
-        raw = await ctx.prompt(f'Take which item number? (1-{len(target_entries)}, {player.return_key} to abort)')
+        raw = await ctx.prompt(
+            'Item #',
+            preamble_lines=[f'Take which item number? (1-{len(target_entries)}, {player.return_key} to abort)'])
         if not raw or not raw.strip():
             return CommandResult.ok()
         try:

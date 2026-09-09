@@ -126,9 +126,8 @@ async def prompt_reply_title(ctx, default_title: str) -> str | None:
     Shared by this module's own _reply() and commands/board/reply.py's
     interactive reply flow."""
     raw = await ctx.prompt(
-        'Reply title',
-        preamble_lines=['', f'({ctx.player.return_key} keeps "{default_title}")', ''],
-    )
+        'Title',
+        preamble_lines=[f'Enter title of reply, [{ctx.player.return_key} keeps same]'])
     if raw is None:
         return None
     raw = raw.strip()

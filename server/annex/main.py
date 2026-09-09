@@ -181,7 +181,7 @@ async def main(ctx: GameContext) -> None:
         if matched:
             await matched(ctx)
         else:
-            await ctx.send(f'"{raw.strip()}"? (Enter a number 1–17, or X to leave)')
+            await ctx.send(f'"{raw.strip()}"? (Enter a number 1–17, or [X] Leave)')
 
 
 # ---------------------------------------------------------------------------

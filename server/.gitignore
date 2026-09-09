@@ -2,6 +2,12 @@
 __pycache__/
 run/
 .venv/
+# PyInstaller output for the standalone client (see tada-client.spec);
+# rebuilt locally with `pyinstaller tada-client.spec`, and in CI by
+# .github/workflows/build-client.yml
+build/
+dist/
+tada-client-*.zip
 # auto-created by config.py's ServerConfig on first instantiation if
 # missing (sysop-editable server settings; local runtime data, not
 # checked in)
@@ -15,3 +21,6 @@ bot_epic_battle_*.events.json
 # tools/bot_credentials.py -- local-only test-account passwords, see that
 # file's docstring
 tools/.bot_credentials.json
+
+# generated level maps (tools/gen_level_maps.py) -- regenerate, do not commit
+tools/level_maps/

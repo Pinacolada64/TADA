@@ -1,7 +1,13 @@
 # FUNCTIONS.md
 ## Roadmap of functions across the TADA server codebase
 
-Last updated: 2026-08-11 — manually maintained; update the date above when adding, moving, or removing functions.
+Last updated: 2026-09-03 — manually maintained; update the date above when adding, moving, or removing functions.
+
+The per-module sections below were last fully verified 2026-08-11. The
+**"Changes since 2026-08-11"** section at the bottom of this file is a
+running changelog of what has moved / been added / been removed since then
+(≈195 commits); the older sections were spot-fixed only where an entry went
+outright wrong, not re-verified line by line.
 
 ## Refactor progress
 | Step | Status | Description                                                                         |
@@ -20,7 +26,7 @@ commands and editor functions.
 | `BaseContext`                                      | Interface layer — `send()`, `send_room()`, `prompt()`                              |
 | `GameContext(BaseContext)` (dataclass)             | Holds `player`, `reader`, `writer`, `server`, `client`                              |
 | `PETSCIINetworkContext(GameContext)`               | Commodore/PETSCII wire-protocol variant                                             |
-| `GuestPlayer`                                      | Stub player for unauthenticated/guest sessions                                      |
+| `GuestPlayer`                                      | Unauthenticated/guest sessions. **No longer a bare stub — now `class GuestPlayer(Player)` (commit `cbf7b65`, 8/19/26); guests can carry items and are numbered from 1.** (`terminal_context.py`'s copy below is still a stub.) |
 | `GameContext.send(*lines)`                        | async — send text to this player only                                               |
 | `GameContext.send_room(*lines, exclude_self)`     | async — send to all players in same room                                            |
 | `GameContext.prompt(prompt_text, preamble_lines)` | async — send prompt, await single-line response; mirrors `terminal_context.py`'s `GameContext.prompt()` |
@@ -56,7 +62,7 @@ correct.
 
 **terminal_context.py vs terminal.py -- clarified this pass:** these are
 genuinely unrelated modules that happen to share a name prefix, not the
-same file under two names. `terminal.py` (546 lines, see its own section
+same file under two names. `terminal.py` (749 lines, see its own section
 below) is client-display/settings data -- `ClientSettings`, `ColorName`,
 `Translation`, keyboard/color code enums -- with no context/ctx classes in
 it at all. `terminal_context.py` is entirely GameContext-shaped
@@ -99,15 +105,19 @@ grab-bag" so much as the load-bearing definitions everything else (`net_client.p
 | `ClientManager` (class)                                     | *(new, undocumented until now -- appears unused by the live game; see note below)* `add_client`/`remove_client`/`update_activity`/`get_online_client_info`/`broadcast`, thread-lock-guarded |
 | `client_manager` (module-level `ClientManager()` instance)  | *(new, undocumented until now)*                                                                |
 
-`ClientManager`/`client_manager` are exercised only by `new_server.py` (see
-below, itself unreferenced by the live game) and are not the mechanism
-`simple_server.py` actually uses for tracking connections (`Server.clients`,
-a plain dict keyed by `addr`) -- so this class, while real code, is not on
-the live server's path today.
+`ClientManager` is defined here (`net_common.py:256`, instance
+`client_manager` at line 321). Its only remaining referrers are
+`commands/admin.py`'s `RestartCommand`/`ShutdownCommand`, which do `from
+client_manager import ClientManager` — **there is no `client_manager.py`
+module**, so that import would raise `ModuleNotFoundError` if those code
+paths ever ran. (The previously-noted `new_server.py` caller was deleted
+8/11/26.) It is still not the mechanism `simple_server.py` uses to track
+connections (`Server.clients`, a plain dict keyed by `addr`) — so this
+class, while real code, is not on the live server's path today.
 
 ---
 
-## net_client.py (916 lines)
+## net_client.py (924 lines)
 A synchronous, blocking-socket TCP client with its own handshake/receive-thread/
 `cmd`-style dispatch loop -- written for a standalone CLI/bot client, not
 for the live async server. Confirmed this pass: **only the `Client`
@@ -188,11 +198,11 @@ General-purpose utilities. Mix of async (ctx-aware) and pure sync functions.
 |-----------------------------------------------------------------------------------------|------------|------------------------------------------------|
 | `prompt_client(ctx, preamble_lines, prompt_text)`                                       | ✅ Fixed   | Correctly uses `ctx.reader`/`ctx.writer` now   |
 | `input_string(ctx, default='', prompt='', allow_empty=True, keep_msg=True, reminder='Please enter something.')` | ✅ OK | Loops on `prompt_client(ctx, ...)`; empty/`default` input returns `default` (or reprompts with `reminder` if `allow_empty=False`, unless expert mode, which just keeps `default`) |
-| `input_number_range(ctx, default=None, prompt_msg='', min_value=1, max_value=10, out_of_bounds_msg=None)` | ⚠️ Bug | **Real bug, confirmed this pass:** line calls `await ctx.prompt(ctx, prompt_text=f'...')` — passes `ctx` itself as the positional `prompt_text` argument *and* `prompt_text=` as a keyword, which raises `TypeError: prompt() got multiple values for argument 'prompt_text'` the instant this runs. Not currently reached by any live ctx-based caller — `grep` across `commands/`, `bar/`, `shoppe/` finds zero call sites; `terminal.py` still calls it with the old `player=`/positional convention and no `await` (already broken independently), and `tada_utilities.py`'s own `__main__` demo block is also broken (references an undefined `ctx`). Its other stale caller, `create_character.py`, was deleted 8/11/26 as confirmed dead code — see the backlog section. Latent/dead-code bug, not exercised in production. |
+| `input_number_range(ctx, default=None, prompt_msg='', min_value=1, max_value=10, out_of_bounds_msg=None)` | ✅ Fixed (2026-09-03 pass) | The old `TypeError`-on-first-call bug is **gone** — the body now does `raw = await ctx.prompt('#', preamble_lines=[f'{prompt_msg} [{min_value}-{max_value}]'])`, correctly. Signature unchanged and still matches this row. Still not reached by a live ctx-based caller: `terminal.py:479/491/522` call it with the old sync/no-`await` convention (broken independently), `monster_editor.py` only imports it, and `tada_utilities.py:701` is its one internal caller. |
 | `set_logging_level(ctx)`                                                                | ✅ OK | async — shows current root logger level, prompts via `input_string`, applies D/I/W/E/C choice |
 | `text_pager(ctx, text_lines)`                                                           | GONE | Confirmed this pass: no longer exists anywhere in `tada_utilities.py`. Only reference left in the tree is a commented-out import in `threaded_messages.py`; the former live call in `create_character.py` went away with that file's deletion 8/11/26. |
 | `header(ctx, header_text)`                                                              | ✅ OK       | async, sends underlined header                 |
-| `format_quote(quote_text, reader_name)`                                                 | *(new, undocumented)* | Not in original doc                 |
+| `format_quote(quote_text, reader_name)`                                                 | *(new)* | Renders a player's personal quote for one viewer, substituting the first `$` with the *viewer's* name (per-reader personalization, SPUR `MISC2.S`). Use wherever someone's quote is shown (who / examine). |
 
 ### Pure / sync (no ctx)
 | Function                                           | Status | Notes                                      |
@@ -226,8 +236,8 @@ Hierarchical menu system. All functions now take `ctx` (GameContext or TerminalC
 |-------------------------------------------|--------------------------------------------------------------------------------------|
 | `MenuItem` (dataclass)                    | `text`, `shortcuts`, `dot_leader_handler`, `submenu`, `action`; `is_header` property |
 | `Menu` (dataclass)                        | `title` (str or callable, re-evaluated per redraw), `columns`, `menu_items`; `selectable`/`rendered_title` properties |
-| `_vis_len(s)`                              | *(new, undocumented)* visible-width helper (strips `\|token\|` markup)               |
-| `_InvalidChoice` / `INVALID_CHOICE`       | *(new, undocumented)* sentinel — distinguishes "bad input, redisplay menu" from "cancel" |
+| `_vis_len(s)`                              | *(new)* Visible-width helper (strips `\|token\|` markup) so column math ignores colour codes |
+| `_InvalidChoice` / `INVALID_CHOICE`       | *(new)* Sentinel returned by `get_user_choice` — lets `navigate_menu` tell "bad input, redisplay the menu" apart from `None` = "cancel / pop a level" |
 | `format_menu_lines(ctx, menu)`            | Returns `list[str]`; reads screen width from `ctx.player.client_settings`            |
 | `print_menu(ctx, menu)`                   | async — formats and sends menu via `ctx.send()`                                      |
 | `get_user_choice(ctx, menu, stack_depth)` | async — prompts via `ctx.prompt()`, returns `MenuItem`, `None` (cancel), or `INVALID_CHOICE` |
@@ -265,15 +275,15 @@ Called by `ctx.send()` before writing to wire or terminal.
 | `make_header(text, char)`                              | Returns `[text, underline]` as `list[str]`                                                                                 |
 | `make_rule(width, char)`                               | Returns a horizontal rule string                                                                                           |
 | `make_box(lines, title, width)`                        | Wraps lines in an ASCII box, returns `list[str]`                                                                           |
-| `make_box_for_settings(...)`                           | *(new, undocumented)*                                                                                                      |
-| `plain_encode(text)` / `plain_encode_lines(lines)`     | *(new, undocumented)* strips `{token}` markup for ASCII/screenreader mode                                                  |
-| `_visible_len(s)`                                      | *(new, undocumented)* visible-width helper (mirrors `menu_system.py`'s `_vis_len`)                                         |
-| `border_style_for_ctx(ctx)`                             | *(new, undocumented)*                                                                                                      |
-| `hrule_char(ctx)`                                      | *(new, undocumented)*                                                                                                      |
-| `guild_sigil_for(ctx, alignment)`                       | *(new, undocumented)* colorized/terminal-appropriate guild sigil                                                           |
-| `underline(text)`                                      | *(new, undocumented)*                                                                                                      |
-| `_build_color_name_to_token()` / module `__getattr__`  | *(new, undocumented)* — the dunder is unusual, worth a closer look during the full rewrite                                |
-| `_MockSettings`                                        | *(new, undocumented)* test helper                                                                                          |
+| `make_box_for_settings(settings, lines, title, width, frame_color, title_color, text_color)` | *(new)* Like `make_box`, but colour-aware: takes a settings object + per-part colour tokens so a boxed panel's frame/title/text adapt to the player's client (PETSCII vs ANSI vs plain). |
+| `plain_encode(text)` / `plain_encode_lines(lines)`     | *(new)* Strips `{token}` markup for ASCII/screenreader mode                                                  |
+| `_visible_len(s)`                                      | *(new)* Visible-width helper (mirrors `menu_system.py`'s `_vis_len`) — measure a string ignoring `{token}`/`\|token\|` markup so alignment math is right |
+| `border_style_for_ctx(ctx)`                             | *(new)* Returns the border-style name (`'petscii'`/`'single'`/…) to pass to `Table`/`make_box` for this player's client. Call instead of hard-coding a style so real Commodore clients get box glyphs. |
+| `hrule_char(ctx)`                                      | *(new)* The single horizontal-rule character matching this client's border style — use when drawing a manual rule so it matches the boxes. |
+| `guild_sigil_for(ctx, alignment)`                       | *(new)* Colorized/terminal-appropriate guild sigil                                                           |
+| `underline(text, ctx)`                                 | *(new)* Returns `[text, rule]` with the rule char matching the client's border style — a ctx-aware header underline. |
+| `_build_color_name_to_token()` / module `__getattr__`  | *(new)* Lazily builds the `ColorName → token` map the first time `formatting.COLOR_NAME_TO_TOKEN` is read (PEP 562 module `__getattr__`), breaking an import cycle with `terminal.py`. Don't call these — just read `COLOR_NAME_TO_TOKEN`. |
+| `_MockSettings`                                        | *(new)* Test helper — a stand-in settings object                                                             |
 
 Resolved this pass: the "PETSCII full palette TODO" note is **stale — the palette is complete**. `PETSCIICodec`'s own docstring now states plainly: "Full 16-color palette is available via `\|token\|` substitution in `petscii_encode()` — see `PETSCII_CONTROL_CODES` below." `PETSCII_CONTROL_CODES` contains all 16 CBM color codes (`black`, `white`, `red`, `cyan`, `purple`, `green`, `blue`, `yellow`, `orange`, `brown`, `light_red`, `dark_gray`, `mid_gray`, `light_green`, ...) plus cursor/case control tokens. No TODO remains in the source.
 
@@ -285,10 +295,10 @@ Monster data and flag definitions. Shared by editor and game server.
 | `monster_flag_labels` (dict)    | Snake_case key → human-readable label |
 | `load_monsters(path)`           | Returns `list[dict]` from JSON        |
 | `save_monsters(monsters, path)` | Writes `list[dict]` to JSON           |
-| `get_monster(monsters, number)` | *(new, undocumented)* look up one monster dict by number |
-| `monster_flags` (list)          | *(new, undocumented)* raw symbol/key tuples `monster_flag_labels` is derived from |
-| `monster_sizes`                 | *(new, undocumented)*                 |
-| `all_monster_keys`              | *(new, undocumented)*                 |
+| `get_monster(monsters, number)` | *(new)* Look up one monster dict by its number — use instead of scanning the list yourself |
+| `monster_flags` (list)          | *(new)* Raw `(symbol, key)` tuples that `monster_flag_labels` is derived from; use when you need the parse symbols, not the labels |
+| `monster_sizes`                 | *(new)* `int → size-name` dict (1=`huge` … 6=`small`); turns a monster's numeric size field into a label |
+| `all_monster_keys`              | *(new)* Flat list of every monster-flag key; iterate all flags or build an all-False default dict |
 
 ---
 
@@ -338,8 +348,8 @@ Binary file reader for SPUR/GBBS/ACOS data files.
 | `iter_records(data, record_size, skip_first)` | Yields `(record_num, fields)` tuples                     |
 | `read_count(data, record_size)`               | Reads record count from record 0                         |
 | `record_size_for(filename)`                   | Looks up record size from `RECORD_INFO`                  |
-| `_has_high_bits(data)`                        | *(new, undocumented)*                                     |
-| `_split_record(...)`                          | *(new, undocumented)*                                     |
+| `_has_high_bits(data)`                        | *(new)* True if most non-null bytes have bit 7 set — the heuristic `normalize()` uses to decide whether a file needs Apple-II high-bit stripping |
+| `_split_record(chunk)`                        | *(new)* Splits one raw record chunk into cleaned string fields (drop nulls, split on CR, strip, drop empties); internal helper for `iter_records` |
 
 ---
 
@@ -470,12 +480,13 @@ Merchant's annex interaction loop. Entry point: `main(ctx)`.
 | `_shoppe_session(ctx, player)` | async — inner loop: shows menu, dispatches keypress to sub-function, exits on `x`/EOF      |
 | `_show_menu(ctx)`              | async — lists shoppe options + "Also here:" names from `others_present()`                  |
 | `_MENU` (tuple)                | Dispatch table: `(key, label, async_fn)` entries; `x`/exit handled separately             |
-| `_armory`, `_bank`, `_wizard`, `_clan`, `_pawn_shop` | ✅ No longer stubs — thin dispatchers to full sub-modules: `shoppe/armory.py` (349 lines), `shoppe/bank.py` (162), `shoppe/clan.py` (196), `shoppe/pawn.py` (100), `shoppe/wizard.py` (247) |
+| `_armory`, `_bank`, `_wizard`, `_clan`, `_pawn_shop` | ✅ No longer stubs — thin dispatchers to full sub-modules: `shoppe/armory.py` (548 lines), `shoppe/bank.py` (164), `shoppe/clan.py` (200), `shoppe/pawn.py` (219), `shoppe/wizard.py` (411) |
 | `_general_store`, `_player_list`, `_protection` | ✅ Fully implemented now (not stubs) — `_player_list` is a wildcard-pattern player browser |
 | `_elevator(ctx)`               | async — delegates to `shoppe.elevator.main(ctx)`                                          |
 
-**New, undocumented shoppe sub-modules:** `shoppe/ollys.py` (302 lines — Olly's,
-booby-trap items), `shoppe/locker.py` (249 lines — Private Locker).
+**New, undocumented shoppe sub-modules:** `shoppe/ollys.py` (505 lines — Olly's,
+booby-trap items), `shoppe/locker.py` (253 lines — Private Locker),
+`shoppe/school.py` (Formal Shield Training — see the changelog section).
 
 ---
 
@@ -510,7 +521,7 @@ Wall Bar & Grill interaction loop. Entry point: `enter_bar(ctx)`.
 | `_bar_help(ctx)`           | async — prints bar help text                                                                                  |
 | `food_menu(p, foodstuffs)` | Pure sync — builds sorted `list[Rations]` (drinks then food) from raw dicts                                  |
 | `_bouncer(ctx, bar)`       | async — Mundo ejects player (HP penalty + move to exit)                                                       |
-| `_vinny(ctx, bar)`         | ✅ No longer a stub — delegates to full `bar/vinny.py` (362 lines: loan shark, apply/pay loan, store/get money) |
+| `_vinny(ctx, bar)`         | ✅ No longer a stub — delegates to full `bar/vinny.py` (523 lines: loan shark, apply/pay loan, store/get money) |
 | `_blue_djinn/_skip/_bar_none/_fat_olaf/_zelda` | async — delegates to respective sub-module `main(ctx, bar)`             |
 | `_ROUTINES` (dict)         | Maps routine key strings to async callables for dispatch                                                      |
 | `_DIRECTION_NAMES` (dict)  | `'n'→'north'` etc.; used in movement broadcast messages                                                       |
@@ -540,21 +551,21 @@ Skip's Eats: once-per-day meal counter.
 | Function         | Notes                                                                                              |
 |------------------|----------------------------------------------------------------------------------------------------|
 | `main(ctx, bar)` | async — once-per-day gate; approach `broadcast_area` fires only after gate passes; leave broadcast |
-| `_improve_stat(player, stat, rng)` | *(new, undocumented)* stat-training mechanic |
+| `_improve_stat(player, stat, rng)` | *(new)* Bumps *stat* by `randint(1, rng)` capped at the stat ceiling; returns the amount actually gained (0 if already capped). Backs Skip's meal stat-training reward. |
 
 ---
 
 ## bar/bar_none.py
-*(HEAVILY STALE — 560 lines now, doc only described a "drinks menu")*
+*(HEAVILY STALE — 667 lines now, doc only described a "drinks menu")*
 Bar None (Mae the Bartender): drinks menu, **plus an entire undocumented Guss
 blackjack minigame**.
 
 | Function         | Notes                                                                              |
 |------------------|------------------------------------------------------------------------------------|
 | `main(ctx, bar)` | async — approach `broadcast_area`; leave broadcast on empty input only (not on EOF) |
-| `Bartender(Ally)` | *(new, undocumented)* |
+| `Bartender(Ally)` | *(new)* An `Ally` subclass that carries a `greetings` list — lets a bar NPC (Mae, Guss) be a real character with randomized banter instead of a bare name |
 | `_guss_talk(ctx, ...)`, `_scan_chat(text, ...)` | *(new)* Chat with Guss: scans player input for keywords (profanity caught/filtered) and returns a matching, possibly-random reply |
-| `_guss_flip`, `_guss_blackjack`, `_draw_card`, `_hand_total`, `_fmt_hand`, `_guss_session` | *(new, undocumented)* Guss blackjack minigame |
+| `_guss_flip`, `_guss_blackjack`, `_draw_card`, `_hand_total`, `_fmt_hand`, `_guss_session` | *(new)* Guss gambling minigame: `_guss_session` is the interaction loop, `_guss_flip` coin-flip betting, `_guss_blackjack` the full card game; `_draw_card`/`_hand_total`/`_fmt_hand` are its pure card helpers (Aces 11→1 on bust, hidden hole card) |
 
 ---
 
@@ -567,7 +578,7 @@ Fat Olaf's Servant Trade: buy/sell party allies.
 | `_buy_servant(ctx, allies)`           | async — numbered menu to select and purchase a servant                   |
 | `_sell_servant(ctx)`                  | ✅ No longer a stub — fully implemented                                  |
 | `filter_allies(ally_list, status)`    | Pure — returns allies matching `AllyStatus`. **Confirmed this pass: still duplicated, byte-for-byte identical** (same signature, same docstring, same body) in both `bar/fat_olaf.py:41` and `bar/allies.py:14`. Not a live bug — `fat_olaf.py` doesn't import the `bar/allies.py` copy (it only imports `pick_ally` from there), so there's no shadowing/override conflict, just dead duplication that should be collapsed to one definition. |
-| `_maintain_servant`, `_owned_allies`, `_purchased_allies`, `_sync_to_roster`, `_free_allies_for_sale`, `_ally_price`, `_ally_sellback`, `_is_elite` | *(new, undocumented)* |
+| `_maintain_servant`, `_owned_allies`, `_purchased_allies`, `_sync_to_roster`, `_free_allies_for_sale`, `_ally_price`, `_ally_sellback`, `_is_elite` | *(new)* Servant-trade bookkeeping: `_owned_allies`/`_purchased_allies` filter the player's party; `_free_allies_for_sale` lists what's buyable; `_ally_price`/`_ally_sellback` are the strength×100 / ×50 (×2 for Elite) price formulas; `_is_elite` a flag check; `_sync_to_roster` writes a status/owner change back to the persisted roster; `_maintain_servant` is the repair-to-ceiling upkeep flow |
 
 ---
 
@@ -581,7 +592,7 @@ Madame Zelda's: spy on player stats or resurrect monsters.
 | `_resurrect_monsters(ctx)` | ✅ TODO resolved — now writes via `_append_battle_log` (new, undocumented) |
 | `get_player_info(stats, id_pattern)` | Pure sync — reads player JSON from `run/server/player-<id>.json` |
 | `_zelda_menu(ctx)`         | async — prints available options                                          |
-| `_tell_fortune`, `_clear_monsters_killed_offline`, `_find_online_player`, `_player_json_path` | *(new, undocumented)* |
+| `_tell_fortune`, `_clear_monsters_killed_offline`, `_find_online_player`, `_player_json_path` | *(new)* `_player_json_path` locates a player's save file by name (case-insensitive); `_find_online_player` returns the live `Player` if that name is connected; `_clear_monsters_killed_offline` edits `dead_monsters` straight in the save file (Zelda's monster-resurrect service); `_tell_fortune` is flavor fortune-telling |
 
 ---
 
@@ -594,10 +605,10 @@ Ally/servant data definitions used by Fat Olaf.
 | `Ally` (dataclass)                       | `name`, `strength`, `status`, `flags`, `breed`/`color` *(new, undocumented — `Optional[HorseBreed]`/`Optional[HorseColor]` from `base_classes.py`, only meaningful when `AllyFlags.MOUNT` is set)* |
 | `load_allies()`                          | Returns `list[Ally]` from JSON                |
 | `assign_random_statuses(allies)`         | Pure — randomly assigns `SERVANT`/`IN_PARTY`  |
-| `AllyPosition` (Enum)                     | *(new, undocumented)*                         |
-| `load_ally_roster()` / `save_ally_roster(...)` | *(new, undocumented)*                    |
-| `find_duplicate_allies(...)`             | *(new, undocumented)*                         |
-| `print_allies(...)`                      | *(new, undocumented)*                         |
+| `AllyPosition` (Enum)                     | *(new)* Tactical slot for an ally — `EMPTY`/`POINT`/`FLANK`/`REAR`; for formation/positioning logic |
+| `load_ally_roster()` / `save_ally_roster(allies)` | *(new)* Load/persist `ally_roster.json` (ownership + stat overrides). `save` only writes allies that deviate from baseline (owned or non-FREE) so the file stays small. Use to make Fat-Olaf purchases and stat changes survive a restart. |
+| `find_duplicate_allies(ally_list)`       | *(new)* Returns the names appearing more than once — a data-integrity check for `allies.json` |
+| `print_allies(ally_data)`               | *(new)* `print()`s a formatted ally table to stdout — a CLI/debug dump, not player output |
 
 **New, related module — `bar/allies.py`** (separate from `ally_data.py`):
 `filter_allies`, `owned_allies`, `purchased_allies`, `find_mount`, `pick_ally`.
@@ -661,7 +672,13 @@ see that section's note on `_charge_unseat_check`/`_try_redirect_to_mount`)*
 All commands are `Command` subclasses auto-discovered by `command_processor.py`.
 
 *(HEAVILY STALE — doc previously listed only 8 commands, one of them
-misnamed)* There are now **52** `Command` subclasses. `StatsCommand` never
+misnamed)* There are now **73** `Command` subclasses (was 52 at the
+2026-08-11 pass). New since then, not in the grouped list below:
+`AskCommand`, `BannerEditCommand`, `CastCommand`, `ConfigCommand`,
+`ExamineCommand`, `FollowCommand`, `HistoryCommand`, `ListLocationsCommand`,
+`LogsCommand`, `LootCommand`, `LurkCommand`, `MailCommand`, `MapCommand`,
+`OrderCommand`, `PlayCommand`, `PrayCommand`, `PromptModeCommand`,
+`TipsCommand`, `UnwearCommand`, `WearCommand`. `StatsCommand` never
 existed under that name — the real class in `commands/stats.py` is
 **`StatCommand`** (singular). **The previously-flagged `BanCommand` duplicate
 is resolved — confirmed fixed this pass, not just re-flagged:** `grep -n
@@ -717,6 +734,25 @@ say/shout/whisper/page — no `Command` subclass of its own, despite the name.
 | `StatCommand`     | `stats`, `st`             | ⚠️ Doc previously said `StatsCommand` (wrong name) — real class is `StatCommand`; uses `characters.py` race/class bonus tables |
 | `InvCommand`      | `inv`, `i`                | Show inventory; persisted across save/load via `player.inventory`                      |
 | `LookCommand`     | `look`, `l`               | Describe room; skips players whose `virtual_location` is set (ghost-player fix)        |
+
+---
+
+## inventory_select.py
+Shared "pick an item of type X" plumbing for READY, UNREADY, USE, DROP, GIVE and
+TAKE: gather a numbered list from the player's pack and/or each party ally's
+pack, then resolve a typed name or run the numbered prompt down to one choice.
+`resolve_or_prompt()` also works on any labelled list (Ally objects, `(label,
+payload)` tuples) -- GIVE's "which ally?" and TAKE's "give to whom?" reuse it.
+
+| Symbol / Function                       | Notes                                                                                         |
+|-----------------------------------------|----------------------------------------------------------------------------------------------|
+| `ItemChoice` (dataclass)                | One selectable item: `item`, `entry`, `owner` (None = player, else the Ally), `readied`; `.is_ally` / `.name` / `.owner_name` |
+| `_party_allies(player)` / `party_allies` | Living party allies in party order (moved here from commands/ready.py)                        |
+| `same_item(a, b)`                        | Pure — identity, then `id_number` *within the same category*                                  |
+| `owner_has_readied(owner, item)`         | Pure — is `item` the weapon `owner` (player or Ally) has readied                              |
+| `gather_items(player, *, category=, predicate=, include_player=, include_allies=, allies=)` | Numbered `list[ItemChoice]`; player's pack first, then each ally's, grouped by ally |
+| `resolve_or_prompt(ctx, choices, *, args, prompt_text, label_fn, match_fn=, group_fn=, list_header=, ambiguous_header=, no_match_msg=, invalid_msg=, auto_select_single=)` | async — name match or numbered menu → one `ItemChoice` or `None` (empty/no-match/cancel/bad-input) |
+| `choices_menu(choices, label_fn, *, header=)` | Pure — a flat numbered menu block (list of lines for `ctx.send`)                          |
 
 ---
 
@@ -799,7 +835,7 @@ Async TCP server. Manages client connections and room broadcasting.
 ---
 
 ## player.py
-Core live `Player` runtime class (~1717 lines) — identity, stats, flags,
+Core live `Player` runtime class (~1811 lines) — identity, stats, flags,
 inventory, party, silver/rulan, client settings, save/load. Actively
 touched (5 of last 5 commits landed in the last two weeks: ammo persistence,
 GIVE/DROP unready fixes, EXAMINE expansion, armor durability). Distinct from
@@ -846,7 +882,7 @@ module-level flag functions, `player.py`'s stat/silver methods, and
 ---
 
 ## combat/engine.py
-`CombatSession` — the live wandering-monster combat loop (~2145 lines).
+`CombatSession` — the live wandering-monster combat loop (~2257 lines).
 Actively touched (gendered death messages, desert/labyrinth mechanics,
 tactical-ambush shouts, armor durability all landed recently).
 
@@ -864,7 +900,7 @@ tactical-ambush shouts, armor durability all landed recently).
 ---
 
 ## combat/resolution.py
-Pure combat math — dataclasses + functions, no ctx/I-O (~1000 lines).
+Pure combat math — dataclasses + functions, no ctx/I-O (~1047 lines).
 
 | Function / Class                                                            | Notes                                                        |
 |--------------------------------------------------------------------------------|-----------------------------------------------------------------|
@@ -885,7 +921,7 @@ Pure combat math — dataclasses + functions, no ctx/I-O (~1000 lines).
 
 ## combat/duel.py
 PvP duel system — challenge, tactics, round resolution, guild-turf capture
-(~1263 lines). Actively touched (ammo-penalty rules, guild support headcount
+(~1511 lines). Actively touched (ammo-penalty rules, guild support headcount
 bonus, initiative/Wizard-cast/Druid-heal all landed recently).
 
 | Function / Class                                                             | Notes                                                       |
@@ -1007,7 +1043,7 @@ classes, rooms, map, combinations, money (~846 lines). Actively touched
 
 ---
 
-## terminal.py (546 lines)
+## terminal.py (749 lines)
 Client-display/settings data: keyboard/color code enums, `ClientSettings`
 (the object every player's `player.client_settings` actually is), and a
 second half of legacy menu-driven settings-editor functions that appear to
@@ -1039,7 +1075,7 @@ section's clarifying note above; no naming confusion once both are read.
 | `edit_screen_columns(player)` / `edit_screen_rows(player)`    | Nested inside `tab_edit`/module scope                                                                |
 | `horizontal_ruler(player)`                                     | Renders a column-width ruler for the old editor                                                      |
 | `keyboard_settings(player)` / `color_settings(player)` / `test_graphics_output(player)` | Further old menu-driven editor screens                                                  |
-| `CommodoreClient` (dataclass)                                  | *(new, undocumented)* -- distinct from, and not to be confused with, `net_client.py`'s `CommodoreClient(Client)` |
+| `CommodoreClient` (dataclass)                                  | *(new)* A preset dataclass of Commodore terminal defaults (40×25, PETSCII, CR line ending, colour) — a lightweight stand-in for `ClientSettings`. Distinct from, and not to be confused with, `net_client.py`'s `CommodoreClient(Client)`. |
 | `Output` (class)                                                | `__init__(player)`, `.output(message)`, `.process_message(player, message)` -- old direct-print output helper, superseded by `ctx.send()` |
 
 No behavior was invented here -- `grep -rn "terminal\.settings_menu\|terminal\.tab_edit\|terminal\.Output"` across the tree (outside `terminal.py` itself) returns nothing, confirming these are dead in the current game, not merely undocumented.
@@ -1199,6 +1235,116 @@ including from `net_server.py` or `player.py` despite the similar name.
 
 ---
 
+## guild_hq/main.py + guild_hq/state.py
+Guild Headquarters (SPUR `GUILD.S` port). One shared code path for all
+three guilds (Claw / Sword / Fist); `movement.py` calls `main(ctx,
+guild_key)` when a player steps into a room whose alignment matches their
+guild.
+
+### guild_hq/main.py
+| Function                        | Why you'd call it                                                                                      |
+|---------------------------------|-------------------------------------------------------------------------------------------------------|
+| `main(ctx, guild_key)`          | async — HQ entry point (`guild_key` = `'CLAW'`/`'SWORD'`/`'FIST'`). Gates non-members out, then runs the HQ menu. The only thing `movement.py` calls here. |
+| `_hq_session(ctx, player, guild_key, info)` | async — the inner menu loop that dispatches to the rooms below                              |
+| `_guild_key_for(player)`        | The player's own guild key (or `None`) — used for the membership gate                                  |
+| `_chalkboard(ctx, …)`           | async — read / post the guild's shared message board                                                  |
+| `_food_locker(ctx, …)` / `_item_locker(ctx, …)` | async — deposit/withdraw rations / items in shared guild storage (caps `FOOD_LOCKER_MAX` / `ITEM_LOCKER_MAX`) |
+| `_guild_bank(ctx, …)`           | async — deposit/withdraw from the shared guild treasury                                                |
+| `_weapons_box(ctx, …)`          | async — shared weapon cache: stash a weapon or take one out                                            |
+| `_territory_report(ctx, …)`     | async — who controls each turf right now, read from `run/server/guild_control.json`                    |
+| `_view_log(ctx, …)`             | async — print the guild activity log (written by `state.add_log`)                                      |
+| `_ban_management(ctx, …)` / `_can_manage_bans(player)` | async / pure — officers ban a player from the HQ; the second is the permission check   |
+| `_help(ctx, …)`                 | async — HQ help screen                                                                                 |
+
+### guild_hq/state.py
+Per-guild persisted state (`run/server/guild_<key>.json`): lockers, treasury, bans, activity log.
+
+| Function                                    | Why you'd call it                                                       |
+|---------------------------------------------|------------------------------------------------------------------------|
+| `load(guild_key)` / `save(guild_key, state)` | Read / write one guild's state dict                                    |
+| `add_log(state, player_name, action, detail)` | Append one entry to that guild's activity log (shown by `_view_log`)  |
+| `_state_path(guild_key)`                     | Private — resolves the JSON path                                       |
+
+---
+
+## street/allies_guild.py
+The Allies' Guild (NPC: Bubba) — pay silver to permanently train an owned
+ally. Ported from SPUR `MISC8.S`. Entry: `main(ctx, bar=None)`.
+
+| Function                                              | Why you'd call it                                                                                       |
+|------------------------------------------------------|-------------------------------------------------------------------------------------------------------|
+| `main(ctx, bar=None)`                                 | async — entry point: `enter_area`, then the training menu loop                                         |
+| `_guild_session(ctx, player)`                         | async — inner loop: pick an owned ally, pick a training                                                |
+| `_confirm_and_charge(ctx, ally, label, cost)`         | async → bool — shared "that costs N silver, pay? → deduct it" helper for every option                  |
+| `_train_flag(ctx, ally, flag, label, cost)`           | async — generic "charge, then set one `AllyFlags` bit"; the specific trainings wrap it                 |
+| `_train_armor` / `_train_discipline` / `_train_combat` / `_train_tracking` | async — buy `ARMORED` / `ELITE` / `COMBAT_TRAINED` / `TRACKING` for an ally (armor & tracking refused for MOUNTs) |
+| `_train_body(ctx, ally)`                              | async — incremental strength training: +3 Str/level, cost `(level+1)×120`, caps at level 8             |
+
+---
+
+## street/jakes.py
+Jake's Stable (NPC: Jake) — mount supplies and horse training. Ported from
+SPUR `MISC8.S`. Entry: `main(ctx, bar=None)`.
+
+| Function                                          | Why you'd call it                                                                                      |
+|--------------------------------------------------|-----------------------------------------------------------------------------------------------------|
+| `main(ctx, bar=None)`                             | async — entry point + menu loop                                                                       |
+| `_stable_session(ctx)`                            | async — inner command loop                                                                            |
+| `_buy_ration(ctx, ration_num)` / `_buy_item(ctx, item_num)` | async — buy oats / sugar cubes; buy lasso / saddle / horse armor (same pattern as `shoppe/main._general_store` and `shoppe/ollys`) |
+| `_train_horse(ctx)`                               | async — 2,000 silver: upgrade an owned MOUNT that's already SADDLED + ARMORED to `ELITE`               |
+| `_tips(ctx)`                                      | async — print `messages.json` tip entries (canned-line fallback)                                      |
+| `_find_mount(player)`                             | Pure — the player's MOUNT ally, or `None`                                                              |
+| `_load_rations()` / `_load_objects()`            | Load the JSON data files this shop sells from                                                          |
+
+---
+
+## annex/main.py
+The Annex (SPUR `ANNEX.S` port) — an information / social hub, separate
+from the Merchant Shoppe: guild standings, news, player rosters, duel
+records. Entry: `main(ctx)`.
+
+| Function                                                    | Why you'd call it                                                    |
+|------------------------------------------------------------|--------------------------------------------------------------------|
+| `main(ctx)`                                                 | async — entry point + ~17-option menu loop                          |
+| `_show_menu(ctx)`                                           | async — render the menu                                             |
+| `_school_info` / `_school_spells`                           | async — school blurb / spell list                                  |
+| `_system_message` / `_tips`                                 | async — sysop bulletin / rotating tips                             |
+| `_news_new(ctx)` / `_news_old(ctx)`                         | async — unread vs. all news items (see `news.py`)                  |
+| `_guild_standings(ctx)`                                     | async — current guild turf / score standings                      |
+| `_personal_records(ctx)`                                    | async — the caller's own duel W/L and stats                        |
+| `_message_board_1` / `_2` / `_3(ctx)`                       | async — the three Annex message boards                             |
+| `_list_civilians` / `_list_claw` / `_list_sword` / `_list_fist` / `_list_outlaws(ctx)` | async — roster dumps: unaligned players, each guild's members, flagged outlaws |
+| `_view_system_data(ctx)`                                    | async — admin-only game-state viewer (currently a stub)            |
+
+---
+
+## news.py
+News / bulletin-board storage + visibility rules (`run/server/news.json`).
+Live — used by `logon_events/news.py`, `annex/main.py`, `commands/news.py`.
+
+| Function                                                      | Why you'd call it                                                                                     |
+|-------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+| `load_news(path=None)` / `save_news(items, path=None)`         | Read / write the whole news list                                                                     |
+| `next_id(items)`                                               | Next free integer id when posting a new item                                                         |
+| `is_visible(item, player_name, today=None, last_played=None)`  | The gatekeeper — is this item active for this player now? Handles `permanent` / `range` (date window) / `once` (per-player `seen_by` + last-login fallback) |
+| `is_new_since(item, since)`                                    | Was it posted after the player's given timestamp? — drives "new" vs "old" news                        |
+| `mark_seen(item, player_name)`                                 | Record that this player has now seen a `once` item                                                   |
+| `format_item(item, ctx)`                                       | Render one item to display lines for this client                                                     |
+| `_parse_iso_date` / `_format_lifetime`                         | Private helpers                                                                                      |
+
+---
+
+## command_version.py
+Backs the `#version` / `#ver` command switch — "when was this command last
+changed?"
+
+| Function                              | Why you'd call it                                                                            |
+|---------------------------------------|--------------------------------------------------------------------------------------------|
+| `get_command_version(command)`        | The only public entry: given a `Command` class/instance, return a date string from `git log` (falls back to file mtime) |
+| `_repo_root` / `_git_log_date` / `_mtime_date` | Private — path + lookup helpers                                                     |
+
+---
+
 ## Not yet covered by this doc (full-rewrite backlog)
 
 Significant modules/packages that exist in the codebase but this doc never
@@ -1207,7 +1353,7 @@ planned full rewrite (this pass only patched renamed/deleted modules and the
 commands/ list, per explicit scope).
 
 **Whole packages:**
-- `combat/` — `engine.py` (1570 lines), `resolution.py` (809 lines —
+- `combat/` — `engine.py` (2257 lines), `resolution.py` (1047 lines —
   `AttackResult`/`MonsterAttackResult`/`AllyAttackResult`/`FleeResult`/
   `SpecialWeaponResult` dataclasses), `duel.py`, `rewards.py`. (A same-named
   top-level `combat.py` was never actually part of this package — it was an
@@ -1233,29 +1379,14 @@ can look like real modules at a glance. (A same-named, similarly untracked
 `message.py` was checked and deleted — a dead, unused,
 incompatible early draft of what `net_common.py`'s real `Message`/
 `MessageType` classes actually shipped as; nothing imported it.)
-- `guild_hq/` — `main.py` (now **813 lines**, up from 631 at last pass —
-  grew a `_can_manage_bans`/`_ban_management` guild-ban feature since then;
-  still also has chalkboard, food/item lockers, guild bank, weapons box,
-  activity log as previously noted), `state.py` — still undocumented,
-  content description otherwise still accurate, spot-checked this pass
-- `street/` — `allies_guild.py` (180 lines, ally training), `jakes.py`
-  (305 lines, rations/items/horse training/tips) — still undocumented,
-  content description still accurate, spot-checked this pass
-- `annex/` — `main.py` (202 lines: school info, spells, news, guild
-  standings, personal records, message-board reading, outlaw/guild player
-  lists) — still undocumented, content description still accurate,
-  spot-checked this pass
+- `guild_hq/` (`main.py` + `state.py`), `street/` (`allies_guild.py`,
+  `jakes.py`), `annex/main.py` — **now have their own `##` sections above**
+  (brief "why you'd call it" tables, added this pass).
 
 **New top-level modules:**
-- `news.py` — still undocumented; spot-checked this pass, claimed function
-  list (`load_news`, `save_news`, `next_id`, `is_visible`, `is_new_since`,
-  `mark_seen`, `format_item`) is still accurate and complete (plus private
-  `_parse_iso_date`/`_format_lifetime` helpers not previously mentioned)
-- `command_version.py` — still undocumented; spot-checked this pass,
-  `get_command_version(command)` is still the only public function (git log
-  / mtime lookup for the `#version`/`#ver` switch); three private helpers
-  (`_repo_root`, `_git_log_date`, `_mtime_date`) not previously mentioned
-- `bar/vinny.py` (362 lines), `bar/thug_attack.py`, `bar/allies.py` — see
+- `news.py`, `command_version.py` — **now have their own `##` sections
+  above** (added this pass).
+- `bar/vinny.py` (523 lines), `bar/thug_attack.py`, `bar/allies.py` — see
   their respective sections above
 
 **Core game-logic modules — now documented in full sections above:**
@@ -1285,6 +1416,113 @@ stub (had its own orphaned `Horse` class alongside `characters.py`'s and
 **Other renamed one-off scripts** (not fixed this pass, minor):
 `convert_map_data.py`, `convert_object_data.py`, `convert_ration_data.py`
 — not previously in the doc at all, so nothing to correct, just missing.
+
+---
+
+## Changes since 2026-08-11
+
+Running changelog of structural/API changes across ≈195 commits (2026-08-12
+→ 2026-09-03). Grouped by area. Commit hashes given where a single commit
+is the anchor. The per-module sections above were **not** re-verified
+against these — treat this list as the source of truth where it conflicts.
+
+### New modules / packages
+| Path                                   | What it is                                                                                          |
+|----------------------------------------|----------------------------------------------------------------------------------------------------|
+| `visited_rooms.py`                     | Per-player visited-room bitmap tracking. `grid_capacity(level)`, `mark_visited(player, level, room)`, `is_visited(...)`, `visited_room_numbers(player, level)` + private `_bit_position`. Backs `map #visited` / `map #overview` (`fd71a74`, `8801cec`). |
+| `ally_events/horse_bolt.py`            | Extracted mount-bolt mechanic (`56a2e4c`). `maybe_bolt_mount(ctx, *, chance_denominator=10)`, `bolt_thrown_mount(ctx, mount, *, chance_denominator=2)`, `try_catch_bolted_mount(ctx)`, `has_bolted_mount(player)` + private `_walk_random_rooms`/`_bolt_mount_now`/`_bolt_denominator`. |
+| `shoppe/school.py`                     | Formal Shield Training purchase at the Merchant Shoppe (`ecb95f1`). `main(ctx)`, `_training_cost(char_class, char_race)`. |
+| `logon_events/news.py`                 | `news_lines(ctx, player)` — login-time news digest. |
+| `logon_events/unconscious_wake.py`     | `wake_lines(player)` — login message when the player was left unconscious (`e22dda9` unconscious mechanic). |
+| `commands/c64_display.py`              | Helper module (no `Command` class — called from `commands/prefs.py`): `pick_c64_display(ctx)` + `encode_apply(...)`, `encode_apply_for_player(player)`, `_encode_trigger(...)` — native C64 Video Settings popup wire bytes (`3eae240`, `847641e`). |
+| `spells/` package                      | `spells/charm.py` — CHARM spell / spontaneous-charm: `try_charm_potion(ctx)`, `charm_greeting_line(player, room_no, level)`, `try_charm_join_offer(ctx, *, level, room_no)` + private `_current_room`. Pluralized for `multiple_monsters` (`005b432`, `9a1ec25`); logs race/honor state on each "aghast" trigger (`eedb368`). Not previously in this doc. |
+| `combat/rewards.py`                    | Already documented above; note the split changed — monster **silver** is now divided evenly across all attackers (`6497102`, silver standard). Function is still named `gold_from_monster`. |
+| `tools/`                               | New bot/util scripts: `bot_quiver_check.py`, `bot_horse_bolt_demo.py`, `bot_mount_redirect_death_demo.py`, `prompt_preamble_demo.py`, `build_level_correct.py`, `nightly_recruit_digest.py` (recruit-digest cron). |
+
+### commands/ (see also the count fix in that section)
+- ~20 new `Command` subclasses since 8/11 (list in the `commands/` section above). Notably: `MapCommand` (`map #overview [<level>]` Debug-Mode birds-eye grid; `map #visited`), `LootCommand` (loot bodies; can mail an unconscious victim — `9d03503`), `ExamineCommand` (split out; no-target form lists room-mates' conscious/unconscious status — `4927c58`), `ListLocationsCommand` (`list`/`find`, `find` alias + name-substring filter — `2a4f40b`), `LogsCommand`, `MailCommand`, `PlayCommand` (SID tune playback), `CastCommand`, `PrayCommand`, `FollowCommand`, `OrderCommand`, `LurkCommand`, `HistoryCommand`, `TipsCommand`, `WearCommand`/`UnwearCommand`, `ConfigCommand`, `PromptModeCommand`, `BannerEditCommand`, `AskCommand`.
+- `TestCommand`: `colors` sub-behavior moved to `test #colors`, freeing the bare `colors` name for the `help colors` topic (already noted above).
+- `GetCommand`/`InvCommand`: guest fixes — guests were silently failing `inv`/`get`; item pickup now properly blocked/allowed per the `GuestPlayer(Player)` change (`cb51ac4`, `c54f5c8`).
+
+### Player / player-data
+- `Player.adjust_honor(adjustment) -> tuple[int, str] | None` — **new** (`player.py:907`). All clamped Honor-adjustment sites migrated to it (`ba27074`, `95ae041`); fixes previously-inverted more/less-honorable messaging (`b8e31a2`); appends the signed delta to the honor-change message (`ba62737`). Tests: `tests/test_player_adjust_honor.py`.
+- `Player.__init__` now **defers** random stat/silver/castle/id generation instead of doing it eagerly (`698c398`) — the `set_up_*` factory functions are called lazily.
+- Ration price now survives save/load (`17ab74d`); rations stack with a previously-saved copy of the same item (`cbe5b5d`); EXAMINE no longer reports reloaded rations as the wrong item type (`0f212f4`).
+- `fled_monsters` ("tracks") state added — wired into look / examine / get / re-encounter (`324b6ca`).
+- Player-unconscious mechanic built (`e22dda9`, real SPUR mechanic never previously ported).
+
+### editplayer.py
+- Statistics menu: added a Gender toggle (`8ac76ee`); Class shows via `class_display_name()` (`8491e85`).
+- Fixed editplayer reverting an online player's live progress on save (`2532207`).
+- Fixed editplayer clobbering the target's `client_settings` while borrowing the admin's for rendering (`30cb78f`).
+
+### Combat / duel
+- **Shield mechanics overhaul:** monster-combat shield block reworked to match SPUR message #14 (`4245c25`, `e6ccef9`); SPUR shield-bash knockdown formula + defender-side mirror modifiers ported into duels (`190332f`, `ad05d74`).
+- Mount / redirect combat: mount-redirect now deals real damage with a death message and takes the player out of the fight, not just off the horse (`b6149d6`, `19416d6`); lassoed mounts get seeded `hit_points` like purchased allies (`88cdf23`); Combat/Elite training lowers a mount's bolt chance (`9a90742`).
+- Desert ambush mechanic now excludes mounts; added a horse-bolt fallback (`56a2e4c`).
+- Loud-weapon scare check uses exact weapon numbers, not a sound heuristic (`64e2714`).
+- Duel result mail now always notifies the loser (`2f55f49`).
+
+### Allies / party
+- READY/UNREADY can now ready **and** unready an ally's weapon (`7121e39`).
+- GIVE with no target offers a pick list of allies (`78d9ef3`).
+
+### LOOK / EXAMINE
+- `LOOK <monster>` works outside combat and reports kill count; wired to in-combat monsters; SPUR's nostalgic-charm room line added (`9d75067`, `c3fec89`).
+- `LOOK <player>` now mirrors EXAMINE; both report the player's gender (`91b9488`).
+- Fixed duplicate item name in `look` output (`be02dbd`); added a missing article to the singular-monster room line (`1035779`).
+
+### PREFS / terminal / client
+- New **"Commodore 64 (ASCII)"** client type; PETSCII option added for the Custom type (`847641e`, `3a986c0`). Real Commodore clients can switch to real ASCII translation (`291ee6b`).
+- Line-ending choice (CR / LF / CRLF) wired through for PETSCII client output (`802afa4`); default is now CR, fixing real C64 clients receiving only LF (`601b7ca`).
+- Handshake negotiates the real terminal width/height (`69f6633`); `tada_client.py` negotiates one column narrower than the real terminal (`6e59429`). Full terminal settings are carried through login and mentioned at the pre-login prompt (`6f7e0ec`).
+- PREFS submenus use `ctx.player.return_key` instead of a hardcoded "Enter" (`4856d78`); Colors & Graphics submenu keys lowercased (`245ca26`); Tab Key demo expanded with a you-type/you-get token table, and simulated `|tab|` now advances to a real tab stop instead of a flat repeat (`67864a5`, `78b007e`).
+- `formatting.py`: fixed `|reverse_on|` / `|reverse_off|` being aliased to bold (`8eb4010`); PETSCII underscore fix (Shift+Space `0xA0` in, byte `0xE4` out — `cd9109f`).
+- Popup-window transparency + grey-out primitives added (`850b0b2`).
+
+### Help
+- `Help()` auto-escaping of `[<level>]` → `[[<level>]]` extended to notes / admin_notes / both usage columns (`1d08399`); over-escaping of usage tuples/docstrings fixed (`b313600`).
+- `help <spaced topic phrase>` (e.g. `help weapon affinity`) works (`e64f6a5`).
+- Administrative help category hidden from non-admin players (`b1c9da4`).
+- Remaining player-facing `.json` filenames moved into `admin_notes` (`a6c7ed0`, `11eed52`); general HELP listing notes that aliases appear in parentheses (`0b9fe16`).
+
+### menu_system.py
+- Per-item `h<number>` help added and wired into the config editor (`bc63bda`).
+
+### Prompt-style normalization (PR #37, 2026-09-03)
+- Long `ctx.prompt()` option text wraps into `preamble_lines` (`d82c181`).
+- `ctx.player.return_key` replaces hardcoded "Enter" / "blank to cancel" across prompts (`fe77b69`, `87cbc86`).
+- Action-key notation normalized to `[X]word` for bracket highlighting; `X`-for-random / mismatched-letter mnemonics consolidated to `[X] Word` (`b7cf022`, `325afac`).
+- `PETSCIINetworkContext.prompt`: redundant post-Enter input echo disabled (`0e92daf`).
+
+### News / logon
+- NEWS last-read cursor bug fixed at its root cause; nightly recruit-digest cron added (`tools/nightly_recruit_digest.py`).
+
+### survival.py
+- Hunger/thirst redesigned to deplete on **move/attack**, not every command (`b921faa`).
+
+### Potions / items ported
+- POTION OF SKILL (+4 to-hit until next READY) (`06aeae5`); Fountain of Youth, Galadriel's Vial, POOL OF WATER (`6ba7889`); Crystal Pendant now requires WEAR (not just carrying) to block turn-to-stone (`b9ff9cb`).
+
+### Monsters data
+- Size fixes: PIXIE huge→small (`db0bbef`), LITTLE DOG / MUNCHKINS size flags (`39418c8`).
+- `no_article` flag on proper names: MEDUSA (`6eb67c2`), C-3-P-0 (`d3daa98`).
+- GUARDIAN shapeshift-mirror flavor line (`df4e12d`).
+
+### Server / infra
+- Server bind host default is `0.0.0.0` (`0a39434`); fixed the host setting being ignored on startup (`9d3835b`).
+- `wa` / `WhereatCommand` includes Guests; stuck pre-login connections now time out (`46d4214`).
+- Admins can reset another account's password without the old one (`dad6ecd`); password input rejects characters a real C64 keyboard can't send identically (`ca989e2`).
+- Room renumbering fix — `level_2.json`..`level_7.json` now use real SPUR room numbers (`03ee8e4`), plus a large sweep of room-description typo/grammar fixes.
+- `tada_client.py` packaged as a standalone PyInstaller onedir bundle (`25038d9`); default host baked to `tada.servegame.com` (`9ee54e7`); added `--log` timestamped logging and `^N`/`^^` history recall (`4ff94d3`).
+
+### sid_engine / tune library
+- `sid_engine/frames.py`: a tune is split into multiple sub-16-bit chunks past the 16-bit cap (`7ca0493`, `8252389`).
+- FRAME_END misdetection and stale STREAM_CONFIRM bytes fixed (`53b18fb`, `7363d75`).
+- Many tunes added to the library (Atlantis, Chordian, Apshai, Batman, Enterprise, Hollywood, Legacy, Ultima IV, …).
+
+### New docs (not code, for orientation)
+- `LEVEL_AUDIT.md` (room-keyed gameplay-mechanic catalog), `ALPHA_TESTERS.md`, `PULL_REQUESTS.md` (running PR/branch catalog), an alpha-tester bug log.
 
 ---
 

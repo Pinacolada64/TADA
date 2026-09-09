@@ -15,6 +15,11 @@ from base_classes import PlayerClass, PlayerStat
 from combat.resolution import tier_label as _tier_label
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
+from inventory_select import (
+    gather_items,
+    owner_has_readied,
+    resolve_or_prompt,
+)
 from item_system import weapon_bonus
 from items import ItemCategory
 from network_context import GameContext
@@ -57,17 +62,86 @@ def _find_storm_in_inventory(player, excluding_id=None):
     return None
 
 
-def _weapon_entries(player):
-    """Return InventoryEntry list for weapons the player carries."""
-    inv = getattr(player, 'inventory', None)
-    if inv is None:
-        return []
-    return inv.entries(category=str(ItemCategory.WEAPON))
-
-
 def _stat(player, key) -> int:
     stats = getattr(player, 'stats', {}) or {}
     return int(stats.get(key, 0) or 0)
+
+
+# _party_allies() / the ally-weapon walk / the readied-match test all moved
+# to inventory_select.py so READY and UNREADY share one copy. gather_items(
+# category=WEAPON, include_allies=True) returns the combined list; each
+# ItemChoice carries .owner (None => the player, else the Ally) and
+# .readied.
+
+
+def _weapon_needs_ammo(item) -> bool:
+    """True if *item* is a projectile/energy weapon that consumes ammo.
+
+    Mirrors combat/resolution.py's ally_attacks() gate (weapon_class in
+    projectile/energy, STORM excluded). An ally readying one of these with
+    no rounds loaded auto-misses every swing until the player GIVEs it
+    ammo -- and an ally has no USE command to load its own.
+    """
+    wc = getattr(item, 'weapon_class', None)
+    wc_str = (wc.value if hasattr(wc, 'value') else str(wc or '')).lower()
+    if wc_str not in ('projectile', 'energy'):
+        return False
+    return 'STORM' not in (getattr(item, 'name', '') or '').upper()
+
+
+def _matching_ammo_in_inventory(player, weapon):
+    """First loaded ammo item in the player's pack that fits *weapon*, or None."""
+    inv = getattr(player, 'inventory', None)
+    if inv is None:
+        return None
+    from commands.use import ammo_load_error, is_ammo_item
+    for entry in inv.entries():
+        item  = entry.item
+        flags = getattr(item, 'flags', None)
+        if not is_ammo_item(flags) or int(flags.get('rounds', 0) or 0) <= 0:
+            continue
+        if ammo_load_error(weapon, flags) is None:
+            return item
+    return None
+
+
+# _ally_has_readied(ally, item) is now inventory_select.owner_has_readied
+# (same identity-then-id_number-within-category test, generalised to the
+# player too).
+_ally_has_readied = owner_has_readied
+
+
+async def _toggle_ally_weapon(ctx, player, ally, item) -> CommandResult:
+    """Ready *item* for *ally*, or unready it if it's already their readied
+    weapon. Ammo counters reset either way (commands/give.py's ammo load-in
+    is keyed to whatever weapon is readied *now*)."""
+    name  = getattr(item, 'name', '?')
+    pself = getattr(player, 'name', 'Someone')
+    ally.ammo_rounds = ally.ammo_max = ally.ammo_damage = 0
+    player.unsaved_changes = True
+    if _ally_has_readied(ally, item):
+        ally.readied_weapon = None
+        await ctx.send(f'{ally.name} repacks the {name}.')
+        await ctx.send_room(f'{pself} has {ally.name} repack the {name}.',
+                            exclude_self=True)
+    else:
+        ally.readied_weapon = item
+        await ctx.send(f'{ally.name} readies the {name}!')
+        await ctx.send_room(f'{pself} has {ally.name} ready the {name}!',
+                            exclude_self=True)
+        # The ammo reset above always leaves a freshly-readied weapon with
+        # zero rounds. For a projectile/energy weapon that's dead weight --
+        # combat/resolution.py's ally_attacks() auto-misses on rounds < 1 --
+        # so tell the player now rather than let them find out mid-fight.
+        if _weapon_needs_ammo(item):
+            await ctx.send(f'{ally.name} has no ammunition loaded for the {name}.')
+            if not getattr(player, 'is_expert', False):
+                ammo = _matching_ammo_in_inventory(player, item)
+                if ammo is not None:
+                    await ctx.send(f'(GIVE {ally.name} the {ammo.name} to load it.)')
+                else:
+                    await ctx.send(f'({ally.name} will need ammunition before it fires.)')
+    return CommandResult.ok()
 
 
 def _weapon_class_line(weapon) -> list[str]:
@@ -109,86 +183,88 @@ class ReadyCommand(Command):
         summary  = 'Ready a weapon from your inventory.',
         category = HelpCategory.GENERAL,
         usage    = [
-            ('ready',         'List carried weapons and choose one'),
-            ('ready <name>',  'Ready the weapon matching name'),
+            ('ready',          'List weapons (yours and your allies\') and choose one'),
+            ('ready <name>',   'Ready the weapon (or ally) matching name'),
         ],
         examples = [
             ('ready',         "READY wields a weapon from your inventory, showing its "
                                "class, ease of use, and damage once equipped. With no "
                                "name given, it lists everything you're carrying that can "
-                               "be readied and lets you pick one."),
+                               "be readied -- plus any weapons your allies are carrying "
+                               "-- and lets you pick one."),
             ('ready sword',   'Naming a weapon (a partial match works) readies it '
                                'directly -- "ready sword" wields whatever you\'re '
                                'carrying with "sword" in its name.'),
+            ('ready alan',    "Allies don't ready GIVEn weapons on their own. Pick an "
+                               "ally's weapon from the READY list (or name the ally / "
+                               "the weapon) to have them wield it; pick it again to "
+                               "have them repack it."),
         ],
         see_also = ['combat', 'weaponclass', 'basedamage', 'easeofuse', 'weaponaffinity'],
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
         args, _switches = self.parse_args(*args)
-        player  = ctx.player
-        entries = _weapon_entries(player)
+        player = ctx.player
 
-        if not entries:
+        # The player's own weapons plus every weapon in each party ally's
+        # pack, one combined numbered list (inventory_select.gather_items).
+        choices     = gather_items(player, category=ItemCategory.WEAPON,
+                                   include_allies=True)
+        has_ally    = any(c.is_ally for c in choices)
+
+        if not choices:
             await ctx.send('You have no weapons to ready.')
             return CommandResult.ok()
 
+        # STR gates the player's own arm, not an ally's -- only short-circuit
+        # here when there's nothing but the player's own weapons to offer
+        # (an ally weapon is still readiable below regardless of the
+        # player's Strength).
+        if not has_ally and _stat(player, PlayerStat.STR) < _MIN_STR:
+            await ctx.send('Not enough strength to ready a weapon!')
+            return CommandResult.ok()
+
+        def _label(c) -> str:
+            if c.is_ally:
+                tag = '  (readied)' if c.readied else ''
+                return f'{c.owner.name}: {c.name}{tag}'
+            wc     = getattr(c.item, 'weapon_class', None)
+            wc_str = (wc.value if hasattr(wc, 'value') else str(wc)) if wc else ''
+            vp     = _battle_exp(player, c.item)
+            return f'{c.name:<22} {wc_str:<18} {_tier_label(vp)}'
+
+        def _match(c, pattern) -> bool:
+            if pattern in (c.name or '').lower():
+                return True
+            return c.is_ally and pattern in c.owner.name.lower()
+
+        # Resolve to one weapon (the player's, or an ally's). Picking an
+        # ally's weapon toggles that ally's readied weapon and returns
+        # straight away -- the player-side readying flow below only runs
+        # for the player's own weapons. The bare list keeps its two
+        # labelled sections ("Weapons you carry:" / "Your allies'
+        # weapons:"); a name narrowed to several shows a flat "Which
+        # weapon?" list.
+        choice = await resolve_or_prompt(
+            ctx, choices, args=args, prompt_text='Ready which weapon',
+            label_fn=_label, match_fn=_match,
+            group_fn=(lambda c: "Your allies' weapons:" if c.is_ally
+                      else 'Weapons you carry:'),
+            ambiguous_header='Which weapon?',
+            no_match_msg=lambda q: f'No weapon or ally matching "{q}".',
+        )
+        if choice is None:
+            return CommandResult.ok()
+        if choice.is_ally:
+            return await _toggle_ally_weapon(ctx, player, choice.owner, choice.item)
+        entry = choice.entry
+
+        # From here on the player is readying one of their *own* weapons.
         str_val = _stat(player, PlayerStat.STR)
         if str_val < _MIN_STR:
             await ctx.send('Not enough strength to ready a weapon!')
             return CommandResult.ok()
-
-        # Resolve target entry: by name arg or interactive prompt
-        if args:
-            pattern = ' '.join(args).lower()
-            matches = [(i, e) for i, e in enumerate(entries)
-                       if pattern in (getattr(e.item, 'name', '') or '').lower()]
-            if not matches:
-                await ctx.send(f'You are not carrying any weapon matching "{" ".join(args)}".')
-                return CommandResult.ok()
-            if len(matches) == 1:
-                entry = matches[0][1]
-            else:
-                lines = ['Which weapon?', '']
-                for _, (orig_i, e) in enumerate(matches, 1):
-                    lines.append(f'  {orig_i + 1:>2}. {getattr(e.item, "name", "?")}')
-                lines.append('')
-                await ctx.send(lines)
-                raw = await ctx.prompt(preamble_lines=f'(1-{len(matches)}, {ctx.player.return_key} to cancel)',
-                                       prompt_text="Ready which")
-                if not raw or not raw.strip():
-                    return CommandResult.ok()
-                try:
-                    pick = int(raw.strip()) - 1
-                    if not (0 <= pick < len(matches)):
-                        raise ValueError
-                except ValueError:
-                    await ctx.send('Invalid selection.')
-                    return CommandResult.ok()
-                entry = matches[pick][1]
-        else:
-            lines = ['Weapons you carry:', '']
-            for i, e in enumerate(entries, 1):
-                name    = getattr(e.item, 'name', '?')
-                wc      = getattr(e.item, 'weapon_class', None)
-                wc_str  = (wc.value if hasattr(wc, 'value') else str(wc)) if wc else ''
-                vp      = _battle_exp(player, e.item)
-                badge   = _tier_label(vp)
-                lines.append(f'  {i:>2}. {name:<22} {wc_str:<18} {badge}')
-            lines.append('')
-            await ctx.send(lines)
-            raw = await ctx.prompt(preamble_lines=f'(1-{len(entries)}, {ctx.player.return_key} to cancel)',
-                                   prompt_text="Ready which weapon")
-            if not raw or not raw.strip():
-                return CommandResult.ok()
-            try:
-                choice = int(raw.strip()) - 1
-                if not (0 <= choice < len(entries)):
-                    raise ValueError
-            except ValueError:
-                await ctx.send('Invalid selection.')
-                return CommandResult.ok()
-            entry = entries[choice]
 
         weapon = entry.item
         name   = getattr(weapon, 'name', '?')

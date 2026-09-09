@@ -22,6 +22,7 @@ from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from flags import PlayerFlags
 from inventory import InventoryEntry
+from inventory_select import gather_items, resolve_or_prompt
 from network_context import GameContext
 
 _RING_ID = 67  # ring of invisibility (objects.json) -- see commands/wear.py
@@ -158,68 +159,28 @@ class DropCommand(Command):
             await ctx.send('You are carrying nothing.')
             return CommandResult.ok()
 
-        entries = inventory.entries()
-        if not entries:
+        # Name match, ambiguous "Which one?" sub-prompt, or the full
+        # numbered inventory list -- all via the shared picker
+        # (inventory_select). Every category is droppable, so no filter.
+        choices = gather_items(player)
+        if not choices:
             await ctx.send('You are carrying nothing.')
             return CommandResult.ok()
 
-        # Name/pattern given — find matching entries
-        if args:
-            pattern = ' '.join(args).lower()
-            matches = [(i, e) for i, e in enumerate(entries)
-                       if pattern in getattr(e.item, 'name', '').lower()]
-            if not matches:
-                await ctx.send(f'You are not carrying anything matching "{" ".join(args)}".')
-                return CommandResult.ok()
-            if len(matches) == 1:
-                choice = matches[0][0]
-            else:
-                # Ambiguous — show the matches and ask
-                lines = ['Which one?', '']
-                for i, (orig_idx, e) in enumerate(matches, 1):
-                    name = getattr(e.item, 'name', '?')
-                    qty  = f' x{e.quantity}' if e.quantity > 1 else ''
-                    lines.append(f'  {i:>2}. {name}{qty}')
-                lines.append('')
-                await ctx.send(lines)
-                raw = await ctx.prompt(preamble_lines=f'(1-{len(matches)}, or {ctx.player.return_key} to cancel)',
-                                       prompt_text="Drop which")
-                if not raw or not raw.strip():
-                    return CommandResult.ok()
-                try:
-                    pick = int(raw.strip()) - 1
-                    if not (0 <= pick < len(matches)):
-                        raise ValueError
-                except ValueError:
-                    await ctx.send('Invalid selection.')
-                    return CommandResult.ok()
-                choice = matches[pick][0]
+        def _label(c) -> str:
+            qty = getattr(c.entry, 'quantity', 1) or 1
+            return f'{c.name}{f" x{qty}" if qty > 1 else ""}'
 
-        else:
-            # No args — show full inventory and prompt
-            lines = ['You are carrying:', '']
-            for i, entry in enumerate(entries, 1):
-                name = getattr(entry.item, 'name', '?')
-                qty  = f' x{entry.quantity}' if entry.quantity > 1 else ''
-                lines.append(f'  {i:>2}. {name}{qty}')
-            lines.append('')
-            await ctx.send(lines)
-
-            raw = await ctx.prompt(preamble_lines=f'(1-{len(entries)}, or {ctx.player.return_key} to cancel)',
-                                   prompt_text="Drop which item")
-            if not raw or not raw.strip():
-                return CommandResult.ok()
-            try:
-                choice = int(raw.strip()) - 1
-            except ValueError:
-                await ctx.send('Invalid selection.')
-                return CommandResult.ok()
-
-        if not (0 <= choice < len(entries)):
-            await ctx.send(f'You are not carrying item {choice + 1}.')
+        choice = await resolve_or_prompt(
+            ctx, choices, args=args, prompt_text='Drop which item',
+            label_fn=_label,
+            list_header='You are carrying:',
+            no_match_msg=lambda q: f'You are not carrying anything matching "{q}".',
+        )
+        if choice is None:
             return CommandResult.ok()
 
-        entry = entries[choice]
+        entry = choice.entry
         name  = getattr(entry.item, 'name', '?')
 
         # Ring of invisibility (#67): can't drop it while worn (SPUR.MISC.S:136/

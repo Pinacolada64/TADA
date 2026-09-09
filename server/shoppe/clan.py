@@ -109,7 +109,9 @@ async def main(ctx: GameContext) -> None:
         if is_guild:
             await ctx.send(f'(Plus {_DESERT_HONOR_PENALTY} honor penalty for deserting your Guild!)')
 
-        raw = await ctx.prompt('Which? (1-5, Q to leave, ? to re-list)')
+        raw = await ctx.prompt(
+            'Which',
+            preamble_lines=['Which? (1-5, [Q] Leave, ? to re-list)'])
         if raw is None:
             return
         choice = raw.strip().upper()
@@ -123,7 +125,7 @@ async def main(ctx: GameContext) -> None:
         try:
             n = int(choice)
         except ValueError:
-            await ctx.send('Enter 1 through 5, Q to leave.')
+            await ctx.send('Enter 1 through 5, [Q] Leave.')
             continue
 
         opt = next((o for o in _OPTIONS if o[0] == n), None)
@@ -146,7 +148,9 @@ async def main(ctx: GameContext) -> None:
 
         # Confirm
         sigil_str = f' {sigil}' if sigil else ''
-        raw = await ctx.prompt(f"Join {label}{sigil_str}? (Y/N)")
+        raw = await ctx.prompt(
+            'Confirm (Y/N)',
+            preamble_lines=[f"Join {label}{sigil_str}? (Y/N)"])
         if raw is None or raw.strip().upper() != 'Y':
             continue
 

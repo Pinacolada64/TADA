@@ -227,6 +227,29 @@ class TestAllyGuildTraining(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(player._gold, 5000)
         self.assertIn('as large as possible', ctx.sent())
 
+    async def test_body_build_refused_at_strength_ceiling(self):
+        from bar.ally_data import ALLY_STRENGTH_MAX
+        ally = _make_ally()
+        ally.strength = ALLY_STRENGTH_MAX      # already maxed, but level < 8
+        ally.body_build = 2
+        player = _FakePlayer(gold=5000, allies=[ally])
+        ctx = _FakeCtx(player)
+        await _train_body(ctx, ally)           # no answers queued -- must not prompt
+        self.assertEqual(ally.strength, ALLY_STRENGTH_MAX)
+        self.assertEqual(ally.body_build, 2)
+        self.assertEqual(player._gold, 5000)
+        self.assertIn('as strong as any ally can be', ctx.sent())
+
+    async def test_body_build_gain_clamped_to_strength_ceiling(self):
+        from bar.ally_data import ALLY_STRENGTH_MAX
+        ally = _make_ally()
+        ally.strength = ALLY_STRENGTH_MAX - 1  # a +3 would overshoot by 2
+        player = _FakePlayer(gold=5000, allies=[ally])
+        ctx = _FakeCtx(player)
+        ctx.set_answers(['Y'])
+        await _train_body(ctx, ally)
+        self.assertEqual(ally.strength, ALLY_STRENGTH_MAX)
+
 
 class TestAllyGuildMain(unittest.IsolatedAsyncioTestCase):
 
