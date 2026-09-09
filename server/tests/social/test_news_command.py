@@ -22,11 +22,20 @@ def run(coro):
     return asyncio.run(coro)
 
 
+class _FakeClientSettings:
+    def __init__(self, date_format='', time_format='', timezone='', screen_columns=80):
+        self.date_format = date_format
+        self.time_format = time_format
+        self.timezone = timezone
+        self.screen_columns = screen_columns
+
+
 class _FakePlayer:
-    def __init__(self, name='alexa', admin=False):
+    def __init__(self, name='alexa', admin=False, date_format=''):
         self.name = name
         self._admin = admin
         self.return_key = 'Enter'
+        self.client_settings = _FakeClientSettings(date_format=date_format)
 
     def query_flag(self, flag):
         if flag == PlayerFlags.ADMIN:
@@ -74,11 +83,21 @@ class TestList(NewsCommandTestCase):
     def test_listing_shows_date_before_title(self):
         self._seed([{'id': 1, 'title': 'Patch Notes', 'body': ['x'],
                       'lifetime': 'permanent', 'posted_at': '2026-01-01T00:00:00'}])
-        ctx = make_ctx(prompts=[''])
+        ctx = make_ctx(player=_FakePlayer(date_format='%Y-%m-%d'), prompts=[''])
         run(NewsCommand().execute(ctx))
         preamble = ctx.prompt.call_args.kwargs['preamble_lines']
         row = next(l for l in preamble if 'Patch Notes' in l)
         self.assertLess(row.index('2026-01-01'), row.index('Patch Notes'))
+
+    def test_listing_date_respects_player_date_format(self):
+        self._seed([{'id': 1, 'title': 'Patch Notes', 'body': ['x'],
+                      'lifetime': 'permanent', 'posted_at': '2026-01-02T00:00:00'}])
+        ctx = make_ctx(player=_FakePlayer(date_format='%m/%d/%Y'), prompts=[''])
+        run(NewsCommand().execute(ctx))
+        preamble = ctx.prompt.call_args.kwargs['preamble_lines']
+        row = next(l for l in preamble if 'Patch Notes' in l)
+        self.assertIn('01/02/2026', row)
+        self.assertNotIn('2026-01-02', row)
 
     def test_listing_has_header_row_and_rule(self):
         self._seed([{'id': 1, 'title': 'Patch Notes', 'body': ['x'],
