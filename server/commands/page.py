@@ -229,7 +229,9 @@ class PageCommand(Command):
             return
 
         await ctx.send(f'{name} is not online.')
-        raw = await ctx.prompt(f'Leave this as a mail message for {name}? (y/N)')
+        raw = await ctx.prompt(
+            'Confirm',
+            preamble_lines=[f'Leave this as a mail message for {name}? (y/N)'])
         if not raw or raw.strip().lower() not in ('y', 'yes'):
             return
 

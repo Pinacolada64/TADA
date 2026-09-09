@@ -278,8 +278,13 @@ class TestPostAndReply(BoardCommandTestCase):
                       'replies': []}])
         ctx = make_ctx(prompts=['n', '', 'my reply text', '.s'])
         run(BoardCommand().execute(ctx, 'reply', '1'))
-        prompt_args = [c.args[0] for c in ctx.prompt.await_args_list]
-        self.assertIn('Enter title of reply, [Enter keeps same]', prompt_args)
+        prompt_texts = [c.args[0] for c in ctx.prompt.await_args_list]
+        prompt_texts += [
+            line
+            for c in ctx.prompt.await_args_list
+            for line in (c.kwargs.get('preamble_lines') or [])
+        ]
+        self.assertIn('Enter title of reply, [Enter keeps same]', prompt_texts)
 
     def test_reply_confirmation_shows_number_and_title_not_thread_id(self):
         self._seed([{'id': 7, 'title': 'A Bulletin About Cheese', 'author': 'bob',

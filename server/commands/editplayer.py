@@ -133,7 +133,9 @@ class EditPlayerCommand(Command):
             target.client_settings = target_client_settings
 
         if getattr(target, 'unsaved_changes', False):
-            raw = await ctx.prompt(f'Save changes to {target.name}? (Y/N)')
+            raw = await ctx.prompt(
+                'Confirm',
+                preamble_lines=[f'Save changes to {target.name}? (Y/N)'])
             if raw and raw.strip().lower().startswith('y'):
                 target.save(force=True)
                 await ctx.send(f'Saved {target.name}.')
@@ -241,7 +243,7 @@ async def _prompt_int(ctx, label: str, current: int,
     while True:
         raw = await ctx.prompt(
             f'{label} [{lo}-{hi}]',
-            preamble_lines=[f'Current: {current}  —  blank to cancel'],
+            preamble_lines=[f'Current: {current}  —  {ctx.player.return_key} to cancel'],
         )
         if raw is None or not raw.strip():
             return None
@@ -268,7 +270,7 @@ async def _prompt_battle_exp_value(ctx, label: str, current: int,
             f'{label} battle experience',
             preamble_lines=[
                 f'Current: {current}  (enter {lo}-{hi}, or +N/-N to adjust)  '
-                '—  blank to cancel'
+                f'—  {ctx.player.return_key} to cancel'
             ],
         )
         if raw is None or not raw.strip():
@@ -611,7 +613,7 @@ def _map_info_menu(ctx) -> Menu:
                 'Room Number',
                 preamble_lines=[
                     f'Current: {_room_label(ctx, level, cur)}  —  '
-                    "blank to cancel, '?' to list rooms on this level"
+                    f"{ctx.player.return_key} to cancel, '?' to list rooms on this level"
                 ],
             )
             if raw is None or not raw.strip():
@@ -675,7 +677,9 @@ def _map_info_menu(ctx) -> Menu:
         if not getattr(p, 'visited_rooms', None):
             await ctx.send(f'{p.name} has no visited-rooms data to reset.')
             return
-        confirm = await ctx.prompt(f"Clear {p.name}'s visited-rooms history on all levels? (y/N)")
+        confirm = await ctx.prompt(
+            'Confirm',
+            preamble_lines=[f"Clear {p.name}'s visited-rooms history on all levels? (y/N)"])
         if not confirm or confirm.strip().lower() != 'y':
             await ctx.send('Cancelled.')
             return
@@ -1156,7 +1160,8 @@ def _names_menu(ctx) -> Menu:
         below via player.party.add().
         """
         raw = await ctx.prompt(
-            'No ally in that slot. Add one? (Y/N, or ? to list available allies)'
+            'Add ally',
+            preamble_lines=['No ally in that slot. Add one? (Y/N, or ? to list available allies)'],
         )
         if raw and raw.strip() == '?':
             pass  # fall through into pick_ally(), which lists then prompts
@@ -1313,7 +1318,7 @@ def _names_menu(ctx) -> Menu:
         gender/breed/colour and prompts for a name exactly like a real
         LASSO capture (ally_events/capture_horse.py's capture_mount()):
         same "Your horse seems to be..." announcement and the same
-        prompt_horse_name() (typed name, 'R' for random, blank to cancel).
+        prompt_horse_name() (typed name, 'R' for random, Enter to cancel).
         """
         import random
         from ally_events.capture_horse import prompt_horse_name
@@ -1477,7 +1482,8 @@ def _names_menu(ctx) -> Menu:
 
         while True:
             raw = await ctx.prompt(
-                "Ally name to add (or part of name, '?' to list all, blank to cancel)"
+                'Ally name',
+                preamble_lines=[f"Ally name to add (or part of name, '?' to list all, {ctx.player.return_key} to cancel)"],
             )
             if raw and raw.strip() == '?':
                 await _send_labeled_list(ctx, 'Available allies', available, _roster_label)
@@ -1617,8 +1623,8 @@ def _combinations_menu(ctx) -> Menu:
             f'{combo_type.value} (xx-xx-xx)',
             preamble_lines=[
                 f'Current: {_fmt(combo_type)}',
-                'Enter three numbers like 04-05-09, R to randomize, X to '
-                'clear, or blank to cancel:',
+                'Enter three numbers like 04-05-09, [R]andomize, [X] Clear, '
+                f'or {ctx.player.return_key} to cancel:',
             ],
         )
         if not raw or not raw.strip():
@@ -1985,7 +1991,7 @@ def _statistics_menu(ctx) -> Menu:
             'Defeated by',
             preamble_lines=[
                 f'Current: {cur or "(not set)"}',
-                "Type 'clear' to unset, blank to cancel:",
+                f"Type 'clear' to unset, {ctx.player.return_key} to cancel:",
             ],
         )
         if not raw or not raw.strip():
@@ -2020,7 +2026,7 @@ def _statistics_menu(ctx) -> Menu:
                 lines = ['Monsters killed: (none)']
             await ctx.send(lines)
 
-            raw = await ctx.prompt('[A]dd  [R]emove  [Q]uit')
+            raw = await ctx.prompt('Command', preamble_lines=['[A]dd  [R]emove  [Q]uit'])
             if not raw or not raw.strip():
                 break
             cmd = raw.strip().lower()[:1]
@@ -2028,7 +2034,7 @@ def _statistics_menu(ctx) -> Menu:
             if cmd == 'q':
                 break
             elif cmd == 'a':
-                term_raw = await ctx.prompt('Monster name (or part of name)')
+                term_raw = await ctx.prompt('Monster name', preamble_lines=['Monster name (or part of name)'])
                 if not term_raw or not term_raw.strip():
                     continue
                 term    = term_raw.strip().lower()
@@ -2049,7 +2055,7 @@ def _statistics_menu(ctx) -> Menu:
                 if not killed:
                     await ctx.send('Nothing to remove.')
                     continue
-                idx_raw = await ctx.prompt(f'Remove which (1-{len(killed)})')
+                idx_raw = await ctx.prompt('#', preamble_lines=[f'Remove which (1-{len(killed)})'])
                 try:
                     idx = int((idx_raw or '').strip()) - 1
                     if not (0 <= idx < len(killed)):
@@ -2166,7 +2172,7 @@ async def _pick_from_matches(ctx, matches: list, label_fn) -> Optional[object]:
         lines.append(f'  {i:>2}. {label_fn(item)}')
     await ctx.send(lines)
 
-    raw = await ctx.prompt(f'Choose 1-{len(matches)}, or blank to cancel')
+    raw = await ctx.prompt('Choice', preamble_lines=[f'Choose 1-{len(matches)}, or {ctx.player.return_key} to cancel'])
     if not raw or not raw.strip():
         return None
     try:
@@ -2338,7 +2344,7 @@ async def _transfer_item(ctx) -> None:
         return
 
     await _show_inventory(ctx)
-    raw = await ctx.prompt('Transfer which item # (blank to cancel)')
+    raw = await ctx.prompt('Item #', preamble_lines=[f'Transfer which item # ({ctx.player.return_key} to cancel)'])
     if not raw or not raw.strip():
         return
     try:
@@ -2358,7 +2364,9 @@ async def _transfer_item(ctx) -> None:
         return
     recipient_name = recipient[1].name
 
-    confirm = await ctx.prompt(f'Transfer {item_name} to {recipient_name}? (y/N)')
+    confirm = await ctx.prompt(
+        'Confirm',
+        preamble_lines=[f'Transfer {item_name} to {recipient_name}? (y/N)'])
     if not confirm or confirm.strip().lower() != 'y':
         await ctx.send('Cancelled.')
         return
@@ -2406,7 +2414,7 @@ async def _drop_item(ctx) -> None:
         return
 
     await _show_inventory(ctx)
-    raw = await ctx.prompt('Drop which item # (blank to cancel)')
+    raw = await ctx.prompt('Item #', preamble_lines=[f'Drop which item # ({ctx.player.return_key} to cancel)'])
     if not raw or not raw.strip():
         return
     try:
@@ -2420,7 +2428,9 @@ async def _drop_item(ctx) -> None:
     item = entry.item
     item_name = getattr(item, 'name', '?')
 
-    confirm = await ctx.prompt(f'Delete {item_name} from {ctx.player.name}? (y/N)')
+    confirm = await ctx.prompt(
+        'Confirm',
+        preamble_lines=[f'Delete {item_name} from {ctx.player.name}? (y/N)'])
     if not confirm or confirm.strip().lower() != 'y':
         await ctx.send('Cancelled.')
         return
@@ -2645,7 +2655,9 @@ async def _give_weapon(ctx) -> None:
         return
 
     while True:
-        raw = await ctx.prompt("Weapon name (or part of name, '?' to list all)")
+        raw = await ctx.prompt(
+            'Weapon name',
+            preamble_lines=["Weapon name (or part of name, '?' to list all)"])
         if raw and raw.strip() == '?':
             await _send_weapon_list(ctx, weapons)
             continue
@@ -2680,7 +2692,9 @@ async def _give_ration(ctx) -> None:
         return f'{r.get("name","?"):<24}  [{r.get("kind","?")}]'
 
     while True:
-        raw = await ctx.prompt("Ration name (or part of name, blank = show all, '?' to list all)")
+        raw = await ctx.prompt(
+            'Ration name',
+            preamble_lines=["Ration name (or part of name, blank = show all, '?' to list all)"])
         if raw and raw.strip() == '?':
             await _send_labeled_list(ctx, 'Rations', rations, _label)
             continue
@@ -2726,7 +2740,9 @@ async def _give_object(ctx, type_filter: set, label: str) -> None:
         return f'{o.get("name","?"):<28}  [{o.get("type","?")}]'
 
     while True:
-        raw = await ctx.prompt(f"{label.capitalize()} name (or part of name, '?' to list all)")
+        raw = await ctx.prompt(
+            f'{label.capitalize()} name',
+            preamble_lines=[f"{label.capitalize()} name (or part of name, '?' to list all)"])
         if raw and raw.strip() == '?':
             await _send_labeled_list(ctx, label.capitalize(), pool, _label)
             continue

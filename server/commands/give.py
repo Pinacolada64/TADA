@@ -17,6 +17,7 @@ from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from bar.allies import purchased_allies
 from flags import PlayerFlags
+from inventory_select import gather_items, resolve_or_prompt
 from network_context import GameContext
 
 _RING_ID = 67  # ring of invisibility (objects.json) -- see commands/wear.py
@@ -319,42 +320,23 @@ class GiveCommand(Command):
         else:
             item_words = arg_list
 
-        # Build the item pool from inventory
-        entries = list(inventory.entries()) if inventory else []
-        if not entries:
+        # Pick the item from your own pack -- name match or the numbered
+        # "Items you carry:" menu, via the shared picker (inventory_select).
+        choices = gather_items(player)
+        if not choices:
             await ctx.send('You have nothing to give.')
             return CommandResult.ok()
 
-        # Resolve item
-        if item_words:
-            pattern = ' '.join(item_words).lower()
-            matches = [e for e in entries
-                       if pattern in (getattr(e.item, 'name', '') or '').lower()]
-            if not matches:
-                await ctx.send(
-                    f'You are not carrying anything matching "{" ".join(item_words)}".')
-                return CommandResult.ok()
-            entry = matches[0]
-        else:
-            lines = ['', 'Items you carry:']
-            for i, e in enumerate(entries, 1):
-                lines.append(f'  {i:>2}. {getattr(e.item, "name", "?")}')
-            lines.append('')
-            await ctx.send(lines)
-            raw = await ctx.prompt(preamble_lines=f'(1-{len(entries)}, {ctx.player.return_key} to cancel)',
-                                   prompt_text="Give which item")
-            if not raw or not raw.strip():
-                return CommandResult.ok()
-            try:
-                idx = int(raw.strip()) - 1
-                if not (0 <= idx < len(entries)):
-                    raise ValueError
-            except ValueError:
-                await ctx.send('Invalid selection.')
-                return CommandResult.ok()
-            entry = entries[idx]
+        choice = await resolve_or_prompt(
+            ctx, choices, args=item_words, prompt_text='Give which item',
+            label_fn=lambda c: c.name,
+            list_header='Items you carry:',
+            no_match_msg=lambda q: f'You are not carrying anything matching "{q}".',
+        )
+        if choice is None:
+            return CommandResult.ok()
 
-        item  = entry.item
+        item  = choice.item
         iname = getattr(item, 'name', 'it')
 
         # Ring of invisibility (#67): can't give it away while worn
@@ -376,12 +358,26 @@ class GiveCommand(Command):
             await ctx.send("Can't, you are wearing it!")
             return CommandResult.ok()
 
-        # Require a target
+        # Require a target -- no target given, so offer a pick list of
+        # allies rather than just erroring out (Ryan's request: bare
+        # 'give <item>' should be as guided as bare 'give' is for items).
         if not target_words:
-            await ctx.send('Give it to whom?  (Try: give <item> to <name>)')
-            return CommandResult.ok()
-
-        target = ' '.join(target_words).lower()
+            allies = purchased_allies(player)
+            if not allies:
+                await ctx.send('Give it to whom?  (Try: give <item> to <name>)')
+                return CommandResult.ok()
+            # Same shared picker as the item list -- Ally objects carry a
+            # .name, so resolve_or_prompt() lists them directly.
+            picked = await resolve_or_prompt(
+                ctx, allies, args=[], prompt_text='Give to whom',
+                label_fn=lambda a: a.name,
+                list_header='Give to whom?',
+            )
+            if picked is None:
+                return CommandResult.ok()
+            target = picked.name.lower()
+        else:
+            target = ' '.join(target_words).lower()
 
         # --- Ally ---
         allies = purchased_allies(player)
@@ -417,8 +413,9 @@ class GiveCommand(Command):
             # changed hands (they might already be wielding something they
             # prefer, or the player may be handing over a spare). The
             # player now decides who wields what, and when, via READY,
-            # which lists allies' carried weapons (commands/ready.py's
-            # _ally_weapon_entries / _toggle_ally_weapon).
+            # which lists allies' carried weapons (inventory_select.
+            # gather_items(include_allies=True) / ready.py's
+            # _toggle_ally_weapon).
             from items import Weapon
             from bar.ally_data import add_ally_item
             if isinstance(item, Weapon):

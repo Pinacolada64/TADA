@@ -62,7 +62,7 @@ async def edit_board_settings(ctx) -> CommandResult:
 
 
 async def _edit_anonymous_mode(ctx, config: dict) -> None:
-    raw = await ctx.prompt('[A]sk / [Y]es / [N]o')
+    raw = await ctx.prompt('Choice', preamble_lines=['[A]sk / [Y]es / [N]o'])
     choice = (raw or '').strip().lower()[:1]
     new_mode = _ANON_MODE_CHOICES.get(choice)
     if new_mode is None:

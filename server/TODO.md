@@ -1,4 +1,29 @@
-8/15/26:
+9/3/26:
+- **`%k` substitute_tokens() token for the player's Return/Enter key
+  label.** `tada_utilities.substitute_tokens()` already runs every
+  outgoing line through %-token substitution (%n name, %s/%o/%p/%P/%r
+  pronouns, %c class, %e race -- see its docstring), and `ctx.send()`
+  applies it automatically to every line sent (`network_context.py`).
+  A `%k` token resolving to `subject.return_key` (falling back to
+  `'Enter'` if the subject doesn't expose it, same fallback the
+  property itself uses -- see `player.py`'s `Player.return_key`) would
+  let *static* text -- anything that can't reach a live `ctx.player` at
+  construction time -- reference the player's negotiated key label the
+  same way dynamic f-string prompts already do via
+  `{ctx.player.return_key}`. Concrete motivating case:
+  `commands/more_prompt.py`'s `Help(description=...)` hardcodes "Enter"
+  in its help text (`"...pauses with a '-- More --' prompt between
+  pages (Enter for next, B/- for back, Q to stop)..."`) -- `Help` is a
+  dataclass built once at class-definition time with no `ctx` in scope,
+  so it can't currently be written as an f-string the way ~100+ other
+  prompt call sites were converted to do (see the "Wrap long
+  ctx.prompt() option text into preamble_lines" branch/commit, which
+  also swept most hardcoded "Enter" strings elsewhere in the codebase
+  to `{ctx.player.return_key}` but explicitly left this one as a TODO
+  rather than bolt on new templating machinery unprompted). Once `%k`
+  exists, `more_prompt.py`'s description (and any other static
+  Help()/flavor text baking in "Enter") can switch to it. Not yet
+  scoped/implemented -- just the idea captured here.
 - **Server config option: spoils-splitting mode.** Monster kill silver
   currently always splits evenly across every credited attacker
   (`combat/engine.py`'s `_monster_dies()`, see the "Silver loot" block --

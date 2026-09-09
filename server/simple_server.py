@@ -210,7 +210,11 @@ class Server:
             self.banner_petscii = []
         try:
             self.game_map = Map()
-            for lvl in range(1, 8):
+            # SPUR shipped 7 dungeon levels; level 8 (Forest of Canolbarth /
+            # Sulidam) is this port's addition, built from the 2014 source
+            # by tools/build_level_8_json.py. The loop just skips any
+            # level_<N>.json that isn't present.
+            for lvl in range(1, 9):
                 level_file = script_dir / f'level_{lvl}.json'
                 if level_file.exists():
                     self.game_map.read_map(str(level_file), level=lvl)
@@ -1266,8 +1270,8 @@ class Server:
         await self._show_room_then_encounter(ctx, level=level, room_no=int(dest))
         from encounters.desert import try_desert_sweat
         await try_desert_sweat(ctx)
-        from ally_events import try_ally_find_gold
-        await try_ally_find_gold(ctx)
+        from ally_events import try_ally_find_silver
+        await try_ally_find_silver(ctx)
         from wild_horse_events import try_wandering_horse_encounter
         await try_wandering_horse_encounter(ctx)
         from encounters.dwarf import maybe_relocate, try_steal
@@ -1382,8 +1386,8 @@ class Server:
         await self._show_room_then_encounter(ctx, level=target_level, room_no=target_room)
         from encounters.desert import try_desert_sweat
         await try_desert_sweat(ctx)
-        from ally_events import try_ally_find_gold
-        await try_ally_find_gold(ctx)
+        from ally_events import try_ally_find_silver
+        await try_ally_find_silver(ctx)
         from wild_horse_events import try_wandering_horse_encounter
         await try_wandering_horse_encounter(ctx)
         from encounters.dwarf import maybe_relocate, try_steal

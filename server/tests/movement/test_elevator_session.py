@@ -353,7 +353,7 @@ class TestElevatorFallThrough(unittest.IsolatedAsyncioTestCase):
         player = make_player()
         ctx    = make_ctx(player, ['gibberish', 'l'], processor=None)
         await _elevator_session(ctx, player)
-        self.assertIn('L to leave', _sent(ctx))
+        self.assertIn('[L] Leave', _sent(ctx))
 
     @_PATCH_COMBO
     @_PATCH_ULINE

@@ -194,7 +194,9 @@ async def prompt_player_choice(ctx, pattern: str = '*', *,
     lines.append('')
     await ctx.send(lines)
 
-    raw = await ctx.prompt(f'{prompt_text} (number or name, {ctx.player.client_settings.return_key} to cancel)')
+    raw = await ctx.prompt(
+        prompt_text,
+        preamble_lines=[f'(number or name, {ctx.player.client_settings.return_key} to cancel)'])
     if not raw:
         return None
     raw = raw.strip()

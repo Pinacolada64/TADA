@@ -84,7 +84,7 @@ class OrderCommand(Command):
 
         await self._show_deployment(ctx, allies)
 
-        raw = await ctx.prompt('Do you wish to change this? Y/N')
+        raw = await ctx.prompt('Y/N', preamble_lines=['Do you wish to change this? Y/N'])
         if not raw or raw.strip().upper() != 'Y':
             return CommandResult.ok()
 
@@ -134,7 +134,9 @@ class OrderCommand(Command):
             lines.append(f'  {i}. {a.name}')
         await ctx.send(lines)
 
-        raw = await ctx.prompt(f'New {prompt_label} (1-{len(remaining)}, 0 for none)')
+        raw = await ctx.prompt(
+            f'New {prompt_label}',
+            preamble_lines=[f'New {prompt_label} (1-{len(remaining)}, 0 for none)'])
         if not raw or not raw.strip() or raw.strip() == '0':
             return None
         try:

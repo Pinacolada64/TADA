@@ -65,7 +65,7 @@ class QuoteCommand(Command):
         player = ctx.player
 
         while True:
-            raw = await ctx.prompt('Quote: V)iew W)rite Q)uit')
+            raw = await ctx.prompt('Choice', preamble_lines=['Quote: [V]iew [W]rite [Q]uit'])
             if raw is None:
                 return CommandResult.ok()
             ans = raw.strip().lower()

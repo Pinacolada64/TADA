@@ -284,7 +284,7 @@ async def main(ctx: GameContext) -> None:
 
         raw = await ctx.prompt(
             'Learn which spell?',
-            preamble_lines=[f'(?=List, i#=Info, BOOK=Buy Spell Book, Q to leave{shop_menu_hint(player)})'])
+            preamble_lines=[f'(?=List, i#=Info, BOOK=Buy Spell Book, [Q] Leave{shop_menu_hint(player)})'])
         if raw is None:
             return
         choice = raw.strip()
@@ -322,7 +322,7 @@ async def main(ctx: GameContext) -> None:
         except ValueError:
             if await try_global_command(ctx, raw):
                 continue
-            await ctx.send('Enter a spell number, ? to list, i# for info, or Q to leave.')
+            await ctx.send('Enter a spell number, ? to list, i# for info, or [Q] Leave.')
             continue
 
         sp = next((s for s in SPELLS if s['number'] == num), None)

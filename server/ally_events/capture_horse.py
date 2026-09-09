@@ -69,7 +69,9 @@ async def prompt_horse_name(ctx: 'GameContext', gender: str = 'm') -> Optional[s
     bare 'R' doesn't get rejected as "too short".
     """
     while True:
-        raw = await ctx.prompt("Name your horse (4-12 chars, 'R' for random, Enter to cancel)")
+        raw = await ctx.prompt(
+            'Horse name',
+            preamble_lines=[f"Name your horse (4-12 chars, [R]andom, {ctx.player.return_key} to cancel)"])
         if not raw or not raw.strip():
             return None
         name = raw.strip()

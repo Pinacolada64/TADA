@@ -79,7 +79,9 @@ async def main(ctx: GameContext) -> None:
         await ctx.send('Ye do not have enough gold.')
         return
 
-    raw = await ctx.prompt('Do ye wish shield training? Y/N')
+    raw = await ctx.prompt(
+        'Y/N',
+        preamble_lines=['Do ye wish shield training? Y/N'])
     if raw is None or raw.strip().upper() != 'Y':
         return
 
