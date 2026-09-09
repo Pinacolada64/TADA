@@ -54,10 +54,11 @@ from __future__ import annotations
 
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
-from commands.messaging import parse_targets, expand_groups, find_online, player_exists
+from commands.messaging import parse_targets, expand_groups, find_online
 from flags import PlayerFlags
 import mail as mail_store
 from formatting import deserialize_lines, hrule_char, make_rule, render_lines
+from tada_utilities import player_exists
 
 _DATE_COL_WIDTH = 20  # "YYYY-MM-DDTHH:MM:SS"[:16] + padding
 

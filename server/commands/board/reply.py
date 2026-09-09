@@ -1,7 +1,7 @@
-"""commands/board_reply.py — Interactive, one-message-at-a-time reader
+"""commands/board/reply.py — Interactive, one-message-at-a-time reader
 for the threaded message board, gated behind PlayerFlags.PROMPT_MODE.
 
-commands/board.py's `board <id>` normally dumps a whole thread flat
+commands/board/board.py's `board <id>` normally dumps a whole thread flat
 (board.format_thread()) and returns straight to the listing. When a
 player has PROMPT_MODE on, `_read_one()` delegates here instead: each
 post (the thread root, then each reply in order) is shown one at a
@@ -13,6 +13,12 @@ time, followed by an "End of bulletin option>" prompt with this menu:
                             live-or-offline delivery, not reimplemented)
     [L]ist               — numbered index of every message in the
                             thread (same numbering <#> jump accepts)
+    [O]ver                — redisplay the current message again
+    [F]reeze              — freeze/unfreeze this bulletin (ImageBBS's own
+                            term): frozen blocks new replies until
+                            unfrozen. Poster, this board's own admin list
+                            (SIGop/SubOp), or global ADMIN/DUNGEON_MASTER
+                            only -- see board/access.py's is_board_admin()
     <#>                  — jump straight to reply #<#>
     {return_key}          — advance to the next message
     'pm'                 — toggle Prompt Mode (see commands/prompt_mode.py)
@@ -34,7 +40,7 @@ than assuming the whole message (board.py's simpler `board reply <id>`
 command still does that -- this is the richer, opt-in experience).
 
 Split into its own module (Ryan's call) rather than folded into
-commands/board.py, since the interactive reader/quote-preview/mail
+commands/board/board.py, since the interactive reader/quote-preview/mail
 flow is a distinct, sizable piece of UI logic from board.py's listing/
 post/admin surface.
 """
@@ -68,9 +74,11 @@ def _menu_options_lines(ctx) -> list[str]:
     t.add_row(['[R]eply', 'reply to this message'])
     t.add_row(['[M]ail poster', 'send the author a private mail'])
     t.add_row(['[L]ist', 'list every message in this thread'])
-    t.add_row(['<#>', 'jump straight to reply #'])
-    t.add_row([ctx.player.return_key, 'read the next message'])
-    t.add_row(["'pm'", 'toggle Prompt Mode'])
+    t.add_row(['[O]ver', 'redisplay this message again'])
+    t.add_row(['[F]reeze', 'freeze/unfreeze this bulletin'])
+    t.add_row(['[<#>]', 'jump straight to reply #'])
+    t.add_row([f'[{ctx.player.return_key}]', 'read the next message'])
+    t.add_row(['[pm]', 'toggle Prompt Mode'])
     t.add_row(['[Q]uit', 'back to the board listing'])
     t.add_row(["'?'", 'show this list again'])
     return [''] + t.render(width=_screen_width(ctx))
@@ -94,7 +102,7 @@ def _quote_option_lines(ctx) -> list[str]:
     from table import Table
     t = Table(headers=['', ''], show_header=False, border=False)
     t.add_row(['[L]ist lines', 'line ranges accepted'])
-    t.add_row(['Line range', 'e.g., 3-, 1-3, -6, 6-+6'])
+    t.add_row(['Line range', 'e.g., [3-], [1-3], [-6], [6-+6]'])
     t.add_row([ctx.player.return_key, 'no quote'])
     return t.render(width=_screen_width(ctx))
 
@@ -115,8 +123,8 @@ async def _list_thread_messages(ctx, thread: dict, privileged: bool) -> None:
 async def read_thread_interactive(ctx, thread: dict) -> None:
     """Walk *thread* one message at a time (root, then each reply in
     posted order). Only called when PlayerFlags.PROMPT_MODE is on --
-    commands/board.py's _read_one() gates on that; this assumes it. The
-    root header's own "Number: x of y" line shows this message's
+    commands/board/board.py's _read_one() gates on that; this assumes it.
+    The root header's own "Number: x of y" line shows this message's
     position within *this* thread (1 of however many messages it has),
     not this thread's place among every thread on the board -- Ryan's
     call, so it reads as "which message you're on," matching the
@@ -133,7 +141,7 @@ async def read_thread_interactive(ctx, thread: dict) -> None:
         reply_count = len(thread.get('replies', []))
         title = thread.get('title', '(untitled)') if is_root else (entry.get('title') or f'Reply #{idx}')
         header = board_store.MessageHeader.for_entry(
-            entry, title, privileged, reply_count=reply_count if is_root else 0,
+            entry, title, privileged, ctx.player, reply_count=reply_count if is_root else 0,
             thread_number=1 if is_root else 0,
             total_threads=len(messages) if is_root else 0).display()
         header.append('')
@@ -170,8 +178,13 @@ async def read_thread_interactive(ctx, thread: dict) -> None:
             # reply to or keep reading the same message.
         elif low == 'l':
             await _list_thread_messages(ctx, thread, privileged)
+        elif low == 'o':
+            pass  # redisplay this same message -- loop back without advancing
+        elif low == 'f':
+            await _toggle_freeze(ctx, thread)
+            # deliberately doesn't advance -- same as [M]ail poster above.
         elif low in ('pm', 'promptmode'):
-            from commands.board import toggle_prompt_mode
+            from commands.board.board import toggle_prompt_mode
             await toggle_prompt_mode(ctx)
             # deliberately doesn't advance -- same as [M]ail poster above.
         elif low == 'q':
@@ -186,6 +199,36 @@ async def read_thread_interactive(ctx, thread: dict) -> None:
             await ctx.send(f"Unrecognized choice '{choice}'.")
 
 
+async def _toggle_freeze(ctx, thread: dict) -> None:
+    """[F]reeze / unfreeze this bulletin (ImageBBS's own term). Frozen
+    blocks new replies (see this module's own _reply_with_quote() and
+    commands/board/board.py's _reply()) until unfrozen again. Permission:
+    the original poster, this board's own admin list (board/access.py's
+    is_board_admin(), i.e. a SIGop/SubOp), or global ADMIN/DUNGEON_MASTER
+    -- ImageBBS's own "poster or SIGop or subop" rule."""
+    board_id = thread.get('board_id', board_store.meta.DEFAULT_BOARD_ID)
+    board_meta = board_store.meta.get_board(board_store.meta.load_meta(), board_id)
+    is_poster = thread.get('author') == ctx.player.name
+    if not (is_poster or board_store.is_board_admin(ctx.player, board_meta)):
+        await ctx.send("You don't have permission to freeze/unfreeze this bulletin.")
+        return
+
+    # Reload fresh rather than trust this reader's own possibly-stale
+    # 'thread' -- same race-safety reasoning as _reply_with_quote()'s own
+    # reload before appending a reply.
+    threads = board_store.load_board()
+    fresh = next((t for t in threads if t.get('id') == thread.get('id')), None)
+    if fresh is None:
+        await ctx.send('That thread no longer exists.')
+        return
+    fresh['frozen'] = not fresh.get('frozen', False)
+    thread['frozen'] = fresh['frozen']  # keep this reader's in-memory copy in sync
+    board_store.save_board(threads)
+    await ctx.send(f"Bulletin {'frozen' if fresh['frozen'] else 'unfrozen'}.")
+    log.info('BOARD FREEZE: %s %s thread #%s', ctx.player.name,
+             'froze' if fresh['frozen'] else 'unfroze', fresh.get('id'))
+
+
 async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: bool) -> None:
     """[R]eply: pick how much (if any) of *quoted_entry* to quote, preview
     it, confirm, then open the line editor for the reply body."""
@@ -193,6 +236,10 @@ async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: b
         Border, BorderRole, Buffer, DefaultLineRange, Line, LineFlag,
         process_line_range_string, run_editor,
     )
+
+    if thread.get('frozen'):
+        await ctx.send('This bulletin is frozen -- no new responses.')
+        return
 
     width = _screen_width(ctx)
     quoted_lines = board_store.render_message_lines(quoted_entry, ctx, width)
@@ -205,7 +252,7 @@ async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: b
         # not baked into the prompt text itself -- ctx.prompt()'s prompt
         # string becomes a client's single-line input prefix (see
         # tada_client.py's input_window), which has nowhere to wrap a
-        # long line on an 80-column terminal.
+        # long line on an 40-column terminal.
         preamble = None if ctx.player.is_expert else _quote_option_lines(ctx)
         raw = await ctx.prompt('Quote which lines?', preamble_lines=preamble)
         if raw is None:
@@ -232,8 +279,8 @@ async def _reply_with_quote(ctx, thread: dict, quoted_entry: dict, privileged: b
         # anything else -- loop back and ask for a range again, rather
         # than silently posting with no quote at all.
 
-    from commands.board import resolve_anonymous, prompt_reply_title
-    anonymous = await resolve_anonymous(ctx)
+    from commands.board.board import resolve_anonymous, prompt_reply_title
+    anonymous = await resolve_anonymous(ctx, thread.get('board_id', board_store.meta.DEFAULT_BOARD_ID))
     if anonymous is None:
         await ctx.send('Cancelled.')
         return

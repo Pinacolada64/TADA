@@ -13,7 +13,7 @@ from formatting import deserialize_lines, render_lines
 from text_editor import (
     Border, BorderRole, Buffer, DefaultLineRange, Editor, Justification, Line,
     LineFlag, _sanitize_filename, find_recovery_file, load_recovery_file,
-    process_line_range_string, run_editor,
+    parse_multi_select, process_line_range_string, run_editor,
 )
 
 
@@ -88,6 +88,39 @@ class TestProcessLineRangeString(unittest.TestCase):
         empty = Buffer(lines=[])
         r = process_line_range_string('', empty, DefaultLineRange.ALL_LINES)
         self.assertEqual((r.start, r.end), (1, 1))
+
+
+class TestParseMultiSelect(unittest.TestCase):
+    """Comma-separated multi-select layered on process_line_range_string()
+    -- e.g. commands/board/edit.py's SIG/board pick prompts."""
+
+    def test_single_number(self):
+        self.assertEqual(parse_multi_select('2', 5), [2])
+
+    def test_comma_list(self):
+        self.assertEqual(parse_multi_select('1,3,5', 5), [1, 3, 5])
+
+    def test_range(self):
+        self.assertEqual(parse_multi_select('2-4', 5), [2, 3, 4])
+
+    def test_mixed_comma_and_range(self):
+        self.assertEqual(parse_multi_select('1,3-5', 8), [1, 3, 4, 5])
+
+    def test_out_of_range_clamps(self):
+        self.assertEqual(parse_multi_select('99', 5), [5])
+
+    def test_duplicates_deduplicated(self):
+        self.assertEqual(parse_multi_select('2,2,1-3', 5), [1, 2, 3])
+
+    def test_blank_spec_selects_nothing(self):
+        self.assertEqual(parse_multi_select('', 5), [])
+        self.assertEqual(parse_multi_select('   ', 5), [])
+
+    def test_zero_count_selects_nothing(self):
+        self.assertEqual(parse_multi_select('1,2', 0), [])
+
+    def test_whitespace_and_blank_segments_ignored(self):
+        self.assertEqual(parse_multi_select(' 1 , , 3 ', 5), [1, 3])
 
 
 class TestRelativeLineRange(unittest.TestCase):
@@ -167,10 +200,19 @@ class TestBorderRendering(unittest.TestCase):
         top = Line(border=Border(char='*', role=BorderRole.TOP))
         self.assertEqual(top.render(10), '+********+')
 
-    def test_long_content_truncated_to_interior(self):
+    def test_long_content_wraps_to_interior_width(self):
+        # Over-long content word-wraps to the box's inner width rather than
+        # truncating (or overflowing and breaking the frame) -- each
+        # physical row is a full-width bordered line.
         content = Line(text='this is way too long for the box',
                         border=Border(role=BorderRole.CONTENT))
-        self.assertEqual(len(content.render(10)), 10)
+        rows = content.render(10).split('\n')
+        self.assertGreater(len(rows), 1)
+        for row in rows:
+            self.assertEqual(len(row), 10)
+            self.assertTrue(row.startswith('| ') and row.endswith(' |'))
+        joined = ' '.join(r[2:-2].strip() for r in rows)
+        self.assertEqual(joined, 'this is way too long for the box')
 
     def test_same_line_renders_wider_at_a_different_width(self):
         # the whole point: no box-drawing characters are baked into .text,
@@ -690,6 +732,29 @@ class TestBorderTerminalAwareGlyphs(unittest.IsolatedAsyncioTestCase):
         result = await run_editor(ctx, initial_lines=['hi'])
         rendered = render_lines(deserialize_lines(result), ctx, 20)
         self.assertTrue(rendered[0].startswith('+*'))
+
+    async def test_long_content_wraps_inside_box_without_breaking_frame(self):
+        # Regression: a content line longer than the box interior used to
+        # overflow make_box()'s padding, shoving the right border past the
+        # screen edge so the terminal wrapped it and split the frame.
+        from terminal import Translation
+        long_line = ('An upcoming BUG command will be available to forward a '
+                     'bug to a Dungeon Master.')
+        ctx = _make_real_settings_ctx(['.b 1', '.s'], Translation.ANSI,
+                                      screen_columns=40)
+        result = await run_editor(ctx, initial_lines=[long_line])
+        rendered = render_lines(deserialize_lines(result), ctx, 40)
+        # still one output entry per input Line: top, one content, bottom
+        self.assertEqual(len(rendered), 3)
+        self.assertEqual(rendered[0][0], '┌')
+        self.assertEqual(rendered[-1][0], '└')
+        rows = rendered[1].split('\n')
+        self.assertGreater(len(rows), 1)
+        for row in rows:
+            self.assertEqual(len(row), 40)
+            self.assertTrue(row.startswith('│') and row.endswith('│'))
+        joined = ' '.join(r.strip('│').strip() for r in rows)
+        self.assertEqual(joined, long_line)
 
 
 class TestFindAndReplace(unittest.IsolatedAsyncioTestCase):

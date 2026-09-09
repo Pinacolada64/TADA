@@ -429,7 +429,10 @@ class TestLastConnectedDateFormat(unittest.IsolatedAsyncioTestCase):
 
         line = next((l for l in sent_lines if l.startswith('You last connected on')), None)
         self.assertIsNotNone(line)
-        self.assertRegex(line, r'^You last connected on [A-Z][a-z]+ \d{2}, \d{4}\.$')
+        # Default date format is now preset 8 ('Weekday, Month Day, Year'
+        # -- see terminal.py's ClientSettings.date_format), so a weekday
+        # name leads the date.
+        self.assertRegex(line, r'^You last connected on [A-Z][a-z]+, [A-Z][a-z]+ \d{2}, \d{4}\.$')
 
 
 if __name__ == "__main__":

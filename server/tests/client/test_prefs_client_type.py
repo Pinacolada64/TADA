@@ -175,6 +175,13 @@ class TestPickClientType(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((cs.screen_columns, cs.screen_rows), (80, 25))
         self.assertEqual(cs.translation, Translation.ANSI)
 
+    async def test_preset_marks_unsaved_changes(self):
+        # Regression: see test_prefs_border_style.py's own copy of this
+        # test for the bug this guards against.
+        ctx = _FakeCtx(['4'], Player())
+        await _pick_client_type(ctx)
+        self.assertTrue(ctx.player.unsaved_changes)
+
     async def test_commodore_preset_over_real_petscii_transport_sets_petscii(self):
         ctx = _FakePetsciiCtx(['1'], Player())
         await _pick_client_type(ctx)
@@ -405,6 +412,13 @@ class TestPickTabSettings(unittest.IsolatedAsyncioTestCase):
         await _pick_tab_settings(ctx)
         self.assertTrue(ctx.player.client_settings.tab_settings.has_tab_key)
 
+    async def test_marks_unsaved_changes(self):
+        # Regression: see test_prefs_border_style.py's own copy of this
+        # test for the bug this guards against.
+        ctx = _FakeCtx(['y'], Player())
+        await _pick_tab_settings(ctx)
+        self.assertTrue(ctx.player.unsaved_changes)
+
     async def test_no_then_width_sets_simulated_tab(self):
         ctx = _FakeCtx(['n', '4'], Player())
         await _pick_tab_settings(ctx)
@@ -434,6 +448,13 @@ class TestPickLineEnding(unittest.IsolatedAsyncioTestCase):
         ctx = _FakeCtx(['1'], Player())
         await _pick_line_ending(ctx)
         self.assertEqual(ctx.player.client_settings.line_ending, LineEnding.LF)
+
+    async def test_marks_unsaved_changes(self):
+        # Regression: see test_prefs_border_style.py's own copy of this
+        # test for the bug this guards against.
+        ctx = _FakeCtx(['1'], Player())
+        await _pick_line_ending(ctx)
+        self.assertTrue(ctx.player.unsaved_changes)
 
     async def test_select_cr_by_name(self):
         from terminal import LineEnding

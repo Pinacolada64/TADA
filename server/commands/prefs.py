@@ -288,14 +288,34 @@ _DATE_TIME_HELP: dict[str, list[str]] = {
 # stored format shows its friendly name instead of the raw strftime
 # pattern; anything else (a value never set through this picker) shows
 # as 'Custom'.
+# Two columns, same 7 formats each: plain (no weekday) on the left,
+# a "Weekday, ..." twin of each on the right -- picking whether a
+# weekday shows up at all is otherwise nowhere in PREFS (it used to be
+# unconditionally prepended in board headers regardless of this choice;
+# Ryan's call 2026-08-27 was to fold it into the date format itself
+# instead, so a player can turn it off entirely). Column-8's weekday is
+# abbreviated for the abbreviated-month presets (13/14, matching 6/7)
+# and full otherwise, mirroring each row's own month style. Preset 8 is
+# the actual default (terminal.py's ClientSettings.date_format) --
+# matches what every date display looked like before this split.
 _DATE_FORMAT_PRESETS = [
-    ('1', 'Month Day, Year', '%B %d, %Y'),
-    ('2', 'MM/DD/YYYY',      '%m/%d/%Y'),
-    ('3', 'DD/MM/YYYY',      '%d/%m/%Y'),
-    ('4', 'YYYY-MM-DD',      '%Y-%m-%d'),
-    ('5', 'Day Month Year',  '%d %B %Y'),
+    ('1',  'Month Day, Year',           '%B %d, %Y'),
+    ('2',  'MM/DD/YYYY',                '%m/%d/%Y'),
+    ('3',  'DD/MM/YYYY',                '%d/%m/%Y'),
+    ('4',  'YYYY-MM-DD',                '%Y-%m-%d'),
+    ('5',  'Day Month Year',            '%d %B %Y'),
+    ('6',  'Mon Day, Year',             '%b %d, %Y'),  # short-month twins of 1/5,
+    ('7',  'Day Mon Year',              '%d %b %Y'),   # for a shorter board header
+    ('8',  'Weekday, Month Day, Year',  '%A, %B %d, %Y'),  # default -- see terminal.py
+    ('9',  'Weekday, MM/DD/YYYY',       '%A, %m/%d/%Y'),
+    ('10', 'Weekday, DD/MM/YYYY',       '%A, %d/%m/%Y'),
+    ('11', 'Weekday, YYYY-MM-DD',       '%A, %Y-%m-%d'),
+    ('12', 'Weekday, Day Month Year',   '%A, %d %B %Y'),
+    ('13', 'Weekday, Mon Day, Year',    '%a, %b %d, %Y'),
+    ('14', 'Weekday, Day Mon Year',     '%a, %d %b %Y'),
 ]
 _DATE_FORMAT_NAMES = {fmt: name for _, name, fmt in _DATE_FORMAT_PRESETS}
+_DATE_FORMAT_COLUMNS = len(_DATE_FORMAT_PRESETS) // 2  # rows per column (7)
 
 # Named strftime presets offered by the 'F' (Time Format) picker. Labels
 # are bracket-highlighted on their own option number ('[1]2-hour',
@@ -806,6 +826,7 @@ async def _pick_border_style(ctx, codec) -> None:
     for num, letter, style_key, label in options:
         if ans in (num, letter, style_key, label.lower()):
             cs.border_style = style_key
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Border style set to {label}.')
             return
     await ctx.send('Border style unchanged.')
@@ -940,6 +961,7 @@ async def _pick_colors(ctx) -> None:
                 chosen = palette[idx]
                 if colors:
                     setattr(colors, attr, chosen)
+                    ctx.player.unsaved_changes = True
                 await ctx.send(f'{label} color set to {chosen.value}.')
             else:
                 await ctx.send(f'{label} color unchanged - number out of range.')
@@ -1053,6 +1075,7 @@ async def _pick_client_type(ctx) -> None:
         if ans == num:
             cs.screen_columns = cols
             cs.screen_rows    = rows
+            ctx.player.unsaved_changes = True
             if encoding == Translation.PETSCII and not is_real_petscii:
                 # Apply the screen size, but never switch a non-PETSCII
                 # transport's translation to PETSCII -- that's what
@@ -1116,6 +1139,7 @@ async def _pick_client_type(ctx) -> None:
 
     cs.screen_columns = cols
     cs.screen_rows    = rows
+    ctx.player.unsaved_changes = True
 
     if is_real_petscii:
         # Same guard as the preset branch above -- a real Commodore
@@ -1268,6 +1292,7 @@ async def _pick_tab_settings(ctx) -> None:
         await ctx.send('Tab settings unchanged.')
         return
     tab.has_tab_key = raw.strip().lower().startswith('y')
+    ctx.player.unsaved_changes = True
     await ctx.send(f"Tab key: {'Yes' if tab.has_tab_key else 'No'}.")
 
     if tab.has_tab_key:
@@ -1287,6 +1312,7 @@ async def _pick_tab_settings(ctx) -> None:
     if 0 <= width <= cs.screen_columns:
         tab.tab_width  = width
         tab.tab_output = ' ' * width
+        ctx.player.unsaved_changes = True
         await ctx.send(f'Tab width set to {width}.', *_tab_token_demo(ctx),
                         *_tab_alignment_demo(width))
     else:
@@ -1319,6 +1345,7 @@ async def _pick_line_ending(ctx) -> None:
     for num, label, val, _desc in options:
         if ans == num or ans.lower() == label.lower():
             cs.line_ending = val
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Line ending set to {label}.')
             return
     await ctx.send('Line ending unchanged.')
@@ -1350,11 +1377,13 @@ async def _pick_timezone(ctx) -> None:
     for num, zone, label in _TIMEZONE_PRESETS:
         if ans == num or ans.lower() == label.lower():
             cs.timezone = zone
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Timezone set to {label}.')
             return
 
     if ans in zoneinfo.available_timezones():
         cs.timezone = ans
+        ctx.player.unsaved_changes = True
         await ctx.send(f'Timezone set to {ans}.')
         return
 
@@ -1363,16 +1392,26 @@ async def _pick_timezone(ctx) -> None:
 
 async def _pick_date_format(ctx) -> None:
     """Choose a date display format from a few common presets, previewed
-    against today's date."""
+    against today's date. Two stacked groups of the same 7 formats:
+    plain (1-7) first, then a "Weekday, ..." twin of each (8-14) --
+    see _DATE_FORMAT_PRESETS. Stacked rather than a wide side-by-side
+    table: this game's default screen width is 40 columns (real C64),
+    which mangles long labels ('Weekday, Month Day, Year') across
+    several table cells if they're squeezed into half the screen."""
     import datetime
 
     cs = ctx.player.client_settings
-    current = getattr(cs, 'date_format', '') or '%B %d, %Y'
+    current = getattr(cs, 'date_format', '') or '%A, %B %d, %Y'
     sample  = datetime.datetime.now()
 
     lines = ['', '|yellow|Date Format:|reset|', '']
-    for num, label, fmt in _DATE_FORMAT_PRESETS:
+    plain, with_weekday = (_DATE_FORMAT_PRESETS[:_DATE_FORMAT_COLUMNS],
+                            _DATE_FORMAT_PRESETS[_DATE_FORMAT_COLUMNS:])
+    for num, label, fmt in plain:
         lines.append(f'  {num}. {label:<16} {sample.strftime(fmt)}')
+    lines.append('')
+    for num, label, fmt in with_weekday:
+        lines.append(f'  {num}. {label:<25} {sample.strftime(fmt)}')
     # current may be a raw, unrecognized strftime pattern rather than a
     # friendly preset name -- escape '%' so ctx.send()'s %-token
     # substitution (tada_utilities.substitute_tokens) doesn't mistake a
@@ -1388,6 +1427,7 @@ async def _pick_date_format(ctx) -> None:
     for num, label, fmt in _DATE_FORMAT_PRESETS:
         if ans == num or ans.lower() == label.lower():
             cs.date_format = fmt
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Date format set to {label} ({sample.strftime(fmt)}).')
             return
     await ctx.send(f'Date format unchanged -- enter a number between 1 and {len(_DATE_FORMAT_PRESETS)}.')
@@ -1422,6 +1462,7 @@ async def _pick_time_format(ctx) -> None:
         plain = label.replace('[', '').replace(']', '')
         if ans == num or ans.lower() == plain.lower():
             cs.time_format = fmt
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Time format set to {plain} ({sample.strftime(fmt)}).')
             return
     await ctx.send(f'Time format unchanged -- enter a number between 1 and {len(_TIME_FORMAT_PRESETS)}.')
@@ -1587,6 +1628,7 @@ async def _pick_menu_colors(ctx) -> None:
         confirm = await ctx.prompt('Are these colors satisfactory? (y/n)')
         if confirm is not None and confirm.strip().lower().startswith('y'):
             cs.menu_colors = candidate
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Menu colors set to {label}.')
             return
         # 'n' (or anything else, or a blank) -- loop back to the picker
@@ -1722,6 +1764,7 @@ async def _pick_table_colors(ctx) -> None:
         confirm = await ctx.prompt('Are these colors satisfactory? (y/n)')
         if confirm is not None and confirm.strip().lower().startswith('y'):
             cs.table_colors = candidate
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Table colors set to {label}.')
             return
         # 'n' (or anything else, or a blank) -- loop back to the picker

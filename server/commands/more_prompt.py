@@ -12,7 +12,7 @@ class MorePromptCommand(Command):
     """Toggle whether output pauses between screenfuls."""
 
     name    = 'mp'
-    aliases = ['moreprompt']
+    aliases = ['more']
     modes   = {Mode.LOGIN, Mode.GAME}
 
     help = Help(

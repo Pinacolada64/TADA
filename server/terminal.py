@@ -286,7 +286,12 @@ class ClientSettings:
     # already in) -- an IANA zone name (e.g. 'America/New_York') converts
     # to that zone instead. See formatting.format_player_datetime().
     timezone:    str = ''
-    date_format: str = '%B %d, %Y'
+    # Default includes a weekday (preset 8, 'Weekday, Month Day, Year' --
+    # commands/prefs.py's _DATE_FORMAT_PRESETS) so a never-touched-PREFS
+    # player's dates look the same as before the weekday got folded into
+    # the date-format choice itself (2026-08-27) instead of always being
+    # prepended separately -- see formatting.format_player_datetime().
+    date_format: str = '%A, %B %d, %Y'
     # 12-hour ('%I:%M %p', e.g. '2:30 PM') or 24-hour ('%H:%M', e.g.
     # '14:30' -- the default, matching this codebase's previous hardcoded
     # Hourglass behavior). Editable via PREFS 'F' (Time Format). See

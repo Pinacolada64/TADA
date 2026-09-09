@@ -1197,17 +1197,22 @@ def _localize_for_player(dt, player):
 def format_player_datetime(dt, player) -> str:
     """Render *dt* using *player*'s PREFS timezone/date-format choice
     (commands/prefs.py's 'Z'/'D' rows, ClientSettings.timezone/
-    date_format -- New in TADA). See _localize_for_player() for how the
-    timezone conversion works."""
+    date_format -- New in TADA). Whether a weekday name appears at all,
+    and whether it's abbreviated, is entirely up to which preset the
+    player picked (commands/prefs.py's _DATE_FORMAT_PRESETS pairs a
+    plain and a "Weekday, ..." variant of each format, e.g. 'Month Day,
+    Year' vs. 'Weekday, Month Day, Year') -- there's no separate weekday
+    step here, unlike before 2026-08-27. See _localize_for_player() for
+    how the timezone conversion works."""
     cs          = getattr(player, 'client_settings', None)
-    date_format = getattr(cs, 'date_format', '') or '%B %d, %Y'
+    date_format = getattr(cs, 'date_format', '') or '%A, %B %d, %Y'
     dt          = _localize_for_player(dt, player)
 
     try:
         return dt.strftime(date_format)
     except (ValueError, TypeError):
         logging.warning("format_player_datetime: bad date_format %r", date_format)
-        return dt.strftime('%B %d, %Y')
+        return dt.strftime('%A, %B %d, %Y')
 
 
 def format_player_time(dt, player) -> str:
@@ -1601,9 +1606,11 @@ class Line:
         if self.border.role in (BorderRole.TOP, BorderRole.BOTTOM):
             return f'+{char * (width - 2)}+'
         inner_width = width - 4  # "| " + text + " |"
-        content = _justify_text(self.text, inner_width, self.justification)
-        content = content[:inner_width].ljust(inner_width)
-        return f'| {content} |'
+        rows = wrap_text(self.text, max(inner_width, 1)) or ['']
+        return '\n'.join(
+            f'| {_justify_text(r, inner_width, self.justification).ljust(inner_width)} |'
+            for r in rows
+        )
 
     def to_dict(self) -> dict:
         """JSON-safe representation for persisting saved content (see
@@ -1680,11 +1687,29 @@ def render_lines(lines: list[Line], ctx, width: int) -> list[str]:
                 j += 1
             has_bottom = j < n and lines[j].border is not None and lines[j].border.role == BorderRole.BOTTOM
             inner_width = max(width - 4, 1)
-            texts = [_justify_text(ln.text, inner_width, ln.justification) for ln in content]
+            # Word-wrap each content Line to the box's inner width first --
+            # make_box() only pads, never wraps, so an over-long line would
+            # otherwise shove the right border past the screen edge and the
+            # terminal would wrap it, breaking the frame. A Line that wraps
+            # to several physical rows still collapses back to ONE output
+            # string (newline-joined) so render_lines() keeps its one-string-
+            # per-input-Line contract (callers index the result by Line #).
+            texts: list[str] = []
+            row_counts: list[int] = []
+            for ln in content:
+                wrapped = wrap_text(ln.text, inner_width) or ['']
+                wrapped = [_justify_text(w, inner_width, ln.justification) for w in wrapped]
+                texts.extend(wrapped)
+                row_counts.append(len(wrapped))
             settings = ctx.player.client_settings
             boxed = make_box(texts, width=width, codec=codec_for_settings(settings),
                              border_style=border_style_for_ctx(ctx))
-            out.extend(boxed[:1 + len(content)])
+            out.append(boxed[0])
+            body = boxed[1:1 + len(texts)]
+            k = 0
+            for count in row_counts:
+                out.append('\n'.join(body[k:k + count]))
+                k += count
             if has_bottom:
                 out.append(boxed[-1])
                 i = j + 1

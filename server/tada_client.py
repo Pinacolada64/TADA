@@ -31,7 +31,7 @@ from prompt_toolkit.document import Document
 from prompt_toolkit.filters import is_done
 from prompt_toolkit.formatted_text import ANSI, to_formatted_text
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.layout.containers import HSplit, Window, ConditionalContainer
+from prompt_toolkit.layout.containers import HSplit, VSplit, Window, WindowAlign, ConditionalContainer
 from prompt_toolkit.layout.controls import BufferControl, FormattedTextControl
 from prompt_toolkit.layout.dimension import Dimension
 from prompt_toolkit.layout.layout import Layout
@@ -53,10 +53,11 @@ log = logging.getLogger(__name__)
 _WELCOME_RE = re.compile(r'^Welcome, ([^,!]+)')
 
 _STYLE = Style.from_dict({
-    'output-field': 'bg:#1a1a2e #e0e0e0',
-    'status-bar':   'bg:#16213e #a0c4ff bold',
-    'input-field':  'bg:#0f3460 #e0e0e0',
-    'prompt-mark':  '#f0a500 bold',
+    'output-field':        'bg:#1a1a2e #e0e0e0',
+    'status-bar':          'bg:#16213e #a0c4ff bold',
+    'status-bar-logging':  'bg:#16213e #f0a500 bold',
+    'input-field':         'bg:#0f3460 #e0e0e0',
+    'prompt-mark':         '#f0a500 bold',
 })
 
 # ---------------------------------------------------------------------------
@@ -146,8 +147,27 @@ def _force_quit(app: 'Application', writer: asyncio.StreamWriter | None = None) 
 
 _SCROLLBACK = 2000   # maximum lines kept in the output buffer
 
+# Set by main() when --log is passed. Every line that ever reaches the
+# output buffer (server output, disconnect notices, and the '> <text>'
+# echo of what the player typed -- see _append_output()'s callers) is
+# also written here, so --log captures the actual gameplay session, not
+# just this module's own internal logging.warning()/error() calls (which
+# is all logging.basicConfig's filename= arg alone ever captured -- found
+# live 2026-08-27, Ryan expected --log to be a full session transcript).
+_transcript_fp = None
+
+def _logging_indicator_fragments():
+    """Status bar's right-edge "Logging" indicator -- visible only while
+    --log has a transcript file open. A trailing space keeps it off the
+    pane's hard right edge. A plain function (not a closure over
+    _build_app's locals) so it's unit-testable on its own."""
+    return [('class:status-bar-logging', 'Logging ' if _transcript_fp is not None else '')]
+
 def _append_output(output_buffer: Buffer, lines: list[str]) -> None:
     """Append lines to the output buffer, trimming old content if needed."""
+    if _transcript_fp is not None and lines:
+        _transcript_fp.write('\n'.join(lines) + '\n')
+        _transcript_fp.flush()
     text = output_buffer.text
     existing = text.split('\n') if text else []
     existing.extend(lines)
@@ -267,11 +287,11 @@ def _build_app(state: ClientState) -> tuple[Application, Buffer, Buffer]:
     def _status_text():
         return [('class:status-bar', state.status_text)]
 
-    status_window = Window(
-        content=FormattedTextControl(_status_text),
-        height=1,
-        style='class:status-bar',
-    )
+    status_window = VSplit([
+        Window(content=FormattedTextControl(_status_text), height=1, style='class:status-bar'),
+        Window(content=FormattedTextControl(_logging_indicator_fragments), height=1,
+               style='class:status-bar', align=WindowAlign.RIGHT, dont_extend_width=True),
+    ], height=1, style='class:status-bar')
 
     # --- input area ---
     input_buffer = Buffer(name='input', multiline=False)
@@ -617,8 +637,9 @@ def main() -> int:
     parser.add_argument('--guest',      action='store_true')
     parser.add_argument('--debug',      action='store_true')
     parser.add_argument('--log',        action='store_true',
-                         help="Log to a timestamped file (tada_client_<timestamp>.log) "
-                              "instead of always overwriting the shared tada_client.log")
+                         help="Save the full gameplay session (everything shown "
+                              "on screen, plus what you typed) to a timestamped "
+                              "file, tada_client_<timestamp>.log")
     args = parser.parse_args()
 
     log_filename = (f'tada_client_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
@@ -627,6 +648,19 @@ def main() -> int:
         level=logging.DEBUG if args.debug else logging.WARNING,
         filename=log_filename,
     )
+
+    if args.log:
+        # See _append_output()'s _transcript_fp comment -- this is the
+        # actual gameplay transcript (server output + your own typed
+        # input), independent of the internal logging.basicConfig() call
+        # above, which by itself only ever wrote this module's own
+        # logging.warning()/error() calls (there's no log.debug()/info()
+        # anywhere in this file), so plain --log alone produced an
+        # effectively empty file.
+        global _transcript_fp
+        _transcript_fp = open(log_filename, 'a', encoding='utf-8')
+        _transcript_fp.write(f'\n=== session start {datetime.now().isoformat()} ===\n')
+        _transcript_fp.flush()
 
     if args.guest:
         user_id  = 'guest'

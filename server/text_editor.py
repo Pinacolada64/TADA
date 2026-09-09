@@ -290,6 +290,30 @@ def process_line_range_string(range_str: str, buffer: Buffer,
     return LineRange(start, end)
 
 
+def parse_multi_select(spec: str, count: int) -> List[int]:
+    """Comma-separated multi-select over a 1-based list of *count* items,
+    e.g. '1,3-5,8' -- each comma-separated segment reuses
+    process_line_range_string()'s own single ed-style range parsing/
+    clamping (via a throwaway Buffer sized to *count*), so this is just
+    the comma-splitting glue on top rather than a second range parser.
+    Ryan's call: any numbered-list multi-select in the game (SIG/board
+    picks in commands/board/edit.py, not just quote ranges here) should
+    feel like the text editor's own range syntax instead of a bespoke
+    one-at-a-time picker. Returns selected 1-based indices, ascending,
+    deduplicated; [] for a blank spec or count <= 0."""
+    if count <= 0 or not spec.strip():
+        return []
+    buffer = Buffer(lines=[Line() for _ in range(count)])
+    selected: set[int] = set()
+    for segment in spec.split(','):
+        segment = segment.strip()
+        if not segment:
+            continue
+        line_range = process_line_range_string(segment, buffer, DefaultLineRange.NONE)
+        selected.update(i + 1 for i in buffer.line_slice(line_range))
+    return sorted(selected)
+
+
 # ---------------------------------------------------------------------------
 # Get/Put/Read/Directory file support (privileged)
 # ---------------------------------------------------------------------------

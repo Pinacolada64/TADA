@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import board as board_store
-from commands.board_reply import read_thread_interactive
+from commands.board.reply import read_thread_interactive
 from flags import PlayerFlags
 
 
@@ -39,6 +39,13 @@ class _FakePlayer:
         self.return_key = 'Enter'
         self.client_settings = MagicMock()
         self.client_settings.screen_columns = 80
+        # Unset PREFS date/time/timezone -- format_player_datetime()/
+        # format_player_time() fall back to their own defaults
+        # ('%B %d, %Y' / '%H:%M', source-timezone-as-is) rather than
+        # choking on a MagicMock auto-attribute.
+        self.client_settings.date_format = ''
+        self.client_settings.time_format = ''
+        self.client_settings.timezone = ''
         self.unsaved_changes = False
 
     def query_flag(self, flag):
@@ -134,7 +141,10 @@ class TestSteppedNavigation(unittest.TestCase):
         # Title/Replies, width = len('Replies') = 7.
         self.assertIn(_expected_header_line('Number', '1 of 3', 0, 7), text)
         self.assertIn(_expected_header_line('From', 'bob', 1, 7), text)
-        self.assertIn(_expected_header_line('Date', '2026-01-01', 2, 7), text)
+        # Weekday + PREFS date-format default ('%B %d, %Y') + PREFS
+        # time-format default ('%H:%M'), all one Date line -- not a raw
+        # YYYY-MM-DD passthrough.
+        self.assertIn(_expected_header_line('Date', 'Thursday, January 01, 2026 00:00', 2, 7), text)
         self.assertIn(_expected_header_line('Title', 'Hello', 3, 7), text)
         self.assertIn(_expected_header_line('Replies', '2', 4, 7), text)
         self.assertNotIn('From: bob  (2026-01-01)', text)
@@ -252,16 +262,22 @@ class TestSteppedNavigation(unittest.TestCase):
         ctx = make_ctx(player=_FakePlayer(expert=False), prompts=['', '', ''])
         run(read_thread_interactive(ctx, _thread()))
         preambles = [c.kwargs.get('preamble_lines') for c in ctx.prompt.await_args_list]
-        self.assertTrue(any("'pm'" in line for line in preambles[0]))
+        # Bracketed like the other menu entries ([R]eply, [Q]uit, ...),
+        # unquoted -- see this menu's own [<#>]/[pm]/[Enter] rows.
+        self.assertTrue(any('[pm]' in line for line in preambles[0]))
 
 
 class BoardReplyTestCase(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
-        self.path = Path(self._tmp.name) / 'board.json'
-        patcher = patch.object(board_store, 'BOARD_FILE', self.path)
+        self.path = Path(self._tmp.name) / 'board_threads.json'
+        patcher = patch.object(board_store.threads, 'BOARD_FILE', self.path)
         patcher.start()
         self.addCleanup(patcher.stop)
+        self.meta_path = Path(self._tmp.name) / 'board_meta.json'
+        meta_patcher = patch.object(board_store.meta, 'META_FILE', self.meta_path)
+        meta_patcher.start()
+        self.addCleanup(meta_patcher.stop)
         self.addCleanup(self._tmp.cleanup)
         board_store.save_board([_thread()], self.path)
 
@@ -311,7 +327,7 @@ class TestQuoteRangeListLines(BoardReplyTestCase):
         self.assertIn('[L]ist lines', preamble)
         self.assertIn('line ranges accepted', preamble)
         self.assertIn('Line range', preamble)
-        self.assertIn('3-, 1-3, -6, 6-+6', preamble)
+        self.assertIn('[3-], [1-3], [-6], [6-+6]', preamble)
         self.assertIn('Enter', preamble)
         self.assertIn('no quote', preamble)
 
@@ -529,6 +545,58 @@ class TestMailPoster(BoardReplyTestCase):
             ctx = make_ctx(prompts=['m', '', '', '', ''])
             run(read_thread_interactive(ctx, _thread()))
             MockPageCommand.assert_not_called()
+
+
+class TestOverAndFreeze(BoardReplyTestCase):
+    def test_over_redisplays_current_message_without_advancing(self):
+        ctx = make_ctx(prompts=['o', '', '', ''])
+        run(read_thread_interactive(ctx, _thread()))
+        text = _sent_text(ctx)
+        self.assertEqual(text.count('root line one'), 2)
+
+    def test_poster_can_freeze(self):
+        ctx = make_ctx(player=_FakePlayer(name='bob'), prompts=['f', 'q'])
+        run(read_thread_interactive(ctx, _thread()))
+        self.assertIn('Bulletin frozen.', _sent_text(ctx))
+        threads = board_store.load_board(self.path)
+        self.assertTrue(threads[0]['frozen'])
+
+    def test_board_admin_can_freeze(self):
+        board_store.meta.save_meta({'boards': {'1': {
+            'id': 1, 'name': 'General', 'anonymous_mode': 'ask',
+            'access': {'type': 'any'}, 'admins': ['alexa'],
+        }}}, self.meta_path)
+        ctx = make_ctx(prompts=['f', 'q'])  # default player name is 'alexa'
+        run(read_thread_interactive(ctx, _thread()))
+        self.assertIn('Bulletin frozen.', _sent_text(ctx))
+
+    def test_global_admin_can_freeze(self):
+        ctx = make_ctx(player=_FakePlayer(name='someone_else', admin=True), prompts=['f', 'q'])
+        run(read_thread_interactive(ctx, _thread()))
+        self.assertIn('Bulletin frozen.', _sent_text(ctx))
+
+    def test_random_player_cannot_freeze(self):
+        ctx = make_ctx(prompts=['f', 'q'])  # 'alexa' -- neither poster ('bob') nor admin
+        run(read_thread_interactive(ctx, _thread()))
+        self.assertIn("don't have permission", _sent_text(ctx))
+        threads = board_store.load_board(self.path)
+        self.assertFalse(threads[0].get('frozen', False))
+
+    def test_freeze_then_unfreeze_toggles(self):
+        ctx = make_ctx(player=_FakePlayer(name='bob'), prompts=['f', 'f', 'q'])
+        run(read_thread_interactive(ctx, _thread()))
+        text = _sent_text(ctx)
+        self.assertIn('Bulletin frozen.', text)
+        self.assertIn('Bulletin unfrozen.', text)
+        threads = board_store.load_board(self.path)
+        self.assertFalse(threads[0]['frozen'])
+
+    def test_frozen_bulletin_blocks_new_reply(self):
+        thread = _thread(frozen=True)
+        ctx = make_ctx(prompts=['r'])
+        run(read_thread_interactive(ctx, thread))
+        self.assertIn('frozen -- no new responses', _sent_text(ctx))
+        self.assertEqual(thread['replies'], _thread()['replies'])
 
 
 if __name__ == '__main__':
