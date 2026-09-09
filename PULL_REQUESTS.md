@@ -12,29 +12,40 @@ Sections: Open PRs → Merged PRs (newest first).
 
 ## Open PRs
 
-#### [#42](https://github.com/Pinacolada64/TADA/pull/42) `feature/give-take-transfer` → `master` — GIVE / TAKE onto `inventory_select`
-- Moves `give` and `take` item selection onto the shared `inventory_select`
-  helper (the "pick an item of type X" flow introduced with #41). `TAKE` can
-  now reroute an item straight from one ally to another; the reroute step is
-  only offered for the browse forms.
+All five were rebased onto current `master` on 2026-09-09 (each is now 1 commit
+ahead of a recent `master`, not stale). #46 / #33 / #32 had shared a stray base
+commit `05ddbbe` (the Dwarf hoard-floor change) — it was lifted out onto its own
+branch `fix/dwarf-hoard-floor` (see below).
 
-#### [#36](https://github.com/Pinacolada64/TADA/pull/36) `feature/give-drink-polish` → `master` — give ally pick-list + drink pool confirmation line
-- **Tip:** `ed9ed59` (2 commits) — branched off `ready-ally-weapons`, retargeted
-  to `master` after #34 merged.
-- `2d7eb28` — bare `give <item>` with no `to <name>` now prints a numbered list
-  of the player's allies and prompts for a choice instead of erroring out;
-  falls back to the old "Give it to whom?" hint when the player has no allies.
-- `ed9ed59` — drinking from a pool of water appends
-  "(Your thirst has been quenched.)" for non-expert players, who previously got
-  no confirmation that thirst was restored.
+#### [#46](https://github.com/Pinacolada64/TADA/pull/46) `feature/pose` → `master` — pose / emote command
+- **Tip:** `d9f39b5` (1 commit). CI green.
+- `pose` / `emote` / `me`, with a bare `:` shortcut (wired like `say`'s `"`).
+  Third-person action text is shown to the room verbatim and de-conjugated to
+  first person for the actor: `:stares at the wall.` → others see
+  "Rulan stares at the wall.", the actor sees "You stare at the wall."
 
-### Others
+#### [#33](https://github.com/Pinacolada64/TADA/pull/33) `feature/say-verb-switch` → `master` — `say` dialogue switches
+- **Tip:** `7dba55d` (5 commits). CI green.
+- `say #verb` — comma-based dialogue attribution. `say #split` / `#unsplit` —
+  inline equivalents of the PREFS 'Y' dialogue-splitting toggle. Plus in-game
+  help coverage for both.
 
-| PR | Branch | Title |
-|----|--------|-------|
-| [#33](https://github.com/Pinacolada64/TADA/pull/33) | `feature/say-verb-switch` | Add `say #verb` and `#split`/`#unsplit` switches — inline equivalents of the PREFS dialogue-splitting toggle. |
-| [#32](https://github.com/Pinacolada64/TADA/pull/32) | `feature/ooc` | Add `OOC` command for out-of-character room asides. |
-| [#31](https://github.com/Pinacolada64/TADA/pull/31) | `fix/news-date` | Render news header/listing dates in the player's PREFS date format. |
+#### [#32](https://github.com/Pinacolada64/TADA/pull/32) `feature/ooc` → `master` — OOC command
+- **Tip:** `a596ac7` (1 commit). CI green.
+- `OOC` command for out-of-character room asides.
+
+#### [#36](https://github.com/Pinacolada64/TADA/pull/36) `feature/give-drink-polish` → `master` — drink pool confirmation line
+- **Tip:** `fb3a59e` (1 commit). CI re-running on the rebased tip.
+- Drinking from a pool of water appends "(Your thirst has been quenched.)" for
+  non-expert players, who previously got no confirmation.
+- _Originally 2 commits — the other (`2d7eb28`, "give ally pick-list when no
+  target") was **dropped as redundant**: `master` already has that feature via
+  the shared `inventory_select` picker (`78d9ef3` + #42's rework)._
+
+#### [#31](https://github.com/Pinacolada64/TADA/pull/31) `fix/news-date` → `master` — news dates in PREFS format
+- **Tip:** `71f7496` (1 commit). CI re-running on the rebased tip.
+- Render news header / listing dates in the player's PREFS date format
+  (the `news.py` counterpart to the board-header date work that landed in #43).
 
 ---
 
@@ -43,6 +54,8 @@ Sections: Open PRs → Merged PRs (newest first).
 | Branch | Tip | Status |
 |--------|-----|--------|
 | `feat/helpstaff` | `52b49ca` | WIP snapshot — `helpstaff` command (ask an available staffer for help: request → relay to `PlayerFlags.HELPSTAFF_AVAILABLE` players → first to `helpstaff accept <name>` is teleported in). 182-line command + 237-line test, recovered verbatim from tag `pre-30-cleanup` after the #30 mishap. **Not wired**: still needs the `HELPSTAFF_AVAILABLE` flag added to `flags.py`, `Server.pending_help_requests` init, command registration, and an editplayer toggle. Isolated test run: 5 pass / 9 fail (all on the missing flag). |
+| `fix/dwarf-hoard-floor` | `c8c0757` | Ready. `05ddbbe` (Dwarf's hoard resets to a 500-silver floor on kill, per SPUR's `dh=0:dl=500`, instead of zero — `config.py` / `encounters/dwarf.py` / `test_dwarf.py`) cherry-picked onto `master` and split out of #32 / #33 / #46, plus a follow-up "gold" → "silver" comment fix. No PR opened yet. |
+| `feature/help-popup` | `e5ce52f` | Native C64 help / keyboard-shortcuts / credits popup overlay (`help_menu.asm` + `commands/help_menu.py`, 8 commits). Pushed to `origin` 2026-09-09 as a backup — was local-only. Supersedes the two overlay commits on the now-deleted `dwarf-hoard-floor`. **Needs a live end-to-end retest** before a PR (see the `LOAD $05` history). |
 
 ---
 
@@ -51,6 +64,7 @@ Sections: Open PRs → Merged PRs (newest first).
 | PR | Merge commit | Branch | Title |
 |----|--------------|--------|-------|
 | [#45](https://github.com/Pinacolada64/TADA/pull/45) | `a43fa1b` | `fix/scuttles-test` | Fix stale `skuttles` → `scuttles` assertions in `test_get_unconscious.py` (the code was renamed in `09c0544`; last remaining unmerged change from the `prefs` branch, now deleted). |
+| [#42](https://github.com/Pinacolada64/TADA/pull/42) | `7fed25e` | `feature/give-take-transfer` | GIVE / TAKE item selection onto the shared `inventory_select` picker; `TAKE` can reroute an item ally→ally (reroute step only on the browse forms). **Landed via a plain `git merge` (`7fed25e`) before the PR was reviewed — sits between #40 and #38 in history; PR closed 2026-09-09.** |
 | [#44](https://github.com/Pinacolada64/TADA/pull/44) | `57d98b8` | `feature/buffered-more-prompt-clean` | Buffered More-Prompt: `ctx.send()` buffers a turn's output and the pagination decision is made once on the combined total (`network_context.flush_turn`). Clean re-land of #30 — see note below. |
 | [#43](https://github.com/Pinacolada64/TADA/pull/43) | `ae8d411` | `sig-editor` | Multi-SIG bulletin board (34-commit line): `board/` + `commands/board/` packages, structural SIG/board editor, two-level picker, `>`/`<`/`>>`/`<<` navigation, `player_can_access()` gating wired into every board command, `board ra`/`board sa` (Read/Scan All new), ImageBBS-style Stat column + freeze/unfreeze, per-SIG/board intro screens, and the PREFS date-format-preset / text-editor word-wrap changes developed alongside. |
 | [#41](https://github.com/Pinacolada64/TADA/pull/41) | `701a9fc` | `feature/inventory-select` | `inventory_select`: shared "pick an item of type X" helper; `READY`/`UNREADY`/`USE`/`DROP` item selection moved onto it. |
@@ -94,3 +108,5 @@ _PR [#30](https://github.com/Pinacolada64/TADA/pull/30) (`feature/buffered-more-
 - _`client-128.asm`, `input_editor.asm` → already byte-identical on `origin/128-client`; nothing to recover._
 - _`dotbasic-v2.2.zip` → kept locally, now covered by `.gitignore` (`assembly-language/client/dotbasic-*.zip`)._
 - _The rest (`screenlog.0`, `client.log.*`, `hardcopy.*`, `tada_screen_dump*.txt`, `print.dump`, screenshots) was scratch — discarded._
+
+_Branch cleanup, 2026-09-09: `prefs` deleted (its one useful change landed as #45); `dwarf-hoard-floor` deleted (its Dwarf commit → `fix/dwarf-hoard-floor`, its two C64-overlay commits superseded by `feature/help-popup`). `feature/give-take-transfer` is fully in `master` and its PR is closed — safe to delete._
