@@ -428,7 +428,7 @@ class TestEditSkipsImmutable(unittest.IsolatedAsyncioTestCase):
 
 
 class TestEditSubcommands(unittest.IsolatedAsyncioTestCase):
-    """.E m(ove)/c(opy)/l(ist) <range> [destination]."""
+    """.E m(ove)/c(opy)/l(ist) <range> [destination], and s(plit)/j(oin)."""
 
     async def test_move_shifts_range_to_destination(self):
         ctx = _make_ctx(['.e m 4-6 8', '.s'])
@@ -488,8 +488,88 @@ class TestEditSubcommands(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(_texts(result), ['one', 'two', 'three'])  # list doesn't mutate
 
 
+class TestEditSplitJoin(unittest.IsolatedAsyncioTestCase):
+    """.E s(plit) <line> <text> / .E j(oin) <line> [glue]."""
+
+    async def test_split_breaks_line_after_the_match(self):
+        ctx = _make_ctx(['.e s 1 quick', '.s'])
+        result = await run_editor(ctx, initial_lines=['the quick brown fox'])
+        self.assertEqual(_texts(result), ['the quick', 'brown fox'])
+
+    async def test_split_match_text_can_contain_spaces(self):
+        ctx = _make_ctx(['.e s 1 quick brown', '.s'])
+        result = await run_editor(ctx, initial_lines=['the quick brown fox'])
+        self.assertEqual(_texts(result), ['the quick brown', 'fox'])
+
+    async def test_split_prompts_for_line_and_text_when_omitted(self):
+        ctx = _make_ctx(['.e s', '1', 'quick', '.s'])
+        result = await run_editor(ctx, initial_lines=['the quick brown fox'])
+        self.assertEqual(_texts(result), ['the quick', 'brown fox'])
+
+    async def test_split_no_match_is_a_no_op(self):
+        ctx = _make_ctx(['.e s 1 zebra', '.s'])
+        result = await run_editor(ctx, initial_lines=['the quick brown fox'])
+        self.assertEqual(_texts(result), ['the quick brown fox'])
+        self.assertIn("No 'zebra'", _sent_text(ctx))
+
+    async def test_split_refuses_immutable_line(self):
+        ctx = _make_ctx(['.e s 1 quick', '.s'])
+        lines = [Line(text='the quick brown fox', line_flag=LineFlag.IMMUTABLE)]
+        result = await run_editor(ctx, initial_lines=lines)
+        self.assertEqual(_texts(result), ['the quick brown fox'])
+        self.assertIn('immutable', _sent_text(ctx).lower())
+
+    async def test_split_is_undoable(self):
+        ctx = _make_ctx(['.e s 1 quick', '.e u', '.s'])
+        result = await run_editor(ctx, initial_lines=['the quick brown fox'])
+        self.assertEqual(_texts(result), ['the quick brown fox'])
+
+    async def test_join_merges_next_line_with_a_space(self):
+        ctx = _make_ctx(['.e j 1', '.s'])
+        result = await run_editor(ctx, initial_lines=['hello', 'world', 'x'])
+        self.assertEqual(_texts(result), ['hello world', 'x'])
+
+    async def test_join_glue_string_is_used_and_quotes_are_stripped(self):
+        ctx = _make_ctx(['.e j 1 " - "', '.s'])
+        result = await run_editor(ctx, initial_lines=['hello', 'world'])
+        self.assertEqual(_texts(result), ['hello - world'])
+
+    async def test_join_prompts_for_line_when_omitted(self):
+        ctx = _make_ctx(['.e j', '1', '.s'])
+        result = await run_editor(ctx, initial_lines=['hello', 'world'])
+        self.assertEqual(_texts(result), ['hello world'])
+
+    async def test_join_on_last_line_is_a_no_op(self):
+        ctx = _make_ctx(['.e j 2', '.s'])
+        result = await run_editor(ctx, initial_lines=['hello', 'world'])
+        self.assertEqual(_texts(result), ['hello', 'world'])
+        self.assertIn('No line after line 2', _sent_text(ctx))
+
+    async def test_join_refuses_when_next_line_is_immutable(self):
+        ctx = _make_ctx(['.e j 1', '.s'])
+        lines = [Line(text='hello'), Line(text='world', line_flag=LineFlag.QUOTE)]
+        result = await run_editor(ctx, initial_lines=lines)
+        self.assertEqual(_texts(result), ['hello', 'world'])
+        self.assertIn('immutable', _sent_text(ctx).lower())
+
+    async def test_join_is_undoable(self):
+        ctx = _make_ctx(['.e j 1', '.e u', '.s'])
+        result = await run_editor(ctx, initial_lines=['hello', 'world'])
+        self.assertEqual(_texts(result), ['hello', 'world'])
+
+    async def test_split_then_join_round_trips(self):
+        ctx = _make_ctx(['.e s 1 quick', '.e j 1', '.s'])
+        result = await run_editor(ctx, initial_lines=['the quick brown fox'])
+        self.assertEqual(_texts(result), ['the quick brown fox'])
+
+    async def test_bare_edit_submenu_split_choice(self):
+        ctx = _make_ctx(['.e', 's', '1', 'quick', '.s'])
+        result = await run_editor(ctx, initial_lines=['the quick brown fox'])
+        self.assertEqual(_texts(result), ['the quick', 'brown fox'])
+
+
 class TestEditUndoRedo(unittest.IsolatedAsyncioTestCase):
-    """.E u(ndo)/r(edo)/s(how) -- multi-level, checkpointed before every
+    """.E u(ndo)/r(edo)/b(uffers) -- multi-level, checkpointed before every
     real buffer mutation."""
 
     async def test_undo_reverts_last_typed_line(self):
@@ -532,7 +612,7 @@ class TestEditUndoRedo(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(_texts(result), ['a', 'b', 'c'])
 
     async def test_show_buffers_reports_stack_depth(self):
-        ctx = _make_ctx(['one', 'two', '.e s', '.s'])
+        ctx = _make_ctx(['one', 'two', '.e b', '.s'])
         await run_editor(ctx)
         text = _sent_text(ctx)
         self.assertIn('Undo history (2 step(s)', text)
