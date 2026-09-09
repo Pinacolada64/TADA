@@ -45,7 +45,9 @@ what changed:
     formatting.wrap_text() is right there if it's wanted later).
   - .E Edit subcommands (Ryan's addition, not in the gist at all): '.e
     m'ove/'c'opy <range> <destination>, '.e l'ist <range> (delegates
-    straight to _cmd_list()), and multi-level '.e u'ndo/'r'edo/'s'how --
+    straight to _cmd_list()), '.e s'plit <line> <text> / '.e j'oin
+    <line> [glue] (one-time text mutations, checkpointed like .D/.J's
+    pack), and multi-level '.e u'ndo/'r'edo/'b'uffers --
     Editor.checkpoint() pushes a deep-copied snapshot onto an undo stack
     before every real buffer mutation (typing a line, .D/.E/.M/.C/.N/.J's
     text-mutating modes, .G Get File), capped at _MAX_UNDO_DEPTH; undo/
@@ -363,7 +365,7 @@ class Editor:
         # _undo_stack and clearing _redo_stack (a new change always
         # invalidates whatever was redo-able, same as any standard
         # undo/redo history). '.E U'ndo/'.E R'edo move a snapshot between
-        # the two stacks; '.E S'how lists both. See checkpoint() and
+        # the two stacks; '.E B'uffers lists both. See checkpoint() and
         # _cmd_edit_undo()/_cmd_edit_redo()/_cmd_edit_show_buffers().
         self._undo_stack: List[List[Line]] = []
         self._redo_stack: List[List[Line]] = []
@@ -407,10 +409,13 @@ class Editor:
                           "copying, since the original is left in place either way). "
                           "Leave off the range and/or destination and you'll be prompted "
                           "for whichever's missing. "
-                          "'.e [l]ist' <range> is the same as .L. '.e [u]ndo'/'[r]edo' "
-                          "step back and forward through your recent changes (typing, "
-                          "deleting, moving, etc.); '.e [s]how' lists what's on both "
-                          "stacks.\n\n"
+                          "'.e [l]ist' <range> is the same as .L. '.e [s]plit' <line> "
+                          "<text> breaks a line in two just after the first <text>; '.e "
+                          "[j]oin' <line> [glue] merges a line with the next one, with "
+                          "[glue] between them (default a space -- quote it to keep outer "
+                          "spaces). '.e [u]ndo'/'[r]edo' step back and forward through "
+                          "your recent changes (typing, deleting, moving, splitting, "
+                          "joining, etc.); '.e [b]uffers' lists what's on both stacks.\n\n"
                           "Examples:\n"
                           "  .e            Edit the last line\n"
                           "  .e 3          Edit line 3\n"
@@ -418,9 +423,12 @@ class Editor:
                           "  .e m 4-6 8    Move lines 4-6 to before line 8\n"
                           "  .e c 4-6 8    Copy lines 4-6 to before line 8\n"
                           "  .e l 4-6      List lines 4-6 (like .L 4-6)\n"
+                          "  .e s 3 fox    Split line 3 in two just after 'fox'\n"
+                          "  .e j 3        Join line 3 with line 4 (a space between)\n"
+                          '  .e j 3 " - "  Join line 3 with line 4, " - " between\n'
                           "  .e u          Undo your last change\n"
                           "  .e r          Redo what you just undid\n"
-                          "  .e s          Show the undo/redo history"),
+                          "  .e b          Show the undo/redo history"),
             DotCommand('f', 'Find', DefaultLineRange.ALL_LINES, CommandFlags.ACCEPT_LINE_RANGE, _cmd_find,
                 help_text="Search for text in a line range (defaults to the whole "
                           "buffer). Matches are highlighted in the results.\n\n"
@@ -598,7 +606,7 @@ async def _cmd_delete(editor: 'Editor', arg: str) -> Optional[str]:
     return None
 
 
-_EDIT_SUBCOMMANDS = ('m', 'c', 'l', 'u', 'r', 's')
+_EDIT_SUBCOMMANDS = ('m', 'c', 'l', 's', 'j', 'u', 'r', 'b')
 
 
 async def _cmd_edit(editor: 'Editor', arg: str) -> Optional[str]:
@@ -609,17 +617,20 @@ async def _cmd_edit(editor: 'Editor', arg: str) -> Optional[str]:
     never actually said (see that module and formatting.py's Line for
     the real, wired-up use of this, not just a reserved-for-later flag).
 
-    Subcommands ('.e m'/'c'/'l'/'u'/'r'/'s') are dispatched here rather
-    than through DOT_CMD_TABLE itself -- CommandFlags.ACCEPT_SUBCOMMAND
+    Subcommands ('.e m'/'c'/'l'/'s'/'j'/'u'/'r'/'b') are dispatched here
+    rather than through DOT_CMD_TABLE itself -- CommandFlags.ACCEPT_SUBCOMMAND
     is documentation only in this port (see that Flag's own docstring),
     not actually branched on by run_editor()'s dispatch loop. A bare
     '.e' (nothing typed after it at all) prompts for which subcommand
     instead of defaulting straight to editing the last line -- Ryan's
     call, so the subcommands are discoverable without needing '.h e'."""
     if not arg.strip():
-        prompt = (f'Edit which? [E]dit lines, [M]ove, [C]opy, [L]ist, '
-                  f'[U]ndo, [R]edo, [S]how buffers, or {editor.ctx.player.return_key} to abort')
-        raw = await editor.ctx.prompt(prompt)
+        await editor.ctx.send([
+            'Edit: [E]dit lines  [M]ove  [C]opy  [L]ist',
+            '      [S]plit line  [J]oin lines',
+            '      [U]ndo  [R]edo  [B]uffers',
+        ])
+        raw = await editor.ctx.prompt(f'Which? ({editor.ctx.player.return_key} aborts)')
         if not raw:
             return None
         choice = raw.strip().lower()[:1]
@@ -630,9 +641,10 @@ async def _cmd_edit(editor: 'Editor', arg: str) -> Optional[str]:
             arg = ''
         elif choice in _EDIT_SUBCOMMANDS:
             # Pass just the subcommand letter; each one prompts for
-            # whatever it still needs (range/destination for m/c, nothing
-            # more for l/u/r/s) -- see _cmd_edit_move_or_copy()'s own
-            # docstring for why that logic lives there, not here.
+            # whatever it still needs (range/destination for m/c, line +
+            # text for s, line for j, nothing more for l/u/r/b) -- see
+            # each subcommand's own docstring for why that logic lives
+            # there, not here.
             arg = choice
         else:
             await editor.ctx.send(f"Unrecognized choice '{raw}'.")
@@ -644,11 +656,15 @@ async def _cmd_edit(editor: 'Editor', arg: str) -> Optional[str]:
         rest = parts[1] if len(parts) > 1 else ''
         if first == 'l':
             return await _cmd_list(editor, rest)
+        if first == 's':
+            return await _cmd_edit_split(editor, rest)
+        if first == 'j':
+            return await _cmd_edit_join(editor, rest)
         if first == 'u':
             return await _cmd_edit_undo(editor)
         if first == 'r':
             return await _cmd_edit_redo(editor)
-        if first == 's':
+        if first == 'b':
             return await _cmd_edit_show_buffers(editor)
         return await _cmd_edit_move_or_copy(editor, rest, move=(first == 'm'))
 
@@ -792,6 +808,99 @@ async def _cmd_edit_show_buffers(editor: 'Editor') -> Optional[str]:
     else:
         out.append('  (none)')
     await editor.ctx.send(out)
+    return None
+
+
+async def _cmd_edit_split(editor: 'Editor', rest: str) -> Optional[str]:
+    """'.e split <line> <text>': break one line in two after the first
+    occurrence of <text>. The match and everything before it stays on
+    <line>; the remainder (leading spaces trimmed) becomes a brand-new
+    line inserted right after, inheriting <line>'s justification and
+    MUTABLE flag but no border. A non-MUTABLE line (IMMUTABLE/QUOTE) is
+    refused, same as .E Edit. Case-sensitive, matching .F Find / .K
+    Search & Replace. Prompts for <line> and/or <text> if either was
+    left off. Saves re-typing the whole line by hand just to break it."""
+    buffer = editor.buffer
+    if not buffer.lines:
+        await editor.ctx.send('(buffer is empty)')
+        return None
+
+    tokens = rest.split(maxsplit=1)
+    line_str = tokens[0] if tokens else await editor.ctx.prompt('Split which line')
+    if not line_str:
+        return None
+    try:
+        lineno = int(line_str)
+    except ValueError:
+        await editor.ctx.send(f"Expected a line number, got '{line_str}'.")
+        return None
+    if not 1 <= lineno <= buffer.used_lines:
+        await editor.ctx.send(f'No line {lineno}.')
+        return None
+
+    line = buffer.lines[lineno - 1]
+    if line.line_flag != LineFlag.MUTABLE:
+        await editor.ctx.send(f'Line {lineno} is immutable.')
+        return None
+
+    text = tokens[1] if len(tokens) > 1 else await editor.ctx.prompt('Split after what text')
+    if not text:
+        return None
+    pos = line.text.find(text)
+    if pos < 0:
+        await editor.ctx.send(f"No '{text}' in line {lineno}.")
+        return None
+
+    cut = pos + len(text)
+    head, tail = line.text[:cut], line.text[cut:].lstrip(' ')
+    editor.checkpoint()
+    line.text = head
+    buffer.lines.insert(lineno, Line(
+        text=tail, justification=line.justification, line_flag=LineFlag.MUTABLE))
+    buffer.current_line = min(buffer.current_line, max(buffer.used_lines, 1))
+    await editor.ctx.send([f'{lineno}: {head}', f'{lineno + 1}: {tail}'])
+    return None
+
+
+async def _cmd_edit_join(editor: 'Editor', rest: str) -> Optional[str]:
+    """'.e join <line> [glue]': append the next line's text to <line>
+    with <glue> between them (default a single space), then delete that
+    next line. Wrap <glue> in matching quotes to keep leading/trailing
+    spaces, e.g. '.e join 3 " - "'. Refused if <line> is the last line,
+    or if either line involved is non-MUTABLE (IMMUTABLE/QUOTE). Prompts
+    for <line> if it was left off. Inverse of '.e split'."""
+    buffer = editor.buffer
+    if not buffer.lines:
+        await editor.ctx.send('(buffer is empty)')
+        return None
+
+    tokens = rest.split(maxsplit=1)
+    line_str = tokens[0] if tokens else await editor.ctx.prompt('Join which line')
+    if not line_str:
+        return None
+    try:
+        lineno = int(line_str)
+    except ValueError:
+        await editor.ctx.send(f"Expected a line number, got '{line_str}'.")
+        return None
+    if not 1 <= lineno < buffer.used_lines:
+        await editor.ctx.send(f'No line after line {lineno} to join.')
+        return None
+
+    first, second = buffer.lines[lineno - 1], buffer.lines[lineno]
+    if first.line_flag != LineFlag.MUTABLE or second.line_flag != LineFlag.MUTABLE:
+        await editor.ctx.send('Immutable line, cannot join.')
+        return None
+
+    glue = tokens[1] if len(tokens) > 1 else ' '
+    if len(glue) >= 2 and glue[0] == glue[-1] and glue[0] in ('"', "'"):
+        glue = glue[1:-1]
+
+    editor.checkpoint()
+    first.text = first.text + glue + second.text
+    del buffer.lines[lineno]
+    buffer.current_line = min(buffer.current_line, max(buffer.used_lines, 1))
+    await editor.ctx.send(f'{lineno}: {first.text}')
     return None
 
 
