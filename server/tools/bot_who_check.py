@@ -81,8 +81,17 @@ async def main():
             await _send(writer, {'lines': ['q'], 'mode': 'game'})
     _print(msgs)
 
+    # Quit cleanly: send 'quit', then read until the server closes its
+    # end (readline() -> b''). Closing our socket while the server is
+    # still writing its 'Goodbye!' / running _player_quit()'s save makes
+    # its writer.drain() raise ConnectionResetError (Errno 104) into the
+    # server log -- draining to EOF first lets that finish.
     await _send(writer, {'lines': ['quit'], 'mode': 'game'})
-    await _recv_all(reader, timeout=2.0)
+    try:
+        while await asyncio.wait_for(reader.readline(), timeout=3.0):
+            pass
+    except asyncio.TimeoutError:
+        pass
 
     writer.close()
     try:
