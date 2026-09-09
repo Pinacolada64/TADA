@@ -12,26 +12,15 @@ Sections: Open PRs → Merged PRs (newest first).
 
 ## Open PRs
 
-### Allies set (#35, #36 — follow-ups to the merged #34)
-
-Both branched off `ready-ally-weapons`; retargeted to `master` after #34 merged.
-
-#### [#35](https://github.com/Pinacolada64/TADA/pull/35) `feature/ally-stat-caps` → `master` — cap ally strength / to-hit / HP to SPUR ceilings; SPUR-faithful Fat Olaf MAINTAIN
-- **Tip:** `6e8e0cc`
-- Ally stats had no ceiling and ran away to absurd values. Adds caps derived
-  from the SPUR source — strength **25** (sysop max 20 + Fat Olaf's `+5` hire),
-  to-hit **0–9**, HP **50** (SPUR has no ally-HP stat; the port's `strength × 2`
-  is bounded by the strength cap). Clamps every growth path: Fat Olaf hire, the
-  Allies' Guild body-building, and Fat Olaf MAINTAIN — rewritten from the port's
-  uncapped `+random(1,3)` per visit back to SPUR's "repair up to catalog
-  strength, refuse at the ceiling" behaviour. `load_allies()` and
-  `Party.from_json()` re-clamp on load, so existing inflated saves self-heal on
-  next login. editplayer's "Character Names" menu is renamed
-  **"Character / NPC Stats"** and gains an `[E]dit stats` option on the ally and
-  horse prompts.
+#### [#42](https://github.com/Pinacolada64/TADA/pull/42) `feature/give-take-transfer` → `master` — GIVE / TAKE onto `inventory_select`
+- Moves `give` and `take` item selection onto the shared `inventory_select`
+  helper (the "pick an item of type X" flow introduced with #41). `TAKE` can
+  now reroute an item straight from one ally to another; the reroute step is
+  only offered for the browse forms.
 
 #### [#36](https://github.com/Pinacolada64/TADA/pull/36) `feature/give-drink-polish` → `master` — give ally pick-list + drink pool confirmation line
-- **Tip:** `ed9ed59` (2 commits)
+- **Tip:** `ed9ed59` (2 commits) — branched off `ready-ally-weapons`, retargeted
+  to `master` after #34 merged.
 - `2d7eb28` — bare `give <item>` with no `to <name>` now prints a numbered list
   of the player's allies and prompts for a choice instead of erroring out;
   falls back to the old "Give it to whom?" hint when the player has no allies.
@@ -46,7 +35,6 @@ Both branched off `ready-ally-weapons`; retargeted to `master` after #34 merged.
 | [#33](https://github.com/Pinacolada64/TADA/pull/33) | `feature/say-verb-switch` | Add `say #verb` and `#split`/`#unsplit` switches — inline equivalents of the PREFS dialogue-splitting toggle. |
 | [#32](https://github.com/Pinacolada64/TADA/pull/32) | `feature/ooc` | Add `OOC` command for out-of-character room asides. |
 | [#31](https://github.com/Pinacolada64/TADA/pull/31) | `fix/news-date` | Render news header/listing dates in the player's PREFS date format. |
-| [#30](https://github.com/Pinacolada64/TADA/pull/30) | `feature/buffered-more-prompt` | Buffered More Prompt: buffer a turn's output and decide pagination once per turn. |
 
 ---
 
@@ -54,6 +42,14 @@ Both branched off `ready-ally-weapons`; retargeted to `master` after #34 merged.
 
 | PR | Merge commit | Branch | Title |
 |----|--------------|--------|-------|
+| [#45](https://github.com/Pinacolada64/TADA/pull/45) | `a43fa1b` | `fix/scuttles-test` | Fix stale `skuttles` → `scuttles` assertions in `test_get_unconscious.py` (the code was renamed in `09c0544`; last remaining unmerged change from the `prefs` branch, now deleted). |
+| [#44](https://github.com/Pinacolada64/TADA/pull/44) | `57d98b8` | `feature/buffered-more-prompt-clean` | Buffered More-Prompt: `ctx.send()` buffers a turn's output and the pagination decision is made once on the combined total (`network_context.flush_turn`). Clean re-land of #30 — see note below. |
+| [#43](https://github.com/Pinacolada64/TADA/pull/43) | `ae8d411` | `sig-editor` | Multi-SIG bulletin board (34-commit line): `board/` + `commands/board/` packages, structural SIG/board editor, two-level picker, `>`/`<`/`>>`/`<<` navigation, `player_can_access()` gating wired into every board command, `board ra`/`board sa` (Read/Scan All new), ImageBBS-style Stat column + freeze/unfreeze, per-SIG/board intro screens, and the PREFS date-format-preset / text-editor word-wrap changes developed alongside. |
+| [#41](https://github.com/Pinacolada64/TADA/pull/41) | `701a9fc` | `feature/inventory-select` | `inventory_select`: shared "pick an item of type X" helper; `READY`/`UNREADY`/`USE`/`DROP` item selection moved onto it. |
+| [#40](https://github.com/Pinacolada64/TADA/pull/40) | `09e47e3` | `level-8` | Convert the 2014 Forest of Canolbarth (365 rooms) to `level_8.json` and load it. |
+| [#39](https://github.com/Pinacolada64/TADA/pull/39) | `c65464e` | `maps-path-a` | `tools/gen_level_maps.py` — printable adventure-style per-level SVG maps (grid layout for 1–7, breadth-first walk for 8). |
+| [#38](https://github.com/Pinacolada64/TADA/pull/38) | `9737f22` | `rename-ally-find-silver` | Rename the ally gold-find event to "silver" (moving-off-gold-standard convention). |
+| [#35](https://github.com/Pinacolada64/TADA/pull/35) | `d8928af` | `feature/ally-stat-caps` | Cap ally strength / to-hit / HP to SPUR ceilings (**25 / 0–9 / 50**); clamp every growth path (Fat Olaf hire, Allies' Guild body-building); rewrite Fat Olaf MAINTAIN from the port's uncapped `+random(1,3)` back to SPUR's "repair to catalog strength, refuse at the ceiling". `load_allies()` / `Party.from_json()` re-clamp on load. editplayer's "Character Names" menu renamed **"Character / NPC Stats"** with an `[E]dit stats` option on ally/horse prompts. |
 | [#37](https://github.com/Pinacolada64/TADA/pull/37) | `8b0b5bb` | `prompt-fixes` | Prompt/action-key display fixes for alpha testers — wrap long `ctx.prompt()` option text into `preamble_lines`, use `{ctx.player.return_key}` instead of hard-coded "Enter"/"blank", normalize action-key notation to `[X]word`, and fix a flaky e2e login-pagination race. |
 | [#34](https://github.com/Pinacolada64/TADA/pull/34) | `9f65f71` | `ready-ally-weapons` | READY / UNREADY: ready & unready allies' weapons — `GIVE <weapon> to <ally>` stows instead of auto-readying; `READY`/`UNREADY <ally>` toggle `ally.readied_weapon`. |
 | #29 | `394cf09f` | `fix/e2e-login-banner-pagination` | Fix e2e login helpers hanging on the paginated login banner. |
@@ -84,3 +80,5 @@ Both branched off `ready-ally-weapons`; retargeted to `master` after #34 merged.
 | #1  | `45c606f4` | `dev/json_refactor` | JSON refactor. |
 
 _PRs #14, #15, #17 do not exist (never opened or deleted)._
+
+_PR [#30](https://github.com/Pinacolada64/TADA/pull/30) (`feature/buffered-more-prompt`) was merged as `ea2f4d7` but then **force-reset off `master`**: its stale branch had ~4 MB of committed logs / hardcopies / screen dumps plus an unrelated `helpstaff` command that rode onto master in the merge. Re-landed clean as #44 with only the three feature files. The discarded commit is preserved locally as tag `pre-30-cleanup` for anyone who wants the `helpstaff` / assembly-client files re-landed on their own PRs. GitHub still shows #30 as "Merged"._
