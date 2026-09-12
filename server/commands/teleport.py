@@ -166,23 +166,33 @@ class TeleportCommand(Command):
             await ctx.send('You lack the power to teleport.')
             return CommandResult.fail('Permission denied.', error='permission_denied')
 
-        # 'teleport #learn <name>' arrives as args=('#learn', <name...>);
-        # '#learn <name>' via the bare '#' alias loses its leading '#' in
-        # command_processor.process_command()'s '#<word>' splitting, so it
-        # arrives as args=('learn', <name...>) instead -- check the bare
-        # word either way rather than relying on parse_args' '#'-prefix
-        # switch detection. Same deal for '#list'/'#show'/'#find'/'#forget'.
-        first = args[0].lstrip('#').lower() if args else ''
-        if first == 'learn':
-            return await self._learn(ctx, args[1:])
-        if first in ('list', 'show'):
-            return await self._list_destinations(ctx)
-        if first == 'find':
-            return await self._find(ctx, args[1:])
-        if first == 'forget':
-            return await self._forget(ctx, args[1:])
+        # 'teleport #learn <name>' arrives as args=('#learn', <name...>),
+        # routed by self.parse_args() into switches; '#learn <name>' via
+        # the bare '#' alias loses its leading '#' in command_processor.
+        # process_command()'s '#<word>' splitting, so it arrives as
+        # args=('learn', <name...>) instead, routed into positional --
+        # check the bare word from whichever list parse_args() put it in,
+        # rather than assuming '#' survived. Same deal for '#list'/
+        # '#show'/'#find'/'#forget'. Same dual-list convention as
+        # map.py's own (documented) bare-or-'#' sub-words, and the same
+        # "if switches: ... else: positional[0] ..." shape as board.py/
+        # groups.py/whereat.py.
+        positional, switches = self.parse_args(*args)
+        if switches:
+            sub  = switches[0].lstrip('#').lower()
+            rest = positional
+        else:
+            sub  = positional[0].lower() if positional else ''
+            rest = positional[1:]
 
-        positional, _ = self.parse_args(*args)
+        if sub == 'learn':
+            return await self._learn(ctx, tuple(rest))
+        if sub in ('list', 'show'):
+            return await self._list_destinations(ctx)
+        if sub == 'find':
+            return await self._find(ctx, tuple(rest))
+        if sub == 'forget':
+            return await self._forget(ctx, tuple(rest))
 
         if not positional:
             await ctx.send('Usage: #<room number>  or  #<level> <room>  or  teleport <name fragment>')

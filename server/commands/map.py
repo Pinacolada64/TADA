@@ -559,7 +559,26 @@ class MapCommand(Command):
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
         player = ctx.player
 
-        if args and args[0].lower().lstrip('#') == 'overview':
+        # Same '#edit'-or-bare convention as board.py/groups.py/whereat.py:
+        # a '#'-prefixed sub-word routes into switches (parse_args() only
+        # buckets '#'-prefixed tokens there), a bare one lands in
+        # positional. Unlike those commands, every sub-word here has
+        # always accepted *either* form (see this class's own Help(usage=)
+        # -- 'map grid' and 'map #grid' are explicitly documented as the
+        # same command) -- this parses both/either uniformly instead of
+        # each branch below hand-rolling its own args[0].lower().
+        # lstrip('#') check. 'rest' is whatever's left after the sub-word
+        # (the optional <level> argument), regardless of which list the
+        # sub-word itself came from.
+        positional, switches = self.parse_args(*args)
+        if switches:
+            sub  = switches[0].lstrip('#').lower()
+            rest = positional
+        else:
+            sub  = positional[0].lower() if positional else ''
+            rest = positional[1:]
+
+        if sub == 'overview':
             if not _is_debug(player):
                 await ctx.send("You need Debug Mode on for that -- see the DBG command.")
                 return CommandResult.fail('Not in debug mode.', error='not_debug')
@@ -569,11 +588,11 @@ class MapCommand(Command):
                 await ctx.send('You lose your bearings -- no map data here.')
                 return CommandResult.fail('No map data.', error='no_map')
 
-            if len(args) > 1:
+            if rest:
                 try:
-                    level = int(args[1])
+                    level = int(rest[0])
                 except ValueError:
-                    await ctx.send(f'"{args[1]}" is not a level number.')
+                    await ctx.send(f'"{rest[0]}" is not a level number.')
                     return CommandResult.fail('Bad level.', error='bad_level')
             else:
                 level = player.map_level
@@ -585,17 +604,17 @@ class MapCommand(Command):
             await ctx.send([f'|yellow|Level {level} overview|reset|', ''] + lines)
             return CommandResult.ok('Showed level overview.')
 
-        if args and args[0].lower().lstrip('#') == 'visited':
+        if sub == 'visited':
             game_map = getattr(ctx.server, 'game_map', None)
             if not game_map:
                 await ctx.send('You lose your bearings -- no map data here.')
                 return CommandResult.fail('No map data.', error='no_map')
 
-            if len(args) > 1:
+            if rest:
                 try:
-                    level = int(args[1])
+                    level = int(rest[0])
                 except ValueError:
-                    await ctx.send(f'"{args[1]}" is not a level number.')
+                    await ctx.send(f'"{rest[0]}" is not a level number.')
                     return CommandResult.fail('Bad level.', error='bad_level')
             else:
                 level = player.map_level
@@ -625,7 +644,7 @@ class MapCommand(Command):
             await ctx.send('You lose your bearings -- no map data here.')
             return CommandResult.fail('No room data.', error='no_map')
 
-        if args and args[0].lower().lstrip('#') == 'grid':
+        if sub == 'grid':
             lines = render_ansi_grid(ctx, game_map, player.map_level, player, _BFS_DEPTH)
             await ctx.send(lines)
             return CommandResult.ok('Showed nearby rooms as a grid.')

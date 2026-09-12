@@ -185,6 +185,20 @@ class TestTeleportListDestinations(unittest.IsolatedAsyncioTestCase):
         sent = ' '.join(str(c) for c in ctx.send.await_args_list)
         self.assertIn('armory', sent)
 
+    async def test_bare_list_without_hash_also_works(self):
+        # Bare 'list' (no '#') as the first arg -- arrives this way when
+        # TELEPORT is reached via its own bare '#list' shortcut, since
+        # command_processor.py strips the leading '#' before this ever
+        # sees it. See execute()'s own comment for why 'learn'/'forget'/
+        # 'find' each get a matching bare-word test but 'list'/'show'
+        # hadn't until now.
+        cmd = TeleportCommand()
+        ctx = make_named_ctx(destinations={'armory': (1, 37)})
+        res = await cmd.execute(ctx, 'list')
+        self.assertTrue(res.success)
+        sent = ' '.join(str(c) for c in ctx.send.await_args_list)
+        self.assertIn('armory', sent)
+
     async def test_bare_teleport_still_requires_args(self):
         # Bare 'teleport' with no args is NOT the same as '#list' -- it
         # still fails with the usage message (Ryan wanted an explicit
