@@ -198,6 +198,50 @@ class TestMapOutput(unittest.TestCase):
         self.assertNotIn('Dwarf', text)
 
 
+class TestBareOrHashSubwordsAccepted(unittest.TestCase):
+    """MapCommand's own Help(usage=) explicitly documents 'map grid' and
+    'map #grid' as the same command -- unlike every other command with
+    sub-actions (board.py/groups.py/whereat.py/etc.), a '#' here has
+    always been optional, not a required cue. execute() now parses this
+    via self.parse_args() (switches vs. positional) instead of hand-
+    rolling args[0].lower().lstrip('#') in three separate places --
+    these lock in that both spellings still reach the same code path for
+    all three sub-words, not just the '#'-prefixed one most other tests
+    exercise."""
+
+    def test_grid_bare_and_hash_both_succeed(self):
+        for arg in ('grid', '#grid', 'GRID', '#GRID'):
+            with self.subTest(arg=arg):
+                player = make_player()
+                ctx = make_ctx(player, make_game_map(_sample_rooms()))
+                result = run(MapCommand().execute(ctx, arg))
+                self.assertTrue(result.success)
+
+    def test_overview_bare_and_hash_both_reach_debug_gate(self):
+        # Debug Mode off either way -- both spellings should hit the same
+        # "need Debug Mode" refusal, not diverge (e.g. bare 'overview'
+        # falling through to the ordinary nearby-rooms view instead).
+        for arg in ('overview', '#overview'):
+            with self.subTest(arg=arg):
+                player = make_player()
+                ctx = make_ctx(player, make_game_map(_sample_rooms()))
+                result = run(MapCommand().execute(ctx, arg))
+                self.assertFalse(result.success)
+                self.assertEqual(result.error, 'not_debug')
+
+    def test_visited_bare_and_hash_both_reach_the_same_handler(self):
+        # No visited rooms recorded either way -- both spellings should
+        # hit the same "haven't explored" refusal.
+        for arg in ('visited', '#visited'):
+            with self.subTest(arg=arg):
+                player = make_player()
+                player.visited_rooms = {}
+                ctx = make_ctx(player, make_game_map(_sample_rooms()))
+                result = run(MapCommand().execute(ctx, arg))
+                self.assertFalse(result.success)
+                self.assertEqual(result.error, 'no_visited')
+
+
 class TestRoomNumberPrivacy(unittest.TestCase):
     """Room numbers are only shown to privileged players (Admin/DM) --
     an ordinary player gets the direction path and room name only."""

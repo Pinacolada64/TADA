@@ -524,6 +524,25 @@ class TestEditSwitch(BoardCommandTestCase):
         result = run(BoardCommand().execute(ctx, '#bogus'))
         self.assertFalse(result.success)
 
+    def test_bare_edit_also_reaches_the_settings_menu(self):
+        """Bare 'board edit' (no '#'), not just 'board #edit' -- every
+        other sub-action (post/reply/delete/rn/ra/sa/ld) is a bare
+        positional word, so '#edit' alone was the one requiring the '#'
+        cue. Before this was fixed, bare 'edit' matched none of the
+        sub== checks and silently fell through to the plain listing --
+        indistinguishable from bare 'board', with no error and no hint
+        that '#edit' was needed."""
+        ctx = make_ctx(player=_FakePlayer(admin=True), prompts=[''])
+        result = run(BoardCommand().execute(ctx, 'edit'))
+        self.assertTrue(result.success)
+        self.assertIn('Board & SIG Editor', str(ctx.prompt.call_args))
+
+    def test_bare_edit_denied_for_non_admin(self):
+        ctx = make_ctx(player=_FakePlayer(admin=False))
+        result = run(BoardCommand().execute(ctx, 'edit'))
+        self.assertFalse(result.success)
+        self.assertEqual(result.error, 'permission_denied')
+
 
 class TestDelete(BoardCommandTestCase):
     def test_non_admin_cannot_delete(self):

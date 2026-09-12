@@ -6,9 +6,9 @@ the in-game command surface:
 
   news                 — list currently-active items (title + id + date)
   news <id>            — read one item in full, marks 'once' items seen
-  news post            — (admin) write a new item
-  news edit <id>       — (admin) change an existing item's body/lifetime
-  news delete <id>     — (admin) remove an item
+  news #post           — (admin) write a new item
+  news #edit <id>      — (admin) change an existing item's body/lifetime
+  news #delete <id>    — (admin) remove an item
 
 Login-time display ("what's new since you last logged in") is handled by
 commands/connect.py, which calls the same news.py helpers this command uses
@@ -53,9 +53,9 @@ class NewsCommand(Command):
         usage    = [
             ('news',            'List currently-active news items.'),
             ('news <id>',       'Read one item in full.'),
-            ('news post',       '(Admin) Write a new news item.'),
-            ('news edit <id>',  '(Admin) Edit an existing item.'),
-            ('news delete <id>', '(Admin) Remove an item.'),
+            ('news #post',       '(Admin) Write a new news item.'),
+            ('news #edit <id>',  '(Admin) Edit an existing item.'),
+            ('news #delete <id>', '(Admin) Remove an item.'),
         ],
         notes = [
             "Whether NEWS shows just what's new since your last login or "
@@ -66,17 +66,29 @@ class NewsCommand(Command):
     )
 
     async def execute(self, ctx, *args) -> CommandResult:
-        positional, _ = self.parse_args(*args)
-        sub = positional[0].lower() if positional else ''
+        positional, switches = self.parse_args(*args)
+        sub = switches[0].lstrip('#').lower() if switches else ''
 
         if sub == 'post':
             return await self._post(ctx)
-        if sub == 'edit' and len(positional) > 1:
-            return await self._edit(ctx, positional[1])
-        if sub == 'delete' and len(positional) > 1:
-            return await self._delete(ctx, positional[1])
+        if sub == 'edit' and positional:
+            return await self._edit(ctx, positional[0])
+        if sub == 'delete' and positional:
+            return await self._delete(ctx, positional[0])
         if positional and positional[0].isdigit():
             return await self._read_one(ctx, int(positional[0]))
+
+        # 'post'/'edit'/'delete' are '#'-only switches now, not bare
+        # positional words -- a bare 'news edit 5' (no leading '#') would
+        # otherwise match none of the sub== checks above and silently
+        # fall through to the plain listing below, the exact board.py-
+        # style bug this switch-consistency audit started with. Catch
+        # the bare word explicitly and point at the right syntax instead.
+        if positional and positional[0].lower() in ('post', 'edit', 'delete'):
+            bare = positional[0].lower()
+            hint = f'news #{bare}' + (' <id>' if bare != 'post' else '')
+            await ctx.send(f"'{bare}' needs a '#' -- try '{hint}'.")
+            return CommandResult.fail('Missing #.', error='missing_hash')
 
         return await self._list(ctx)
 
@@ -226,7 +238,7 @@ class NewsCommand(Command):
             return CommandResult.fail('Permission denied.', error='permission_denied')
 
         if not id_str.isdigit():
-            await ctx.send('Usage: news edit <id>')
+            await ctx.send('Usage: news #edit <id>')
             return CommandResult.fail('Bad id.', error='bad_args')
 
         items = news_store.load_news()
@@ -268,7 +280,7 @@ class NewsCommand(Command):
             return CommandResult.fail('Permission denied.', error='permission_denied')
 
         if not id_str.isdigit():
-            await ctx.send('Usage: news delete <id>')
+            await ctx.send('Usage: news #delete <id>')
             return CommandResult.fail('Bad id.', error='bad_args')
 
         items = news_store.load_news()

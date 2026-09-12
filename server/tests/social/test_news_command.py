@@ -189,14 +189,14 @@ class TestReadOne(NewsCommandTestCase):
 class TestAdminGating(NewsCommandTestCase):
     def test_non_admin_cannot_post(self):
         ctx = make_ctx(player=_FakePlayer(admin=False))
-        result = run(NewsCommand().execute(ctx, 'post'))
+        result = run(NewsCommand().execute(ctx, '#post'))
         self.assertFalse(result.success)
         self.assertEqual(result.error, 'permission_denied')
 
     def test_non_admin_cannot_delete(self):
         self._seed([{'id': 1, 'title': 'X', 'body': [], 'lifetime': 'permanent'}])
         ctx = make_ctx(player=_FakePlayer(admin=False))
-        result = run(NewsCommand().execute(ctx, 'delete', '1'))
+        result = run(NewsCommand().execute(ctx, '#delete', '1'))
         self.assertFalse(result.success)
         self.assertEqual(result.error, 'permission_denied')
 
@@ -205,7 +205,7 @@ class TestAdminGating(NewsCommandTestCase):
             player=_FakePlayer(admin=True),
             prompts=['Server Maintenance', 'permanent', 'We will be down Friday.', '.s'],
         )
-        result = run(NewsCommand().execute(ctx, 'post'))
+        result = run(NewsCommand().execute(ctx, '#post'))
         self.assertTrue(result.success)
         items = news_store.load_news(self.path)
         self.assertEqual(len(items), 1)
@@ -223,7 +223,7 @@ class TestAdminGating(NewsCommandTestCase):
             prompts=['Server Maintenance', 'c', 'Server Maintenance II',
                      'permanent', 'A brand new item.', '.s'],
         )
-        result = run(NewsCommand().execute(ctx, 'post'))
+        result = run(NewsCommand().execute(ctx, '#post'))
         self.assertTrue(result.success)
         items = news_store.load_news(self.path)
         self.assertEqual(len(items), 2)
@@ -236,7 +236,7 @@ class TestAdminGating(NewsCommandTestCase):
             player=_FakePlayer(admin=True),
             prompts=['server maintenance', ''],  # bare Enter -- abort at the prompt
         )
-        result = run(NewsCommand().execute(ctx, 'post'))
+        result = run(NewsCommand().execute(ctx, '#post'))
         self.assertFalse(result.success)
         items = news_store.load_news(self.path)
         self.assertEqual(len(items), 1)  # nothing new posted
@@ -248,7 +248,7 @@ class TestAdminGating(NewsCommandTestCase):
             player=_FakePlayer(admin=True),
             prompts=['Server Maintenance', 'e', 'New Title', '', 'kept body', '.s'],
         )
-        result = run(NewsCommand().execute(ctx, 'post'))
+        result = run(NewsCommand().execute(ctx, '#post'))
         self.assertTrue(result.success)
         items = news_store.load_news(self.path)
         self.assertEqual(len(items), 1)  # still just the one item -- edited, not duplicated
@@ -257,9 +257,60 @@ class TestAdminGating(NewsCommandTestCase):
     def test_admin_can_delete(self):
         self._seed([{'id': 1, 'title': 'X', 'body': [], 'lifetime': 'permanent'}])
         ctx = make_ctx(player=_FakePlayer(admin=True))
-        result = run(NewsCommand().execute(ctx, 'delete', '1'))
+        result = run(NewsCommand().execute(ctx, '#delete', '1'))
         self.assertTrue(result.success)
         self.assertEqual(news_store.load_news(self.path), [])
+
+    def test_admin_can_edit(self):
+        self._seed([{'id': 1, 'title': 'Old Title', 'body': ['old body'],
+                      'lifetime': 'permanent', 'posted_at': '2026-01-01T00:00:00'}])
+        ctx = make_ctx(
+            player=_FakePlayer(admin=True),
+            prompts=['New Title', '', 'new body', '.s'],
+        )
+        result = run(NewsCommand().execute(ctx, '#edit', '1'))
+        self.assertTrue(result.success)
+        items = news_store.load_news(self.path)
+        self.assertEqual(items[0]['title'], 'New Title')
+
+
+class TestBareSubwordsRejected(NewsCommandTestCase):
+    """'post'/'edit'/'delete' are '#'-only switches -- unlike board.py's
+    bare 'edit' (which is deliberately accepted, since it has no unsafe
+    fallthrough), a bare word here used to silently redisplay the plain
+    listing instead of erroring or hinting at the right syntax. These
+    lock in the explicit "needs a '#'" hint added alongside the #-only
+    conversion, so a regression back to silent fallthrough is caught."""
+
+    def test_bare_post_hints_at_hash_form(self):
+        ctx = make_ctx(player=_FakePlayer(admin=True))
+        result = run(NewsCommand().execute(ctx, 'post'))
+        self.assertFalse(result.success)
+        self.assertEqual(result.error, 'missing_hash')
+        sent = ' '.join(str(c) for c in ctx.send.await_args_list)
+        self.assertIn('#post', sent)
+
+    def test_bare_edit_hints_at_hash_form(self):
+        self._seed([{'id': 1, 'title': 'X', 'body': [], 'lifetime': 'permanent'}])
+        ctx = make_ctx(player=_FakePlayer(admin=True))
+        result = run(NewsCommand().execute(ctx, 'edit', '1'))
+        self.assertFalse(result.success)
+        self.assertEqual(result.error, 'missing_hash')
+        sent = ' '.join(str(c) for c in ctx.send.await_args_list)
+        self.assertIn('#edit', sent)
+        # The real regression check: the item must be untouched.
+        self.assertEqual(news_store.load_news(self.path)[0]['title'], 'X')
+
+    def test_bare_delete_hints_at_hash_form(self):
+        self._seed([{'id': 1, 'title': 'X', 'body': [], 'lifetime': 'permanent'}])
+        ctx = make_ctx(player=_FakePlayer(admin=True))
+        result = run(NewsCommand().execute(ctx, 'delete', '1'))
+        self.assertFalse(result.success)
+        self.assertEqual(result.error, 'missing_hash')
+        sent = ' '.join(str(c) for c in ctx.send.await_args_list)
+        self.assertIn('#delete', sent)
+        # The real regression check: the item must still be there.
+        self.assertEqual(len(news_store.load_news(self.path)), 1)
 
 
 if __name__ == '__main__':

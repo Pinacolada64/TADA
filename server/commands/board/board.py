@@ -377,7 +377,7 @@ class BoardCommand(Command):
             ('board post',        'Start a new thread.'),
             ('board reply <id>',  'Reply to a thread.'),
             ('board delete <id>', '(Admin) Remove a thread.'),
-            ('board #edit',       '(Admin) Board-wide settings menu.'),
+            ('board edit',        '(Admin) Board-wide settings menu.'),
         ],
         notes = [
             "Bare 'board' stays in the listing -- press Enter with no "
@@ -395,8 +395,9 @@ class BoardCommand(Command):
             "(for any player, not just yourself) via EditPlayer's Flags "
             "-> Option Toggles menu. See commands/board/reply.py for the "
             "interactive reader itself.",
-            "'board #edit' opens a small settings menu (currently just "
-            "the anonymous-posting default: Ask/Yes/No) -- see "
+            "'board edit' (the '#edit' switch spelling still works too, "
+            "for anyone used to it) opens a small settings menu (currently "
+            "just the anonymous-posting default: Ask/Yes/No) -- see "
             "commands/board/edit.py.",
         ],
     )
@@ -414,6 +415,19 @@ class BoardCommand(Command):
 
         sub = positional[0].lower() if positional else ''
 
+        if sub == 'edit':
+            # Bare 'board edit', not just '#edit' -- every other sub-action
+            # here (post/reply/delete/rn/ra/sa/ld) is a bare positional
+            # word, so '#edit' alone was the only one requiring the '#'
+            # cue. Without this, 'board edit' silently fell through every
+            # sub== check below (never matching), then positional[0].
+            # isdigit() (False), landing on the final `return await
+            # self._list(ctx)` -- indistinguishable from bare 'board', with
+            # no error and no hint that '#edit' was needed. edit_board_
+            # settings() enforces its own admin check, same as the
+            # '#edit' branch above.
+            from commands.board.edit import edit_board_settings
+            return await edit_board_settings(ctx)
         if sub == 'post':
             return await self._post(ctx)
         if sub == 'reply' and len(positional) > 1:
