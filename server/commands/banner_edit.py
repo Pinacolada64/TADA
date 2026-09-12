@@ -40,8 +40,8 @@ class BannerEditCommand(Command):
         summary  = 'Edit a PETSCII banner/screen on your Commodore 64.',
         category = HelpCategory.ADMINISTRATIVE,
         usage    = [
-            ('banner edit <name>', 'Open (or create) a named banner in the visual editor.'),
-            ('banner list',        'List saved banners.'),
+            ('banner #edit <name>', 'Open (or create) a named banner in the visual editor.'),
+            ('banner #list',        'List saved banners.'),
         ],
         notes = [
             'Admin-only. Requires a real Commodore connection -- there\'s '
@@ -54,21 +54,33 @@ class BannerEditCommand(Command):
             await ctx.send('You lack the authority to do that.')
             return CommandResult.fail('Permission denied.', error='permission_denied')
 
-        positional, _switches = self.parse_args(*args)
-        if not positional:
-            await ctx.send('Usage: banner edit <name> | banner list')
+        positional, switches = self.parse_args(*args)
+        sub = switches[0].lstrip('#').lower() if switches else ''
+
+        if not sub:
+            # 'list'/'edit' are '#'-only switches, not bare positional
+            # words -- a bare word here used to work as sub, *rest =
+            # positional. Catch the specific bare-'list'/'edit' case and
+            # hint at the right syntax instead of falling into the
+            # generic "no subcommand" message below, same as news.py's
+            # own catch for this switch-consistency audit.
+            if positional and positional[0].lower() in ('list', 'edit'):
+                bare = positional[0].lower()
+                hint = f'banner #{bare}' + (' <name>' if bare == 'edit' else '')
+                await ctx.send(f"'{bare}' needs a '#' -- try '{hint}'.")
+                return CommandResult.fail('Missing #.', error='missing_hash')
+            await ctx.send('Usage: banner #edit <name> | banner #list')
             return CommandResult.fail('No subcommand given.')
 
-        sub, *rest = positional
         if sub == 'list':
             return await self._list(ctx)
         if sub == 'edit':
-            if not rest:
-                await ctx.send('Edit which banner? (banner edit <name>)')
+            if not positional:
+                await ctx.send('Edit which banner? (banner #edit <name>)')
                 return CommandResult.fail('No banner name given.')
-            return await self._edit(ctx, ' '.join(rest))
+            return await self._edit(ctx, ' '.join(positional))
 
-        await ctx.send(f'Unknown "banner" subcommand: {sub!r}. Try "banner list" or "banner edit <name>".')
+        await ctx.send(f'Unknown "banner" subcommand: {sub!r}. Try "banner #list" or "banner #edit <name>".')
         return CommandResult.fail('Unknown subcommand.', error='unknown_subcommand')
 
     async def _list(self, ctx) -> CommandResult:

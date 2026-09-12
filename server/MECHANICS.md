@@ -1298,7 +1298,7 @@ for exactly this reason.
 - ✅ **Startup display** — `commands/connect.py`'s `_login_news_lines()` shows applicable news
   items automatically at login, before the game loop starts.
 - ✅ **`news` command** (`commands/news.py`) — `news` lists currently-active items, `news <id>`
-  reads one in full, `news post` / `news edit <id>` / `news delete <id>` are admin-only.
+  reads one in full, `news #post` / `news #edit <id>` / `news #delete <id>` are admin-only.
 - ✅ **Display lifetime** — each post (`news.py`) carries one of three lifetime modes:
   - *once* — shown once per player, then silently suppressed (tracked via `seen_by`).
   - *permanent* — always shown until manually deleted.
@@ -1309,7 +1309,7 @@ for exactly this reason.
 - ✅ **Per-player display preference** — `command_settings.news_show_all` (PREFS key `N`)
   chooses between a full directory every login vs. just what's new since
   `player.last_connection`.
-- ✅ **Post editing via the shared line editor** — admin authoring (`news post` / `news edit
+- ✅ **Post editing via the shared line editor** — admin authoring (`news #post` / `news #edit
   <id>`) uses `text_editor.run_editor()`, the same `ed`-style line editor used by MAIL's long-form
   composing below (`commands/news.py`).
 

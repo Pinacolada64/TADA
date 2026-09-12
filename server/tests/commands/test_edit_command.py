@@ -214,7 +214,7 @@ class TestDispatchResume(unittest.TestCase):
             result = run(edit_mod._dispatch_resume(
                 ctx, 'news_post:Server Maintenance: 8pm', [{'text': 'body'}]))
         self.assertEqual(result, 'News item #7 posted (as "permanent" -- '
-                                  "use 'news edit 7' to change that).")
+                                  "use 'news #edit 7' to change that).")
         mock_save.assert_called_once()
         posted = mock_save.call_args.args[0][0]
         self.assertEqual(posted['title'], 'Server Maintenance: 8pm')
