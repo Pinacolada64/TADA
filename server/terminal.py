@@ -213,6 +213,12 @@ class TerminalColors:
         self.highlight_color: ColorName = ColorName.RED
         self.normal_color: ColorName = ColorName.WHITE
         self.background_color: ColorName = ColorName.BLACK
+        # |command| markup color (text_editor.py's game-command references,
+        # e.g. '.h h') -- separate from highlight_color so command syntax
+        # can be told apart from [bracket]-highlighted entities/emphasis.
+        # Defaults to cyan; editable via PREFS 'C' -> 'C' Colors, same
+        # picker as text_color/highlight_color.
+        self.command_color: ColorName = ColorName.CYAN
 
     def to_dict(self) -> dict:
         return {
@@ -221,13 +227,14 @@ class TerminalColors:
             'highlight_color':  self.highlight_color.name,
             'normal_color':     self.normal_color.name,
             'background_color': self.background_color.name,
+            'command_color':    self.command_color.name,
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> 'TerminalColors':
         instance = cls()
         for key in ('text_color', 'border_color', 'highlight_color',
-                    'normal_color', 'background_color'):
+                    'normal_color', 'background_color', 'command_color'):
             # isinstance guard, not just try/except KeyError: a save file
             # from before ClientSettings had a real to_dict() dumped enum
             # members via a generic __dict__ fallback -- a dict of the

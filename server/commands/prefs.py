@@ -95,7 +95,7 @@ _SETTING_HELP: dict[str, list[str]] = {
         "'-- More --' prompt between pages: Enter for the next page, "
         "B or - to go back a page, [Q] Stop reading early. When off, "
         "everything is sent at once and scrolls by regardless of length. "
-        "Same setting as the standalone 'mp' command.",
+        "Same setting as the standalone |command|mp|reset| command.",
         '',
     ],
     'p': [
@@ -104,7 +104,7 @@ _SETTING_HELP: dict[str, list[str]] = {
         "If enabled, reading a message board thread (BOARD command) "
         "shows one message at a time with a [R]eply/[M]ail poster/<#>/"
         "Enter menu after each, instead of dumping the whole thread at "
-        "once. Same setting as the standalone 'pm' command.",
+        "once. Same setting as the standalone |command|pm|reset| command.",
         '',
     ],
     'c': [
@@ -144,8 +144,8 @@ _SETTING_HELP: dict[str, list[str]] = {
         "Controls what the bare single-letter movement keys mean. "
         "'Compass' (the default) uses n/s/e/w/u/d. 'WASD' uses w/a/s/d "
         "for north/west/south/east instead (u still means Up). Full "
-        "words (north, south, ...) and 'go <direction>' always work "
-        "either way.",
+        "words (north, south, ...) and |command|go <direction>|reset| "
+        "always work either way.",
         '',
     ],
     'y': [
@@ -169,9 +169,10 @@ _COLORS_GRAPHICS_HELP: dict[str, list[str]] = {
     'c': [
         '',
         '|cyan|Colors|reset|',
-        "Sets the text color and highlight color used for |white|[bracketed]"
-        "|reset| text throughout your session, e.g. item names or emphasis "
-        "in messages.",
+        "Sets the text color, highlight color used for |white|[bracketed]"
+        "|reset| text throughout your session (e.g. item names or emphasis "
+        "in messages), and command color used for game-command references "
+        "(e.g. |command|.h h|reset| in help text).",
         '',
     ],
     's': [
@@ -615,11 +616,12 @@ async def _colors_graphics_menu(ctx) -> None:
         colors     = getattr(cs, 'colors', None)
         text_col   = getattr(colors, 'text_color',      'White') if colors else 'White'
         hi_col     = getattr(colors, 'highlight_color', 'Red')   if colors else 'Red'
+        cmd_col    = getattr(colors, 'command_color',   'Cyan')  if colors else 'Cyan'
         border_key = getattr(cs, 'border_style', 'single')
 
         t = Table(headers=['Key', 'Setting', 'Current Value', 'Help'],
                   border_style=border_style_for_ctx(ctx))
-        t.add_row(['C', 'Colors', f'{text_col} text, {hi_col} highlight', 'hc'])
+        t.add_row(['C', 'Colors', f'{text_col} text, {hi_col} highlight, {cmd_col} command', 'hc'])
         from menu_system import MENU_COLOR_PRESETS
         _cur_menu_colors = getattr(cs, 'menu_colors', None)
         menu_colors_name = next(
@@ -970,7 +972,8 @@ async def _pick_colors(ctx) -> None:
             t.add_row([str(i), cn.value, swatch])
         return t.render(width=cs.screen_columns)
 
-    for attr, label in (('text_color', 'Text'), ('highlight_color', '[bracket] Highlight')):
+    for attr, label in (('text_color', 'Text'), ('highlight_color', '[bracket] Highlight'),
+                        ('command_color', 'Command')):
         current = getattr(colors, attr, None)
         await ctx.send(*(['', f'|yellow|{label} Color|reset| (current: {current}):']
                          + _palette_rows() + ['']))

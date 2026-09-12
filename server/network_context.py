@@ -196,7 +196,8 @@ class GameContext(BaseContext):
         codec = codec_for_settings(self.player.client_settings)
         formatted = format_lines(raw, self.player.client_settings, codec)
         if isinstance(codec, ANSICodec):
-            formatted = ansi_encode_lines(formatted, reset_color=codec.reset())
+            formatted = ansi_encode_lines(formatted, reset_color=codec.reset(),
+                                          command_color=codec.command_color)
         elif isinstance(codec, PlainCodec):
             formatted = plain_encode_lines(formatted)
 
@@ -559,6 +560,7 @@ class PETSCIINetworkContext(GameContext):
         from formatting import codec_for_settings, PETSCIICodec, plain_encode_lines
         codec = codec_for_settings(self.player.client_settings)
         reset_color = codec.reset_color if isinstance(codec, PETSCIICodec) else None
+        command_color = codec.command_color if isinstance(codec, PETSCIICodec) else None
         codec_name = self._text_codec_name()
         if codec_name == 'ascii':
             # petscii_encode() always interprets surviving |token| color
@@ -573,6 +575,7 @@ class PETSCIINetworkContext(GameContext):
                                        line_ending     = self._line_ending_bytes(),
                                        screen_columns  = self.player.client_settings.screen_columns,
                                        reset_color     = reset_color,
+                                       command_color   = command_color,
                                        apply_overrides = codec_name != 'ascii')
         try:
             self.writer.write(encoded)
@@ -616,6 +619,7 @@ class PETSCIINetworkContext(GameContext):
         if prompt_text:
             codec = codec_for_settings(self.player.client_settings)
             reset_color = codec.reset_color if isinstance(codec, PETSCIICodec) else None
+            command_color = codec.command_color if isinstance(codec, PETSCIICodec) else None
             codec_name = self._text_codec_name()
             out_text = prompt_text + ' > '
             if codec_name == 'ascii':
@@ -628,6 +632,7 @@ class PETSCIINetworkContext(GameContext):
             # terminates each send() with CR, so the cursor is already
             # on a fresh line.
             self.writer.write(petscii_encode(out_text, codec_name, reset_color=reset_color,
+                                             command_color=command_color,
                                              apply_overrides=codec_name != 'ascii'))
             await self.writer.drain()
         try:

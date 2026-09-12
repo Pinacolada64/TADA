@@ -12,8 +12,9 @@ from unittest.mock import AsyncMock, MagicMock
 from formatting import deserialize_lines, render_lines
 from text_editor import (
     Border, BorderRole, Buffer, DefaultLineRange, Editor, Justification, Line,
-    LineFlag, _sanitize_filename, find_recovery_file, load_recovery_file,
-    parse_multi_select, process_line_range_string, run_editor,
+    LineFlag, _COLOR_TOPIC_TEXT, _format_help_text, _sanitize_filename,
+    find_recovery_file, load_recovery_file, parse_multi_select,
+    process_line_range_string, run_editor,
 )
 
 
@@ -245,12 +246,22 @@ class TestSanitizeFilename(unittest.TestCase):
         self.assertEqual(_sanitize_filename('///'), 'unnamed')
 
 
-def _make_ctx(responses, screen_columns=80, admin=False):
+def _make_ctx(responses, screen_columns=80, admin=False, is_expert=True):
     """responses: list of strings to return from successive ctx.prompt()
-    calls, in order; None once exhausted (simulates disconnect)."""
+    calls, in order; None once exhausted (simulates disconnect).
+
+    is_expert defaults True (matching plain MagicMock()'s auto-truthy
+    attribute behavior for callers that don't care) -- set explicitly
+    False to exercise non-expert-only code paths, e.g. _cmd_help()'s
+    '.h' preamble. A bare MagicMock() previously let a
+    `ctx.is_expert` vs. the real `ctx.player.is_expert` typo pass every
+    test silently (MagicMock auto-creates any attribute as a truthy
+    mock), even though it raised AttributeError against a real
+    GameContext live -- found live 9/10/26."""
     ctx = MagicMock()
     ctx.player.client_settings.screen_columns = screen_columns
     ctx.player.query_flag = MagicMock(return_value=admin)
+    ctx.player.is_expert = is_expert
     it = iter(responses)
     ctx.prompt = AsyncMock(side_effect=lambda *a, **kw: next(it, None))
     ctx.send = AsyncMock()
@@ -932,6 +943,42 @@ class TestHelp(unittest.IsolatedAsyncioTestCase):
         ctx = _make_ctx(['.h s', '.s'])
         await run_editor(ctx)
         self.assertIn('Save', _sent_text(ctx))
+
+    async def test_help_shows_preamble_for_non_expert(self):
+        ctx = _make_ctx(['.h', '.s'], is_expert=False)
+        await run_editor(ctx)
+        self.assertIn('Help on individual commands', _sent_text(ctx))
+
+    async def test_help_hides_preamble_for_expert(self):
+        ctx = _make_ctx(['.h', '.s'], is_expert=True)
+        await run_editor(ctx)
+        self.assertNotIn('Help on individual commands', _sent_text(ctx))
+
+    async def test_help_colors_topic_shows_up(self):
+        ctx = _make_ctx(['.h colors', '.s'])
+        await run_editor(ctx)
+        self.assertIn('token', _sent_text(ctx))
+        self.assertIn('Examples', _sent_text(ctx))
+
+    async def test_help_colors_topic_aliases_resolve(self):
+        for alias in ('color', 'markup', 'COLORS'):
+            with self.subTest(alias=alias):
+                ctx = _make_ctx([f'.h {alias}', '.s'])
+                await run_editor(ctx)
+                self.assertIn('Examples', _sent_text(ctx))
+
+    async def test_help_colors_topic_never_leaves_unescaped_tokens(self):
+        """A bare (unescaped) |command|/|reset|/|token| mention in the topic
+        text would apply real color state instead of just naming the token
+        -- and, worse, bleed it into every paragraph after an unclosed one.
+        Render through the real ansi_encode() pipeline and confirm nothing
+        is left over that it doesn't recognize (which would mean a token
+        name slipped through unescaped, see text_editor.py's own
+        _COLOR_TOPIC_TEXT comment)."""
+        from formatting import ansi_encode
+        text = '\n'.join(_format_help_text(_COLOR_TOPIC_TEXT))
+        with self.assertNoLogs('root', level='WARNING'):
+            ansi_encode(text, reset_color='\x1b[39m', command_color='\x1b[36m')
 
 
 class TestVersionAndScale(unittest.IsolatedAsyncioTestCase):

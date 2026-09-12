@@ -89,6 +89,13 @@ class ANSICodec:
                                  # color) -- what |reset|/highlight_off() return to.
                                  # Falls back to colorama's own Fore.RESET (terminal
                                  # default) if the player has no preference set.
+    command_color:    str = ''  # set at runtime from player prefs (PREFS 'C' Colors
+                                 # -> Command color) -- what |command|...|reset| uses
+                                 # for game-command references (e.g. text_editor.py's
+                                 # '.h h'), kept distinct from highlight_color so
+                                 # command syntax reads apart from [bracket]-
+                                 # highlighted entities. Falls back to cyan if the
+                                 # player has no preference set.
 
     def __post_init__(self):
         try:
@@ -97,9 +104,12 @@ class ANSICodec:
                 self.highlight_color = Fore.RED
             if not self.reset_color:
                 self.reset_color = Fore.RESET
+            if not self.command_color:
+                self.command_color = Fore.CYAN
         except ImportError:
             self.highlight_color = ''
             self.reset_color = ''
+            self.command_color = ''
 
     def highlight_on(self) -> str:
         return self.highlight_color
@@ -139,6 +149,12 @@ class PETSCIICodec:
                             # the C64's color-RAM text color -- it only clears
                             # reverse video -- so without a real reset_color,
                             # text after |red|...|reset| stays red.
+    command_color: str = ''  # set at runtime from player prefs (PREFS 'C'
+                              # Colors -> Command color) -- the |token| name
+                              # that |command| resolves to. Falls back to
+                              # PETSCII_CONTROL_CODES['command'] (cyan) if the
+                              # player has no preference set -- see
+                              # ANSICodec.command_color for what this is for.
 
     def highlight_on(self) -> str: return '|reverse_on|'
 
@@ -182,6 +198,10 @@ PETSCII_CONTROL_CODES: dict[str, int] = {
     'clear': 147,  # clear screen + home
     'home': 19,  # cursor home (no clear)
     'reset': 146,  # alias for reverse_off
+    'command': 159,  # alias for cyan -- |command| markup's hardcoded
+                      # fallback when no PETSCIICodec.command_color override
+                      # is in play (e.g. a player pref -- see petscii_encode()'s
+                      # command_color param).
 
     # Cursor movement
     'cursor_up': 145,
@@ -380,6 +400,7 @@ def _encode_petscii_segment(text: str, codec_name: str,
 def petscii_encode(text: str,
                    codec_name: str = 'petscii_c64en_lc',
                    reset_color: str | None = None,
+                   command_color: str | None = None,
                    apply_overrides: bool = True) -> bytes:
     """
     Encode a string for transmission to a Commodore client.
@@ -406,6 +427,12 @@ def petscii_encode(text: str,
         color RAM, so without this override text after |red|...|reset|
         stays red. None (the default) keeps that reverse-off behavior,
         e.g. for callers with no player/settings context.
+    :param command_color: overrides |command|'s own control code -- pass
+        codec.command_color (a PETSCIICodec built via codec_for_settings(),
+        a PETSCII_CONTROL_CODES token name like 'cyan') so |command| uses
+        this player's chosen command-markup color (PREFS 'C' Colors ->
+        Command). None (the default) falls back to PETSCII_CONTROL_CODES['command']
+        (cyan), e.g. for callers with no player/settings context.
     :return:           Raw bytes ready to send to the Commodore client.
 
     >>> petscii_encode('|red|Hi|reset|')[0]   # first byte = red color code
@@ -468,6 +495,8 @@ def petscii_encode(text: str,
         count = int(match.group('count')) if match.group('count') else 1
         if token == 'reset' and reset_color:
             code = PETSCII_CONTROL_CODES.get(reset_color)
+        elif token == 'command' and command_color:
+            code = PETSCII_CONTROL_CODES.get(command_color)
         else:
             code = PETSCII_CONTROL_CODES.get(token)
         if code is not None:
@@ -492,6 +521,7 @@ def petscii_encode_lines(lines: list[str],
                          line_ending: bytes = b'\r',
                          screen_columns: int = 0,
                          reset_color: str | None = None,
+                         command_color: str | None = None,
                          apply_overrides: bool = True) -> bytes:
     """
     Encode a list of formatted strings for a Commodore client.
@@ -507,6 +537,8 @@ def petscii_encode_lines(lines: list[str],
                            extra blank line.
     :param reset_color:    overrides |reset|'s own control code -- see
                            petscii_encode()'s reset_color param.
+    :param command_color:  overrides |command|'s own control code -- see
+                           petscii_encode()'s command_color param.
     :return:               Raw bytes for the full block of text.
 
     >>> result = petscii_encode_lines(['Hello', 'World'])
@@ -534,6 +566,7 @@ def petscii_encode_lines(lines: list[str],
     result = bytearray()
     for line in lines:
         result.extend(petscii_encode(line, codec_name, reset_color=reset_color,
+                                     command_color=command_color,
                                      apply_overrides=apply_overrides))
         # Always CR after each line so consecutive send() calls don't run
         # together — except when the line fills the full screen width, where
@@ -587,10 +620,13 @@ ANSI_COLOR_CODES: dict[str, str] = {
     'bold': Style.BRIGHT if _COLORAMA_AVAILABLE else '',
     'dim': Style.DIM if _COLORAMA_AVAILABLE else '',
     'reset': Fore.RESET if _COLORAMA_AVAILABLE else '',
+    # |command| markup's hardcoded fallback when no ANSICodec.command_color
+    # override is in play -- see ansi_encode()'s command_color param.
+    'command': Fore.CYAN if _COLORAMA_AVAILABLE else '',
 }
 
 
-def ansi_encode(text: str, reset_color: str | None = None) -> str:
+def ansi_encode(text: str, reset_color: str | None = None, command_color: str | None = None) -> str:
     """
     Replace |token| color sequences with ANSI escape codes.
     Text passes through unchanged except for recognised |token| sequences.
@@ -604,6 +640,12 @@ def ansi_encode(text: str, reset_color: str | None = None) -> str:
         the terminal's own uncontrolled default. None (the default)
         keeps the plain colorama Fore.RESET behavior, e.g. for callers
         with no player/settings context.
+    :param command_color: overrides |command|'s own ANSI code -- pass
+        codec.command_color (an ANSICodec built via codec_for_settings())
+        so |command| uses this player's chosen command-markup color
+        (PREFS 'C' Colors -> Command). None (the default) falls back to
+        ANSI_COLOR_CODES['command'] (cyan), e.g. for callers with no
+        player/settings context.
 
     >>> ansi_encode('Hello |reset|world')  # no color, just reset
     'Hello \\x1b[39mworld'
@@ -624,6 +666,8 @@ def ansi_encode(text: str, reset_color: str | None = None) -> str:
         count = int(match.group('count')) if match.group('count') else 1
         if token == 'reset' and reset_color is not None:
             return reset_color * count
+        if token == 'command' and command_color is not None:
+            return command_color * count
         code = ANSI_COLOR_CODES.get(token)
         if code is not None:
             return code * count
@@ -633,7 +677,8 @@ def ansi_encode(text: str, reset_color: str | None = None) -> str:
     return _TOKEN_RE.sub(_replace, text)
 
 
-def ansi_encode_lines(lines: list[str], reset_color: str | None = None) -> list[str]:
+def ansi_encode_lines(lines: list[str], reset_color: str | None = None,
+                      command_color: str | None = None) -> list[str]:
     """
     Apply ansi_encode() to each line in a list.
     Use this in GameContext.send() after format_lines() for ANSI clients.
@@ -641,7 +686,7 @@ def ansi_encode_lines(lines: list[str], reset_color: str | None = None) -> list[
     >>> ansi_encode_lines(['hello', '{red}world{reset}'])  # doctest: +ELLIPSIS
     ['hello', '...world...']
     """
-    return [ansi_encode(line, reset_color) for line in lines]
+    return [ansi_encode(line, reset_color, command_color) for line in lines]
 
 
 # Shares _TOKEN_RE's escaped/plain alternation (named 'etoken'/'ecount' vs
@@ -1114,9 +1159,13 @@ def codec_for_settings(settings) -> ColorCodec:
         |reset|/highlight_off() return to, so text goes back to the
         player's own chosen default color instead of an uncontrolled
         terminal-default reset.
+      - command_color <- settings.colors.command_color ('C' Colors ->
+        Command row): the color |command|...|reset| markup uses for game
+        commands (see text_editor.py's ctx.prompt()/help text), kept
+        distinct from highlight_color.
 
-    PETSCII gets the same reset_color treatment -- see PETSCIICodec's
-    reset_color field.
+    PETSCII gets the same reset_color/command_color treatment -- see
+    PETSCIICodec's reset_color/command_color fields.
     """
     try:
         from terminal import Translation
@@ -1125,10 +1174,12 @@ def codec_for_settings(settings) -> ColorCodec:
             return ANSICodec(
                 highlight_color=_ansi_color_for(settings, 'highlight_color'),
                 reset_color=_ansi_color_for(settings, 'text_color'),
+                command_color=_ansi_color_for(settings, 'command_color'),
             )
         if t == Translation.PETSCII:
             return PETSCIICodec(
                 reset_color=_petscii_color_for(settings, 'text_color'),
+                command_color=_petscii_color_for(settings, 'command_color'),
             )
         if t == Translation.ASCII:
             return PlainCodec()

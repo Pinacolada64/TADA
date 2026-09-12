@@ -364,12 +364,12 @@ class BoardCommand(Command):
         description = (
             'Lists every thread on the board. Pick one by number to read it '
             'in full, including replies. Anyone can start a thread or reply '
-            "-- 'board delete' is admin-only."
+            '-- |command|board delete|reset| is admin-only.'
         ),
         category = HelpCategory.COMMUNICATION,
         usage    = [
             ('board',             'List all threads.'),
-            ('board rn',          "List only threads new since your last 'board ld', on this board."),
+            ('board rn',          'List only threads new since your last |command|board ld|reset|, on this board.'),
             ('board ra',          'Read All new threads (full text) across every SIG/board you can access.'),
             ('board sa',          'Scan All new threads (headers only) across every SIG/board you can access.'),
             ('board ld',          'Set/move your "read new" threshold date.'),
@@ -380,13 +380,14 @@ class BoardCommand(Command):
             ('board #edit',       '(Admin) Board-wide settings menu.'),
         ],
         notes = [
-            "Bare 'board' stays in the listing -- press Enter with no "
-            "number to leave it.",
+            "Bare |command|board|reset| stays in the listing -- press Enter "
+            "with no number to leave it.",
             "Whether you're asked to post anonymously, always post "
             "anonymously, or never do depends on the board's own "
             "anonymous-posting setting; admins and Dungeon Masters still "
             "see who really posted either way.",
-            "With Prompt Mode on ('pm' to toggle), reading a thread shows "
+            "With Prompt Mode on (|command|pm|reset| to toggle), reading a "
+            "thread shows "
             "one message at a time with a [R]eply/[M]ail poster/[L]ist/<#>/"
             "Enter menu after each.",
         ],
@@ -809,7 +810,7 @@ class BoardCommand(Command):
         from text_editor import run_editor
 
         if not id_str.isdigit():
-            await ctx.send('Usage: board reply <id>')
+            await ctx.send('Usage: |command|board reply <id>|reset|')
             return CommandResult.fail('Bad id.', error='bad_args')
 
         threads = board_store.load_board()
@@ -865,7 +866,7 @@ class BoardCommand(Command):
             return CommandResult.fail('Permission denied.', error='permission_denied')
 
         if not id_str.isdigit():
-            await ctx.send('Usage: board delete <id>')
+            await ctx.send('Usage: |command|board delete <id>|reset|')
             return CommandResult.fail('Bad id.', error='bad_args')
 
         threads = board_store.load_board()

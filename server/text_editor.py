@@ -378,65 +378,72 @@ class Editor:
                 CommandFlags.ACCEPT_CHARACTER | CommandFlags.ACCEPT_LINE_RANGE, _cmd_border,
                 help_text="Wrap a line range in a box. With no character given, uses your "
                           "terminal's own line-drawing style. Give a single character "
-                          "(e.g. '.b *') to use that instead.\n\n"
+                          "(e.g. |command|.b *|reset|) to use that instead.\n\n"
                           "Examples:\n"
-                          "  .b        Box the whole buffer\n"
-                          "  .b 1-3    Box lines 1-3\n"
-                          "  .b * 1-3  Box lines 1-3 with '*' for the border"),
+                          "  |command|.b|reset|        Box the whole buffer\n"
+                          "  |command|.b 1-3|reset|    Box lines 1-3\n"
+                          "  |command|.b * 1-3|reset|  Box lines 1-3 with '*' for the border"),
             DotCommand('c', 'Columns', DefaultLineRange.NONE, CommandFlags.ACCEPT_NUMBERS, _cmd_columns,
                 help_text="Show or change how many columns wide your lines can be. "
                           "Can't exceed your screen width.\n\n"
                           "Examples:\n"
-                          "  .c      Show the current column width\n"
-                          "  .c 40   Set column width to 40"),
+                          "  |command|.c|reset|      Show the current column width\n"
+                          "  |command|.c 40|reset|   Set column width to 40"),
             DotCommand('d', 'Delete', DefaultLineRange.LAST_LINE, CommandFlags.ACCEPT_LINE_RANGE, _cmd_delete,
                 help_text="Delete a line or range of lines. Defaults to the last line if "
                           "no range is given.\n\n"
                           "Examples:\n"
-                          "  .d      Delete the last line\n"
-                          "  .d 3    Delete line 3\n"
-                          "  .d 2-5  Delete lines 2 through 5"),
+                          "  |command|.d|reset|      Delete the last line\n"
+                          "  |command|.d 3|reset|    Delete line 3\n"
+                          "  |command|.d 2-5|reset|  Delete lines 2 through 5"),
             DotCommand('e', 'Edit', DefaultLineRange.LAST_LINE,
                 CommandFlags.ACCEPT_LINE_RANGE | CommandFlags.ACCEPT_SUBCOMMAND, _cmd_edit,
                 help_text="Edit a line or range of lines, one at a time. You'll be shown "
                           "each line's current text and asked for new text -- press Enter "
                           "with nothing typed to leave a line unchanged, or type a single "
-                          "'.' to stop early. A completely bare '.e' asks which of the "
-                          "below you want, instead of guessing.\n\n"
-                          "Subcommands -- '.e [m]ove'/'[c]opy' <range> <destination>: a "
+                          "'.' to stop early. A completely bare |command|.e|reset| asks "
+                          "which of the below you want, instead of guessing.\n\n"
+                          "Subcommands -- |command|.e [m]ove|reset|/|command|[c]opy|reset| "
+                          "<range> <destination>: a "
                           "destination is the line number to insert before; immutable "
                           "lines in the range are skipped when moving (never when "
                           "copying, since the original is left in place either way). "
                           "Leave off the range and/or destination and you'll be prompted "
                           "for whichever's missing. "
-                          "'.e [l]ist' <range> is the same as .L. '.e [s]plit' <line> "
-                          "<text> breaks a line in two just after the first <text>; '.e "
-                          "[j]oin' <line> [glue] merges a line with the next one, with "
+                          "|command|.e [l]ist|reset| <range> is the same as |command|.L"
+                          "|reset|. |command|.e [s]plit|reset| <line> "
+                          "<text> breaks a line in two just after the first <text>; "
+                          "|command|.e [j]oin|reset| <line> [glue] merges a line with the "
+                          "next one, with "
                           "[glue] between them (default a space -- quote it to keep outer "
-                          "spaces). '.e [u]ndo'/'[r]edo' step back and forward through "
+                          "spaces). |command|.e [u]ndo|reset|/|command|[r]edo|reset| step "
+                          "back and forward through "
                           "your recent changes (typing, deleting, moving, splitting, "
-                          "joining, etc.); '.e [b]uffers' lists what's on both stacks.\n\n"
+                          "joining, etc.); |command|.e [b]uffers|reset| lists what's on "
+                          "both stacks.\n\n"
                           "Examples:\n"
-                          "  .e            Edit the last line\n"
-                          "  .e 3          Edit line 3\n"
-                          "  .e 2-4        Edit lines 2 through 4, one at a time\n"
-                          "  .e m 4-6 8    Move lines 4-6 to before line 8\n"
-                          "  .e c 4-6 8    Copy lines 4-6 to before line 8\n"
-                          "  .e l 4-6      List lines 4-6 (like .L 4-6)\n"
-                          "  .e s 3 fox    Split line 3 in two just after 'fox'\n"
-                          "  .e j 3        Join line 3 with line 4 (a space between)\n"
-                          '  .e j 3 " - "  Join line 3 with line 4, " - " between\n'
-                          "  .e u          Undo your last change\n"
-                          "  .e r          Redo what you just undid\n"
-                          "  .e b          Show the undo/redo history"),
+                          "  |command|.e|reset|            Edit the last line\n"
+                          "  |command|.e 3|reset|          Edit line 3\n"
+                          "  |command|.e 2-4|reset|        Edit lines 2 through 4, one at a time\n"
+                          "  |command|.e m 4-6 8|reset|    Move lines 4-6 to before line 8\n"
+                          "  |command|.e c 4-6 8|reset|    Copy lines 4-6 to before line 8\n"
+                          "  |command|.e l 4-6|reset|      List lines 4-6 (like .L 4-6)\n"
+                          "  |command|.e s 3 fox|reset|    Split line 3 in two just after 'fox'\n"
+                          "  |command|.e j 3|reset|        Join line 3 with line 4 (a space between)\n"
+                          '  |command|.e j 3 " - "|reset|  Join line 3 with line 4, " - " between\n'
+                          "  |command|.e u|reset|          Undo your last change\n"
+                          "  |command|.e r|reset|          Redo what you just undid\n"
+                          "  |command|.e b|reset|          Show the undo/redo history"),
             DotCommand('f', 'Find', DefaultLineRange.ALL_LINES, CommandFlags.ACCEPT_LINE_RANGE, _cmd_find,
                 help_text="Search for text in a line range (defaults to the whole "
                           "buffer). Matches are highlighted in the results.\n\n"
                           "Examples:\n"
-                          "  .f      Search the whole buffer\n"
-                          "  .f 2-5  Search only lines 2-5"),
+                          "  |command|.f|reset|      Search the whole buffer\n"
+                          "  |command|.f 2-5|reset|  Search only lines 2-5"),
             DotCommand('h', 'Help!', DefaultLineRange.NONE, CommandFlags.ACCEPT_CHARACTER, _cmd_help,
-                help_text="Show this list, or '.h <letter>' for details on one command."),
+                help_text="Show this list, or |command|.h <letter>|reset| for details on "
+                          "one command. |command|.h colors|reset| explains the |token| "
+                          "color markup used throughout this help."),
             DotCommand('i', 'Insert', DefaultLineRange.NONE, CommandFlags.ACCEPT_NUMBERS, _cmd_insert,
                 help_text="Insert new lines before a given line number, shifting "
                           "everything else down. With no number, toggles Insert mode "
@@ -444,8 +451,8 @@ class Editor:
                           "While Insert mode is on, everything you type goes in at the "
                           "insertion point instead of being added to the end.\n\n"
                           "Examples:\n"
-                          "  .i      Toggle Insert mode\n"
-                          "  .i 3    Start inserting before line 3"),
+                          "  |command|.i|reset|      Toggle Insert mode\n"
+                          "  |command|.i 3|reset|    Start inserting before line 3"),
             DotCommand('j', 'Justify', DefaultLineRange.NONE,
                 CommandFlags.ACCEPT_CHARACTER | CommandFlags.ACCEPT_LINE_RANGE, _cmd_justify,
                 help_text="Set how a line range is aligned: [l]eft, [c]enter, [r]ight, "
@@ -454,22 +461,22 @@ class Editor:
                           "sets the default for lines you type from now on -- it does NOT "
                           "change anything already on screen.\n\n"
                           "Examples:\n"
-                          "  .j c 1-3   Center lines 1-3\n"
-                          "  .j e 4     Expand line 4 to fill the line\n"
-                          "  .j l       New lines from here on will be left-justified"),
+                          "  |command|.j c 1-3|reset|   Center lines 1-3\n"
+                          "  |command|.j e 4|reset|     Expand line 4 to fill the line\n"
+                          "  |command|.j l|reset|       New lines from here on will be left-justified"),
             DotCommand('k', 'Search & Replace', DefaultLineRange.ALL_LINES,
                 CommandFlags.ACCEPT_LINE_RANGE, _cmd_search_and_replace,
                 help_text="Find and replace text within a line range (defaults to the "
                           "whole buffer).\n\n"
                           "Examples:\n"
-                          "  .k      Replace throughout the buffer\n"
-                          "  .k 2-5  Replace only within lines 2-5"),
+                          "  |command|.k|reset|      Replace throughout the buffer\n"
+                          "  |command|.k 2-5|reset|  Replace only within lines 2-5"),
             DotCommand('l', 'List', DefaultLineRange.ALL_LINES, CommandFlags.ACCEPT_LINE_RANGE, _cmd_list,
                 help_text="List a line range (defaults to the whole buffer), with line "
                           "numbers.\n\n"
                           "Examples:\n"
-                          "  .l      List everything\n"
-                          "  .l 3-7  List lines 3 through 7"),
+                          "  |command|.l|reset|      List everything\n"
+                          "  |command|.l 3-7|reset|  List lines 3 through 7"),
             DotCommand('n', 'New Text', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _cmd_new_text,
                 help_text="Erase the whole buffer and start over, after confirming."),
             DotCommand('o', 'Line Numbers', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _cmd_line_numbers,
@@ -481,28 +488,30 @@ class Editor:
                           "line numbers -- handy for previewing exactly what will be "
                           "saved.\n\n"
                           "Examples:\n"
-                          "  .r      Read everything\n"
-                          "  .r 2-4  Read lines 2 through 4"),
+                          "  |command|.r|reset|      Read everything\n"
+                          "  |command|.r 2-4|reset|  Read lines 2 through 4"),
             DotCommand('s', 'Save Text', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _cmd_save,
                 help_text='Save your changes and leave the editor.'),
             DotCommand('u', 'Un-border', DefaultLineRange.ALL_LINES, CommandFlags.ACCEPT_LINE_RANGE, _cmd_unborder,
-                help_text="Inverse of .B: remove a box from a line range. Un-boxing an "
+                help_text="Inverse of |command|.B|reset|: remove a box from a line range. "
+                          "Un-boxing an "
                           "entire box removes its top/bottom rule lines too; un-boxing "
                           "only part of one leaves the rest of the outline in place.\n\n"
                           "Examples:\n"
-                          "  .u        Un-box the whole buffer\n"
-                          "  .u 1-3    Un-box lines 1-3"),
+                          "  |command|.u|reset|        Un-box the whole buffer\n"
+                          "  |command|.u 1-3|reset|    Un-box lines 1-3"),
             DotCommand('v', 'Version', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _cmd_version,
                 help_text="Show the editor's version."),
             DotCommand('#', 'Scale', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _cmd_scale,
                 help_text="Show a ruler of column numbers, to help line things up.\n\n"
                           "Examples:\n"
-                          "  .#      Ruler across your whole screen width\n"
-                          "  .# 40   Ruler up to column 40"),
+                          "  |command|.#|reset|      Ruler across your whole screen width\n"
+                          "  |command|.# 40|reset|   Ruler up to column 40"),
         ]
         self.privileged_commands: List[DotCommand] = [
             DotCommand('$', 'Directory', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _priv_directory,
-                help_text='List files available for .G Get File and .& Read File. Admin only.'),
+                help_text='List files available for |command|.G|reset| Get File and '
+                          '|command|.&|reset| Read File. Admin only.'),
             DotCommand('p', 'Put File', DefaultLineRange.NONE, CommandFlags.IMMEDIATE, _priv_put_file,
                 help_text="Save the buffer to a server-side file. If the name's taken, "
                           "you'll be asked to pick a [N]ew name, [R]eplace it, or "
@@ -1225,6 +1234,45 @@ def _format_help_line(command_key: str, command_text: str, screen_width: int) ->
     return f"{left}{'.' * dot_count}{right}"
 
 
+# '.h colors' (or the aliases below) -- a free-standing topic rather than a
+# real DotCommand, since DotCommands are matched by a single command_key
+# character (see _cmd_help()'s match lookup and the '.{letter}' dispatch in
+# run_editor()) and this has no buffer-editing action of its own to run.
+# Mirrors the main game's 'help colors' topic (commands/help.py's
+# register_topic("colors", "color", "markup", ...)) -- kept as a separate,
+# shorter writeup here (rather than pointing players at 'help colors')
+# since the editor's own command loop can't reach the main game's HELP
+# command while a buffer is open. Deliberately does NOT alias 'tokens' --
+# that name is already taken in the main game's help system by an unrelated
+# topic (%-token pronoun/name substitution, see commands/help.py's own
+# "tokens" registration), so reusing it here would just import that
+# confusion into the editor.
+_COLOR_TOPIC_ALIASES = {'colors', 'color', 'markup'}
+_COLOR_TOPIC_TEXT = (
+    # NOTE: any ||token|| mention below that's *naming* a token rather than
+    # actually demonstrating it must stay double-piped -- a bare, unescaped
+    # |command| (or any other real color token) left unclosed here would
+    # bleed that color into every paragraph after it instead of just
+    # naming it. Only the Examples: block's pairs are meant to render live.
+    "Text the game sends you can use ||token|| markup: |red|word|reset| "
+    "colors 'word' red, then ||reset|| returns to your normal text color. "
+    "[bracket] text is a separate mechanism -- it's auto-highlighted in "
+    "your PREFS Highlight color with no token needed.\n\n"
+    "||reset|| and ||command|| aren't fixed colors -- they resolve to "
+    "your own PREFS 'C' Colors choices (Text and Command). Fixed colors "
+    "always render the same regardless of preference: red, cyan, green, "
+    "blue, yellow, purple, orange, brown, light_red, light_green, "
+    "light_blue, light_gray, dark_gray, mid_gray, and more.\n\n"
+    "|command|.h h|reset| above is colored this way -- ||command||...||reset|| "
+    "wraps command syntax in your own Command color, kept separate from "
+    "||reset||'s Text color and highlight_color so commands read apart "
+    "from [bracketed] emphasis.\n\n"
+    "Examples:\n"
+    "  |red|Warning!|reset|   Colors 'Warning!' red, then resets\n"
+    "  |command|.h h|reset|   Colors '.h h' in your command color"
+)
+
+
 async def _cmd_help(editor: 'Editor', arg: str) -> Optional[str]:
     arg = arg.strip().lstrip('./')
     commands = list(editor.dot_command_table)
@@ -1232,7 +1280,20 @@ async def _cmd_help(editor: 'Editor', arg: str) -> Optional[str]:
         commands += editor.privileged_commands
 
     if not arg:
+        if not editor.ctx.player.is_expert:
+            await editor.ctx.send(
+                "(Help on individual commands can be shown by typing "
+                "|command|.h <command_letter>|reset|. For example, |command|.h h|reset| "
+                "displays help for the |command|Help|reset| command. Type "
+                "|command|.h colors|reset| for help on color markup.)"
+            )
+
         out = [_format_help_line(cmd.command_key, cmd.command_text, editor.screen_width) for cmd in commands]
+        await editor.ctx.send(out)
+        return None
+
+    if arg.lower() in _COLOR_TOPIC_ALIASES:
+        out = ['|cyan|Colors|reset|', ''] + _format_help_text(_COLOR_TOPIC_TEXT)
         await editor.ctx.send(out)
         return None
 
@@ -1481,7 +1542,7 @@ async def run_editor(ctx: 'GameContext',
     editor.activity_label = activity_label
     await ctx.send([
         "Line editor -- type text to add lines; commands start with '.' or '/'.",
-        "'.h' for help, '.s' to save, '.a' to abort.",
+        "|command|.h|reset| for help, |command|.s|reset| to save, |command|.a|reset| to abort.",
     ])
 
     # WHEREAT (commands/whereat.py) reads ctx.client.virtual_location --
@@ -1531,7 +1592,7 @@ async def _run_editor_loop(ctx: 'GameContext', editor: 'Editor') -> Optional[Lis
             cmd = editor.find_command(letter)
             arg = raw[2:].strip()
             if cmd is None:
-                await ctx.send(f"Unrecognized command '.{letter}'. Type '.h' for help.")
+                await ctx.send(f"Unrecognized command '.{letter}'. Type |command|.h|reset| for help.")
                 continue
             await cmd.function_name(editor, arg)
             if editor.result == 'save':

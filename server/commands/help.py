@@ -18,14 +18,13 @@ from __future__ import annotations
 
 import logging
 import re
-import textwrap
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from commands.base_command import Command, Mode
-from formatting import hrule_char, _visible_len
+from formatting import hrule_char, _visible_len, wrap_text
 
 if TYPE_CHECKING:
     from network_context import GameContext
@@ -675,6 +674,13 @@ register_topic(
             "code always renders as its exact named color regardless of "
             "your personal color preferences, while [brackets] pick up "
             "whatever colors you've chosen.\n\n"
+            "||command|| is a third kind, alongside ||reset|| -- rather "
+            "than a fixed color, it resolves to *your own* PREFS 'C' "
+            "Colors -> Command choice (cyan by default), the same way "
+            "||reset|| resolves to your Text color. Game commands "
+            "referenced in help text and messages (e.g. |command|.h h"
+            "|reset|) use it, so you can tell command syntax apart from "
+            "[bracketed] entities at a glance.\n\n"
             "Some codes can also repeat with a count -- ||tab:5|| means "
             "five tabs in a row instead of one.\n\n"
             "Doubled pipes like the examples above (||red||...||reset||) "
@@ -687,6 +693,7 @@ register_topic(
         category=HelpCategory.CONCEPT,
         usage=[
             ("||color||some text||reset||", "Colors 'some text'; 'reset' returns to normal after it."),
+            ("||command||some text||reset||", "Colors 'some text' in *your* command color (PREFS 'C')."),
             ("||tab||",                     "A tab -- a real Tab character or simulated spaces, per PREFS 'K'."),
             ("||tab:5||",                   "A count after the code repeats it -- five tabs in a row here."),
             ("||code||...||code||",         "Doubled pipes: show raw ||code|| syntax literally instead of applying it."),
@@ -694,6 +701,8 @@ register_topic(
         examples=[
             ("You find |red|a ruby|reset| on the floor.",
              "'a ruby' renders in red; the rest is normal text."),
+            ("Type |command|.h h|reset| for help on the Help command.",
+             "'.h h' renders in your PREFS command color; the rest is normal text."),
             ("Name:|tab|Alice", "Lines up 'Alice' at the next tab stop."),
         ],
         notes=[
@@ -702,6 +711,8 @@ register_topic(
             "light_green, light_blue, light_gray, dark_gray, mid_gray. "
             "ANSI terminals also get magenta, light_cyan, light_yellow, "
             "light_white, bold, and dim.",
+            "'reset' and 'command' aren't fixed colors -- they resolve to "
+            "your own PREFS 'C' Colors choices (Text and Command).",
             "A misspelled or unsupported code (e.g. ||glorp||) is left "
             "as plain text rather than breaking the rest of the line.",
         ],
@@ -1577,7 +1588,7 @@ def format_two_column(items: List[Tuple[str, str]], width: int) -> List[str]:
     for left, right in items:
         pad = " " * max(0, left_col - _visible_len(left))
         if right:
-            wrapped = textwrap.wrap(right, width=right_col) or [""]
+            wrapped = wrap_text(right, width=right_col)
             out.append(f"  {left}{pad}  {wrapped[0]}")
             for cont in wrapped[1:]:
                 out.append(f"  {'':{left_col}}  {cont}")
@@ -1606,7 +1617,7 @@ def format_summary_table(items: List[Tuple[str, str]], width: int) -> List[str]:
 
     for i, (name, summary) in enumerate(items):
         stripe  = 'dark_gray' if i % 2 else 'mid_gray'
-        wrapped = textwrap.wrap(summary, width=right_col) or [""]
+        wrapped = wrap_text(summary, width=right_col)
         name_col = _vis_ljust(_cmd(name), left_col)
         out.append(f"  {name_col}  |{stripe}|{wrapped[0]}|reset|")
         for cont in wrapped[1:]:
@@ -1676,7 +1687,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
     if help_obj is None:
         return None
     if isinstance(help_obj, str):
-        return textwrap.fill(help_obj.strip(), width=width)
+        return '\n'.join(wrap_text(help_obj.strip(), width=width))
 
     wrap_width = width - 4
     lines: List[str] = []
@@ -1697,7 +1708,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
                 lines.append(_cmd(command_name))
                 if cat_str:
                     lines.append(_heading(cat_str.rjust(width)))
-        lines.extend(textwrap.wrap(str(summary).strip(), width=width))
+        lines.extend(wrap_text(str(summary).strip(), width=width))
         lines.append(_rule(rule_char * width))
 
     # Aliases -- other names this same command answers to
@@ -1714,7 +1725,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
         for i, para in enumerate(paragraphs):
             if i:
                 lines.append("")
-            lines.extend(textwrap.wrap(" ".join(para.split()), width=wrap_width))
+            lines.extend(wrap_text(" ".join(para.split()), width=wrap_width))
 
     # Usage
     usage = getattr(help_obj, "usage", None)
@@ -1734,7 +1745,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
         for item in examples:
             lines.append(f"  {_auto_escape(item[0])}")
             if len(item) > 1 and item[1]:
-                lines.extend(textwrap.wrap(
+                lines.extend(wrap_text(
                     _auto_escape(str(item[1])),
                     width=wrap_width,
                     initial_indent=" " * 6,
@@ -1762,7 +1773,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
             if note == '':
                 lines.append('')
             else:
-                lines.extend(textwrap.wrap(
+                lines.extend(wrap_text(
                     _auto_escape(str(note)),
                     width=wrap_width,
                     initial_indent=" " * 4,
@@ -1793,10 +1804,12 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
         lines.append("")
         lines.append(_heading("See Also:"))
         joined = ", ".join(_cmd(name) for name in see_also)
-        lines.extend(textwrap.wrap(
+        # wrap_text() never breaks mid-word or on hyphens (it only splits on
+        # spaces), so it already matches the old textwrap.wrap(
+        # break_long_words=False, break_on_hyphens=False) behavior here.
+        lines.extend(wrap_text(
             joined, width=wrap_width,
             initial_indent=" " * 4, subsequent_indent=" " * 4,
-            break_long_words=False, break_on_hyphens=False,
         ))
 
     return lines if lines else None
