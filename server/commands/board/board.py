@@ -4,30 +4,35 @@ Design per MECHANICS.md's "Threaded Message Boards" section. See
 board/ (top-level package) for storage/rendering; this module is just
 the in-game command surface:
 
-  board                 — list all threads (id, title, author, replies)
-  board rn               — list only threads with activity since your
-                            own "read new" threshold (see 'board ld'),
-                            on the current board only
-  board ra                — Read All (new): full text of every new
-                            thread across every SIG/board you can
-                            access, not just the current one
-  board sa                — Scan All (new): same scope as 'board ra',
-                            headers only (no message bodies)
-  board ld                — set/move that threshold -- an absolute date,
-                            or a relative shortcut ('week', '2 months', ...)
-  board <id>             — read one thread in full (root post + replies)
+  board                 — list all threads (id, title, author, replies);
+                            SIG/board is picked interactively unless
+                            there's nothing to pick (single-board install)
+  board <sig#> [<board#>] — land directly on a SIG/board by its number
+                            in the same picker lists 'board' would show,
+                            skipping the interactive prompts. With 0 or 1
+                            SIG configured, <sig#> is actually a board
+                            number instead (no SIG level to pick), and a
+                            second number is an error.
   board post              — write a new thread
   board reply <id>        — reply to a thread; shows what you're replying
                             to in a "Quoting <author>" box first
-  board delete <id>       — (admin) remove a thread
+  board #delete <id>      — (admin) remove a thread
   board #edit              — (admin) board-wide settings menu, e.g. the
                             anonymous-posting default -- see
                             commands/board/edit.py
 
+Once inside the listing (bare 'board'/'bb', or after landing via
+'board <sig#> [<board#>]'), typing 'rn'/'sn'/'ra'/'sa'/'ld' at the
+"Read which" prompt reaches the "read new" machinery without leaving:
+'rn' toggles showing only new threads on this board, 'sn' scans new
+threads' headers on this board, 'ra'/'sa' read/scan new threads across
+every SIG/board you can access, and 'ld' moves the "read new" threshold
+date itself. See _list()'s own docstring.
+
 Post/reply authoring uses text_editor.run_editor() -- same as NEWS
 (commands/news.py). Any logged-in player can post/reply (this isn't
 admin-gated, unlike NEWS, since a message board is meant to be
-conversational/multi-author); only 'board delete'/'board #edit' require
+conversational/multi-author); only 'board #delete'/'board #edit' require
 PlayerFlags.ADMIN.
 
 Phase 1 of the sig-editor project (see the approved plan): storage now
@@ -157,9 +162,9 @@ def _single_board_shortcut(sig_list: list[dict]) -> bool:
     """True when there's nothing to pick between: no SIGs at all (a
     fresh install that's never touched 'board #edit'), or exactly one
     SIG holding at most one board -- i.e. the state migration.py always
-    produces. In either case, 'board'/'board post'/'board rn' go
-    straight to _DEFAULT_BOARD_ID exactly like before Phase 2, instead
-    of showing a picker with nothing to pick."""
+    produces. In either case, 'board'/'board post' go straight to
+    _DEFAULT_BOARD_ID exactly like before Phase 2, instead of showing a
+    picker with nothing to pick."""
     if not sig_list:
         return True
     return len(sig_list) == 1 and len(sig_list[0].get('board_ids', [])) <= 1
@@ -182,6 +187,11 @@ def _listing_menu_lines(ctx, width: int) -> list[str]:
     t.add_row(["'>' / '<'", 'next / previous board in this SIG'])
     t.add_row(["'>>' / '<<'", 'next / previous SIG'])
     t.add_row(['[pm]', 'toggle Prompt Mode'])
+    t.add_row(["'rn'", 'toggle showing only new threads (this board)'])
+    t.add_row(["'sn'", 'scan headers of new threads (this board)'])
+    t.add_row(["'ra'", 'read all new threads (every board you can access)'])
+    t.add_row(["'sa'", 'scan headers of all new threads (every board)'])
+    t.add_row(["'ld'", 'set/move your "read new" threshold date'])
     t.add_row(["'?'", 'show this list again'])
     return [''] + t.render(width=width) + ['']
 
@@ -272,15 +282,19 @@ async def _enter_board(ctx, meta_data: dict, board_id: int) -> None:
     await _show_intro_screen(ctx, board_store.board_intro_path(board_id))
 
 
-async def _resolve_board_in_sig(ctx, chosen_sig: dict, meta_data: dict, *, multi_sig: bool):
+async def _resolve_board_in_sig(ctx, chosen_sig: dict, meta_data: dict, *, multi_sig: bool,
+                                 board_num: str | None = None):
     """Given a SIG the player just entered, resolve which of its boards
-    to land on -- straight to the only one, or via a numbered picker
-    (offering 'B. Back to SIGs list' when allow_back). Sends both the
-    SIG's and the resolved board's welcome+intro. Returns the board id,
-    the _BACK sentinel (only reachable when multi_sig), or None if the
-    SIG has no boards -- or none the player can access, same message
-    either way (Ryan's call: don't hint that gated boards exist here) --
-    or the player backed fully out of the picker."""
+    to land on -- straight to the only one, a caller-supplied 1-based
+    *board_num* (the direct 'board <sig#> <board#>' landing syntax, see
+    _pick_board_by_number()), or via a numbered picker (offering
+    'B. Back to SIGs list' when allow_back). Sends both the SIG's and
+    the resolved board's welcome+intro. Returns the board id, the _BACK
+    sentinel (only reachable when multi_sig and no board_num was given),
+    or None if the SIG has no boards -- or none the player can access,
+    same message either way (Ryan's call: don't hint that gated boards
+    exist here) -- *board_num* is out of range, or the player backed
+    fully out of the picker."""
     await _enter_sig(ctx, chosen_sig)
 
     board_ids = board_store.accessible_board_ids(ctx.player, meta_data, chosen_sig.get('board_ids', []))
@@ -288,7 +302,12 @@ async def _resolve_board_in_sig(ctx, chosen_sig: dict, meta_data: dict, *, multi
         await ctx.send(f"{chosen_sig.get('name', '(unnamed)')} has no boards yet.")
         return None
 
-    if len(board_ids) == 1:
+    if board_num is not None:
+        if not board_num.isdigit() or not (1 <= int(board_num) <= len(board_ids)):
+            await ctx.send(f"'{board_num}' is not a valid board number.")
+            return None
+        board_id = board_ids[int(board_num) - 1]
+    elif len(board_ids) == 1:
         board_id = board_ids[0]
     else:
         boards = [board_store.meta.get_board(meta_data, bid) for bid in board_ids]
@@ -303,8 +322,7 @@ async def _resolve_board_in_sig(ctx, chosen_sig: dict, meta_data: dict, *, multi
 
 
 async def pick_board(ctx) -> tuple[int, int | None] | None:
-    """Which (board_id, sig_id) a bare 'board'/'board post'/'board rn'
-    should act on: (_DEFAULT_BOARD_ID, sig_id or None) with no picker
+    """Which (board_id, sig_id) a bare 'board'/'board post' should act on: (_DEFAULT_BOARD_ID, sig_id or None) with no picker
     shown at all when there's only one board to choose from (see
     _single_board_shortcut -- keeps today's single-board UX exactly
     unchanged for every install that hasn't touched 'board #edit' yet),
@@ -354,6 +372,69 @@ async def pick_board(ctx) -> tuple[int, int | None] | None:
         return result, chosen_sig['id']
 
 
+async def _pick_board_by_number(ctx, positional: list[str]) -> tuple[int, int | None] | None:
+    """Resolve 'board <n>' / 'board <n> <m>' -- landing directly on a
+    SIG/board by its 1-based position in the same numbered lists
+    pick_board()'s interactive pickers would show, with no prompting.
+    With more than one visible SIG, <n> picks the SIG and <m> (if given)
+    the board within it -- with only <n>, the board level still prompts
+    interactively if that SIG has more than one board. With 0 or 1
+    visible SIG there's no SIG level to pick, so <n> alone selects the
+    board directly and a second number is an error (nothing left to
+    disambiguate) -- Ryan's call. Gated the same way as pick_board(): an
+    inaccessible SIG/board is simply absent from the numbered list, not
+    distinguishable from 'that number is too high'. None (with an
+    explanatory message already sent) on any bad input, no access, or
+    the player backing out of a still-interactive board picker."""
+    if len(positional) > 2:
+        await ctx.send(f"I don't understand '{' '.join(positional[2:])}'.")
+        return None
+
+    sig_list = board_store.sigs.load_sigs().get('sigs', [])
+    meta_data = board_store.meta.load_meta()
+    visible = board_store.visible_sigs(ctx.player, sig_list, meta_data)
+
+    if len(visible) > 1:
+        sig_num = positional[0]
+        if not sig_num.isdigit() or not (1 <= int(sig_num) <= len(visible)):
+            await ctx.send(f"'{sig_num}' is not a valid SIG number.")
+            return None
+        chosen_sig = visible[int(sig_num) - 1]
+        board_id = await _resolve_board_in_sig(
+            ctx, chosen_sig, meta_data, multi_sig=True,
+            board_num=positional[1] if len(positional) > 1 else None)
+        if board_id in (None, _BACK):
+            return None
+        return board_id, chosen_sig['id']
+
+    # 0 or 1 visible SIG -- no SIG level to pick, so <n> indexes the
+    # board list directly.
+    if len(positional) > 1:
+        await ctx.send(f"I don't understand the second number ('{positional[1]}').")
+        return None
+
+    sig = visible[0] if visible else None
+    if sig:
+        board_ids = board_store.accessible_board_ids(ctx.player, meta_data, sig.get('board_ids', []))
+    elif board_store.player_can_access(ctx.player, board_store.meta.get_board(meta_data, _DEFAULT_BOARD_ID)):
+        board_ids = [_DEFAULT_BOARD_ID]
+    else:
+        board_ids = []
+    if not board_ids:
+        await ctx.send("You don't have access to any boards yet.")
+        return None
+
+    board_num = positional[0]
+    if not board_num.isdigit() or not (1 <= int(board_num) <= len(board_ids)):
+        await ctx.send(f"'{board_num}' is not a valid board number.")
+        return None
+    board_id = board_ids[int(board_num) - 1]
+    if sig:
+        await _enter_sig(ctx, sig)
+    await _enter_board(ctx, meta_data, board_id)
+    return board_id, (sig['id'] if sig else None)
+
+
 class BoardCommand(Command):
     name    = 'board'
     aliases = ['bb']
@@ -364,20 +445,19 @@ class BoardCommand(Command):
         description = (
             'Lists every thread on the board. Pick one by number to read it '
             'in full, including replies. Anyone can start a thread or reply '
-            '-- |command|board delete|reset| is admin-only.'
+            '-- |command|board #delete|reset| is admin-only.'
         ),
         category = HelpCategory.COMMUNICATION,
         usage    = [
-            ('board',             'List all threads.'),
-            ('board rn',          'List only threads new since your last |command|board ld|reset|, on this board.'),
-            ('board ra',          'Read All new threads (full text) across every SIG/board you can access.'),
-            ('board sa',          'Scan All new threads (headers only) across every SIG/board you can access.'),
-            ('board ld',          'Set/move your "read new" threshold date.'),
-            ('board <id>',        'Read one thread in full.'),
-            ('board post',        'Start a new thread.'),
-            ('board reply <id>',  'Reply to a thread.'),
-            ('board delete <id>', '(Admin) Remove a thread.'),
-            ('board #edit',       '(Admin) Board-wide settings menu.'),
+            ('board',                  'List all threads (SIG/board picked interactively).'),
+            ('board <sig#> [<board#>]', 'Land directly on a SIG/board by number, skipping the picker.'),
+            ('board post',             'Start a new thread.'),
+            ('board reply <id>',       'Reply to a thread.'),
+            ("'rn'",                   'At the listing prompt: toggle new-only threads (this board).'),
+            ("'sn'",                   'At the listing prompt: scan new threads\' headers (this board).'),
+            ("'ra'",                   'At the listing prompt: read new threads (every board you can access).'),
+            ("'sa'",                   'At the listing prompt: scan new threads\' headers (every board).'),
+            ("'ld'",                   'At the listing prompt: set/move your "read new" threshold date.'),
         ],
         notes = [
             "Bare |command|board|reset| stays in the listing -- press Enter "
@@ -396,9 +476,10 @@ class BoardCommand(Command):
             "(for any player, not just yourself) via EditPlayer's Flags "
             "-> Option Toggles menu. See commands/board/reply.py for the "
             "interactive reader itself.",
-            "'board #edit' opens a small settings menu (currently just "
-            "the anonymous-posting default: Ask/Yes/No) -- see "
-            "commands/board/edit.py.",
+            "|command|board #delete <id>|reset| removes a thread.",
+            "|command|board #edit|reset| opens a small settings menu "
+            "(currently just the anonymous-posting default: Ask/Yes/No) "
+            "-- see commands/board/edit.py.",
         ],
     )
 
@@ -410,6 +491,11 @@ class BoardCommand(Command):
             if switch == 'edit':
                 from commands.board.edit import edit_board_settings
                 return await edit_board_settings(ctx)
+            if switch == 'delete':
+                if not positional:
+                    await ctx.send('Usage: |command|board #delete <id>|reset|')
+                    return CommandResult.fail('Bad id.', error='bad_args')
+                return await self._delete(ctx, positional[0])
             await ctx.send(f"Unknown option '{switches[0]}'.")
             return CommandResult.fail('Unknown option.', error='bad_args')
 
@@ -419,18 +505,11 @@ class BoardCommand(Command):
             return await self._post(ctx)
         if sub == 'reply' and len(positional) > 1:
             return await self._reply(ctx, positional[1])
-        if sub == 'delete' and len(positional) > 1:
-            return await self._delete(ctx, positional[1])
-        if sub == 'rn':
-            return await self._list(ctx, new_only=True)
-        if sub == 'ra':
-            return await self._read_all_new(ctx)
-        if sub == 'sa':
-            return await self._scan_all_new(ctx)
-        if sub == 'ld':
-            return await self._set_last_date(ctx)
         if positional and positional[0].isdigit():
-            return await self._read_one(ctx, int(positional[0]))
+            picked = await _pick_board_by_number(ctx, positional)
+            if picked is None:
+                return CommandResult.ok('Cancelled.')
+            return await self._list(ctx, preselected=picked)
 
         return await self._list(ctx)
 
@@ -438,23 +517,29 @@ class BoardCommand(Command):
     # Player-facing
     # ------------------------------------------------------------------
 
-    async def _list(self, ctx, new_only: bool = False) -> CommandResult:
+    async def _list(self, ctx, preselected: tuple[int, int | None] | None = None) -> CommandResult:
         """Show the thread listing and stay in it -- reading a thread just
         redisplays the listing -- until the player presses Enter to leave.
         While active, the player's virtual location (commands/whereat.py)
-        reads 'Reading board'. With new_only, filters to threads with
-        activity since the player's own board_last_date threshold.
+        reads 'Reading board'. 'rn' (toggle new-only), 'ra'/'sa' (Read/Scan
+        All new, across every accessible SIG/board), 'sn' (Scan New, this
+        board's headers only), and 'ld' (move the "read new" threshold) are
+        all typed here rather than as top-level 'board' subcommands -- see
+        this module's docstring.
 
         Picks which board via pick_board() -- a no-op picker (returns
         _DEFAULT_BOARD_ID straight away) until more than one board
-        exists. None means the player backed out of the SIG/board
-        picker without choosing anything. sig_id (alongside board_id)
-        is what '>'/'<'/'>>'/'<<' below navigate relative to."""
-        picked = await pick_board(ctx)
+        exists -- unless *preselected* (from 'board <sig#> [<board#>]',
+        see _pick_board_by_number()) already names one. None means the
+        player backed out of the SIG/board picker without choosing
+        anything. sig_id (alongside board_id) is what '>'/'<'/'>>'/'<<'
+        below navigate relative to."""
+        picked = preselected if preselected is not None else await pick_board(ctx)
         if picked is None:
             return CommandResult.ok('Cancelled.')
         board_id, sig_id = picked
 
+        new_only = False
         since = self._last_date(ctx)
         position = -1  # index into this pass's 'threads' of the last-read one; -1 = none read yet
 
@@ -486,6 +571,8 @@ class BoardCommand(Command):
                     make_rule(rule_width, hrule_char(ctx)),
                 ]
                 lines += board_store.format_thread_listing(threads, rule_width, _is_petscii(ctx), since=since)
+                if new_only:
+                    lines.append("(showing new threads only -- 'rn' to show all)")
                 lines.append(f"([<#>] read, [{ctx.player.return_key}] next, [P]ost, [Q]uit, '?' for help)")
                 lines.append('')
 
@@ -525,6 +612,19 @@ class BoardCommand(Command):
                     await ctx.send(_listing_menu_lines(ctx, rule_width))
                 elif low in ('pm', 'promptmode'):
                     await toggle_prompt_mode(ctx)
+                elif low == 'rn':
+                    new_only = not new_only
+                    position = -1
+                    await ctx.send(f"Showing {'new threads only' if new_only else 'all threads'}.")
+                elif low == 'sn':
+                    await self._scan_new_here(ctx, board_id, since)
+                elif low == 'ra':
+                    await self._read_all_new(ctx)
+                elif low == 'sa':
+                    await self._scan_all_new(ctx)
+                elif low == 'ld':
+                    await self._set_last_date(ctx)
+                    since = self._last_date(ctx)
                 elif choice.isdigit():
                     target = int(choice)
                     # Keep 'next' in sync with whichever thread was just
@@ -628,7 +728,7 @@ class BoardCommand(Command):
         return CommandResult.ok('Displayed thread.')
 
     # ------------------------------------------------------------------
-    # "Read new" threshold (board rn / board ld)
+    # "Read new" threshold ('rn' / 'ld', typed at the listing prompt)
     # ------------------------------------------------------------------
 
     def _last_date(self, ctx) -> datetime.date | None:
@@ -646,7 +746,7 @@ class BoardCommand(Command):
         settings = ctx.player.command_settings
         result = await prompt_date_cursor(
             ctx, ctx.player, self._last_date(ctx), label='threshold',
-            note="'board rn' will show anything posted after this date.",
+            note="'rn' at the listing prompt will show anything posted after this date.",
         )
         if result is UNCHANGED:
             return CommandResult.ok('Unchanged.')
@@ -658,15 +758,15 @@ class BoardCommand(Command):
         return CommandResult.ok('Threshold set.')
 
     # ------------------------------------------------------------------
-    # "Read All" / "Scan All" new (board ra / board sa) -- Phase 4 of the
-    # sig-editor plan (ImageBBS-style RA/SA): same "read new" threshold
-    # as 'board rn', but walking every SIG/board the player can access
-    # instead of just the one they happen to be viewing.
+    # "Read All" / "Scan All" new ('ra' / 'sa' at the listing prompt) --
+    # Phase 4 of the sig-editor plan (ImageBBS-style RA/SA): same "read
+    # new" threshold as 'rn', but walking every SIG/board the player can
+    # access instead of just the one they happen to be viewing.
     # ------------------------------------------------------------------
 
     def _new_threads_by_board(self, ctx) -> list[tuple[dict | None, dict, dict]]:
         """[(sig_or_None, board_meta, thread), ...] for every thread with
-        activity since the player's 'board ld' threshold, across every
+        activity since the player's 'ld' threshold, across every
         SIG/board they can access -- SIG/board order, thread order
         within each board. sig is None only for the single-board-
         shortcut install (no real SIG structure configured yet); a
@@ -737,6 +837,26 @@ class BoardCommand(Command):
                 reply_count=len(thread.get('replies', []))).display()
         await ctx.send(lines + [''])
         return CommandResult.ok(f'Scanned {len(items)} new thread(s).')
+
+    async def _scan_new_here(self, ctx, board_id: int, since: datetime.date | None) -> None:
+        """'sn' at the listing prompt -- headers only (no message bodies),
+        scoped to just this board's own new threads. The single-board
+        counterpart to 'sa', same way 'rn' (filters the listing itself)
+        relates to 'ra' (full text, every accessible board)."""
+        threads = [t for t in _threads_for_board(board_store.load_board(), board_id)
+                   if board_store.is_new_since(t, since)]
+        if not threads:
+            await ctx.send('No new messages.')
+            return
+
+        privileged = _is_privileged(ctx.player)
+        lines = []
+        for thread in threads:
+            title = f"#{thread.get('id', 0)}  {thread.get('title', '(untitled)')}"
+            lines += board_store.MessageHeader.for_entry(
+                thread, title, privileged, ctx.player,
+                reply_count=len(thread.get('replies', []))).display()
+        await ctx.send(lines + [''])
 
     # ------------------------------------------------------------------
     # Posting / replying (any logged-in player)
@@ -866,7 +986,7 @@ class BoardCommand(Command):
             return CommandResult.fail('Permission denied.', error='permission_denied')
 
         if not id_str.isdigit():
-            await ctx.send('Usage: |command|board delete <id>|reset|')
+            await ctx.send('Usage: |command|board #delete <id>|reset|')
             return CommandResult.fail('Bad id.', error='bad_args')
 
         threads = board_store.load_board()

@@ -1201,7 +1201,7 @@ toggles. Live -- imported by `player.py` and several `commands/*.py`.
 | Function / Class                                          | Notes                                                                                                             |
 |---------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
 | `TipsSettings` (dataclass)                                  | `enabled` (auto-show on login), `tip_number` (last-shown cursor) -- `commands/tips.py`                          |
-| `BoardSettings` (dataclass)                                 | `last_date` (ISO string) -- only `'board ld'` advances it; `None` means "everything is new" -- `board.py`/`commands/board.py` |
+| `BoardSettings` (dataclass)                                 | `last_date` (ISO string) -- only `'ld'` (typed at the board listing prompt) advances it; `None` means "everything is new" -- `board.py`/`commands/board/board.py` |
 | `TeleportSettings` (dataclass)                              | `destinations: dict` -- name-as-typed → `(level, room)` tuple, via `'teleport #learn <name>'` -- `commands/teleport.py` |
 | `CommandSettings` (dataclass)                               | Aggregate: `whereat_hidden`, `groups` (dict, whisper/page group names), `news_show_all`, `haven`, `ignored_pagers`, `tips`, `board`, `teleport`, `wasd_movement` |
 | `CommandSettings.to_dict()` / `.from_dict(data)` (classmethod) | Persistence; `from_dict` reconstructs the three nested dataclasses (`tips`/`board`/`teleport`) from plain dicts, and round-trips `teleport.destinations`' JSON-serialized-as-lists back into tuples |
