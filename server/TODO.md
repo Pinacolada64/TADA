@@ -985,10 +985,11 @@
     viewer check pattern) rather than a straight thread listing; `board
     <sig>` lists threads within one SIG (SIGs the player's gate check
     fails are simply left off the picker, not shown-but-blocked).
-    Existing verbs (`post`/`reply <id>`/`delete <id>`/`rn`/`ld`) all need
-    a SIG argument or a "current SIG" concept threaded through the
-    session somehow -- unresolved which is better.
-  - **`board rn`/`board ld` scope**: today's `command_settings.board.
+    Existing verbs (`post`/`reply <id>`/`#delete <id>`) and listing-prompt
+    commands (`rn`/`ld`) all need a SIG argument or a "current SIG"
+    concept threaded through the session somehow -- unresolved which is
+    better.
+  - **`rn`/`ld` scope** (typed at the listing prompt): today's `command_settings.board.
     last_date` is a single global threshold. Per-SIG activity probably
     wants a per-SIG threshold instead (`last_date_by_sig: dict[str,
     str]` on `BoardSettings`) so reading all of "General" doesn't also
@@ -1015,7 +1016,7 @@
   menu in the same `#`-prefixed control-word style as `page #haven`/
   `page #ignore`/`whereat #hide`, distinct from the main post/reply/
   read verbs -- natural home for `anonymous_mode` and, potentially,
-  `board ld`'s threshold too, though that's not decided. Not
+  `ld`'s threshold too, though that's not decided. Not
   implemented yet.
 
 7/22/26:

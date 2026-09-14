@@ -60,8 +60,8 @@ class NewsCommand(Command):
         notes = [
             "Whether NEWS shows just what's new since your last login or "
             "a full directory every time is controlled by PREFS (key N).",
-            "Bare 'news' stays in the listing -- press Enter with no "
-            "number to leave it.",
+            "Bare |command|news|reset| stays in the listing -- press Enter "
+            "with no number to leave it.",
         ],
     )
 
@@ -226,7 +226,7 @@ class NewsCommand(Command):
             return CommandResult.fail('Permission denied.', error='permission_denied')
 
         if not id_str.isdigit():
-            await ctx.send('Usage: news edit <id>')
+            await ctx.send('Usage: |command|news edit <id>|reset|')
             return CommandResult.fail('Bad id.', error='bad_args')
 
         items = news_store.load_news()
@@ -250,7 +250,7 @@ class NewsCommand(Command):
                 item.pop('start_date', None)
                 item.pop('end_date', None)
 
-        await ctx.send("Enter the new body, or '.a' to abort and keep the current text.")
+        await ctx.send("Enter the new body, or |command|.a|reset| to abort and keep the current text.")
         body = await run_editor(ctx, initial_lines=deserialize_lines(item.get('body', [])),
                                  activity_id=f"news_edit:{item['id']}",
                                  activity_label=f"editing news #{item['id']}")
@@ -268,7 +268,7 @@ class NewsCommand(Command):
             return CommandResult.fail('Permission denied.', error='permission_denied')
 
         if not id_str.isdigit():
-            await ctx.send('Usage: news delete <id>')
+            await ctx.send('Usage: |command|news delete <id>|reset|')
             return CommandResult.fail('Bad id.', error='bad_args')
 
         items = news_store.load_news()

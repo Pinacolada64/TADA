@@ -37,10 +37,11 @@ class BoardSettings:
     """board.py / commands/board.py preferences.
 
     last_date: ISO date string ('YYYY-MM-DD') marking the player's own
-    "read new messages" threshold -- only 'board ld' moves this forward,
-    'board rn' just reads against whatever's currently set and never
-    advances it on its own. None means never set -- board.is_new_since()
-    treats that as "everything is new".
+    "read new messages" threshold -- only 'ld' (typed at the board
+    listing's own prompt) moves this forward, 'rn' just reads against
+    whatever's currently set and never advances it on its own. None
+    means never set -- board.is_new_since() treats that as "everything
+    is new".
     """
     last_date: Optional[str] = None
 

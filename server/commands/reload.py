@@ -135,7 +135,8 @@ class ReloadCommand(Command):
             return await self._list(ctx)
 
         if not positional:
-            await ctx.send('Usage: reload <module> [module...]  |  reload #list')
+            await ctx.send('Usage: |command|reload <module> [module...]|reset|  |  '
+                           '|command|reload #list|reset|')
             return CommandResult.fail('No module given.', error='missing_args')
 
         reloaded, failed = [], []

@@ -262,7 +262,7 @@ class MailCommand(Command):
 
     async def _reply(self, ctx, raw: str) -> CommandResult:
         if '=' not in raw:
-            await ctx.send('Usage: mail #reply <n>=<message>')
+            await ctx.send('Usage: |command|mail #reply <n>=<message>|reset|')
             return CommandResult.fail('Missing =.', error='missing_args')
 
         number_str, _, message = raw.partition('=')
@@ -270,10 +270,10 @@ class MailCommand(Command):
         message    = message.strip()
 
         if not number_str.isdigit():
-            await ctx.send('Usage: mail #reply <n>=<message>')
+            await ctx.send('Usage: |command|mail #reply <n>=<message>|reset|')
             return CommandResult.fail('Missing number.', error='missing_args')
         if not message:
-            await ctx.send('Reply with what?  Usage: mail #reply <n>=<message>')
+            await ctx.send('Reply with what?  Usage: |command|mail #reply <n>=<message>|reset|')
             return CommandResult.fail('Missing message.', error='missing_args')
 
         name    = ctx.player.name
@@ -443,7 +443,7 @@ class MailCommand(Command):
             targets_str, _, message = raw.partition('=')
             message = message.strip()
             if not message:
-                await ctx.send('Mail what?  Usage: mail <target[[,target2]]>=<message>')
+                await ctx.send('Mail what?  Usage: |command|mail <target[[,target2]]>=<message>|reset|')
                 return CommandResult.fail('Missing message.', error='missing_args')
             return await self._send_short(ctx, targets_str, message)
 
@@ -451,7 +451,7 @@ class MailCommand(Command):
 
     async def _send_short(self, ctx, targets_str: str, message: str) -> CommandResult:
         if not targets_str.strip():
-            await ctx.send('Mail whom?  Usage: mail <target[[,target2]]>=<message>')
+            await ctx.send('Mail whom?  Usage: |command|mail <target[[,target2]]>=<message>|reset|')
             return CommandResult.fail('Missing target.', error='missing_args')
 
         targets, problems = self._resolve_targets(ctx, targets_str)
@@ -470,7 +470,7 @@ class MailCommand(Command):
             await ctx.send(p)
         if not targets:
             if not problems:
-                await ctx.send('Mail whom?  Usage: mail <target[[,target2]]> (opens the editor)')
+                await ctx.send('Mail whom?  Usage: |command|mail <target[[,target2]]>|reset| (opens the editor)')
             return CommandResult.fail('No valid target.', error='missing_args')
 
         from text_editor import run_editor

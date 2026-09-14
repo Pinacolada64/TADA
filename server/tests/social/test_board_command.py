@@ -281,11 +281,14 @@ class TestList(BoardCommandTestCase):
 
 
 class TestReadNew(BoardCommandTestCase):
+    """'rn' is now typed at the listing's own 'Read which' prompt rather
+    than a top-level 'board rn' subcommand -- see _list()'s docstring."""
+
     def test_rn_with_no_threshold_shows_everything(self):
         self._seed([{'id': 1, 'title': 'Old', 'author': 'bob', 'anonymous': False,
                       'posted_at': '2020-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []}])
-        ctx = make_ctx(prompts=['q'])
-        run(BoardCommand().execute(ctx, 'rn'))
+        ctx = make_ctx(prompts=['rn', 'q'])
+        run(BoardCommand().execute(ctx))
         sent = str(ctx.prompt.call_args)
         self.assertIn('Old', sent)
 
@@ -298,41 +301,66 @@ class TestReadNew(BoardCommandTestCase):
         ])
         player = _FakePlayer()
         player.command_settings.board.last_date = '2026-01-01'
-        ctx = make_ctx(player=player, prompts=['q'])
-        run(BoardCommand().execute(ctx, 'rn'))
+        ctx = make_ctx(player=player, prompts=['rn', 'q'])
+        run(BoardCommand().execute(ctx))
         sent = str(ctx.prompt.call_args)
         self.assertIn('New Thread', sent)
         self.assertNotIn('Old Thread', sent)
 
+    def test_rn_toggles_back_off(self):
+        self._seed([
+            {'id': 1, 'title': 'Old Thread', 'author': 'bob', 'anonymous': False,
+             'posted_at': '2020-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []},
+            {'id': 2, 'title': 'New Thread', 'author': 'bob', 'anonymous': False,
+             'posted_at': '2030-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []},
+        ])
+        player = _FakePlayer()
+        player.command_settings.board.last_date = '2026-01-01'
+        ctx = make_ctx(player=player, prompts=['rn', 'rn', 'q'])
+        run(BoardCommand().execute(ctx))
+        sent = str(ctx.prompt.call_args)
+        self.assertIn('Old Thread', sent)
+        self.assertIn('New Thread', sent)
+
 
 class TestSetLastDate(BoardCommandTestCase):
+    """'ld' is now typed at the listing's own 'Read which' prompt rather
+    than a top-level 'board ld' subcommand -- see _list()'s docstring."""
+
+    def _seed_one(self):
+        self._seed([{'id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,
+                      'posted_at': '2026-01-01T00:00:00', 'body': [], 'replies': []}])
+
     def test_absolute_date_sets_threshold(self):
+        self._seed_one()
         player = _FakePlayer()
-        ctx = make_ctx(player=player, prompts=['7/1/26'])
-        result = run(BoardCommand().execute(ctx, 'ld'))
-        self.assertTrue(result.success)
+        ctx = make_ctx(player=player, prompts=['ld', '7/1/26', 'q'])
+        run(BoardCommand().execute(ctx))
         self.assertEqual(player.command_settings.board.last_date, '2026-07-01')
 
     def test_relative_shortcut_sets_threshold(self):
         import datetime
+        self._seed_one()
         player = _FakePlayer()
-        ctx = make_ctx(player=player, prompts=['1 week'])
-        run(BoardCommand().execute(ctx, 'ld'))
+        ctx = make_ctx(player=player, prompts=['ld', '1 week', 'q'])
+        run(BoardCommand().execute(ctx))
         expected = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
         self.assertEqual(player.command_settings.board.last_date, expected)
 
     def test_blank_leaves_threshold_unchanged(self):
+        self._seed_one()
         player = _FakePlayer()
         player.command_settings.board.last_date = '2026-01-01'
-        ctx = make_ctx(player=player, prompts=[''])
-        run(BoardCommand().execute(ctx, 'ld'))
+        ctx = make_ctx(player=player, prompts=['ld', '', 'q'])
+        run(BoardCommand().execute(ctx))
         self.assertEqual(player.command_settings.board.last_date, '2026-01-01')
 
     def test_unparseable_text_reports_error(self):
+        self._seed_one()
         player = _FakePlayer()
-        ctx = make_ctx(player=player, prompts=['not a date at all!!'])
-        result = run(BoardCommand().execute(ctx, 'ld'))
-        self.assertFalse(result.success)
+        ctx = make_ctx(player=player, prompts=['ld', 'not a date at all!!', 'q'])
+        run(BoardCommand().execute(ctx))
+        self.assertIn("Didn't understand that date.", str(ctx.send.call_args_list))
 
 
 class TestPostAndReply(BoardCommandTestCase):
@@ -530,7 +558,7 @@ class TestDelete(BoardCommandTestCase):
         self._seed([{'id': 1, 'title': 'X', 'author': 'a', 'anonymous': False,
                       'body': [], 'replies': []}])
         ctx = make_ctx(player=_FakePlayer(admin=False))
-        result = run(BoardCommand().execute(ctx, 'delete', '1'))
+        result = run(BoardCommand().execute(ctx, '#delete', '1'))
         self.assertFalse(result.success)
         self.assertEqual(result.error, 'permission_denied')
 
@@ -538,9 +566,15 @@ class TestDelete(BoardCommandTestCase):
         self._seed([{'id': 1, 'title': 'X', 'author': 'a', 'anonymous': False,
                       'body': [], 'replies': []}])
         ctx = make_ctx(player=_FakePlayer(admin=True))
-        result = run(BoardCommand().execute(ctx, 'delete', '1'))
+        result = run(BoardCommand().execute(ctx, '#delete', '1'))
         self.assertTrue(result.success)
         self.assertEqual(board_store.load_board(self.path), [])
+
+    def test_missing_id_reports_usage(self):
+        ctx = make_ctx(player=_FakePlayer(admin=True))
+        result = run(BoardCommand().execute(ctx, '#delete'))
+        self.assertFalse(result.success)
+        self.assertIn('Usage:', str(ctx.send.call_args_list))
 
 
 class TestTwoLevelPicker(BoardCommandTestCase):
@@ -642,15 +676,61 @@ class TestTwoLevelPicker(BoardCommandTestCase):
         self.assertTrue(result.success)
         self.assertEqual(ctx.prompt.await_count, 1)
 
-    def test_reading_a_thread_by_id_bypasses_the_picker_entirely(self):
-        # Thread ids are globally unique -- 'board <id>' never needs
-        # pick_board(), even with multiple boards/SIGs around.
+    def test_one_number_picks_the_sig_by_position(self):
+        # 'board 2' -- second visible SIG (Off Topic), whose one board
+        # (Gamma) needs no board-level prompt of its own.
+        self._seed_two_boards()
+        ctx = make_ctx(prompts=['q'])
+        run(BoardCommand().execute(ctx, '2'))
+        self.assertEqual(ctx.prompt.await_count, 1)
+        sent = str(ctx.send.call_args_list)
+        self.assertIn('Welcome to the Off Topic SIG!', sent)
+        self.assertIn('Welcome to the Gamma board!', sent)
+
+    def test_one_number_with_ambiguous_board_still_prompts_for_board(self):
+        # 'board 1' -- General has two boards, so there's still a board
+        # picker even though the SIG itself was picked by number.
+        self._seed_two_boards()
+        ctx = make_ctx(prompts=['2', 'q'])
+        run(BoardCommand().execute(ctx, '1'))
+        board_prompt, listing_prompt = ctx.prompt.call_args_list
+        self.assertIn('Alpha', str(board_prompt))
+        self.assertIn('Beta', str(board_prompt))
+        self.assertIn('In Beta', str(listing_prompt))
+
+    def test_two_numbers_land_directly_with_no_prompting_at_all(self):
+        # 'board 1 2' -- General's second board (Beta), skipping both
+        # the SIG and board pickers entirely.
+        self._seed_two_boards()
+        ctx = make_ctx(prompts=['q'])
+        run(BoardCommand().execute(ctx, '1', '2'))
+        self.assertEqual(ctx.prompt.await_count, 1)
+        self.assertIn('In Beta', str(ctx.prompt.call_args))
+
+    def test_sig_number_out_of_range_reports_and_does_not_prompt(self):
         self._seed_two_boards()
         ctx = make_ctx()
-        run(BoardCommand().execute(ctx, '2'))
+        run(BoardCommand().execute(ctx, '9'))
         self.assertEqual(ctx.prompt.await_count, 0)
-        sent = str(ctx.send.call_args_list)
-        self.assertIn('In Beta', sent)
+        self.assertIn("'9' is not a valid SIG number.", str(ctx.send.call_args_list))
+
+    def test_board_number_out_of_range_reports_and_does_not_prompt(self):
+        self._seed_two_boards()
+        ctx = make_ctx()
+        run(BoardCommand().execute(ctx, '1', '9'))
+        self.assertEqual(ctx.prompt.await_count, 0)
+        self.assertIn("'9' is not a valid board number.", str(ctx.send.call_args_list))
+
+    def test_second_number_is_an_error_with_no_sig_level(self):
+        # Single-board-shortcut install (no SIGs configured at all) --
+        # there's no SIG level, so 'board <n>' picks a board directly
+        # and a second number has nothing left to mean.
+        self._seed([{'id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,
+                      'posted_at': '2026-01-01T00:00:00', 'body': [], 'replies': []}])
+        ctx = make_ctx()
+        run(BoardCommand().execute(ctx, '1', '2'))
+        self.assertEqual(ctx.prompt.await_count, 0)
+        self.assertIn("I don't understand the second number ('2').", str(ctx.send.call_args_list))
 
 
 class TestBoardSigNavigation(BoardCommandTestCase):
@@ -770,17 +850,21 @@ class TestBoardAccessGating(BoardCommandTestCase):
         board_prompt = ctx.prompt.call_args_list[0]
         self.assertIn('Sword-Only', str(board_prompt))
 
-    def test_direct_thread_read_denied_for_gated_board(self):
+    def test_landing_number_denied_for_gated_board(self):
+        # One SIG (General) with two boards, one gated -- a civilian
+        # only ever sees Open in the flat board list, so 'board 2'
+        # (Sword-Only's position when both are visible) is simply out
+        # of range for them, not a distinguishable "access denied".
         self._seed_gated_board()
         ctx = make_ctx(player=_FakePlayer(guild=Guild.CIVILIAN))
         run(BoardCommand().execute(ctx, '2'))
-        self.assertIn('No such thread.', str(ctx.send.call_args_list))
+        self.assertIn("'2' is not a valid board number.", str(ctx.send.call_args_list))
 
-    def test_direct_thread_read_allowed_for_member(self):
+    def test_landing_number_allowed_for_member(self):
         self._seed_gated_board()
-        ctx = make_ctx(player=_FakePlayer(guild=Guild.SWORD))
+        ctx = make_ctx(player=_FakePlayer(guild=Guild.SWORD), prompts=['q'])
         run(BoardCommand().execute(ctx, '2'))
-        self.assertIn('Secret Thread', str(ctx.send.call_args_list))
+        self.assertIn('Secret Thread', str(ctx.prompt.call_args))
 
     def test_reply_denied_for_gated_board(self):
         ctx_prompts = ['My Reply', 'body text', '.s']
@@ -825,9 +909,13 @@ class TestBoardAccessGating(BoardCommandTestCase):
 
 
 class TestReadScanAllNew(BoardCommandTestCase):
-    """'board ra' (Read All new -- full text) / 'board sa' (Scan All
-    new -- headers only), both across every SIG/board the player can
-    access, not just the current one -- Phase 4 of the sig-editor plan."""
+    """'ra' (Read All new -- full text) / 'sa' (Scan All new -- headers
+    only), both across every SIG/board the player can access, not just
+    the current one -- Phase 4 of the sig-editor plan. Exercised via
+    BoardCommand()._read_all_new()/_scan_all_new() directly, same as any
+    other helper _list() dispatches to from its 'Read which' prompt --
+    see TestListingPromptCommands below for coverage of actually typing
+    'ra'/'sa' there."""
 
     def _seed_two_sigs(self):
         # Two SIGs, one board each -- General (open) and Sword-Only
@@ -859,7 +947,7 @@ class TestReadScanAllNew(BoardCommandTestCase):
         player = _FakePlayer(guild=Guild.SWORD)
         player.command_settings.board.last_date = '2026-01-01'
         ctx = make_ctx(player=player, prompts=[''])
-        run(BoardCommand().execute(ctx, 'ra'))
+        run(BoardCommand()._read_all_new(ctx))
         sent = str(ctx.send.call_args_list)
         self.assertIn('New General', sent)
         self.assertIn('New Sword', sent)
@@ -871,7 +959,7 @@ class TestReadScanAllNew(BoardCommandTestCase):
         player = _FakePlayer(guild=Guild.CIVILIAN)
         player.command_settings.board.last_date = '2026-01-01'
         ctx = make_ctx(player=player, prompts=[''])
-        run(BoardCommand().execute(ctx, 'ra'))
+        run(BoardCommand()._read_all_new(ctx))
         sent = str(ctx.send.call_args_list)
         self.assertIn('New General', sent)
         self.assertNotIn('New Sword', sent)
@@ -881,7 +969,7 @@ class TestReadScanAllNew(BoardCommandTestCase):
         player = _FakePlayer(guild=Guild.SWORD)
         player.command_settings.board.last_date = '2026-01-01'
         ctx = make_ctx(player=player, prompts=['q'])
-        result = run(BoardCommand().execute(ctx, 'ra'))
+        result = run(BoardCommand()._read_all_new(ctx))
         self.assertTrue(result.success)
         self.assertEqual(ctx.prompt.await_count, 1)
 
@@ -890,7 +978,7 @@ class TestReadScanAllNew(BoardCommandTestCase):
         player = _FakePlayer(guild=Guild.SWORD)
         player.command_settings.board.last_date = '2031-01-01'
         ctx = make_ctx(player=player)
-        result = run(BoardCommand().execute(ctx, 'ra'))
+        result = run(BoardCommand()._read_all_new(ctx))
         self.assertTrue(result.success)
         self.assertIn('No new messages.', str(ctx.send.call_args_list))
         self.assertEqual(ctx.prompt.await_count, 0)
@@ -900,7 +988,7 @@ class TestReadScanAllNew(BoardCommandTestCase):
         player = _FakePlayer(guild=Guild.SWORD)
         player.command_settings.board.last_date = '2026-01-01'
         ctx = make_ctx(player=player)
-        run(BoardCommand().execute(ctx, 'sa'))
+        run(BoardCommand()._scan_all_new(ctx))
         sent = str(ctx.send.call_args_list)
         self.assertIn('New General', sent)
         self.assertIn('New Sword', sent)
@@ -914,7 +1002,7 @@ class TestReadScanAllNew(BoardCommandTestCase):
         player = _FakePlayer(guild=Guild.CIVILIAN)
         player.command_settings.board.last_date = '2026-01-01'
         ctx = make_ctx(player=player)
-        run(BoardCommand().execute(ctx, 'sa'))
+        run(BoardCommand()._scan_all_new(ctx))
         sent = str(ctx.send.call_args_list)
         self.assertNotIn('New Sword', sent)
 
@@ -923,8 +1011,65 @@ class TestReadScanAllNew(BoardCommandTestCase):
         self._seed([{'id': 1, 'title': 'Hello', 'author': 'bob', 'anonymous': False,
                       'posted_at': '2030-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []}])
         ctx = make_ctx()
-        run(BoardCommand().execute(ctx, 'ra'))
+        run(BoardCommand()._read_all_new(ctx))
         self.assertIn('Hello', str(ctx.send.call_args_list))
+
+    def test_sn_scans_only_the_current_board_not_every_board(self):
+        # 'sn' is 'sa's single-board counterpart -- new threads' headers
+        # only, scoped to whichever board_id it's called with, unlike
+        # 'sa' which walks every accessible SIG/board.
+        import datetime
+        self._seed_two_sigs()
+        ctx = make_ctx(player=_FakePlayer(guild=Guild.SWORD))
+        run(BoardCommand()._scan_new_here(ctx, board_id=1, since=datetime.date(2026, 1, 1)))
+        sent = str(ctx.send.call_args_list)
+        self.assertIn('New General', sent)
+        self.assertNotIn('New Sword', sent)
+        self.assertNotIn('hi', sent)
+
+
+class TestListingPromptCommands(BoardCommandTestCase):
+    """'rn'/'sn'/'ra'/'sa'/'ld' are typed at the listing's own 'Read
+    which' prompt rather than being top-level 'board' subcommands --
+    this exercises that they're actually reachable there (the commands'
+    own behavior is covered directly in TestReadNew/TestSetLastDate/
+    TestReadScanAllNew above)."""
+
+    def _seed_new_and_old(self):
+        self._seed([
+            {'id': 1, 'title': 'Old Thread', 'author': 'bob', 'anonymous': False,
+             'posted_at': '2020-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []},
+            {'id': 2, 'title': 'New Thread', 'author': 'bob', 'anonymous': False,
+             'posted_at': '2030-01-01T00:00:00', 'body': [{'text': 'x'}], 'replies': []},
+        ])
+
+    def test_sn_reachable_from_the_listing_prompt(self):
+        self._seed_new_and_old()
+        player = _FakePlayer()
+        player.command_settings.board.last_date = '2026-01-01'
+        ctx = make_ctx(player=player, prompts=['sn', 'q'])
+        run(BoardCommand().execute(ctx))
+        sent = str(ctx.send.call_args_list)
+        self.assertIn('New Thread', sent)
+        self.assertNotIn('Old Thread', sent)
+
+    def test_ra_reachable_from_the_listing_prompt(self):
+        self._seed_new_and_old()
+        player = _FakePlayer()
+        player.command_settings.board.last_date = '2026-01-01'
+        ctx = make_ctx(player=player, prompts=['ra', 'q'])
+        run(BoardCommand().execute(ctx))
+        sent = str(ctx.send.call_args_list)
+        self.assertIn('New Thread', sent)
+
+    def test_sa_reachable_from_the_listing_prompt(self):
+        self._seed_new_and_old()
+        player = _FakePlayer()
+        player.command_settings.board.last_date = '2026-01-01'
+        ctx = make_ctx(player=player, prompts=['sa', 'q'])
+        run(BoardCommand().execute(ctx))
+        sent = str(ctx.send.call_args_list)
+        self.assertIn('New Thread', sent)
 
 
 if __name__ == '__main__':

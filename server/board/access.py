@@ -10,8 +10,8 @@ accessible_board_ids()/visible_sigs() are the filtering helpers built
 on top of it -- wired into commands/board/board.py's pick_board()/
 _navigate() (so a gated board never appears in a picker or as a '>'/
 '<'/'>>'/'<<' destination) and into _post()/_reply()/_delete()/
-_read_one() (so a direct 'board <id>'/'board reply <id>'/'board delete
-<id>' can't reach a thread on a board the player can't access either).
+_read_one() (so a direct 'board reply <id>'/'board #delete <id>' can't
+reach a thread on a board the player can't access either).
 """
 from __future__ import annotations
 

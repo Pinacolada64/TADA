@@ -1792,3 +1792,53 @@ Leading `from` is stripped.  Example: `from Jul 1 to Dec 31`.
   relative prevalence of each denomination before committing to a design.  The existing
   `PlayerMoneyTypes` enum and `player.silver` dict are the main touch-points; shop prices,
   bank transfers, and all display strings would also need updating.
+
+---
+
+## Display / Color Markup (`|token|` syntax)
+
+TADA-native (no SPUR equivalent — SPUR's screen output was raw PETSCII with no
+abstraction layer). `formatting.py`'s `|token|` / `|token:count|` syntax lets
+game text carry color/control codes that render correctly on ANSI terminals,
+real Commodore hardware (PETSCII), and plain-text clients alike, without each
+call site caring which. See `commands/help.py`'s in-game `help colors` topic
+for the player-facing explainer.
+
+### Implemented
+- **Fixed named colors** — `|red|`, `|cyan|`, `|yellow|`, etc. (`formatting.
+  ANSI_COLOR_CODES` / `PETSCII_CONTROL_CODES`) always render as that exact
+  color regardless of player preference. `|tab|` / `|tab:5|` and other
+  non-color control tokens share the same `:count`-repeat syntax.
+- **`|reset|`** — not a fixed color; resolves to *the player's own* PREFS 'C'
+  Colors → Text choice (`ANSICodec`/`PETSCIICodec.reset_color`, threaded
+  through `codec_for_settings()`), so text returns to whatever that player
+  has set as their normal color rather than an uncontrolled terminal default.
+- **`|command|`** (added 2026-09) — a second player-configurable token,
+  alongside `|reset|`: resolves to PREFS 'C' Colors → Command (default
+  cyan), for coloring literal in-game command syntax in help/status text
+  (e.g. `|command|.h h|reset|`, `|command|reload <module>|reset|`) — kept
+  distinct from `[bracket]`-highlighted entities/emphasis, which use a
+  separate PREFS 'C' Colors → Highlight color. Editable via PREFS 'C' →
+  Colors & Graphics → Colors (`commands/prefs.py`'s `_pick_colors()`).
+  Swept into `text_editor.py`'s dot-command help table, and into
+  `commands/{mail,reload,news}.py` and `commands/board/board.py`'s
+  `Usage:`/`Help(notes=)` player-facing strings referencing command syntax.
+  Not yet swept into every command module's `Help(usage=/examples=)` left
+  -hand columns — those render through a separate, uniform two-column table
+  convention (`commands.help.format_two_column()`/`format_summary_table()`),
+  so converting them is a broader systemic decision rather than a targeted
+  sweep.
+- **`[bracket]` auto-highlighting** — a *different* mechanism from `|token|`:
+  literal `[text]` in any player-facing string gets colored via PREFS 'C'
+  Colors → Highlight (`formatting.highlight_brackets()`), no explicit token
+  needed. `[[escaped]]` renders as literal `[escaped]` brackets.
+- **Visible-length-aware wrapping** — `formatting.wrap_text()`/`_visible_len()`
+  treat `|token|` sequences (and `[bracket]`/`{glyph}` markup) as zero-width
+  when computing word-wrap and column-padding, so embedding a token in text
+  that gets column-aligned or wrapped doesn't throw off the layout. Used by
+  `text_editor.py`'s dot-leader help lines and `commands/help.py`'s
+  `format_two_column()`/`format_summary_table()`/description/notes/see-also
+  rendering (all previously used raw `textwrap.wrap()`, which double-counted
+  token characters against the wrap width — fixed 2026-09 alongside the
+  `|command|` sweep, since several `|command|`-bearing `Usage:`/`notes=`
+  strings now exercise that path).
