@@ -1386,6 +1386,13 @@ help_menu_filename:
 ; the _pp.asm file, not the raw source).
 {include:keymap_pp.asm}
 
+; --- Keyboard rollover scan (replaces stock scan inside irq_handler) ---
+; Split into its own file, keyboard_rollover.asm -- see that file's own
+; header for the full picture (why blink logic was deliberately left
+; out, zero-page usage verified against this codebase's own past
+; collision history). kr_scan is called from irq_handler above.
+{include:keyboard_rollover_pp.asm}
+
 ; --- Init NMI receive handler ---
 ; The SwiftLink cartridge raises NMI (not IRQ) when a byte arrives --
 ; init_swiftlink's SL_CMD_INIT already tells the ACIA to do this. Without
@@ -2885,7 +2892,7 @@ init_irq:
         rts
 
 ; --- IRQ handler ---
-; Two tiers, matching ImageBBS's irqhn.asm shape (irq9/irq10 unconditional
+; Three tiers, matching ImageBBS's irqhn.asm shape (irq9/irq10 unconditional
 ; + irqtbl/irq0 round-robin), repurposed for this client's own jobs:
 ;   1. sid_play runs every single tick, unconditionally -- playback tempo
 ;      must never depend on how many other jobs are registered.
@@ -2893,10 +2900,26 @@ init_irq:
 ;      latency-tolerant background work (currently just a placeholder
 ;      heartbeat; future candidates: a SwiftLink TX queue pump, since
 ;      sl_send today busy-waits on TDRE rather than being interrupt-driven).
+;   3. kr_scan (keyboard_rollover.asm) replaces the stock keyboard scan
+;      that irq_orig used to reach by chaining wholesale to $ea31 -- see
+;      [[project_3_key_rollover_idea]]/[[project_3_key_rollover_keymap_demo]]
+;      in project memory. This does NOT chain to irq_orig anymore: doing
+;      both would double-scan the keyboard (once via kr_scan, once via
+;      the stock scan still living inside $ea31). Instead this jumps
+;      straight to $ea7e, the stock IRQ's own ack-and-return tail (CIA
+;      ICR ack + jiffy clock + STOP-key long-press check + register
+;      restore + rti) -- confirmed byte-identical between stock KERNAL
+;      and this project's JiffyDOS KERNAL via a live VICE monitor read,
+;      2026-09-15, since JiffyDOS only patches disk I/O, not the
+;      keyboard/IRQ chain. irq_orig is still saved by init_irq (kept for
+;      a possible future "restore stock IRQ" path) but is no longer
+;      read here.
 irq_handler:
         jsr sid_play
         jsr irq_dispatch_next
-        jmp (irq_orig)
+        jsr KERNAL_UDTIM
+        jsr kr_scan
+        jmp $ea7e
 
 ; --- Round-robin task dispatcher ---
 ; Advances a self-modified table index by 2 (one word entry) each tick,
