@@ -215,10 +215,23 @@ key_capture_combo:
         ldx #<capture_prompt_msg
         ldy #>capture_prompt_msg
         jsr draw_message_row
+        lda #0
+        sta capture_display_key
+        jsr update_capture_display  ; draw the (blank) live row once
+                                       ; up front, before the first key
 kcc_wait:
         jsr GETIN
         cmp #0
-        beq kcc_wait
+        bne kcc_got_key
+        jsr update_capture_display  ; no key this tick -- still refresh
+                                       ; modifiers/blank-on-release live
+        jmp kcc_wait
+kcc_got_key:
+        sta capture_display_key     ; cache for the live row regardless
+                                       ; of accept/reject below
+        pha
+        jsr update_capture_display
+        pla
         cmp #$03                   ; RUN/STOP -- cancel, no change
         beq kcc_done
         sta capture_key
@@ -240,6 +253,15 @@ kcc_done:
         ldx #<row_help1
         ldy #>row_help1
         jsr draw_message_row        ; restore the normal help line
+        ldx #<row_help2             ; row 19 was overwritten by the
+        ldy #>row_help2              ; live combo readout -- restore it
+        stx poke_src_lo               ; too (draw_message_row only
+        sty poke_src_hi               ; targets row 18)
+        lda #<(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        sta poke_dst_lo
+        lda #>(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        sta poke_dst_hi
+        jsr poke_line
         jsr draw_list
 kcc_rts:
         rts
@@ -248,6 +270,69 @@ capture_key:
         byte 0
 capture_mod:
         byte 0
+
+; --- Live modifier/key readout during the capture wait (Ryan's idea,
+; see [[project_keymap_editor_idea]]/[[project_3_key_rollover_idea]] in
+; project memory -- show C=/Ctrl/Shift + the held key live, blanking
+; the key the instant it's released rather than on a timeout, now that
+; keyboard_rollover.asm's SFDX gives real hold/release state). Reuses
+; describe_combo as-is (same 15-char "Ctrl+D"-style field the saved
+; list itself shows) rather than a bespoke renderer -- capture_live_mod/
+; capture_live_key are laid out exactly like a real binding record
+; (mod byte then key byte) so scr_ptr_lo/hi can point straight at them.
+capture_live_mod:
+        byte 0
+capture_live_key:
+        byte 0
+; Cached from the last real GETIN event seen this wait (not necessarily
+; the one that ends up accepted -- a rejected duplicate re-enters the
+; wait and this keeps showing what was actually pressed). 0 = nothing
+; cached yet.
+capture_display_key:
+        byte 0
+
+; --- update_capture_display: refresh row 19's live readout. Safe to
+; call every kcc_wait iteration -- SHFLAG is live already (no lag);
+; SFDX reverting to $40 blanks the key portion the instant the physical
+; key releases, independent of GETIN's own buffered timing. Clobbers
+; A/X/Y and scr_ptr_lo/hi (both already treated as call-clobbered by
+; every other routine in this file).
+update_capture_display:
+        lda $028d                  ; SHFLAG -- live modifier state
+        and #(MOD_SHIFT|MOD_CMDRE|MOD_CTRL)
+        sta capture_live_mod
+        lda $cb                    ; SFDX -- live matrix coordinate of
+                                     ; the key currently held, $40 = none
+        cmp #$40
+        bne ucd_have_key
+        lda #0                     ; no key held -- key_names' $00
+        sta capture_live_key        ; sentinel blanks the field for us
+        jmp ucd_describe
+ucd_have_key:
+        lda capture_display_key
+        sta capture_live_key
+ucd_describe:
+        lda #<capture_live_mod
+        sta scr_ptr_lo
+        lda #>capture_live_mod
+        sta scr_ptr_hi
+        jsr describe_combo         ; fills row_scratch+15..+29
+        ldx #0
+ucd_copy_loop:
+        lda row_scratch+15,x
+        sta capture_live_row+11,x
+        inx
+        cpx #15
+        bne ucd_copy_loop
+        ldx #<capture_live_row
+        ldy #>capture_live_row
+        stx poke_src_lo
+        sty poke_src_hi
+        lda #<(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        sta poke_dst_lo
+        lda #>(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        sta poke_dst_hi
+        jmp poke_line
 
 ; --- capture_check_duplicate: is capture_mod/capture_key already
 ; bound to some OTHER (non-empty) slot? Sets carry and shows an inline
@@ -918,6 +1003,13 @@ key_names:
         word key_f5_name
         byte $88
         word key_f7_name
+        byte $00                  ; sentinel: "no key held" -- GETIN
+        word key_none_name         ; never returns 0 for a real press,
+                                     ; so this is safe to reuse as
+                                     ; update_capture_display's "blank
+                                     ; the key portion" signal, an
+                                     ; empty name that lets dc_pad's
+                                     ; own blanking do the rest
 KEY_NAMES_END = * - key_names
 
 ; .a = one character -> row_scratch+15+describe_combo_col, advances
@@ -1240,6 +1332,9 @@ key_f5_name:
 key_f7_name:
         ascii "F7"
         byte 0
+key_none_name:
+        byte 0                     ; empty string -- see key_names' own
+                                     ; comment on the $00 sentinel entry
 {alpha:normal}
 
 ; Popup box text -- same PETSCII line-drawing screen codes/{alpha:
@@ -1279,6 +1374,18 @@ capture_prompt_msg:
 capture_conflict_msg:
         byte $20,$20,$20,$20, $5d
         ascii " That combo is already used!  "
+        byte $5d, $20,$20,$20,$20
+
+; --- capture_live_row: row 19's content during the capture wait --
+; " Key: " (6 chars) then update_capture_display's own 15-char
+; describe_combo output (offsets 11..25), then 9 trailing blanks.
+; Overwrites row_help2's screen line for the duration of the wait,
+; restored (like row_help1) once key_capture_combo finishes.
+capture_live_row:
+        byte $20,$20,$20,$20, $5d
+        ascii " Key: "
+        area 15, $20
+        byte $20,$20,$20,$20,$20,$20,$20,$20,$20
         byte $5d, $20,$20,$20,$20
 bottom_border:
         byte $20,$20,$20,$20, $6d
