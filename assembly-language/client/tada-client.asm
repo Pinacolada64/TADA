@@ -533,7 +533,9 @@ init_swiftlink:
 ; $0351 and $0352-$0358) precisely so one copy loop populates both; see
 ; PROTO_TABLE's own comment.
 init_jump_table:
-        ldx #25
+        ldx #28                  ; 29 bytes: 7 jmp entries (21) + 8 proto
+                                    ; bytes -- bumped from 25/26 when
+                                    ; JT_RESUME_LOCAL was added
 init_jump_table_loop:
         lda jump_table_template,x
         sta JT_BASE,x
@@ -1232,6 +1234,9 @@ jump_table_template:
         byte SID_STREAM_START, SID_STREAM_CONFIRM, CANVAS_STREAM_CONFIRM
         byte CANVAS_STREAM_CANCEL, DISPLAY_STREAM_CONFIRM
         byte DISPLAY_STREAM_CANCEL, APPLY_STREAM_CONFIRM, HELP_STREAM_CONFIRM
+        jmp read_line             ; JT_RESUME_LOCAL -- see constants.asm's
+                                     ; own comment on why this exists
+                                     ; alongside JT_RESUME
 
 ; --- Load the petscii_editor overlay module and hand control to it ---
 ; Called from handle_recv_byte_canvas_confirm once a real canvas stream

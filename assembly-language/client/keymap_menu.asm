@@ -5,8 +5,15 @@
 ; read_line_not_return -- NOT a server-sent trigger the way config_
 ; menu.asm/help_menu.asm are, since neither the keymap nor macro text
 ; mean anything to the server (see keymap.asm's own header for the
-; full reasoning). Discarded once this returns control via JT_RESUME,
-; same as every other overlay module.
+; full reasoning). Discarded once this returns control via
+; JT_RESUME_LOCAL -- NOT JT_RESUME, unlike every other overlay module:
+; JT_RESUME's target (prompt_loop) unconditionally blocks waiting for
+; a server byte before it'll even look at the keyboard again, which is
+; fine when a server-sent trigger opened the popup (the server's
+; usually already sent, or about to send, something else) but hangs
+; forever here, since nothing server-side has any reason to react to a
+; purely local popup closing. See constants.asm's own JT_RESUME_LOCAL
+; comment for the live 2026-09-14 repro that found this.
 ;
 ; This slice: view the current keymap (all MAX_BINDINGS slots, built
 ; live from keymap_table -- read via KEYMAP_TABLE_PTR, see that
@@ -338,7 +345,10 @@ key_save:
                                      ; same reasoning as init_keymap's
                                      ; own LOAD-side call in keymap.asm
         jsr JT_RESTORE_SCREEN
-        jmp JT_RESUME
+        jmp JT_RESUME_LOCAL        ; NOT JT_RESUME -- see constants.asm's
+                                     ; own comment on why this popup
+                                     ; can't go through the normal
+                                     ; wait-for-server-data resume path
 
 ; --- scratch_keymap_file: SCRATCH any existing KEYMAP.CFG before the
 ; SAVE in key_save above. Sent as a DOS command string ("S0:...") on
@@ -375,7 +385,10 @@ scratch_keymap_file:
 key_cancel:
         jsr restore_keymap_table
         jsr JT_RESTORE_SCREEN
-        jmp JT_RESUME
+        jmp JT_RESUME_LOCAL        ; NOT JT_RESUME -- see constants.asm's
+                                     ; own comment on why this popup
+                                     ; can't go through the normal
+                                     ; wait-for-server-data resume path
 
 ; --- read_error_channel: drain the drive's command/error channel ---
 ; Own copy, not shared with keymap.asm (separate assembly) -- see that
