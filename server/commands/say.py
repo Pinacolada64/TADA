@@ -111,7 +111,7 @@ class SayCommand(Command):
             "Broadcasts a message to all players in your room. "
             "The verb changes based on punctuation: "
             "? = asks, ! = exclaims, ... = mutters, otherwise says. "
-            'The " shortcut works without typing "say" first.'
+            'The " shortcut works without typing |command|say|reset| first.'
         ),
         category = HelpCategory.COMMUNICATION,
         usage    = [
@@ -132,7 +132,7 @@ class SayCommand(Command):
                                     'as Rulan exclaims, "Hello there!"'),
             ('say What time is it?', "A trailing '?' shows as asking instead -- Rulan "
                                       'asks, "What time is it?"'),
-            ('"See you around.',   'The \'"\' shortcut works without typing \'say\' first '
+            ('"See you around.',   'The \'"\' shortcut works without typing |command|say|reset| first '
                                     "-- with no special punctuation at the end, it's just "
                                     'Rulan says, "See you around."'),
             ('say This is something,,up with which I will not put!',
@@ -146,23 +146,23 @@ class SayCommand(Command):
                                     "punctuation-based verb for just this line without "
                                     "touching your saved #verb."),
             ('say #verb=grumble',   "Sets your say verb permanently -- afterward, "
-                                    '"say Hello" shows as Rulan grumbles, "Hello", '
+                                    '|command|say Hello|reset| shows as Rulan grumbles, "Hello", '
                                     'overriding the punctuation-based verb entirely.'),
-            ('say #verb',           "Bare 'say #verb' previews your current custom "
+            ('say #verb',           "Bare |command|say #verb|reset| previews your current custom "
                                     'verb without saying anything (or tells you none '
-                                    "is set). 'say #verb=off' clears it, back to "
+                                    "is set). |command|say #verb=off|reset| clears it, back to "
                                     'punctuation-based selection.'),
             ('say #split',          "Inline equivalent of PREFS 'Y' -- bare "
-                                    "'say #split' reports Say split is On. or "
+                                    "|command|say #split|reset| reports Say split is On. or "
                                     "Say split is Off. without saying anything; "
-                                    "'say #split on'/'say #split off' sets it "
-                                    "directly, and 'say #unsplit' is shorthand "
-                                    "for 'say #split off'."),
+                                    "|command|say #split on|reset|/|command|say #split off|reset| sets it "
+                                    "directly, and |command|say #unsplit|reset| is shorthand "
+                                    "for |command|say #split off|reset|."),
         ],
         notes = [
             "Say Split (PREFS 'Y') must be on for ',,' and ',,,' to do "
             "anything special -- otherwise they're just literal commas.",
-            "'say #verb=off' also accepts 'say #verb=' and 'say #verb=none'.",
+            "|command|say #verb=off|reset| also accepts |command|say #verb=|reset| and |command|say #verb=none|reset|.",
         ],
     )
 

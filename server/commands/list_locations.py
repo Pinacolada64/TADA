@@ -153,18 +153,18 @@ class ListLocationsCommand(Command):
             ('list #w',       'LIST scans every room on every level and reports where a '
                                "category of object currently sits -- a way to answer "
                                '"where are all the copies of X" without digging through '
-                               "the raw data files. \"list #w\" reports every weapon's "
+                               "the raw data files. |command|list #w|reset| reports every weapon's "
                                "current room."),
             ('list #shield',  'Any item "type" works as a switch, not just the '
-                               'shorthand ones -- "list #shield" lists every shield the '
+                               'shorthand ones -- |command|list #shield|reset| lists every shield the '
                                'same way.'),
             ('list #m goblin', 'A category also takes an optional substring to search for '
-                               "a specific entry by name -- \"list #m goblin\" lists only "
+                               "a specific entry by name -- |command|list #m goblin|reset| lists only "
                                'monster locations whose name contains "goblin".'),
             ('list #w #tel',  "Adding '#tel' after the listing prompts you to pick one of "
                                "the results and teleport straight to it -- handy for "
                                "actually going to check on a specific copy."),
-            ('find #r ale',   "'find' is an alias for 'list' -- \"find #r ale\" searches "
+            ('find #r ale',   "'find' is an alias for 'list' -- |command|find #r ale|reset| searches "
                                'ration locations for names containing "ale".'),
         ],
         notes = ['Admin or Dungeon Master only.'],

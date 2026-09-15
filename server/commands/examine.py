@@ -529,7 +529,7 @@ class ExamineCommand(Command):
             ('examine sword',  'Naming an item examines just that one -- handy for '
                                 'checking a specific weapon or treasure before deciding '
                                 'whether to pick it up or wield it.'),
-            ('examine silver', 'Allies and mounts can be examined too -- "examine silver" '
+            ('examine silver', 'Allies and mounts can be examined too -- |command|examine silver|reset| '
                                 'checks an ally/mount named Silver rather than an item.'),
             ('x',              "'x' is a shorter alias for examine -- both do exactly the "
                                 'same thing.'),

@@ -191,8 +191,8 @@ class NewPlayerCommand(Command):
             ("new <username> <password>",  "Skip the username/password prompts."),
         ],
         notes = [
-            "Type 'help', 'h', or '?' at any prompt for assistance.",
-            "You may type 'quit' at any time to abandon character creation.",
+            "Type |command|help|reset|, |command|h|reset|, or |command|?|reset| at any prompt for assistance.",
+            "You may type |command|quit|reset| at any time to abandon character creation.",
         ],
     )
 
