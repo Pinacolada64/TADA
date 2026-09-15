@@ -1243,7 +1243,7 @@ async def _resolve_challenge(ctx: GameContext, accept: bool) -> CommandResult:
 
     defender.pending_duel_challenge = None
 
-    found, _not_found = find_online(ctx, [challenger_name], same_room_only=True)
+    found, _not_found = await find_online(ctx, [challenger_name], same_room_only=True)
     if not found:
         await ctx.send(f'{challenger_name} is no longer here to duel.')
         return CommandResult.fail('Challenger not available.')
@@ -1335,7 +1335,7 @@ async def _resolve_grovel(ctx: GameContext) -> CommandResult:
         await ctx.send("'Groveling will do you no good!'")
         return await _resolve_challenge(ctx, accept=True)
 
-    found, _not_found = find_online(ctx, [challenger_name], same_room_only=True)
+    found, _not_found = await find_online(ctx, [challenger_name], same_room_only=True)
     defender.pending_duel_challenge = None
     if found:
         await found[0].send(f'{defender.name} grovels before you and slinks away.')
@@ -1503,7 +1503,7 @@ class DuelCommand(Command):
             await ctx.send("You can't duel yourself.")
             return CommandResult.fail('Cannot duel self.')
 
-        found, not_found = find_online(ctx, [target_name], same_room_only=True)
+        found, not_found = await find_online(ctx, [target_name], same_room_only=True)
         if not found:
             await ctx.send(f'{target_name} is not here.')
             return CommandResult.fail('Target not found in room.')
