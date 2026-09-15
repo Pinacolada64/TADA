@@ -25,6 +25,9 @@
 
 SCREEN_RAM = $0400
 KERNAL_GETIN  = $ffe4
+KERNAL_STOP   = $ffe1  ; checks the real RUN/STOP key state directly,
+                          ; independent of GETIN's own decoded byte
+KEY_REPEAT    = $028a  ; 650 decimal -- KERNAL repeat-flag byte
 ; KERNAL_CHROUT already defined by 3-key-rollover.asm ({include:}'d
 ; above) -- c64list treats symbol names case-insensitively, so
 ; redeclaring it here is a real redefinition error, not just a style
@@ -49,6 +52,37 @@ MAIN:
         ; the jsr install right after it -- that's the whole point.
         {scatter}
         jsr install
+
+        ; Disable C=+SHIFT charset switching (Ryan's ask) -- CHR$(8)
+        ; is the documented KERNAL control code for this (CHR$(9) is
+        ; the opposite, re-enabling it); without it, accidentally
+        ; toggling to the other charset mid-demo would make the
+        ; letter/hex readout render as different glyphs than what
+        ; describe_combo's own real-client counterpart expects.
+        lda #8
+        jsr KERNAL_CHROUT
+
+        ; Switch to the mixed-case charset (Ryan's ask) BEFORE printing
+        ; the banner -- CHR$(14) is the documented KERNAL control code
+        ; for this (CHR$(142) switches back to the upper/graphics
+        ; charset). Every {alpha:poke}/{alpha:pokealt} string in this
+        ; file (banner_text, the modifier/key names, hex_digits) was
+        ; already assembled assuming this charset -- doing this before
+        ; the very first CHROUT means the banner itself renders
+        ; correctly regardless of whatever charset the machine
+        ; happened to boot into.
+        lda #14
+        jsr KERNAL_CHROUT
+
+        ; Disable ALL key repeat (Ryan's ask -- KEY_REPEAT/$028A,
+        ; 650 decimal): $80 = no keys repeat, $40 = only cursor/space/
+        ; delete repeat (the KERNAL default), $00 = repeat everything.
+        ; This demo tracks held/released state itself via SFDX, so
+        ; stock repeat re-injecting held keys into the GETIN buffer
+        ; on top of that would just be redundant, spurious GETIN
+        ; events for keys this demo already knows are still down.
+        lda #$80
+        sta KEY_REPEAT
 
         lda #$93        ; clear screen
         jsr KERNAL_CHROUT
@@ -90,13 +124,23 @@ demo_skip_mod:
         sta diag_sfdx
         jsr draw_diag_row
 
+        ; RUN/STOP's own GETIN byte is $03 -- and so, it turns out, is
+        ; CTRL+C (Ryan found this live): the KERNAL's decode table
+        ; gives CTRL+<letter> the standard ASCII control-code value
+        ; (alphabetical position), and C is the 3rd letter, so CTRL+C
+        ; decodes to the exact same $03 as the real RUN/STOP key. No
+        ; way to tell them apart from GETIN's byte alone -- checking
+        ; real RUN/STOP state via the KERNAL's own STOP routine ($FFE1,
+        ; reads the physical key directly, independent of anything
+        ; GETIN decoded) instead of comparing GETIN's byte to $03.
+        jsr KERNAL_STOP
+        beq demo_exit
+
         ; --- Key row: GETIN gives us WHICH key; SFDX tells us whether
         ; it's still down -- this is the whole point of the driver ---
         lda diag_getin
         cmp #0
         beq demo_check_release
-        cmp #$03        ; RUN/STOP -- exit the demo
-        beq demo_exit
         sta last_key
         jsr draw_key_row
         jmp demo_loop
@@ -129,19 +173,17 @@ draw_mod_row:
         ldy #>(SCREEN_RAM+10*40)
         stx mod_row_ptr
         sty mod_row_ptr+1
-        ldy #0
-        ; blank the row first
-mod_row_clear:
-        lda #$20
-        sta (mod_row_ptr),y
-        iny
-        cpy #40
-        bne mod_row_clear
+        ; Copy the modifier text FIRST (tracking exactly how far it
+        ; goes via mod_row_col), THEN blank from there up to column 14
+        ; -- NOT a hardcoded blank-width guess. A fixed width (tried
+        ; 10, then 13) is fragile: has to exactly match however many
+        ; modifier names get combined, in whatever order, and one
+        ; wrong guess erases column 15 (the key letter, on this same
+        ; row) again. This way it structurally can't touch column 15
+        ; no matter what's held, since the blank loop below stops
+        ; there unconditionally.
         lda #0
-        sta mod_row_col         ; reset -- persists across mdr_copy
-                                   ; calls below, so each redraw must
-                                   ; start it fresh or the text would
-                                   ; keep marching rightward forever
+        sta mod_row_col
         lda shown_mod
         and #MOD_SHIFT
         beq mdr_try_cmdre
@@ -163,6 +205,18 @@ mdr_try_ctrl:
         ldy #>ctrl_name
         jsr mdr_copy
 mdr_done:
+        ; Blank from wherever the copying above actually ended up
+        ; (mod_row_col) up to column 14 -- never touches column 15,
+        ; where the key letter lives on this same row.
+        ldy mod_row_col
+mod_row_clear:
+        cpy #15
+        beq mod_row_clear_done
+        lda #$20
+        sta (mod_row_ptr),y
+        iny
+        jmp mod_row_clear
+mod_row_clear_done:
         rts
 ; .x/.y = lo/hi of a NUL-terminated name (already includes its own
 ; trailing space, e.g. "SHIFT ") -> append at mod_row_col, advancing
@@ -189,7 +243,7 @@ mdr_copy_done:
 mod_row_col:
         byte 0
 
-; --- draw_key_row / blank_key_row: row 11, a single character showing
+; --- draw_key_row / blank_key_row: row 10, a single character showing
 ; the currently-held key (letter/symbol where possible, else "$XX" hex,
 ; matching keymap_menu.asm's own describe_combo fallback convention) ---
 draw_key_row:
@@ -209,7 +263,81 @@ dkr_try_symbol:
         bcs dkr_hex
         jsr key_row_putc
         rts
+; Friendly names for the "specialized" keys (Ryan's ask -- A-Z and
+; space/digits/punctuation already show their own glyph directly
+; above; this table is for keys with no printable glyph of their
+; own). Same (byte, word) row shape as keymap_menu.asm's own mod_
+; names/key_names in the real client -- checked in a loop, not a
+; hardcoded cmp chain, so adding a name is just adding a row.
 dkr_hex:
+        ; F1-F8: tried Ryan's own matrix-coordinate + Shift-increment
+        ; technique (from his print-fkeys.lbl) first, but it turned
+        ; out to have a real bug here -- SFDX is LIVE state, updated
+        ; every scan, while GETIN returns a BUFFERED byte that can lag
+        ; behind by a cycle or more; for a quick tap, by the time
+        ; GETIN's byte is read the physical key may already be
+        ; released and SFDX can reflect something else entirely (a
+        ; real repro: tapping F8 printed "F2", meaning SFDX had
+        ; drifted to F1's matrix position by the time it was checked).
+        ; Combining a buffered value with a live one that way isn't
+        ; safe. Simpler and correct: trust GETIN's own decoded byte
+        ; directly -- the KERNAL's decode table already gives F2/F4/
+        ; F6/F8 their own distinct bytes from F1/F3/F5/F7, so an
+        ; 8-row table keyed on last_key needs no shift-checking at
+        ; all, and both the "which key" and "which digit" facts come
+        ; from the exact same atomic read.
+        ldy #0
+dkr_fkey_loop:
+        lda last_key
+        cmp fkey_getin_values,y
+        beq dkr_fkey_hit
+        iny
+        cpy #8
+        bne dkr_fkey_loop
+        jmp dkr_special_start
+dkr_fkey_hit:
+        ; key_row_putc internally does `ldy key_row_col` -- clobbers Y,
+        ; which is also the table index this routine still needs for
+        ; the digit lookup below. Real bug, caught live: after the
+        ; first jsr (printing 'F'), Y held whatever key_row_col was
+        ; (0, the first character of any new key-row draw) instead of
+        ; the matched table index, so fkey_digits,y always read index
+        ; 0 -- every F-key showed "F1" regardless of which one was
+        ; actually pressed. Save the index before that first call,
+        ; restore it before using it.
+        sty dkr_fkey_index
+        lda #'F'
+        jsr key_row_putc
+        ldy dkr_fkey_index
+        lda fkey_digits,y
+        jsr key_row_putc
+        rts
+
+dkr_fkey_index:
+        byte 0
+
+dkr_special_start:
+        ldx #0
+dkr_special_loop:
+        cpx #SPECIAL_KEY_NAMES_END
+        beq dkr_hex_fallback
+        lda special_key_names,x
+        cmp last_key
+        beq dkr_special_hit
+        txa
+        clc
+        adc #3
+        tax
+        jmp dkr_special_loop
+dkr_special_hit:
+        lda special_key_names+1,x
+        sta dkr_name_lo
+        lda special_key_names+2,x
+        tay
+        ldx dkr_name_lo
+        jsr key_row_putname
+        rts
+dkr_hex_fallback:
         lda #'$'
         jsr key_row_putc
         lda last_key
@@ -227,11 +355,96 @@ dkr_hex:
         lda hex_digits,x
         jsr key_row_putc
         rts
+
+dkr_name_lo:
+        byte 0
+; GETIN bytes for all 8 function keys, in the same order as
+; fkey_digits below -- see dkr_hex's own comment for why this is
+; keyed on the decoded GETIN byte, not a matrix coordinate.
+fkey_getin_values:
+        byte $85, $89, $86, $8a, $87, $8b, $88, $8c
+{alpha:poke}
+fkey_digits:
+        ascii "12345678"
+{alpha:normal}
+
+special_key_names:
+        byte $0d
+        word name_return
+        byte $14
+        word name_delete
+        byte $94
+        word name_insert
+        byte $9d
+        word name_left
+        byte $1d
+        word name_right
+        byte $91
+        word name_up
+        byte $11
+        word name_down
+        byte $13
+        word name_home
+        byte $93
+        word name_clrhome
+SPECIAL_KEY_NAMES_END = * - special_key_names
+
+{alpha:poke}
+name_return:
+        ascii "Return"
+        byte 0
+name_delete:
+        ascii "Delete"
+        byte 0
+name_insert:
+        ascii "Insert"
+        byte 0
+name_left:
+        ascii "Left"
+        byte 0
+name_right:
+        ascii "Right"
+        byte 0
+name_up:
+        ascii "Up"
+        byte 0
+name_down:
+        ascii "Down"
+        byte 0
+name_home:
+        ascii "Home"
+        byte 0
+name_clrhome:
+        ascii "Clr/Home"
+        byte 0
+{alpha:normal}
+
+; .x/.y = lo/hi of a NUL-terminated name -> print via key_row_putc.
+; Uses X (not Y) for the source-string index, since key_row_putc
+; itself uses Y internally (for the destination column) -- same "keep
+; the loop index in a register the primitive doesn't touch" rule the
+; real client's own copy_key_name/describe_combo_putc pair relies on,
+; just with the two registers' roles swapped to match key_row_putc's
+; own shape.
+key_row_putname:
+        stx krpn_load+1
+        sty krpn_load+2
+        ldx #0
+krpn_loop:
+krpn_load:
+        lda $ffff,x
+        beq krpn_done
+        jsr key_row_putc
+        inx
+        jmp krpn_loop
+krpn_done:
+        rts
+
 key_row_putc:
         pha
-        lda #<(SCREEN_RAM+11*40+15)
+        lda #<(SCREEN_RAM+10*40+15)
         sta key_row_ptr
-        lda #>(SCREEN_RAM+11*40+15)
+        lda #>(SCREEN_RAM+10*40+15)
         sta key_row_ptr+1
         ldy key_row_col
         pla
@@ -239,9 +452,9 @@ key_row_putc:
         inc key_row_col
         rts
 blank_key_row:
-        lda #<(SCREEN_RAM+11*40+15)
+        lda #<(SCREEN_RAM+10*40+15)
         sta key_row_ptr
-        lda #>(SCREEN_RAM+11*40+15)
+        lda #>(SCREEN_RAM+10*40+15)
         sta key_row_ptr+1
         ldy #0
         sty key_row_col
@@ -266,7 +479,15 @@ diag_sfdx:
         byte 0
 
 draw_diag_row:
-        lda diag_getin
+        ; Shows last_key (the CACHED captured byte, held for the whole
+        ; duration of a keypress) rather than the raw instantaneous
+        ; GETIN read -- with key repeat disabled, GETIN only returns
+        ; nonzero for a single fast loop iteration at the instant of
+        ; the initial press, then 0 for the rest of the hold, which
+        ; made this row unreadable in practice (confirmed live: Ryan
+        ; held F3 and read "G=00", the expected-but-useless
+        ; instantaneous value, not what was actually captured).
+        lda last_key
         jsr diag_put_23
         lda diag_sfdx
         jsr diag_put_78
@@ -313,7 +534,7 @@ diag_put_78:
 
 {alpha:poke}
 diag_template:
-        ascii "G=00 S=00 "
+        ascii "K=00 S=00 "
 {alpha:normal}
 
 ; banner_text is printed via CHROUT (plain PETSCII/ASCII expected) --
@@ -327,13 +548,13 @@ banner_text:
         byte 13,13
         ascii "HOLD SHIFT/CTRL/C= AND A KEY --"
         byte 13
-        ascii "ROW 10 SHOWS MODIFIERS HELD LIVE,"
+        ascii "ROW 10 SHOWS MODIFIERS AND THE KEY"
         byte 13
-        ascii "ROW 11 SHOWS THE KEY, BLANKING THE"
+        ascii "HELD LIVE, BLANKING THE INSTANT"
         byte 13
-        ascii "INSTANT IT'S RELEASED (VIA SFDX,"
+        ascii "IT'S RELEASED (VIA SFDX, NOT A"
         byte 13
-        ascii "NOT A TIMEOUT). STOP TO EXIT."
+        ascii "TIMEOUT). STOP TO EXIT."
         byte 0
 
 {alpha:poke}
