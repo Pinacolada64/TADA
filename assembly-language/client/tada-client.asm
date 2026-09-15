@@ -148,10 +148,14 @@
 ; KERNAL routines used by load_petscii_editor/load_config_menu to LOAD an
 ; overlay module from disk on demand (see load_petscii_editor's own
 ; comment for why this is a separate on-disk module rather than resident
-; code).
-{const: KERNAL_SETNAM $ffbd}
-{const: KERNAL_SETLFS $ffba}
-{const: KERNAL_LOAD    $ffd5}
+; code). Plain `=`, not {const:} -- keymap.asm's own init_keymap/load_
+; keymap_menu ({include:}'d, see keymap_table's own comment) need these
+; too, and {const:} is a per-file macro_preprocessor.py text
+; substitution invisible to a separately-preprocessed included file --
+; same reasoning as KERNAL_PLOT just below.
+KERNAL_SETNAM = $ffbd
+KERNAL_SETLFS = $ffba
+KERNAL_LOAD   = $ffd5
 
 ; KERNAL_PLOT is X=row, Y=column (carry set = read current position into
 ; X/Y, carry clear = set position from X/Y) -- NOT the commonly-cited
@@ -167,35 +171,52 @@
 KERNAL_PLOT = $fff0
 
 ; Where every loadable overlay module (petscii_editor.asm, config_menu.
-; asm, help_menu.asm) loads and runs -- $2100, NOT $2000. Moved here
+; asm, help_menu.asm, keymap_menu.asm) loads and runs. Moved here
 ; 2026-08-25 after a real, live-reproduced bug: BACKUP_CHARS/BACKUP_
 ; COLORS (below, the shared screen-backup pair JT_SAVE_SCREEN/JT_
-; RESTORE_SCREEN use) sit at $1900/$1ce8, and BACKUP_COLORS' own 1000
-; bytes run through to $20cf -- 208 bytes INTO where OVERLAY_BUF used to
-; start. Every overlay's module_start calls JT_SAVE_SCREEN as its very
-; first instruction; save_screen's COLOR_RAM-backup copy loop writes
-; straight through that overlap, corrupting the first 208 bytes of the
-; overlay's own just-loaded, currently-executing code the moment that
-; jsr returns -- confirmed live via help_menu.asm: the popup rendered a
-; textbook VICE uninitialized-RAM pattern ($00/$ff alternating, from
-; whatever COLOR_RAM cells landed there) instead of its own row_help1
-; text, then execution ran off into garbage. config_menu.asm/petscii_
-; editor.asm apparently never had anything load-bearing in that specific
-; 208-byte window, so this went unnoticed until help_menu.asm's own
-; layout did. $2100 leaves 49 bytes of margin past BACKUP_COLORS' own
-; end ($20cf) -- comfortably clear, and every overlay module's own
-; `orig $2000` must be updated to `orig $2100` to match (they don't
-; {include:} this constant, see load_petscii_editor's own comment for
-; why the embedded-load-address convention doesn't need them to).
-; Original placement comment (no longer accurate, corrected above):
-; "chosen well clear of both this resident program's own growth ... and
-; the screen/color RAM/KERNAL-adjacent low page usage below" -- true of
-; the resident program's OWN growth, not of BACKUP_CHARS/BACKUP_COLORS,
-; which were added to this same low-page block afterward without
-; re-checking against OVERLAY_BUF. Still leaves the module ~32K of
-; contiguous RAM up to $9fff (BASIC ROM, banked in throughout per this
-; client's design, starts at $a000) to work with.
-{const: OVERLAY_BUF $2100}
+; RESTORE_SCREEN use) sit right below wherever OVERLAY_BUF starts, and
+; BACKUP_COLORS' own 1000-byte backup-copy loop (run by save_screen,
+; called as literally the first instruction of every overlay's
+; module_start) writes straight through into OVERLAY_BUF, corrupting
+; the start of the overlay's own just-loaded, currently-executing code
+; the instant that jsr returns.
+;
+; **This bug recurred 2026-09-02** (keymap_menu.asm's first live test,
+; caught via the VICE monitor: OVERLAY_BUF found full of COLOR_RAM-
+; range garbage bytes moments after JSR JT_SAVE_SCREEN, PC wandering
+; off into a JAM within a few hundred cycles). Root cause: BACKUP_CHARS/
+; BACKUP_COLORS are plain sequential labels (`area 1000, 0` each, no
+; fixed address), not `=` constants -- their real addresses drift
+; upward every time something is added to the resident program earlier
+; in the file. The original fix moved OVERLAY_BUF from $2000 to $2100,
+; leaving 49 bytes of margin past BACKUP_COLORS' then-current end
+; ($20cf); ordinary resident-program growth since then (nothing to do
+; with keymap_menu.asm) pushed BACKUP_COLORS' end to $24d0, erasing
+; that margin and then some -- 976 bytes of silent overlap by the time
+; this was caught. A fixed hardcoded value here is fundamentally
+; fragile against floating labels below it; the real fix is a
+; SIGNIFICANTLY bigger margin so ordinary future growth can't reach it
+; again unnoticed, not just re-measuring the current gap.
+;
+; $2900 leaves ~1.3KB of headroom past BACKUP_COLORS' current end
+; ($24d0) -- every overlay module's own `orig $2100` was updated to
+; `orig $2900` to match (they don't {include:} this constant, see
+; load_petscii_editor's own comment for why the embedded-load-address
+; convention doesn't need them to -- which also means this margin has
+; to be re-checked by hand again if BACKUP_CHARS/BACKUP_COLORS ever
+; move further, same as before). Still leaves the module a comfortable
+; stretch of contiguous RAM up to $9fff (BASIC ROM, banked in
+; throughout per this client's design, starts at $a000) to work with.
+;
+; Plain `=`, not {const:} -- keymap.asm's own load_keymap_menu
+; ({include:}'d, see keymap_table's own comment) needs this too, same
+; KERNAL_PLOT/KERNAL_SETNAM-style reasoning as those. The overlay
+; modules themselves (petscii_editor.asm/config_menu.asm/help_menu.asm/
+; keymap_menu.asm) still don't {include:} it -- they're separate
+; standalone .prg assemblies with their own hardcoded `orig $2900`, not
+; part of this compilation unit at all (see load_petscii_editor's own
+; comment on the embedded-load-address convention that makes that safe).
+OVERLAY_BUF = $2900
 
 ; Fixed low-page jump table the petscii_editor overlay (and any future
 ; loadable module) calls through instead of depending on this resident
@@ -315,6 +336,11 @@ start:
         jsr init_screen
         jsr init_jump_table      ; populate JT_SL_SEND/JT_SL_RECV/JT_RESUME
                                   ; before anything could need them
+        jsr init_keymap          ; load a saved keymap from disk (or fall
+                                  ; back to the built-in default) before
+                                  ; read_line's first poll -- purely local
+                                  ; disk I/O, unrelated to SwiftLink, so
+                                  ; it runs ahead of the network setup below
         jsr init_nmi             ; install our receive handler before the
         jsr init_swiftlink       ; ACIA is told to start raising NMIs on it
         jsr init_sid             ; silence the SID chip, clear playback state
@@ -507,7 +533,9 @@ init_swiftlink:
 ; $0351 and $0352-$0358) precisely so one copy loop populates both; see
 ; PROTO_TABLE's own comment.
 init_jump_table:
-        ldx #25
+        ldx #28                  ; 29 bytes: 7 jmp entries (21) + 8 proto
+                                    ; bytes -- bumped from 25/26 when
+                                    ; JT_RESUME_LOCAL was added
 init_jump_table_loop:
         lda jump_table_template,x
         sta JT_BASE,x
@@ -1206,6 +1234,9 @@ jump_table_template:
         byte SID_STREAM_START, SID_STREAM_CONFIRM, CANVAS_STREAM_CONFIRM
         byte CANVAS_STREAM_CANCEL, DISPLAY_STREAM_CONFIRM
         byte DISPLAY_STREAM_CANCEL, APPLY_STREAM_CONFIRM, HELP_STREAM_CONFIRM
+        jmp read_line             ; JT_RESUME_LOCAL -- see constants.asm's
+                                     ; own comment on why this exists
+                                     ; alongside JT_RESUME
 
 ; --- Load the petscii_editor overlay module and hand control to it ---
 ; Called from handle_recv_byte_canvas_confirm once a real canvas stream
@@ -1346,6 +1377,14 @@ config_menu_filename:
 help_menu_filename:
         ascii "HELP.MNU"
 {alpha:normal}
+
+; --- Keymap (rebindable input-line functions + macros) ---
+; Split into its own file, keymap.asm -- see that file's own header for
+; the full picture. init_keymap/keymap_table/load_keymap_menu/etc all
+; live there now; this {include:} is what pulls them into this same
+; compilation unit (see the Makefile's SPLIT_MODULES for why it names
+; the _pp.asm file, not the raw source).
+{include:keymap_pp.asm}
 
 ; --- Init NMI receive handler ---
 ; The SwiftLink cartridge raises NMI (not IRQ) when a byte arrives --
@@ -1745,103 +1784,45 @@ read_line_loop:
         jmp read_line_done
 read_line_not_return:
 
-        ; CRSR UP/DOWN were never in read_line's own dispatch chain at
-        ; all before this -- unhandled, they fell through to
-        ; read_line_store and got typed as literal control bytes, which
-        ; is worse here than a stray on-screen glyph the way it was on
-        ; the 128 client (see input_editor.asm's own cursor up/down
-        ; fix): read_line_store also ECHOES the typed byte via CHROUT,
-        ; and CHROUT-ing $91/$11 as OUTPUT actually executes them as
-        ; cursor-up/cursor-down control codes, moving the real screen
-        ; cursor around uncontrolled -- confirmed live 2026-08-24 by
-        ; Ryan. Rather than just ignore them (matching the 128 side),
-        ; Ryan asked for CRSR UP -> start of line, CRSR DOWN -> end of
-        ; line (when CTRL isn't also held -- see below), a more useful
-        ; binding than a no-op given they're otherwise unused.
-        cmp #$91                 ; CRSR UP (shift+CRSR key)?
-        bne read_line_check_left
-        jsr read_line_home
+        ; --- Keymap dispatch ---
+        ; F7 (unshifted, $88) opens the Keymap Editor popup -- used to
+        ; be a hardcoded special case checked right here, ahead of
+        ; keymap_dispatch below; now it's just ACTION_OPEN_EDITOR, a
+        ; real (and rebindable) keymap_table entry like everything else
+        ; (Ryan's ask, 2026-09-02) -- see keymap_default's own comment.
+        ; keymap_dispatch_run's ACTION_OPEN_EDITOR branch jumps straight
+        ; into load_keymap_menu, entirely locally -- no server round
+        ; trip at all, unlike Video Settings/Help (DISPLAY_STREAM_
+        ; CONFIRM/HELP_STREAM_CONFIRM), since neither the nav-function
+        ; rebinds, macro text, nor which key opens the editor mean
+        ; anything to the server.
+        ; Handles word-left/right (CTRL+CRSR-LEFT/DOWN by default) and
+        ; home/end (plain CRSR-UP/DOWN by default) via keymap_table --
+        ; see keymap.asm's own comment on keymap_dispatch and
+        ; keymap_default. A match here handles the key itself and loops
+        ; back; a miss (e.g. DEL, INST, plain CRSR-LEFT/RIGHT -- none of
+        ; those are in the default keymap at all) falls through to the
+        ; ordinary dispatch below, .A restored to the real typed byte
+        ; either way. This used to be a hardcoded cmp/$028d chain
+        ; directly in this file (CRSR UP/DOWN, CTRL+CRSR-LEFT/DOWN);
+        ; replaced by this table-driven version 2026-09-02 once it was
+        ; confirmed correct live (both a real login-prompt retest and a
+        ; direct synthetic check of every case -- see keymap_dispatch's
+        ; own commit history for the two real bugs that surfaced and
+        ; got fixed along the way). See keymap_default's own comment
+        ; for the historical CTRL+cursor/VICE-GTK caveat that used to
+        ; live here.
+        jsr keymap_dispatch
+        bcc read_line_not_keymap
         jmp read_line_loop
-read_line_check_left:
+read_line_not_keymap:
 
-        ; CTRL+CRSR-LEFT/CTRL+CRSR-DOWN -> word-left/word-right, checked
-        ; ahead of the ordinary dispatch below since GETIN's own byte
-        ; for a cursor key doesn't change when CTRL is also held (CTRL
-        ; only modifies the encoding for letter keys, not cursor keys).
-        ; $028D (653 decimal, SFDX) is the KERNAL's live SHIFT/
-        ; Commodore/CTRL status (0/1/2/4), the C64 cross-reference
-        ; Compute's 128 Programmer's Guide gives for the 128's own $D3
-        ; -- bit 2 (value 4) is CTRL. Written as the explicit hex
-        ; literal $028d here (a plain `lda 653` compiles identically --
-        ; confirmed by comparing the raw assembled bytes of both, both
-        ; give AD 8D 02 -- an earlier version of this comment claimed
-        ; otherwise, that c64list assembles unprefixed numbers as hex
-        ; by default; that claim was wrong and has been corrected, see
-        ; project_tada_c64_client.md's memory entry for the full
-        ; correction). Same key combo the
-        ; 128 client's input_editor.asm uses (see its own comment
-        ; there) for cross-client consistency, chosen there because
-        ; the 128's F1/F7 are unusable as plain shortcuts (KERNAL auto-
-        ; expands them into whole command strings) -- the C64 doesn't
-        ; have that specific problem, but read_line never had word-jump
-        ; at all before this, so there's no existing F1/F7 binding
-        ; being displaced either.
-        ;
-        ; NOTE (2026-08-24): CTRL+CRSR-LEFT/DOWN could not be live-
-        ; confirmed working end-to-end in this session's sandboxed VICE
-        ; testing environment -- isolated via a pure-BASIC PEEK(653)/
-        ; GET A$ test (independent of this file entirely) that Tab
-        ; (VICE's mapped CTRL key here) reads correctly as 4 when held
-        ; alone, and C=+cursor correctly shows a nonzero SFDX value,
-        ; but Tab+cursor (any direction, including CRSR DOWN, which
-        ; shares neither row nor column with Tab in the keyboard
-        ; matrix, ruling out real matrix ghosting) never registers any
-        ; GETIN event at all. This looks like a VICE/GTK-specific
-        ; limitation of the Tab key specifically when held with another
-        ; key (Tab doubles as a GTK focus-navigation key), not a bug in
-        ; this dispatch logic, which is verified correct via py65
-        ; disassembly against source intent. Ryan's own idea for a real
-        ; fix -- installing assembly-language/3-key-rollover-source.lbl
-        ; (a custom IRQ-driven keyboard scan bypassing the KERNAL's own,
-        ; already present in this repo, untracked/unintegrated) in
-        ; place of the KERNAL's scan -- is a legitimate direction but a
-        ; separate, larger undertaking than this dispatch change;
-        ; parked rather than attempted in the same session. Confirm
-        ; the actual key combo on real hardware or a differently-
-        ; configured VICE before relying on it.
-        cmp #$9d                 ; CRSR LEFT (shift+CRSR key)?
-        bne read_line_check_ctrl_down
-        pha
-        lda $028d
-        and #4
-        beq read_line_left_plain ; CTRL not held -- ordinary cursor-left
-        pla                      ; CTRL held -- discard stashed byte,
-        jsr read_line_word_left  ; word-jump instead
-        jmp read_line_loop
-read_line_left_plain:
-        pla
-        jmp read_line_left
-
-read_line_check_ctrl_down:
-        cmp #$11                 ; CRSR DOWN -- see the header comment
-        bne read_line_dispatch_rest ; above for the UP/DOWN backstory
-        pha
-        lda $028d
-        and #4
-        beq read_line_down_plain ; CTRL not held -- jump to end of line
-        pla
-        jsr read_line_word_right
-        jmp read_line_loop
-read_line_down_plain:
-        pla
-        jsr read_line_end
-        jmp read_line_loop
-
-read_line_dispatch_rest:
         cmp #$14                 ; DEL (PETSCII backspace)?
         beq read_line_del
         cmp #$94                 ; INST (shift+DEL) -- insert a blank at cursor?
         beq read_line_inst
+        cmp #$9d                 ; CRSR LEFT (shift+CRSR key)?
+        beq read_line_left
         cmp #$1d                 ; CRSR RIGHT (unshifted CRSR key)?
         beq read_line_right
         jmp read_line_store

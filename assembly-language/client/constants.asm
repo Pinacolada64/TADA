@@ -53,3 +53,41 @@ PROTO_DISPLAY_STREAM_CONFIRM = $c016
 PROTO_DISPLAY_STREAM_CANCEL  = $c017
 PROTO_APPLY_STREAM_CONFIRM   = $c018
 PROTO_HELP_STREAM_CONFIRM    = $c019
+
+; JT_RESUME (jmp prompt_loop) unconditionally calls wait_for_data --
+; block for a server byte -- before it ever calls read_line. Fine for
+; every OTHER overlay module, all reached via a server-sent trigger
+; byte, where the server has almost always already sent (or is about
+; to send) something else by the time the popup closes. keymap_menu.asm
+; is explicitly local-only (no server round trip at all, see its own
+; header comment) -- closing it via JT_RESUME left the client blocked
+; in wait_for_data_first's tight sl_recv poll forever, since nothing
+; server-side has any reason to send anything just because a purely
+; local popup closed. Confirmed live 2026-09-14 via the VICE monitor:
+; reproduced identically via both Save and Cancel (rules out anything
+; specific to either exit path), GETIN itself still worked fine when
+; called directly (rules out the keyboard buffer), and the status-line
+; clock froze too (consistent with mainline never reaching anywhere
+; past the tight poll, not a keyboard-specific issue). JT_RESUME_LOCAL
+; (jmp read_line) skips straight past wait_for_data for exactly this
+; case -- safe because read_line's own entry point already
+; unconditionally resets linelen/cursor_pos to 0 regardless of how it
+; was reached (a pre-existing characteristic, not something this
+; introduces): a player mid-line when they press F7 already lost that
+; partial text under the OLD hardcoded-F7-check code too, since that
+; also `jmp`'d away from read_line's own call frame the same way.
+JT_RESUME_LOCAL              = $c01a
+
+; Not a jump-table entry or protocol byte -- a 2-byte pointer (lo, hi)
+; to keymap_table's real runtime address, written once by init_keymap
+; at boot. keymap_table can't get a fixed hand-chosen address the way
+; BACKUP_CHARS/BACKUP_COLORS/OVERLAY_BUF do (no safe gap of 378+ free
+; bytes was found between the resident program's own natural end and
+; BACKUP_CHARS at $1900), so keymap_menu.asm (a separate standalone
+; .prg, same as config_menu.asm/petscii_editor.asm -- doesn't {include:}
+; keymap.asm and so can't see its `keymap_table = ...` symbol at
+; assembly time even if that address WERE fixed) reads this pointer at
+; runtime instead of needing to know or guess the address in advance.
+; $c01d, not $c01a -- JT_RESUME_LOCAL (above) took the 3 bytes this
+; used to start at.
+KEYMAP_TABLE_PTR             = $c01d

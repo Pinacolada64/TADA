@@ -50,7 +50,7 @@ BOX_ROWS    = 25
 ; $2100, NOT $2000 -- see tada-client.asm's OVERLAY_BUF comment for why
 ; (BACKUP_COLORS overlaps $2000-$20cf; a real, live-reproduced bug this
 ; exact module first exposed).
-        orig $2100
+        orig $2900
 
 module_start:
         jsr JT_SAVE_SCREEN        ; back up whatever's on screen right now
