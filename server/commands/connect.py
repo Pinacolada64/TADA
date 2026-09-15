@@ -235,7 +235,7 @@ class ConnectCommand(Command):
         ],
         notes = [
             "Passwords are not case-sensitive.",
-            "Type 'new' to create a new account.",
+            "Type |command|new|reset| to create a new account.",
         ],
     )
 

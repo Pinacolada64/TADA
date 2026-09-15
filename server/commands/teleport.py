@@ -129,9 +129,9 @@ class TeleportCommand(Command):
         ],
         examples = [
             ('#37',           'TELEPORT jumps instantly to any room, by number or name '
-                               "fragment -- \"#37\" (the bare '#' form) goes straight to "
+                               "fragment -- |command|#37|reset| (the bare '#' form) goes straight to "
                                'room 37 on your current level.'),
-            ('#5 18',         "A second number is the level -- \"#5 18\" goes to room 18 "
+            ('#5 18',         "A second number is the level -- |command|#5 18|reset| goes to room 18 "
                                "on level 5 specifically, rather than assuming your "
                                "current level."),
             ('teleport 1',    "'teleport'/'t' are longer aliases for the same '#' "
@@ -139,19 +139,19 @@ class TeleportCommand(Command):
             ('teleport guild', 'A name (not a number) searches by fragment instead -- '
                                 'lists every room whose name contains "guild", or jumps '
                                 'straight there if only one matches.'),
-            ('#learn armory', "'#learn' saves your current room under a name of your "
+            ('#learn armory', "|command|#learn|reset| saves your current room under a name of your "
                                'choosing, so you can jump back to it later without '
                                'remembering its room number.'),
-            ('#learn',        'With no name given, #learn saves the current room under '
+            ('#learn',        'With no name given, |command|#learn|reset| saves the current room under '
                                'its own room name instead of a custom one.'),
             ('teleport armory', 'Typing a saved name later jumps straight to that '
                                  'remembered destination.'),
-            ('teleport #list', "'#list' (also '#show') lists every destination you've "
-                                'saved with #learn.'),
-            ('#forget armory', "'#forget' removes a saved destination -- with no name "
+            ('teleport #list', "|command|#list|reset| (also '#show') lists every destination you've "
+                                'saved with |command|#learn|reset|.'),
+            ('#forget armory', "|command|#forget|reset| removes a saved destination -- with no name "
                                 "given, it removes the current room's saved entry "
                                 "instead."),
-            ('t #find jakes', "'#find' searches room names across every level at once, "
+            ('t #find jakes', "|command|#find|reset| searches room names across every level at once, "
                                "unlike a bare name search (which only searches your "
                                "current level) -- finds every room whose name contains "
                                '"jakes", anywhere in the game. Purely informational: it '

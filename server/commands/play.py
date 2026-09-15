@@ -100,7 +100,7 @@ class PlayCommand(Command):
         category = HelpCategory.MISCELLANEOUS,
         usage    = [
             ('play <name>',           'Stream a tune from the library and play it.'),
-            ('play <name> <subtune>', 'Play a specific subtune, e.g. "play ultima3 5".'),
+            ('play <name> <subtune>', 'Play a specific subtune, e.g. |command|play ultima3 5|reset|.'),
             ('play #dir',             'List everything in the tune library.'),
             ('play #test',            'Stream the built-in test arpeggio, regardless of the library.'),
             ('play #about',           'Credits for the tools this pipeline is built on.'),

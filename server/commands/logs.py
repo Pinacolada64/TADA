@@ -164,7 +164,7 @@ class LogsCommand(Command):
     help = Help(
         summary     = 'Browse server-side logs: system log, statue memorials, battle log (admin/DM only).',
         description = (
-            'Bare `logs` shows a numbered menu of available log sources. '
+            'Bare |command|logs|reset| shows a numbered menu of available log sources. '
             'Each source then asks which day to view -- only Today works '
             'until log rotation is implemented -- then offers an optional '
             'player filter (and, for the system log, an optional module '

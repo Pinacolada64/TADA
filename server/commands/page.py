@@ -101,7 +101,7 @@ class PageCommand(Command):
                                                  "'#unignore' him."),
             ('page #haven',                     "'#haven' blocks everyone's pages at "
                                                  "once, not just one player -- lasts "
-                                                 "until you type 'page #unhaven'."),
+                                                 "until you type |command|page #unhaven|reset|."),
         ],
         notes = [
             'Use [whisper] to restrict delivery to players in your room.',
