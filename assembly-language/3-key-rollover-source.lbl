@@ -1,0 +1,406 @@
+orig $cd00 ; original was $c500
+
+CAS1	= $c0 ; Tape Motor Interlock (temp storage
+LSTX	= $c5 ; Matrix Coordinate of Last Key Pressed, 64=None Pressed
+SFDX	= $cb ; Matrix Coordinate of Current Key Pressed
+BLNSW	= $cc ; Cursor Blink Enable: 0=Flash Cursor
+BLNCT	= $cd ; Timer: Countdown to Blink Cursor
+GDBLN	= $ce ; Character Under Cursor
+BLNON	= $cf ; Flag: Was Last Cursor Blink on or off
+PNT	= $d1 ; Pointer to the Address of the Current Screen Line
+PNTR	= $d3 ; Cursor Column on Current Line
+USER	= $f3 ; Pointer: Address of the Current Screen Color RAM Location
+KEYTAB	= $f5 ; Vector: Keyboard Decode Table
+COLOR	= $0286 ; Current Foreground Color for Text
+GDCOL	= $0287 ; Color of Character Under Cursor
+SHFLAG	= $028d ; Flag: SHIFT/CTRL/Logo Keypress
+KEYLOG	= $028f ; Vector: Keyboard Table Setup Routine
+CINV	= $0314 ; Vector: IRQ Interrupt Routine
+NMINV	= $0318 ; Vector: Non-Maskable Interrupt
+CIAPRA	= $dc00 ; Data Port Register A
+CIAPRB	= $dc01 ; Data Port Register B
+CI2ICR	= $dd0d ; CIA #2 Interrupt Control Register
+SCRNSTOR= $ea1c ; .a: char, $d1: screen addr, .x: color
+COLRSYNC= $ea24 ; Synchronize Color RAM Pointer to Screen Line Pointer
+CHROUT	= $ffd2 ; Output char in .A to current output device
+STOP	= $ffe1 ; check for STOP key pressed
+UDTIM	= $ffea ; update the software clock
+
+	jmp install	; $c500  4c c4 c5
+	jmp uninstall	; $c503  4c 10 c6
+	jmp c5ea	; $c506  4c ea c5
+c509:
+	jsr UDTIM	; $c509  20 ea ff
+	lda BLNSW	; $c50c  a5 cc
+	bne c539	; $c50e  d0 29
+	dec BLNCT	; $c510  c6 cd
+	bne c539	; $c512  d0 25
+	lda #$14	; $c514  a9 14
+	sta BLNCT	; $c516  85 cd
+	ldy PNTR	; $c518  a4 d3
+	lsr BLNON	; $c51a  46 cf
+	ldx GDCOL	; $c51c  ae 87 02
+	lda (PNT),y	; $c51f  b1 d1
+	bcs c534	; $c521  b0 11
+	inc BLNON	; $c523  e6 cf
+	sta GDBLN	; $c525  85 ce
+	jsr COLRSYNC	; $c527  20 24 ea
+	lda (USER),y	; $c52a  b1 f3
+	sta GDCOL	; $c52c  8d 87 02
+	ldx COLOR	; $c52f  ae 86 02
+	lda GDBLN	; $c532  a5 ce
+c534:
+	eor #$80	; $c534  49 80
+	jsr SCRNSTOR	; $c536  20 1c ea
+c539:
+	lda $01		; $c539  a5 01
+	and #$10	; $c53b  29 10
+	beq c549	; $c53d  f0 0a
+	ldy #$00	; $c53f  a0 00
+	sty CAS1	; $c541  84 c0
+	lda $01		; $c543  a5 01
+	ora #$20	; $c545  09 20
+	bne c551	; $c547  d0 08
+c549:
+	lda CAS1	; $c549  a5 c0
+	bne c553	; $c54b  d0 06
+	lda $01		; $c54d  a5 01
+	and #$1f	; $c54f  29 1f
+c551:
+	sta $01		; $c551  85 01
+c553:
+	jsr c559	; $c553  20 59 c5
+	jmp $ea7e	; $c556  4c 7e ea
+c559:
+	lda #$00	; $c559  a9 00
+	sta CIAPRA	; $c55b  8d 00 dc
+c55e:
+	lda CIAPRB	; $c55e  ad 01 dc	; debounce
+	cmp CIAPRB	; $c561  cd 01 dc	; key
+	bne c55e	; $c564  d0 f8		; hit
+	cmp #$ff	; $c566  c9 ff
+	beq c5a3	; $c568  f0 39
+	jsr c758	; $c56a  20 58 c7
+	bcc c5a8	; $c56d  90 39
+	jsr c658	; $c56f  20 58 c6
+	jsr c758	; $c572  20 58 c7
+	bcc c5a8	; $c575  90 31
+	jsr c68d	; $c577  20 8d c6
+	jsr c6bb	; $c57a  20 bb c6
+	jsr c6fb	; $c57d  20 fb c6
+	lda #$81	; $c580  a9 81
+	sta KEYTAB	; $c582  85 f5
+	lda #$eb	; $c584  a9 eb
+	sta KEYTAB+1	; $c586  85 f6
+	ldx #$ff	; $c588  a2 ff
+	bit c778	; $c58a  2c 78 c7
+	bmi c5bc	; $c58d  30 2d
+	lda c779	; $c58f  ad 79 c7
+	cmp #$ff	; $c592  c9 ff
+	bne c59d	; $c594  d0 07
+	lda SHFLAG	; $c596  ad 8d 02
+	beq c5bc	; $c599  f0 21
+	lda #$40	; $c59b  a9 40
+c59d:
+	sta SFDX	; $c59d  85 cb
+	tay		; $c59f  a8
+	jmp (KEYLOG)	; $c5a0  6c 8f 02
+c5a3:
+	lda #$7f	; $c5a3  a9 7f
+	sta CIAPRA	; $c5a5  8d 00 dc
+c5a8:
+	lda #$ff	; $c5a8  a9 ff
+	ldx #$02	; $c5aa  a2 02
+c5ac:
+	sta c779,x	; $c5ac  9d 79 c7
+	dex		; $c5af  ca
+	bpl c5ac	; $c5b0  10 fa
+	jsr c6b5	; $c5b2  20 b5 c6
+	ldx #$ff	; $c5b5  a2 ff
+	lda #$00	; $c5b7  a9 00
+	sta c778	; $c5b9  8d 78 c7
+c5bc:
+	lda #$40	; $c5bc  a9 40
+	sta SFDX	; $c5be  85 cb
+	tay		; $c5c0  a8
+	jmp $eb26	; $c5c1  4c 26 eb
+
+install:
+	jsr c5ea	; $c5c4  20 ea c5
+	ldx #$00	; $c5c7  a2 00
+c5c9:
+	lda c5d5,x	; $c5c9  bd d5 c5
+	beq c5d4	; $c5cc  f0 06
+	jsr CHROUT	; $c5ce  20 d2 ff
+	inx		; $c5d1  e8
+	bne c5c9	; $c5d2  d0 f5
+c5d4:
+	rts		; $c5d4  60
+c5d5:
+	brk		; $c5d5  00
+	byte $45,$00
+;	eor $00		; $c5d6  45 00
+	byte $53,$43
+;	sre ($43),y	; $c5d8  53 43
+	brk		; $c5da  00
+	brk		; $c5db  00
+	brk		; $c5dc  00
+	brk		; $c5dd  00
+	brk		; $c5de  00
+	brk		; $c5df  00
+	brk		; $c5e0  00
+	brk		; $c5e1  00
+	brk		; $c5e2  00
+	brk		; $c5e3  00
+	brk		; $c5e4  00
+	brk		; $c5e5  00
+	brk		; $c5e6  00
+	brk		; $c5e7  00
+	brk		; $c5e8  00
+	brk		; $c5e9  00
+c5ea:
+	sei		; $c5ea  78
+	lda #<c509	; $c5eb  a9 09
+	ldy #>c509	; $c5ed  a0 c5
+	sta CINV	; $c5ef  8d 14 03
+	sty CINV+1	; $c5f2  8c 15 03
+	lda #<c627	; $c5f5  a9 27
+	ldy #>c627	; $c5f7  a0 c6
+	sta NMINV	; $c5f9  8d 18 03
+	sty NMINV+1	; $c5fc  8c 19 03
+	cli		; $c5ff  58
+	ldx #$02	; $c600  a2 02
+	lda #$ff	; $c602  a9 ff
+c604:
+	sta c779,x	; $c604  9d 79 c7
+	dex		; $c607  ca
+	bpl c604	; $c608  10 fa
+	lda #$00	; $c60a  a9 00
+	sta c778	; $c60c  8d 78 c7
+	rts		; $c60f  60
+uninstall:
+	sei		; $c610  78
+	lda #$31	; $c611  a9 31
+	ldy #$ea	; $c613  a0 ea
+	sta CINV	; $c615  8d 14 03
+	sty CINV+1	; $c618  8c 15 03
+	lda #$47	; $c61b  a9 47
+	ldy #$fe	; $c61d  a0 fe
+	sta NMINV	; $c61f  8d 18 03
+	sty NMINV+1	; $c622  8c 19 03
+	cli		; $c625  58
+	rts		; $c626  60
+c627:
+	pha		; $c627  48
+	txa		; $c628  8a
+	pha		; $c629  48
+	tya		; $c62a  98
+	pha		; $c62b  48
+	lda #$7f	; $c62c  a9 7f
+	sta CI2ICR	; $c62e  8d 0d dd
+	ldy CI2ICR	; $c631  ac 0d dd
+	bmi c655	; $c634  30 1f
+	jsr $fd02	; $c636  20 02 fd
+	bne c63e	; $c639  d0 03
+	jmp ($8002)	; $c63b  6c 02 80
+c63e:
+	jsr $f6bc	; $c63e  20 bc f6
+	jsr STOP	; $c641  20 e1 ff
+	bne c655	; $c644  d0 0f
+	jsr $fd15	; $c646  20 15 fd
+	jsr $fda3	; $c649  20 a3 fd
+	jsr $e518	; $c64c  20 18 e5
+	jsr c5ea	; $c64f  20 ea c5
+	jmp ($a002)	; $c652  6c 02 a0
+c655:
+	jmp $fe72	; $c655  4c 72 fe
+c658:
+	ldx #$ff	; $c658  a2 ff
+	ldy #$ff	; $c65a  a0 ff
+	lda #$fe	; $c65c  a9 fe
+	sta KEYTAB	; $c65e  85 f5
+	jmp c676	; $c660  4c 76 c6
+c663:
+	lda CIAPRB	; $c663  ad 01 dc
+	cmp CIAPRB	; $c666  cd 01 dc
+	bne c663	; $c669  d0 f8
+	sty CIAPRA	; $c66b  8c 00 dc
+	eor #$ff	; $c66e  49 ff
+	sta c76d,x	; $c670  9d 6d c7
+	sec		; $c673  38
+	rol KEYTAB	; $c674  26 f5
+c676:
+	lda KEYTAB	; $c676  a5 f5
+	sta CIAPRA	; $c678  8d 00 dc
+	inx		; $c67b  e8
+	cpx #$08	; $c67c  e0 08
+	bcc c663	; $c67e  90 e3
+	rts		; $c680  60
+c681:
+	byte $01,$06,$07,$07
+;	ora ($06,x)	; $c681  01 06
+;	slo $07		; $c683  07 07
+c685:
+	byte $80,$10,$20,$04
+c689:
+	byte $01,$01,$02,$04
+;	nop #$10	; $c685  80 10
+;	jsr $0104	; $c687  20 04 01
+;	ora ($02,x)	; $c68a  01 02
+;	nop $20		; $c68c  04 20
+c68d:
+	jsr c6b5
+	ldy #$03	; $c690  a0 03
+c692:
+	ldx c681,y	; $c692  be 81 c6
+	lda c76d,x	; $c695  bd 6d c7
+	and c685,y	; $c698  39 85 c6
+	beq c6b1	; $c69b  f0 14
+	lda c689,y	; $c69d  b9 89 c6
+	ora SHFLAG	; $c6a0  0d 8d 02
+	sta SHFLAG	; $c6a3  8d 8d 02
+	lda c685,y	; $c6a6  b9 85 c6
+	eor #$ff	; $c6a9  49 ff
+	and c76d,x	; $c6ab  3d 6d c7
+	sta c76d,x	; $c6ae  9d 6d c7
+c6b1:
+	dey		; $c6b1  88
+	bpl c692	; $c6b2  10 de
+	rts		; $c6b4  60
+c6b5:
+	lda #$00	; $c6b5  a9 00
+	sta SHFLAG	; $c6b7  8d 8d 02
+	rts		; $c6ba  60
+c6bb:
+	ldx #$02	; $c6bb  a2 02
+	lda #$ff	; $c6bd  a9 ff
+c6bf:
+	sta c775,x	; $c6bf  9d 75 c7
+	dex		; $c6c2  ca
+	bpl c6bf	; $c6c3  10 fa
+	ldy #$00	; $c6c5  a0 00
+	sty KEYTAB	; $c6c7  84 f5
+	ldx #$00	; $c6c9  a2 00
+	stx SFDX	; $c6cb  86 cb
+c6cd:
+	lda c76d,x	; $c6cd  bd 6d c7
+	beq c6ee	; $c6d0  f0 1c
+	ldy SFDX	; $c6d2  a4 cb
+c6d4:
+	lsr		; $c6d4  4a
+	bcc c6e9	; $c6d5  90 12
+	pha		; $c6d7  48
+	stx KEYTAB+1	; $c6d8  86 f6
+	ldx KEYTAB	; $c6da  a6 f5
+	cpx #$03	; $c6dc  e0 03
+	bcs c6e6	; $c6de  b0 06
+	tya		; $c6e0  98
+	sta c775,x	; $c6e1  9d 75 c7
+	inc KEYTAB	; $c6e4  e6 f5
+c6e6:
+	ldx KEYTAB+1	; $c6e6  a6 f6
+	pla		; $c6e8  68
+c6e9:
+	iny		; $c6e9  c8
+	cmp #$00	; $c6ea  c9 00
+	bne c6d4	; $c6ec  d0 e6
+c6ee:
+	clc		; $c6ee  18
+	lda SFDX	; $c6ef  a5 cb
+	adc #$08	; $c6f1  69 08
+	sta SFDX	; $c6f3  85 cb
+	inx		; $c6f5  e8
+	cpx #$08	; $c6f6  e0 08
+	bcc c6cd	; $c6f8  90 d3
+	rts		; $c6fa  60
+c6fb:
+	ldy #$00	; $c6fb  a0 00
+c6fd:
+	lda c779,y	; $c6fd  b9 79 c7
+	cmp #$ff	; $c700  c9 ff
+	beq c728	; $c702  f0 24
+	ldx #$02	; $c704  a2 02
+c706:
+	cmp c775,x	; $c706  dd 75 c7
+	beq c723	; $c709  f0 18
+	dex		; $c70b  ca
+	bpl c706	; $c70c  10 f8
+	tya		; $c70e  98
+	tax		; $c70f  aa
+c710:
+	lda c77a,x	; $c710  bd 7a c7
+	sta c779,x	; $c713  9d 79 c7
+	inx		; $c716  e8
+	cpx #$02	; $c717  e0 02
+	bcc c710	; $c719  90 f5
+	lda #$ff	; $c71b  a9 ff
+	sta c77b	; $c71d  8d 7b c7
+	sta c778	; $c720  8d 78 c7
+c723:
+	iny		; $c723  c8
+	cpy #$03	; $c724  c0 03
+	bcc c6fd	; $c726  90 d5
+c728:
+	ldy #$00	; $c728  a0 00
+c72a:
+	lda c775,y	; $c72a  b9 75 c7
+	cmp #$ff	; $c72d  c9 ff
+	beq c757	; $c72f  f0 26
+	ldx #$02	; $c731  a2 02
+c733:
+	cmp c779,x	; $c733  dd 79 c7
+	beq c752	; $c736  f0 1a
+	dex		; $c738  ca
+	bpl c733	; $c739  10 f8
+	pha		; $c73b  48
+	ldx #$01	; $c73c  a2 01
+c73e:
+	lda c779,x	; $c73e  bd 79 c7
+	sta c77a,x	; $c741  9d 7a c7
+	dex		; $c744  ca
+	bpl c73e	; $c745  10 f7
+	lda #$00	; $c747  a9 00
+	sta c778	; $c749  8d 78 c7
+	pla		; $c74c  68
+	sta c779	; $c74d  8d 79 c7
+	ldy #$03	; $c750  a0 03
+c752:
+	iny		; $c752  c8
+	cpy #$03	; $c753  c0 03
+	bcc c72a	; $c755  90 d3
+c757:
+	rts		; $c757  60
+c758:
+	lda #$ff	; $c758  a9 ff
+	sta CIAPRA	; $c75a  8d 00 dc
+c75d:
+	lda CIAPRB	; $c75d  ad 01 dc
+	cmp CIAPRB	; $c760  cd 01 dc
+	bne c75d	; $c763  d0 f8
+	cmp #$ff	; $c765  c9 ff
+	lda #$7f	; $c767  a9 7f
+	sta CIAPRA	; $c769  8d 00 dc
+	rts		; $c76c  60
+c76d:
+	brk		; $c76d  00
+	brk		; $c76e  00
+	brk		; $c76f  00
+	brk		; $c770  00
+	brk		; $c771  00
+	brk		; $c772  00
+	brk		; $c773  00
+	brk		; $c774  00
+c775:
+	brk		; $c775  00
+	brk		; $c776  00
+	brk		; $c777  00
+c778:
+	brk		; $c778  00
+c779:
+	brk		; $c779  00
+c77a:
+	brk		; $c77a  00
+c77b:
+	brk		; $c77b  00
+	brk		; $c77c  00
+	brk		; $c77d  00
