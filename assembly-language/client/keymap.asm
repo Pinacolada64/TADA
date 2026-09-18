@@ -62,13 +62,15 @@
 ;                            just whatever keymap_table's own zero-fill
 ;                            (or a loaded file's leftover bytes) left
 ;                            there -- harmless, nothing ever reads it
-MAX_BINDINGS   = 15        ; the 4 built-in nav functions, the built-in
+MAX_BINDINGS   = 15        ; the 5 built-in nav functions (word-left,
+                             ; word-right, home via CRSR-UP, home via
+                             ; the real CLR/HOME key, end), the built-in
                              ; "open the editor" binding (F7 by
                              ; default -- Ryan's ask, 2026-09-02: make
                              ; it a real, rebindable keymap_table entry
                              ; instead of a hardcoded special case, so
                              ; it's visible/rebindable the same as
-                             ; everything else) plus up to 10 macros --
+                             ; everything else) plus up to 9 macros --
                              ; still fits without a scrollable list in
                              ; the editor popup
 MACRO_TEXT_LEN = 24
@@ -81,7 +83,7 @@ BINDING_SIZE   = 3 + MACRO_TEXT_LEN
 ; $95 with just a warning (no error) to catch it. If MAX_BINDINGS or
 ; BINDING_SIZE changes, recompute this by hand: MAX_BINDINGS*BINDING_SIZE.
 KEYMAP_TABLE_SIZE   = 405         ; MAX_BINDINGS(15) * BINDING_SIZE(27)
-KEYMAP_DEFAULT_BINDINGS = 5
+KEYMAP_DEFAULT_BINDINGS = 6
 KEYMAP_DEFAULT_SIZE = BINDING_SIZE * KEYMAP_DEFAULT_BINDINGS
 
 MOD_SHIFT = 1
@@ -150,6 +152,18 @@ keymap_default:
         byte MOD_CTRL, $11, ACTION_WORD_RIGHT
         area MACRO_TEXT_LEN, $20
         byte 0, $91, ACTION_HOME
+        area MACRO_TEXT_LEN, $20
+        byte 0, $13, ACTION_HOME  ; real CLR/HOME key -- unbound before
+                                    ; this fix, so it fell through
+                                    ; keymap_dispatch and tada-client.asm's
+                                    ; own DEL/INST/CRSR-LEFT/CRSR-RIGHT
+                                    ; fallback chain straight into
+                                    ; read_line_store, which echoed the
+                                    ; raw $13 byte via CHROUT -- the real
+                                    ; KERNAL HOME control code -- hijacking
+                                    ; the screen cursor out from under the
+                                    ; line editor's own cursor_pos
+                                    ; bookkeeping instead of moving it
         area MACRO_TEXT_LEN, $20
         byte 0, $11, ACTION_END
         area MACRO_TEXT_LEN, $20
