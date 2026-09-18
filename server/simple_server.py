@@ -678,12 +678,12 @@ class Server:
             await ctx.send(*banner)
         await ctx.send(
             '',
-            "Type 'connect <username> <password>' to log in.",
-            "Type 'connect guest' to look around as a guest.",
-            "Type 'new' to create a new character.",
-            "Type 'who' to see who is online.",
-            "Type 'prefs' to set terminal type, colors, and other display preferences.",
-            "Type 'help' for help, 'help about' to learn what this is, or 'quit' to leave.",
+            "Type |command|connect <username> <password>|reset| to log in.",
+            "Type |command|connect guest|reset| to look around as a guest.",
+            "Type |command|new|reset| to create a new character.",
+            "Type |command|who|reset| to see who is online.",
+            "Type |command|prefs|reset| to set terminal type, colors, and other display preferences.",
+            "Type |command|help|reset| for help, |command|help about|reset| to learn what this is, or |command|quit|reset| to leave.",
             '',
         )
 
@@ -703,7 +703,7 @@ class Server:
 
             if not result.success and result.error == 'unknown_command':
                 available = sorted(
-                    f"'{name}'" for name, cmd in processor.get_all_commands().items()
+                    f"|command|{name}|reset|" for name, cmd in processor.get_all_commands().items()
                     if cmd.is_available_in(processor.current_mode)
                 )
                 await ctx.send(
@@ -816,7 +816,7 @@ class Server:
 
             if not result.success and result.error == 'unknown_command':
                 await ctx.send(f"Unknown command '{raw.strip().split()[0]}'. "
-                               "Type 'help' for a list.")
+                               "Type |command|help|reset| for a list.")
                 await self._maybe_offer_help(ctx)
             elif not result.success and result.error == 'command_error':
                 # An uncaught exception in the command itself (see
@@ -887,9 +887,9 @@ class Server:
         from formatting import titled_box
         tip_lines = titled_box(
             ctx, 'Need a Hand?',
-            "Having trouble finding a command? Try 'help' for the full "
-            "list, 'help #search <word>' to look something up by "
-            "keyword, or 'help #summary' for one-line descriptions of "
+            "Having trouble finding a command? Try |command|help|reset| for the full "
+            "list, |command|help #search <word>|reset| to look something up by "
+            "keyword, or |command|help #summary|reset| for one-line descriptions of "
             "everything.",
             frame_color='green', text_color='white', title_color='purple',
         )
