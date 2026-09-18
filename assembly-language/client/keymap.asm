@@ -305,6 +305,20 @@ read_error_channel_loop:
 ; falls through to tada-client.asm's shared load_overlay_error on
 ; failure just like they do.
 load_keymap_menu:
+        jsr status_push_reset
+        ldx #<keymap_opening_msg
+        ldy #>keymap_opening_msg
+        jsr build_status_line     ; "Opening keymap editor..." -- same
+                                    ; direct-call pattern as init_keymap's
+                                    ; own message above (this file is
+                                    ; {include:}'d into the resident
+                                    ; program, so status_push_reset/
+                                    ; build_status_line are ordinary
+                                    ; labels here, not JT_* trampolines --
+                                    ; those exist for keymap_menu.asm's
+                                    ; own Save/Cancel messages instead,
+                                    ; being a separate standalone .prg)
+
         lda #9                   ; length of "KEYMAP.ED" below
         ldx #<keymap_menu_filename
         ldy #>keymap_menu_filename
@@ -326,6 +340,9 @@ load_keymap_menu:
 {alpha:pokealt}
 keymap_loading_msg:
         ascii "Loading KEYMAP.CFG..."
+        byte 0
+keymap_opening_msg:
+        ascii "Opening keymap editor..."
         byte 0
 {alpha:normal}
 

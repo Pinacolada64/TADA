@@ -44,11 +44,32 @@ BOX_ROWS    = 21               ; rows 2-22 -- clear of STATUS_ROW(23)/
 ; if either changes; confirmed no simpler option exists the same way
 ; OVERLAY_BUF's own comment documents for that constant.
 MAX_BINDINGS   = 15        ; keymap.asm's own MAX_BINDINGS comment
-                             ; explains the 4 nav functions + the
+                             ; explains the 5 nav functions (word-left,
+                             ; word-right, home via CRSR-UP, home via
+                             ; the real CLR/HOME key, end) + the
                              ; built-in "open the editor" binding + up
-                             ; to 10 macros
+                             ; to 9 macros
 MACRO_TEXT_LEN = 24
 BINDING_SIZE   = 3 + MACRO_TEXT_LEN
+
+; keymap_default (keymap.asm) binds Home to two adjacent slots -- slot
+; 2 (plain CRSR-UP) and slot 3 (the real CLR/HOME key) -- since both
+; are legitimate physical shortcuts for the same action. Showing them
+; as two separate "Home" rows here would look like a duplicate/bug
+; (Ryan's own catch live 2026-09-18), so this list instead folds them
+; into ONE row: HOME_MERGE_ROW is that row's index (still 2 -- rows 0/1
+; are unaffected), TOTAL_ROWS is one less than MAX_BINDINGS since slot
+; 3 no longer gets its own row, and combo_subindex (declared near
+; selected_row below) tracks which of the two underlying slots
+; (HOME_MERGE_ROW's primary slot + combo_subindex, 0 or 1) CRSR-LEFT/
+; CRSR-RIGHT and RETURN currently act on within that one row -- see
+; row_to_slot's own comment for the row->slot arithmetic this implies.
+; Hardcoded to this one specific row/slot rather than a general N-way
+; merge table: only Home ever needs this today, and key_capture_combo
+; never changes a slot's action byte, so which slots merge is fixed at
+; build time, not something that needs runtime discovery.
+HOME_MERGE_ROW = 2
+TOTAL_ROWS     = MAX_BINDINGS - 1
 
 MOD_SHIFT = 1
 MOD_CMDRE = 2
@@ -116,8 +137,24 @@ module_start:
 
         lda #0
         sta selected_row
+        sta combo_subindex
         jsr draw_popup
         jsr draw_list
+
+        ; Clear keymap.asm's own "Opening keymap editor..." status-row
+        ; message now that the popup is genuinely open and drawn (Ryan's
+        ; ask, 2026-09-18) -- that message is useful feedback DURING the
+        ; real disk LOAD time load_keymap_menu's own LOAD takes, but has
+        ; nothing left to say once we're actually here. Pushing a single-
+        ; NUL "message" through the same push_keymap_status_msg path
+        ; key_save/key_cancel use pads the whole status row with blanks
+        ; at display time (build_status_line's own contract -- see its
+        ; comment in screen-handler.asm), same as if nothing had ever
+        ; been pushed; there's no separate JT_CLEAR_STATUS_LINE entry
+        ; needed for this.
+        ldx #<keymap_status_clear_msg
+        ldy #>keymap_status_clear_msg
+        jsr push_keymap_status_msg
 
 ; --- Main input loop ---
 keymap_menu_loop:
@@ -161,6 +198,11 @@ keymap_keys:
         word key_row_up
         byte $11                  ; cursor down -- next row
         word key_row_down
+        byte $9d                  ; cursor left -- previous sub-entry
+        word key_subselect_prev    ; within a merged row (Home only, for
+                                     ; now); no-op on any other row
+        byte $1d                  ; cursor right -- next sub-entry
+        word key_subselect_next
         byte $53                  ; 'S' -- save and exit
         word key_save
         byte $03                  ; RUN/STOP -- cancel and exit
@@ -173,36 +215,107 @@ key_row_up:
         lda selected_row
         beq kru_wrap
         dec selected_row
-        jmp key_row_done
+        jmp key_row_reset_sub
 kru_wrap:
-        lda #MAX_BINDINGS-1
+        lda #TOTAL_ROWS-1
         sta selected_row
-        jmp key_row_done
+        jmp key_row_reset_sub
 
 key_row_down:
         inc selected_row
         lda selected_row
-        cmp #MAX_BINDINGS
-        bne key_row_done
+        cmp #TOTAL_ROWS
+        bne key_row_reset_sub
         lda #0
         sta selected_row
+key_row_reset_sub:
+        lda #0
+        sta combo_subindex        ; moving to a different row always
+                                     ; re-highlights that row's FIRST
+                                     ; sub-entry, same idea as any list
+                                     ; UI resetting a nested selection
+                                     ; when the outer selection moves
 key_row_done:
         jsr draw_list
         rts
 
+; --- key_subselect_prev/next: CRSR-LEFT/CRSR-RIGHT -- move combo_
+; subindex between HOME_MERGE_ROW's two sub-entries (Ryan's ask,
+; 2026-09-18: comma-separate the two Home bindings into one row rather
+; than showing two identical-looking "Home" rows, with these two keys
+; picking which one RETURN/Save-conflict-checking currently targets).
+; No-op on every other row -- nothing else has more than one sub-entry
+; to move between.
+key_subselect_prev:
+        lda selected_row
+        cmp #HOME_MERGE_ROW
+        bne ksp_rts
+        lda combo_subindex
+        beq ksp_rts                ; already at the first sub-entry
+        dec combo_subindex
+        jsr draw_list
+ksp_rts:
+        rts
+
+key_subselect_next:
+        lda selected_row
+        cmp #HOME_MERGE_ROW
+        bne ksn_rts
+        lda combo_subindex
+        bne ksn_rts                ; already at the last sub-entry (1)
+        inc combo_subindex
+        jsr draw_list
+ksn_rts:
+        rts
+
+; --- row_to_slot: .x = a row index (0..TOTAL_ROWS-1) -> .x = the real
+; keymap_table slot that row's PRIMARY entry describes ---
+; Rows before HOME_MERGE_ROW map 1:1 to the same-numbered slot; rows
+; after it are shifted up by one (slot HOME_MERGE_ROW+1 no longer gets
+; its own row, folded into HOME_MERGE_ROW's row instead -- see that
+; constant's own comment). HOME_MERGE_ROW's row itself also maps to
+; slot HOME_MERGE_ROW unchanged (its primary/first sub-entry) -- callers
+; that need the SECOND sub-entry add combo_subindex on top of this
+; result themselves (see edit_slot below), since that only ever applies
+; to this one row.
+row_to_slot:
+        cpx #HOME_MERGE_ROW+1
+        bcc rts_row_to_slot        ; row <= HOME_MERGE_ROW: slot == row
+        inx                         ; row > HOME_MERGE_ROW: slot = row+1
+rts_row_to_slot:
+        rts
+
+; --- edit_slot: the ONE real keymap_table slot RETURN/duplicate-
+; checking currently act on -- row_to_slot(selected_row) + combo_
+; subindex. combo_subindex is only ever nonzero on HOME_MERGE_ROW (key_
+; subselect_prev/next enforce that), so this is just row_to_slot's
+; result unchanged on every other row.
+edit_slot:
+        ldx selected_row
+        jsr row_to_slot
+        txa
+        clc
+        adc combo_subindex
+        sta edit_slot_value
+        rts
+
+edit_slot_value:
+        byte 0
+
 ; --- selected_slot_addr: scr_ptr_lo/hi = KEYMAP_TABLE_PTR +
-; selected_row*BINDING_SIZE --- same moving-pointer walk describe_
+; edit_slot*BINDING_SIZE --- same moving-pointer walk describe_
 ; binding_row uses, factored out here since key_capture_combo and its
 ; own duplicate check both need a slot's address and this file only
 ; has one zero-page pointer (scr_ptr_lo/hi) to compute it into --
 ; recomputed fresh each use rather than cached, cheap at MAX_BINDINGS-1
 ; iterations of a short loop.
 selected_slot_addr:
+        jsr edit_slot
         lda KEYMAP_TABLE_PTR
         sta scr_ptr_lo
         lda KEYMAP_TABLE_PTR+1
         sta scr_ptr_hi
-        ldx selected_row
+        ldx edit_slot_value
         beq ssa_done
 ssa_loop:
         lda scr_ptr_lo
@@ -239,6 +352,25 @@ key_capture_combo:
         beq kcc_rts
         cmp #ACTION_MACRO
         beq kcc_rts
+
+        ; Snapshot the KERNAL's own PNT/PNTR ($d1/$d2/$d3 -- cursor_
+        ; toggle's own screen-position pointer, read_line_loop's own
+        ; update_cursor uses the same pair) before update_capture_
+        ; display starts repositioning them at the live readout below --
+        ; restored in kcc_done so this wait's own cursor blinking can't
+        ; leak a stale position into read_line once this popup closes.
+        ; cursor_phase itself needs no snapshot/restore: read_line_loop's
+        ; own cursor_hide call (right before dispatching ANY keystroke,
+        ; including the F7 that opened this popup) already guarantees
+        ; it's 0 (erased) on entry here, and kcc_done's own JT_CURSOR_
+        ; HIDE call puts it back to exactly that same state before
+        ; restoring $d1-$d3, so the two states always match up.
+        lda $d1
+        sta capture_saved_pnt_lo
+        lda $d2
+        sta capture_saved_pnt_hi
+        lda $d3
+        sta capture_saved_pntr
 
         ldx #<capture_prompt_msg
         ldy #>capture_prompt_msg
@@ -278,6 +410,18 @@ kcc_got_key:
         lda capture_key
         sta (scr_ptr_lo),y
 kcc_done:
+        jsr JT_CURSOR_HIDE          ; erase the live-readout cursor at
+                                     ; its CURRENT ($d1-$d3) position --
+                                     ; must happen before restoring
+                                     ; those below, while they still
+                                     ; point at the real on-screen spot
+                                     ; the cursor was last drawn at
+        lda capture_saved_pnt_lo
+        sta $d1
+        lda capture_saved_pnt_hi
+        sta $d2
+        lda capture_saved_pntr
+        sta $d3
         ldx #<row_help1
         ldy #>row_help1
         jsr draw_message_row        ; restore the normal help line
@@ -297,6 +441,12 @@ kcc_rts:
 capture_key:
         byte 0
 capture_mod:
+        byte 0
+capture_saved_pnt_lo:
+        byte 0
+capture_saved_pnt_hi:
+        byte 0
+capture_saved_pntr:
         byte 0
 
 ; --- Live modifier/key readout during the capture wait (Ryan's idea,
@@ -319,13 +469,25 @@ capture_live_key:
 capture_display_key:
         byte 0
 
-; --- update_capture_display: refresh row 19's live readout. Safe to
-; call every kcc_wait iteration -- SHFLAG is live already (no lag);
-; SFDX reverting to $40 blanks the key portion the instant the physical
-; key releases, independent of GETIN's own buffered timing. Clobbers
-; A/X/Y and scr_ptr_lo/hi (both already treated as call-clobbered by
-; every other routine in this file).
+; --- update_capture_display: refresh row 19's live readout, and blink
+; a real cursor (via JT_CURSOR_HIDE/JT_UPDATE_CURSOR) right after
+; whatever's currently printed there -- Ryan's ask, 2026-09-18: hide
+; the cursor while (re)printing a modifier name/key name, then show it
+; again once done, so it visibly "follows" the live text and the
+; player can tell the client is still waiting for input rather than
+; hung. Safe to call every kcc_wait iteration -- SHFLAG is live
+; already (no lag); SFDX reverting to $40 blanks the key portion the
+; instant the physical key releases, independent of GETIN's own
+; buffered timing. Clobbers A/X/Y and scr_ptr_lo/hi (both already
+; treated as call-clobbered by every other routine in this file).
 update_capture_display:
+        jsr JT_CURSOR_HIDE          ; erase wherever the cursor was left
+                                     ; blinking last tick, BEFORE this
+                                     ; tick's text overwrites that row --
+                                     ; a harmless no-op on the very first
+                                     ; call (cursor_phase starts at 0,
+                                     ; see key_capture_combo's own
+                                     ; comment on why that's guaranteed)
         lda $028d                  ; SHFLAG -- live modifier state
         and #(MOD_SHIFT|MOD_CMDRE|MOD_CTRL)
         sta capture_live_mod
@@ -345,6 +507,11 @@ ucd_describe:
         lda #>capture_live_mod
         sta scr_ptr_hi
         jsr describe_combo         ; fills row_scratch+15..+29
+        lda describe_combo_col     ; how much of the 15-byte field is
+        sta ucd_text_len            ; real text, not padding -- describe_
+                                     ; combo left this as a side effect;
+                                     ; cache it now before anything else
+                                     ; in this routine can reuse it
         ldx #0
 ucd_copy_loop:
         lda row_scratch+15,x
@@ -360,7 +527,27 @@ ucd_copy_loop:
         sta poke_dst_lo
         lda #>(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
         sta poke_dst_hi
-        jmp poke_line
+        jsr poke_line
+
+        ; Point PNT/PNTR ($d1/$d2/$d3) at the cell right after the live
+        ; text just printed (capture_live_row+11 is column 11 of this
+        ; physical row -- see ucd_copy_loop above) -- JT_UPDATE_CURSOR
+        ; toggles reverse-video on THAT cell if the blink timer calls
+        ; for it this tick, giving a real cursor that visibly sits right
+        ; where the next character would go, "following" the printout.
+        lda #<(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        sta $d1
+        lda #>(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        sta $d2
+        lda #11
+        clc
+        adc ucd_text_len
+        sta $d3
+        jmp JT_UPDATE_CURSOR        ; tail call -- its own rts returns
+                                     ; straight to our caller
+
+ucd_text_len:
+        byte 0
 
 ; --- capture_check_duplicate: is capture_mod/capture_key already
 ; bound to some OTHER (non-empty) slot? Sets carry and shows an inline
@@ -372,8 +559,13 @@ capture_check_duplicate:
         sta scr_ptr_hi
         ldx #0
 ccd_loop:
-        cpx selected_row
-        beq ccd_next               ; skip the slot being edited itself
+        cpx edit_slot_value        ; skip the REAL slot being edited --
+        beq ccd_next                 ; NOT selected_row: on a merged row
+                                       ; (HOME_MERGE_ROW) those two
+                                       ; differ, and the OTHER sub-entry
+                                       ; sharing that row is a distinct
+                                       ; real slot that a genuine
+                                       ; duplicate check must still catch
         ldy #2
         lda (scr_ptr_lo),y
         cmp #ACTION_EMPTY
@@ -441,7 +633,7 @@ key_save:
         jsr KERNAL_SETLFS
         ; KERNAL SAVE wants .A = a ZERO-PAGE address whose 2 bytes hold
         ; the real start address -- KEYMAP_TABLE_PTR itself lives at
-        ; $c01a (constants.asm), not zero page, so it can't be passed
+        ; $c023 (constants.asm), not zero page, so it can't be passed
         ; directly; copy it into scr_ptr_lo/hi first (this module's own
         ; general-purpose indirect pointer, unused at this point --
         ; draw_list/describe_binding_row are long done by the time the
@@ -457,7 +649,31 @@ key_save:
         jsr read_error_channel     ; clear the drive's error LED --
                                      ; same reasoning as init_keymap's
                                      ; own LOAD-side call in keymap.asm
-        jsr JT_RESTORE_SCREEN
+        jsr JT_RESTORE_SCREEN      ; must happen BEFORE the status message
+                                     ; below, not after -- JT_RESTORE_
+                                     ; SCREEN repaints the WHOLE screen
+                                     ; (status row included) from the
+                                     ; snapshot module_start took when
+                                     ; this popup opened, which already
+                                     ; had "Opening keymap editor..." on
+                                     ; it; pushing the Save message first
+                                     ; and restoring after was tried and
+                                     ; confirmed live 2026-09-18 to
+                                     ; silently stomp the new message
+                                     ; right back to the stale one
+        ldx #<keymap_saved_msg
+        ldy #>keymap_saved_msg
+        jsr push_keymap_status_msg ; "Saved keymap." -- via JT_STATUS_
+                                     ; PUSH_RESET/JT_BUILD_STATUS_LINE,
+                                     ; not a direct call: this file is a
+                                     ; separate standalone .prg, unlike
+                                     ; keymap.asm's own init_keymap/
+                                     ; load_keymap_menu, which {include:}
+                                     ; into the resident program and so
+                                     ; can call status_push_reset/build_
+                                     ; status_line by label directly --
+                                     ; see constants.asm's own comment on
+                                     ; JT_STATUS_PUSH_RESET
         ldx module_entry_sp        ; discard whatever this visit's own
         txs                          ; keymap_menu_loop/dispatch call
                                        ; depth left pushed -- see module_
@@ -466,6 +682,19 @@ key_save:
                                      ; own comment on why this popup
                                      ; can't go through the normal
                                      ; wait-for-server-data resume path
+
+; --- push_keymap_status_msg: X/Y = lo/hi of a NUL-terminated,
+; {alpha:pokealt}-encoded string -- push it as a fresh, single-message
+; status-row batch via the resident client's own status_push_reset/
+; build_status_line, reached through JT_STATUS_PUSH_RESET/JT_BUILD_
+; STATUS_LINE since this file is a standalone .prg (see constants.asm's
+; own comment on those two entries). Y is preserved by JT_BUILD_STATUS_
+; LINE's own contract (it's just build_status_line's X/Y-pointer
+; argument), so no save/restore needed around either call here.
+push_keymap_status_msg:
+        jsr JT_STATUS_PUSH_RESET
+        jmp JT_BUILD_STATUS_LINE  ; tail call -- its own rts returns
+                                    ; straight to key_save/key_cancel
 
 ; --- scratch_keymap_file: SCRATCH any existing KEYMAP.CFG before the
 ; SAVE in key_save above. Sent as a DOS command string ("S0:...") on
@@ -501,7 +730,17 @@ scratch_keymap_file:
 ; not at all.
 key_cancel:
         jsr restore_keymap_table
-        jsr JT_RESTORE_SCREEN
+        jsr JT_RESTORE_SCREEN      ; must happen BEFORE the status
+                                     ; message below -- see key_save's own
+                                     ; comment on why (repaints the WHOLE
+                                     ; screen, status row included, from
+                                     ; the pre-popup snapshot)
+        ldx #<keymap_aborted_msg
+        ldy #>keymap_aborted_msg
+        jsr push_keymap_status_msg ; "Aborted." -- see key_save's own
+                                     ; comment on why this goes through
+                                     ; the JT_* trampolines rather than a
+                                     ; direct call
         ldx module_entry_sp        ; see key_save's own comment on this
         txs
         jmp JT_RESUME_LOCAL        ; NOT JT_RESUME -- see constants.asm's
@@ -670,10 +909,13 @@ draw_popup_blank_list:
         sta poke_dst_hi
         jmp poke_line
 
-; --- draw_list: (re)draw all MAX_BINDINGS rows from keymap_table ---
-; Called once at startup and again after every CRSR UP/DOWN -- redraws
-; every row rather than just the marker column, simplest correct thing
-; for a list this small (15 rows * 40 bytes = 600 bytes, negligible).
+; --- draw_list: (re)draw all TOTAL_ROWS rows from keymap_table ---
+; Called once at startup and again after every CRSR UP/DOWN/LEFT/RIGHT
+; -- redraws every row rather than just the marker/highlight column,
+; simplest correct thing for a list this small (14 rows * 40 bytes =
+; 560 bytes, negligible). One fewer row than MAX_BINDINGS's 15 real
+; slots -- HOME_MERGE_ROW's own comment explains why two of those
+; slots share a single displayed row.
 draw_list:
         ldx #0
 draw_list_loop:
@@ -723,14 +965,14 @@ dl_right_border:
 
         ldx draw_list_row
         inx
-        cpx #MAX_BINDINGS
+        cpx #TOTAL_ROWS
         bne draw_list_loop
         rts
 
 draw_list_row:
         byte 0
 
-; --- describe_binding_row: build row_scratch (30 bytes) for slot .x ---
+; --- describe_binding_row: build row_scratch (30 bytes) for row .x ---
 ; Layout: marker(1) space(1) name(12) space(1) combo(15) = 30 -- combo
 ; starts at offset 15 (1+1+12+1), NOT 17. Real bug, caught live
 ; 2026-09-02: the combo field was written at row_scratch+17, 2 bytes
@@ -740,11 +982,21 @@ draw_list_row:
 ; silently overwritten with padding/text bytes (typically $20) every
 ; single time a row was drawn. Confirmed via the VICE monitor: row_
 ; scratch = $2d93, +30 = $2db1 = selected_row exactly.
+;
+; .x is a ROW index (0..TOTAL_ROWS-1), NOT a raw keymap_table slot
+; index, since 2026-09-18 -- HOME_MERGE_ROW's own comment explains why
+; those can now differ (row_to_slot converts). describe_slot always
+; holds the row's PRIMARY slot (both merged slots share the same
+; action, so the primary slot's action/name describes the whole row
+; either way); the marker and merged-combo highlight both need the ROW
+; number too, so that's kept separately in describe_row.
 describe_binding_row:
+        stx describe_row
+        jsr row_to_slot            ; .x (row) -> .x (primary slot)
         stx describe_slot
         ; marker
         lda selected_row
-        cmp describe_slot
+        cmp describe_row
         bne dbr_no_marker
         lda marker_char
         jmp dbr_marker_store
@@ -755,11 +1007,12 @@ dbr_marker_store:
         lda blank_char
         sta row_scratch+1
 
-        ; keymap_slot_addr: scr_ptr_lo/hi = KEYMAP_TABLE_PTR + .x*
-        ; BINDING_SIZE -- same moving-pointer technique keymap.asm's
-        ; own keymap_dispatch uses (MAX_BINDINGS*BINDING_SIZE exceeds
-        ; what an 8-bit Y-indexed offset can reach), just walked once
-        ; per row here instead of scanned in a search loop.
+        ; keymap_slot_addr: scr_ptr_lo/hi = KEYMAP_TABLE_PTR +
+        ; describe_slot*BINDING_SIZE -- same moving-pointer technique
+        ; keymap.asm's own keymap_dispatch uses (MAX_BINDINGS*
+        ; BINDING_SIZE exceeds what an 8-bit Y-indexed offset can
+        ; reach), just walked once per row here instead of scanned in a
+        ; search loop.
         lda KEYMAP_TABLE_PTR
         sta scr_ptr_lo
         lda KEYMAP_TABLE_PTR+1
@@ -832,7 +1085,14 @@ dbr_try_home:
         ldx #<name_home
         ldy #>name_home
         jsr copy_name12
-        jmp dbr_combo
+        ; Home is the one action with two bound slots sharing a row
+        ; (HOME_MERGE_ROW) -- every other action always has exactly one
+        ; slot, so only this branch ever needs the merged-combo path.
+        lda describe_row
+        cmp #HOME_MERGE_ROW
+        bne dbr_combo
+        jsr describe_combo_merged
+        rts
 dbr_try_end:
         cmp #ACTION_END
         bne dbr_try_open_editor
@@ -861,6 +1121,8 @@ dbr_combo_blank_loop:
         rts
 
 describe_slot:
+        byte 0
+describe_row:
         byte 0
 describe_action:
         byte 0
@@ -896,7 +1158,108 @@ copy_name12_load:
 describe_combo:
         ldx #0
         stx describe_combo_col
+        jsr describe_combo_append
+        jmp dc_pad
 
+; --- describe_combo_merged: build row_scratch+15..+29 for HOME_MERGE_
+; ROW's two underlying slots (describe_slot and describe_slot+1),
+; comma-separated -- "up,$13" for the built-in default. scr_ptr_lo/hi
+; must already point at describe_slot's own mod/key bytes on entry
+; (describe_binding_row's own address-walk already leaves them there).
+; When this row is the currently selected one, the sub-entry combo_
+; subindex points at is wrapped in square brackets so CRSR-LEFT/RIGHT's
+; effect is visible -- otherwise both combos show plain, since there's
+; nothing to highlight on a row that isn't selected.
+describe_combo_merged:
+        lda #0
+        sta describe_combo_col
+        lda selected_row
+        cmp describe_row
+        beq dcm_highlight_yes
+        lda #0
+        jmp dcm_highlight_store
+dcm_highlight_yes:
+        lda #1
+dcm_highlight_store:
+        sta dcm_highlight          ; 1 if this row is selected, else 0
+
+        ; --- first sub-entry: describe_slot, combo_subindex 0 ---
+        lda dcm_highlight
+        beq dcm_open0_done
+        lda combo_subindex
+        bne dcm_open0_done
+        lda #$1b                   ; '[' -- see dcm_open1_done's own
+                                     ; comment on why this is $1b, not
+                                     ; the raw ASCII $5b '[' literal
+        jsr describe_combo_putc
+dcm_open0_done:
+        jsr describe_combo_append
+        lda dcm_highlight
+        beq dcm_close0_done
+        lda combo_subindex
+        bne dcm_close0_done
+        lda #$1d                   ; ']' -- see dcm_open1_done's own
+                                     ; comment
+        jsr describe_combo_putc
+dcm_close0_done:
+        lda #$2c                   ; ',' -- c64list treats a literal
+                                     ; comma as an addressing-mode
+                                     ; separator even inside #'x', so
+                                     ; this needs the raw hex value
+        jsr describe_combo_putc
+
+        ; --- advance scr_ptr_lo/hi by one BINDING_SIZE to describe_
+        ; slot+1's own mod/key bytes ---
+        lda scr_ptr_lo
+        clc
+        adc #BINDING_SIZE
+        sta scr_ptr_lo
+        bcc dcm_no_carry
+        inc scr_ptr_hi
+dcm_no_carry:
+
+        ; --- second sub-entry: describe_slot+1, combo_subindex 1 ---
+        lda dcm_highlight
+        beq dcm_open1_done
+        lda combo_subindex
+        cmp #1
+        bne dcm_open1_done
+        lda #$1b                   ; '[' -- describe_combo_putc pokes
+                                     ; straight into row_scratch/SCREEN_
+                                     ; RAM, bypassing CHROUT's PETSCII->
+                                     ; screencode translation (unlike
+                                     ; tada-client.asm's own `lda #'['
+                                     ; / jsr term_chrout` debug trace,
+                                     ; which goes through CHROUT and so
+                                     ; can use the raw ASCII value) --
+                                     ; the real screen code for '[' is
+                                     ; $1b (@=0,A-Z=1-26,[=27,£=28,]=29,
+                                     ; up-arrow=30,left-arrow=31), found
+                                     ; live 2026-09-18 after `lda #'['`
+                                     ; (i.e. raw ASCII $5b) rendered as
+                                     ; the wrong glyph
+        jsr describe_combo_putc
+dcm_open1_done:
+        jsr describe_combo_append
+        lda dcm_highlight
+        beq dcm_close1_done
+        lda combo_subindex
+        cmp #1
+        bne dcm_close1_done
+        lda #$1d                   ; ']' -- see the comment just above
+        jsr describe_combo_putc
+dcm_close1_done:
+        jmp dc_pad
+
+dcm_highlight:
+        byte 0
+
+; --- describe_combo_append: same as describe_combo above, but doesn't
+; reset describe_combo_col first or pad afterward -- factored out
+; 2026-09-18 so describe_combo_merged (below) can append TWO combos'
+; worth of text into one field, separated by its own comma/bracket
+; punctuation, then pad once at the very end instead of twice.
+describe_combo_append:
         ldy #0                     ; modifier byte
         lda (scr_ptr_lo),y
         sta describe_mod
@@ -939,7 +1302,7 @@ dc_key_loop:
         tay
         ldx dc_name_lo
         jsr copy_key_name
-        jmp dc_pad
+        rts
 dc_key_next:
         txa
         clc
@@ -968,7 +1331,7 @@ dk_hex:
         cmp #$5b                  ; > 'Z' ($5a)?
         bcs dk_try_symbol
         jsr describe_combo_putc   ; 'A'-'Z': PETSCII == screen code already
-        jmp dc_pad
+        rts
 dk_try_symbol:
         lda describe_key
         cmp #$20
@@ -976,12 +1339,20 @@ dk_try_symbol:
         cmp #$40                  ; > '?' ($3f)?
         bcs dk_hex_fallback
         jsr describe_combo_putc   ; $20-$3f: PETSCII == screen code already
-        jmp dc_pad
+        rts
 dk_hex_fallback:
         lda #'$'
         jsr describe_combo_putc
         lda describe_key
-        jsr describe_combo_put_hex_byte
+        jmp describe_combo_put_hex_byte ; tail call -- its own rts
+                                          ; returns straight to our caller
+
+; --- dc_pad: pad row_scratch+15..+29 with blank_char from describe_
+; combo_col onward -- shared tail for describe_combo (single combo) and
+; describe_combo_merged (two combos comma-separated) below, called
+; explicitly by each rather than fallen into, since describe_combo_
+; append (above) must be able to append a SECOND combo's text after the
+; first without padding in between.
 dc_pad:
         ldx describe_combo_col
 dc_pad_loop:
@@ -1203,6 +1574,16 @@ row_scratch:
         area 30, $20
 
 selected_row:
+        byte 0
+
+; Which of HOME_MERGE_ROW's two underlying slots (0 = describe_slot
+; itself, 1 = describe_slot+1) CRSR-LEFT/CRSR-RIGHT and RETURN act on.
+; Only ever nonzero while selected_row == HOME_MERGE_ROW -- key_row_up/
+; key_row_down reset it to 0 on every row change, and key_subselect_
+; prev/next (dispatch table above) are themselves no-ops on any other
+; row, so nothing else needs to guard against a stale nonzero value
+; leaking onto some other row's addressing.
+combo_subindex:
         byte 0
 
 ; draw_popup_blank_list's own row counter -- see that routine's own
@@ -1455,3 +1836,24 @@ keymap_filename_end:
 {alpha:normal}
 KEYMAP_SCRATCH_LEN = keymap_filename_end - keymap_scratch_command  ; 13
 KEYMAP_FILENAME_LEN = keymap_filename_end - keymap_filename        ; 10
+
+; Save/Cancel status-row messages -- pushed via push_keymap_status_msg
+; (JT_STATUS_PUSH_RESET/JT_BUILD_STATUS_LINE). {alpha:pokealt} for the
+; same reason as keymap.asm's own keymap_loading_msg/keymap_opening_msg:
+; the status row is poked with real screen codes, not routed through
+; CHROUT's PETSCII->screencode conversion.
+{alpha:pokealt}
+keymap_saved_msg:
+        ascii "Saved keymap."
+        byte 0
+keymap_aborted_msg:
+        ascii "Aborted."
+        byte 0
+{alpha:normal}
+
+; Empty status-row "message" -- module_start pushes this to blank out
+; keymap.asm's own "Opening keymap editor..." once this popup is fully
+; drawn (see module_start's own comment). No {alpha:} block needed for
+; a single NUL byte.
+keymap_status_clear_msg:
+        byte 0

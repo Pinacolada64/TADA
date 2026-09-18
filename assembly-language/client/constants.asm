@@ -78,6 +78,34 @@ PROTO_HELP_STREAM_CONFIRM    = $c019
 ; also `jmp`'d away from read_line's own call frame the same way.
 JT_RESUME_LOCAL              = $c01a
 
+; JT_STATUS_PUSH_RESET/JT_BUILD_STATUS_LINE -- added 2026-09-18 so
+; keymap_menu.asm (a standalone .prg, same reasoning as KEYMAP_TABLE_PTR
+; below: doesn't {include:} tada-client.asm/screen-handler.asm and so
+; can't reach status_push_reset/build_status_line by label) can push its
+; own status-row messages for Save/Cancel, the same way keymap.asm's
+; own init_keymap/load_keymap_menu already do directly (being {include:}'d
+; into the resident program, not a separate .prg). Same X/Y-pointer
+; calling convention as calling build_status_line directly -- see that
+; routine's own comment in screen-handler.asm.
+JT_STATUS_PUSH_RESET         = $c01d
+JT_BUILD_STATUS_LINE         = $c020
+
+; JT_CURSOR_HIDE/JT_UPDATE_CURSOR -- added 2026-09-18 so keymap_menu.asm
+; can blink a real cursor (Ryan's ask) at the end of key_capture_combo's
+; live modifier/key readout while its own kcc_wait loop polls GETIN,
+; the same way read_line_loop already blinks one at the input line's
+; own cursor_pos. Same reasoning as JT_STATUS_PUSH_RESET above for why
+; this needs a trampoline at all (cursor_hide/update_cursor are plain
+; labels in tada-client.asm, unreachable from a separate .prg). Unlike
+; that pair, the caller doesn't pass anything in X/Y -- both routines
+; act on the KERNAL's own PNT/PNTR ($d1-$d3, zero page, so directly
+; readable/writable by keymap_menu.asm without a trampoline of their
+; own) and the resident cursor_phase byte; key_capture_combo's own
+; comment explains how it keeps those two trampolines and $d1-$d3
+; correctly scoped to just its own capture-wait sub-state.
+JT_CURSOR_HIDE               = $c023
+JT_UPDATE_CURSOR             = $c026
+
 ; Not a jump-table entry or protocol byte -- a 2-byte pointer (lo, hi)
 ; to keymap_table's real runtime address, written once by init_keymap
 ; at boot. keymap_table can't get a fixed hand-chosen address the way
@@ -88,6 +116,6 @@ JT_RESUME_LOCAL              = $c01a
 ; keymap.asm and so can't see its `keymap_table = ...` symbol at
 ; assembly time even if that address WERE fixed) reads this pointer at
 ; runtime instead of needing to know or guess the address in advance.
-; $c01d, not $c01a -- JT_RESUME_LOCAL (above) took the 3 bytes this
-; used to start at.
-KEYMAP_TABLE_PTR             = $c01d
+; $c029, not $c023 -- JT_CURSOR_HIDE/JT_UPDATE_CURSOR (above) took the
+; 6 bytes this used to start at.
+KEYMAP_TABLE_PTR             = $c029

@@ -533,9 +533,10 @@ init_swiftlink:
 ; $0351 and $0352-$0358) precisely so one copy loop populates both; see
 ; PROTO_TABLE's own comment.
 init_jump_table:
-        ldx #28                  ; 29 bytes: 7 jmp entries (21) + 8 proto
-                                    ; bytes -- bumped from 25/26 when
-                                    ; JT_RESUME_LOCAL was added
+        ldx #40                  ; 41 bytes: 11 jmp entries (33) + 8
+                                    ; proto bytes -- bumped from 34/35
+                                    ; when JT_CURSOR_HIDE/JT_UPDATE_
+                                    ; CURSOR were added
 init_jump_table_loop:
         lda jump_table_template,x
         sta JT_BASE,x
@@ -1237,6 +1238,16 @@ jump_table_template:
         jmp read_line             ; JT_RESUME_LOCAL -- see constants.asm's
                                      ; own comment on why this exists
                                      ; alongside JT_RESUME
+        jmp status_push_reset     ; JT_STATUS_PUSH_RESET -- see
+                                     ; constants.asm's own comment; lets
+                                     ; keymap_menu.asm push its own Save/
+                                     ; Cancel status messages
+        jmp build_status_line     ; JT_BUILD_STATUS_LINE -- same reasoning
+        jmp cursor_hide           ; JT_CURSOR_HIDE -- lets keymap_menu.asm
+                                     ; blink a real cursor during its own
+                                     ; capture-wait; see constants.asm's
+                                     ; own comment
+        jmp update_cursor         ; JT_UPDATE_CURSOR -- same reasoning
 
 ; --- Load the petscii_editor overlay module and hand control to it ---
 ; Called from handle_recv_byte_canvas_confirm once a real canvas stream
