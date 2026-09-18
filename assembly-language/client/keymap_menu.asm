@@ -1408,6 +1408,13 @@ key_names:
         word key_f5_name
         byte $88
         word key_f7_name
+        byte $13                  ; real CLR/HOME key, unshifted
+        word key_home_name
+        byte $93                  ; SHIFT+CLR/HOME (the actual CLR
+        word key_clear_name        ; function) -- $93/147 decimal, NOT
+                                     ; $83/131: $13 (19 decimal, HOME)
+                                     ; with bit 7 set for SHIFT is
+                                     ; $13+$80=$93, not $83
         byte $00                  ; sentinel: "no key held" -- GETIN
         word key_none_name         ; never returns 0 for a real press,
                                      ; so this is safe to reuse as
@@ -1753,6 +1760,12 @@ key_f5_name:
         byte 0
 key_f7_name:
         ascii "F7"
+        byte 0
+key_home_name:
+        ascii "HOME"
+        byte 0
+key_clear_name:
+        ascii "CLEAR"
         byte 0
 key_none_name:
         byte 0                     ; empty string -- see key_names' own
