@@ -68,6 +68,34 @@ ACTION_MACRO       = 255
         orig $2900
 
 module_start:
+        tsx                          ; save the real stack depth we were
+        stx module_entry_sp           ; entered at -- keymap_menu_loop's
+                                       ; own `jsr dispatch_keymap_key`
+                                       ; leaves a return address pushed
+                                       ; for as long as this popup stays
+                                       ; open (dispatch reaches key_save/
+                                       ; key_cancel via a tail JMP, never
+                                       ; an RTS back through it), so
+                                       ; every visit needs its own clean
+                                       ; way to discard that -- see
+                                       ; key_save/key_cancel's own exit,
+                                       ; which restores this before
+                                       ; jumping out. Confirmed live
+                                       ; 2026-09-17: without this, every
+                                       ; open/close cycle permanently
+                                       ; leaked 2 bytes of stack (the
+                                       ; orphaned return into keymap_
+                                       ; menu_loop), and once some
+                                       ; unrelated rts elsewhere finally
+                                       ; unwound the real stack down to
+                                       ; that leftover depth, it popped
+                                       ; the leak instead of its own
+                                       ; return address -- silently
+                                       ; jumping back into this dead
+                                       ; loop from the middle of a
+                                       ; completely unrelated keystroke,
+                                       ; looking like a random hang with
+                                       ; no visible popup on screen.
         jsr JT_SAVE_SCREEN
 
         ; keymap_table_end_lo/hi = KEYMAP_TABLE_PTR + KEYMAP_TABLE_SIZE
@@ -430,6 +458,10 @@ key_save:
                                      ; same reasoning as init_keymap's
                                      ; own LOAD-side call in keymap.asm
         jsr JT_RESTORE_SCREEN
+        ldx module_entry_sp        ; discard whatever this visit's own
+        txs                          ; keymap_menu_loop/dispatch call
+                                       ; depth left pushed -- see module_
+                                       ; start's own comment on why
         jmp JT_RESUME_LOCAL        ; NOT JT_RESUME -- see constants.asm's
                                      ; own comment on why this popup
                                      ; can't go through the normal
@@ -470,6 +502,8 @@ scratch_keymap_file:
 key_cancel:
         jsr restore_keymap_table
         jsr JT_RESTORE_SCREEN
+        ldx module_entry_sp        ; see key_save's own comment on this
+        txs
         jmp JT_RESUME_LOCAL        ; NOT JT_RESUME -- see constants.asm's
                                      ; own comment on why this popup
                                      ; can't go through the normal
@@ -1186,6 +1220,13 @@ blank_list_row:
 keymap_table_end_lo:
         byte 0
 keymap_table_end_hi:
+        byte 0
+
+; Real stack depth at module_start's own entry -- see that routine's
+; own comment; key_save/key_cancel restore SP from this right before
+; exiting, discarding this visit's own keymap_menu_loop/dispatch call
+; depth instead of leaking it.
+module_entry_sp:
         byte 0
 KEYMAP_TABLE_SIZE = 405           ; MAX_BINDINGS(15) * BINDING_SIZE(27)
 

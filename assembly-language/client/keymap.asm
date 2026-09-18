@@ -365,6 +365,16 @@ keymap_data_filename:
 ; codebase, just read-only here (no destination pointer needed).
 keymap_dispatch:
         sta keymap_dispatch_key
+        lda scr_ptr_lo             ; save the caller's scr_ptr_lo/hi --
+        sta keymap_dispatch_save_lo ; this scan borrows the pair for
+        lda scr_ptr_hi              ; MAX_BINDINGS*BINDING_SIZE bytes'
+        sta keymap_dispatch_save_hi ; worth of reads, and a no-match
+                                      ; scan leaves it sitting just past
+                                      ; the end of keymap_table -- restored
+                                      ; before every return below so
+                                      ; nothing after this call ever sees
+                                      ; that leftover value instead of
+                                      ; whatever was really there
         lda #<keymap_table
         sta scr_ptr_lo
         lda #>keymap_table
@@ -416,6 +426,10 @@ keymap_dispatch_next:
 keymap_dispatch_no_carry:
         dex
         bne keymap_dispatch_loop
+        lda keymap_dispatch_save_lo ; restore the caller's scr_ptr_lo/hi
+        sta scr_ptr_lo               ; (see keymap_dispatch's own entry
+        lda keymap_dispatch_save_hi  ; comment) before this scan's own
+        sta scr_ptr_hi                ; leftover pointer can leak out
         lda keymap_dispatch_key    ; scanned every slot, no match --
         clc                         ; restore .A to the original typed
         rts                         ; byte before returning: the scan
@@ -486,14 +500,27 @@ keymap_dispatch_try_open_editor:
 keymap_dispatch_try_macro:
         cmp #ACTION_MACRO
         bne keymap_dispatch_handled
-        jsr keymap_insert_macro
+        jsr keymap_insert_macro    ; needs scr_ptr_lo/hi still pointing
+                                     ; at the matched binding record --
+                                     ; restore happens after, below
 keymap_dispatch_handled:
+        lda keymap_dispatch_save_lo ; restore the caller's scr_ptr_lo/hi,
+        sta scr_ptr_lo               ; same reasoning as the no-match
+        lda keymap_dispatch_save_hi  ; exit above -- every action that
+        sta scr_ptr_hi                ; reaches here (all but OPEN_EDITOR,
+                                        ; which never returns to this
+                                        ; caller at all) leaves scr_ptr_lo/
+                                        ; hi exactly as this call found it
         sec
         rts
 
 keymap_dispatch_key:
         byte 0
 keymap_dispatch_temp:
+        byte 0
+keymap_dispatch_save_lo:
+        byte 0
+keymap_dispatch_save_hi:
         byte 0
 
 ; --- keymap_insert_macro: insert a matched binding's macro_text into
