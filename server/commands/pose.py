@@ -57,9 +57,9 @@ class PoseCommand(Command):
             "Broadcasts an emote to everyone in your room. Type the action "
             "in third-person, as it will appear to others -- your own line "
             "de-conjugates the leading verb to first person: "
-            '"pose stares at the wall." shows as "You stare at the wall." '
+            '|command|pose stares at the wall.|reset| shows as "You stare at the wall." '
             'to you and "Rulan stares at the wall." to everyone else. '
-            'The : shortcut works without typing "pose" first, and '
+            'The : shortcut works without typing |command|pose|reset| first, and '
             '"emote"/"/me" are accepted as aliases.'
         ),
         category = HelpCategory.COMMUNICATION,
@@ -74,7 +74,7 @@ class PoseCommand(Command):
                                           'third-person -- you see "You stare at '
                                           'the wall." (de-conjugated) while everyone '
                                           'else sees "Rulan stares at the wall."'),
-            (':grins.', 'The \':\' shortcut works without typing "pose" first.'),
+            (':grins.', 'The \':\' shortcut works without typing |command|pose|reset| first.'),
         ],
     )
 

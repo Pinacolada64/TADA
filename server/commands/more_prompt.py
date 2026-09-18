@@ -22,7 +22,7 @@ class MorePromptCommand(Command):
             "When More Prompt is on, output longer than a screenful pauses "
             f"with a '-- More --' prompt between pages (Enter for next, "
             "B/- for back, [Q] Stop). When off, everything is sent at "
-            "once regardless of length. Same setting as 'prefs' menu's "
+            "once regardless of length. Same setting as |command|prefs|reset| menu's "
             "'M' key -- this is just a shortcut."
         ),
         category = HelpCategory.GENERAL,

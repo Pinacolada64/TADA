@@ -520,22 +520,22 @@ class MapCommand(Command):
         usage    = [
             ('map', 'Show nearby rooms.'),
             ('map grid', 'Show nearby rooms as a colored grid of boxes.'),
-            ('map #grid', 'Same as "map grid".'),
+            ('map #grid', 'Same as |command|map grid|reset|.'),
             ('map #overview [<level>]', 'Debug Mode: full-level birds-eye grid.'),
             ('map #visited [<level>]', "Birds-eye grid of rooms you've actually been to."),
         ],
         notes = [
             'Only available to the Ranger class, and only from character '
             'level 3 onward.',  # (SPUR.MISC5.S's original xp>2 gate)
-            '"map grid" (or "map #grid") draws the same nearby rooms as '
+            '|command|map grid|reset| (or |command|map #grid|reset|) draws the same nearby rooms as '
             'connected boxes -- colored by terrain keywords in the room '
             'name, with M/I/W/F/@ markers, exit gaps, and a color-key '
             'line underneath. Your own room is always marked with @. '
             'Box-drawing glyphs adapt to your client: double-line for '
             'ANSI, single-line for a real Commodore/PETSCII client.',
-            '"map #visited [<level>]" (any character, not gated by class/'
+            '|command|map #visited [<level>]|reset| (any character, not gated by class/'
             'level like the rest of this command) draws the same '
-            'compressed birds-eye grid as "map #overview", but only for '
+            'compressed birds-eye grid as |command|map #overview|reset|, but only for '
             'rooms you have personally set foot in on the given level '
             '(your own level if omitted) -- never spoils unexplored '
             'territory. An exit toward a room you have not yet visited '
@@ -546,7 +546,7 @@ class MapCommand(Command):
         admin_notes = [
             "Admins/DMs additionally see each nearby room's number -- "
             'ordinary players just get the direction path and name.',
-            '"map #overview [<level>]" needs Debug Mode on (not the '
+            '|command|map #overview [<level>]|reset| needs Debug Mode on (not the '
             'Ranger/level-3 gate above) and shows every room on the given '
             'level (your own level if omitted) as a single reverse-video '
             'square, with arrow glyphs around it marking which of '
