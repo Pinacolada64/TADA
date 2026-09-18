@@ -93,6 +93,23 @@ scr_ptr_hi = $fc
         orig $2900
 
 module_start:
+        tsx                          ; save the real stack depth we were
+        stx module_entry_sp           ; entered at -- edit_loop's own
+                                       ; `jsr dispatch_editor_key` leaves a
+                                       ; return address pushed for as long
+                                       ; as this popup stays open (dispatch
+                                       ; reaches edit_save/edit_cancel via a
+                                       ; tail JMP, never an RTS back
+                                       ; through it); edit_save/edit_cancel
+                                       ; restore this before jumping out
+                                       ; instead of leaking it -- same bug
+                                       ; class found+fixed in keymap_menu.
+                                       ; asm 2026-09-17 (every open/close
+                                       ; permanently leaked 2 bytes of
+                                       ; stack, eventually causing an
+                                       ; unrelated rts elsewhere to pop
+                                       ; the stale address instead of its
+                                       ; own)
         jsr recv_length_prefix   ; discarded -- always exactly 1920 for a
                                    ; 40x24 canvas; nothing to branch on
 
@@ -410,6 +427,9 @@ edit_save:
         jsr upload_canvas
         lda #$93                  ; clear screen + home KERNAL cursor
         jsr CHROUT
+        ldx module_entry_sp        ; discard this visit's own edit_loop/
+        txs                          ; dispatch call depth -- see module_
+                                       ; start's own comment
         jmp JT_RESUME
 
 ; --- RUN/STOP confirmation: "CANCEL EDIT? (Y/N)" on row 24 ---
@@ -495,6 +515,8 @@ edit_cancel:
         jsr JT_SL_SEND
         lda #$93                  ; same cursor-desync fix as edit_save --
         jsr CHROUT                 ; see that routine's comment
+        ldx module_entry_sp        ; see edit_save's own comment
+        txs
         jmp JT_RESUME
 
 ; --- Cursor position bookkeeping ---
@@ -1276,6 +1298,13 @@ uc_color_dec_lo:
         rts
 
 ; --- Data ---
+
+; Real stack depth at module_start's own entry -- see that routine's
+; own comment; edit_save/edit_cancel restore SP from this right before
+; exiting, discarding this visit's own edit_loop/dispatch call depth
+; instead of leaking it.
+module_entry_sp:
+        byte 0
 
 cur_row:
         byte 0

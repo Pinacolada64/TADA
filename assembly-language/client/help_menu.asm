@@ -53,6 +53,22 @@ BOX_ROWS    = 25
         orig $2900
 
 module_start:
+        tsx                          ; save the real stack depth we were
+        stx module_entry_sp           ; entered at -- help_loop's own
+                                       ; `jsr dispatch_help_key` leaves a
+                                       ; return address pushed for as long
+                                       ; as this popup stays open (dispatch
+                                       ; reaches key_close via a tail JMP,
+                                       ; never an RTS back through it);
+                                       ; key_close restores this before
+                                       ; jumping out instead of leaking it
+                                       ; -- same bug class found+fixed in
+                                       ; keymap_menu.asm 2026-09-17 (every
+                                       ; open/close permanently leaked 2
+                                       ; bytes of stack, eventually causing
+                                       ; an unrelated rts elsewhere to pop
+                                       ; the stale address instead of its
+                                       ; own)
         jsr JT_SAVE_SCREEN        ; back up whatever's on screen right now
                                     ; (the caller's own game text) so it
                                     ; can be put back exactly as-is on exit
@@ -148,6 +164,9 @@ knp_done:
 ; save (see this file's own header comment for why).
 key_close:
         jsr JT_RESTORE_SCREEN
+        ldx module_entry_sp        ; discard this visit's own help_loop/
+        txs                          ; dispatch call depth -- see module_
+                                       ; start's own comment
         jmp JT_RESUME
 
 ; --- Draw the static popup box (border/blank rows/nav help text) ---
@@ -642,6 +661,13 @@ recv_length_prefix_hi:
 ; --- State ---
 cur_page:
         byte 0                    ; 0 = help, 1 = keys, 2 = credits
+
+; Real stack depth at module_start's own entry -- see that routine's
+; own comment; key_close restores SP from this right before exiting,
+; discarding this visit's own help_loop/dispatch call depth instead of
+; leaking it.
+module_entry_sp:
+        byte 0
 
 ; Popup box text, 40 bytes each -- poke_line copies a fixed 40 bytes, so
 ; every row must add up to exactly that width (same convention as

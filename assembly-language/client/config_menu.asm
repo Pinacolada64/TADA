@@ -43,6 +43,23 @@ BOX_ROWS    = 12
         orig $2900
 
 module_start:
+        tsx                          ; save the real stack depth we were
+        stx module_entry_sp           ; entered at -- config_loop's own
+                                       ; `jsr dispatch_config_key` leaves a
+                                       ; return address pushed for as long
+                                       ; as this popup stays open (dispatch
+                                       ; reaches key_save/key_cancel via a
+                                       ; tail JMP, never an RTS back
+                                       ; through it); key_save/key_cancel
+                                       ; restore this before jumping out
+                                       ; instead of leaking it -- same bug
+                                       ; class found+fixed in keymap_menu.
+                                       ; asm 2026-09-17 (every open/close
+                                       ; permanently leaked 2 bytes of
+                                       ; stack, eventually causing an
+                                       ; unrelated rts elsewhere to pop
+                                       ; the stale address instead of its
+                                       ; own)
         jsr JT_SAVE_SCREEN        ; back up whatever's on screen right now
                                     ; (the caller's own text -- PREFS, most
                                     ; likely) so it can be put back exactly
@@ -311,6 +328,9 @@ key_save:
         lda cur_blink
         jsr JT_SL_SEND
         jsr JT_RESTORE_SCREEN
+        ldx module_entry_sp        ; discard this visit's own config_loop/
+        txs                          ; dispatch call depth -- see module_
+                                       ; start's own comment
         jmp JT_RESUME
 
 ; --- Cancel: revert the live preview, send a cancel marker, hand back ---
@@ -332,6 +352,8 @@ key_cancel:
         lda #0                    ; len_hi
         jsr JT_SL_SEND
         jsr JT_RESTORE_SCREEN
+        ldx module_entry_sp        ; see key_save's own comment
+        txs
         jmp JT_RESUME
 
 ; --- Draw the static popup box (border/title/labels/help text) ---
@@ -719,6 +741,13 @@ orig_border:
 orig_bg:
         byte 0
 orig_blink:
+        byte 0
+
+; Real stack depth at module_start's own entry -- see that routine's
+; own comment; key_save/key_cancel restore SP from this right before
+; exiting, discarding this visit's own config_loop/dispatch call depth
+; instead of leaking it.
+module_entry_sp:
         byte 0
 
 ; Single poke-able screen codes for '>' / ' ' -- built via the verified
