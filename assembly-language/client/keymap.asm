@@ -422,6 +422,35 @@ keymap_dispatch_loop:
                                     ; modifier is also held (unlike
                                     ; letter keys), so this is the only
                                     ; way to detect that
+        lda keymap_dispatch_key   ; CRSR-UP ($91) and CRSR-LEFT ($9d) are
+        cmp #$91                   ; SHIFT+the physical CRSR-DOWN/RIGHT
+        beq keymap_dispatch_mask_shift ; key -- the KERNAL keyboard scan
+        cmp #$9d                   ; already baked that Shift press into
+        bne keymap_dispatch_mod_ready ; the byte value itself before it
+                                    ; ever reached GETIN's buffer, so
+                                    ; Shift is still physically down (and
+                                    ; $028D still reads it live) for as
+                                    ; long as the key is held/repeating --
+                                    ; found live 2026-09-17 as the real
+                                    ; cause of CRSR-UP intermittently
+                                    ; missing this table's plain (mod=0)
+                                    ; ACTION_HOME entry and falling
+                                    ; through to read_line_store's raw
+                                    ; CHROUT echo instead, letting the
+                                    ; real KERNAL cursor-up hijack the
+                                    ; screen. Masking MOD_SHIFT out of
+                                    ; the live snapshot for just these
+                                    ; two key bytes treats Shift as
+                                    ; already consumed by producing the
+                                    ; shifted byte at all, leaving
+                                    ; Commodore/CTRL free to still work
+                                    ; as genuine extra modifiers on top
+                                    ; (e.g. CTRL+CRSR-LEFT for word-left)
+keymap_dispatch_mask_shift:
+        lda keymap_dispatch_temp
+        and #(MOD_CMDRE|MOD_CTRL)
+        sta keymap_dispatch_temp
+keymap_dispatch_mod_ready:
         ldy #0                     ; modifier byte
         lda (scr_ptr_lo),y
         cmp keymap_dispatch_temp
