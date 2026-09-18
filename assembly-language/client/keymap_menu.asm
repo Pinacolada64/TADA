@@ -198,11 +198,13 @@ keymap_keys:
         word key_row_up
         byte $11                  ; cursor down -- next row
         word key_row_down
-        byte $9d                  ; cursor left -- previous sub-entry
-        word key_subselect_prev    ; within a merged row (Home only, for
-                                     ; now); no-op on any other row
-        byte $1d                  ; cursor right -- next sub-entry
-        word key_subselect_next
+        byte $9d                  ; cursor left -- next sub-entry within
+        word key_subselect_next    ; a merged row (Home only, for now);
+                                     ; no-op on any other row -- reversed
+                                     ; from LEFT=prev/RIGHT=next 2026-09-18
+                                     ; (Ryan's preference, confirmed live)
+        byte $1d                  ; cursor right -- previous sub-entry
+        word key_subselect_prev
         byte $53                  ; 'S' -- save and exit
         word key_save
         byte $03                  ; RUN/STOP -- cancel and exit
@@ -237,15 +239,24 @@ key_row_reset_sub:
                                      ; when the outer selection moves
 key_row_done:
         jsr draw_list
-        rts
+        jmp draw_help_footer        ; tail call -- selected_row just
+                                     ; changed, so which footer belongs
+                                     ; on rows 18/19 may have too
+                                     ; (key_subselect_prev/next never
+                                     ; call this: sub-selecting within a
+                                     ; row can't change WHICH row is
+                                     ; selected, so the footer choice
+                                     ; can't change either)
 
-; --- key_subselect_prev/next: CRSR-LEFT/CRSR-RIGHT -- move combo_
-; subindex between HOME_MERGE_ROW's two sub-entries (Ryan's ask,
-; 2026-09-18: comma-separate the two Home bindings into one row rather
-; than showing two identical-looking "Home" rows, with these two keys
-; picking which one RETURN/Save-conflict-checking currently targets).
-; No-op on every other row -- nothing else has more than one sub-entry
-; to move between.
+; --- key_subselect_prev/next: move combo_subindex between HOME_MERGE_
+; ROW's two sub-entries (Ryan's ask, 2026-09-18: comma-separate the two
+; Home bindings into one row rather than showing two identical-looking
+; "Home" rows, with these two keys picking which one RETURN/Save-
+; conflict-checking currently targets). Bound CRSR-RIGHT->prev, CRSR-
+; LEFT->next (reversed from the naive left=prev/right=next mapping,
+; same day, confirmed live -- Ryan's preference) -- see keymap_keys'
+; own dispatch entries above. No-op on every other row -- nothing else
+; has more than one sub-entry to move between.
 key_subselect_prev:
         lda selected_row
         cmp #HOME_MERGE_ROW
@@ -422,18 +433,12 @@ kcc_done:
         sta $d2
         lda capture_saved_pntr
         sta $d3
-        ldx #<row_help1
-        ldy #>row_help1
-        jsr draw_message_row        ; restore the normal help line
-        ldx #<row_help2             ; row 19 was overwritten by the
-        ldy #>row_help2              ; live combo readout -- restore it
-        stx poke_src_lo               ; too (draw_message_row only
-        sty poke_src_hi               ; targets row 18)
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
-        sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
-        sta poke_dst_hi
-        jsr poke_line
+        jsr draw_help_footer        ; restore rows 18/19 -- row 19 was
+                                     ; overwritten by the live combo
+                                     ; readout; picks the plain or
+                                     ; HOME_MERGE_ROW-specific footer
+                                     ; depending on selected_row, same
+                                     ; as key_row_up/down's own call
         jsr draw_list
 kcc_rts:
         rts
@@ -611,6 +616,41 @@ draw_message_row:
         lda #>(SCREEN_RAM+(BOX_TOP_ROW+18)*40)
         sta poke_dst_hi
         jmp poke_line
+
+; --- draw_help_footer: (re)paint rows 18/19 with whichever footer
+; matches selected_row -- row_help1/row_help2 normally, or row_help1_
+; merged/row_help2_merged while HOME_MERGE_ROW is selected (Left/Right
+; only does anything there, so the standard "Up/Down: Select  Return:
+; Bind" / "S: Save  Stop: Cancel" footer stops being the whole story).
+; Called from key_row_up/down (via key_row_done) whenever selected_row
+; changes, and from kcc_done to restore rows 18/19 after the capture
+; wait's own message/live-readout overwrote them.
+draw_help_footer:
+        lda selected_row
+        cmp #HOME_MERGE_ROW
+        beq dhf_merged
+        ldx #<row_help1
+        ldy #>row_help1
+        jsr draw_message_row
+        ldx #<row_help2
+        ldy #>row_help2
+        jmp dhf_row2
+dhf_merged:
+        ldx #<row_help1_merged
+        ldy #>row_help1_merged
+        jsr draw_message_row
+        ldx #<row_help2_merged
+        ldy #>row_help2_merged
+dhf_row2:
+        stx poke_src_lo               ; draw_message_row only targets
+        sty poke_src_hi               ; row 18 -- row 19 needs its own
+                                        ; poke_line call here
+        lda #<(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        sta poke_dst_lo
+        lda #>(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        sta poke_dst_hi
+        jmp poke_line               ; tail call -- its own rts returns
+                                     ; straight to our caller
 
 ; --- Save: write keymap_table back to KEYMAP.CFG, restore, hand back ---
 ; SCRATCH the old file first, then a plain (no "@0:") SAVE -- Ryan's
@@ -1163,13 +1203,18 @@ describe_combo:
 
 ; --- describe_combo_merged: build row_scratch+15..+29 for HOME_MERGE_
 ; ROW's two underlying slots (describe_slot and describe_slot+1),
-; comma-separated -- "up,$13" for the built-in default. scr_ptr_lo/hi
+; comma-separated -- "up,home" for the built-in default. scr_ptr_lo/hi
 ; must already point at describe_slot's own mod/key bytes on entry
 ; (describe_binding_row's own address-walk already leaves them there).
 ; When this row is the currently selected one, the sub-entry combo_
-; subindex points at is wrapped in square brackets so CRSR-LEFT/RIGHT's
-; effect is visible -- otherwise both combos show plain, since there's
-; nothing to highlight on a row that isn't selected.
+; subindex points at is shown in reverse video (EOR #$80 on each of its
+; screen codes, via dcm_invert_range below) so CRSR-LEFT/RIGHT's effect
+; is visible -- same technique tada-client.asm's own cursor_toggle uses
+; for the blinking input cursor, not a bracket/punctuation marker
+; (Ryan's ask, 2026-09-18, replacing this routine's first cut, which
+; wrapped the highlighted combo in '['/']' instead) -- otherwise both
+; combos show plain, since there's nothing to highlight on a row that
+; isn't selected.
 describe_combo_merged:
         lda #0
         sta describe_combo_col
@@ -1184,24 +1229,17 @@ dcm_highlight_store:
         sta dcm_highlight          ; 1 if this row is selected, else 0
 
         ; --- first sub-entry: describe_slot, combo_subindex 0 ---
-        lda dcm_highlight
-        beq dcm_open0_done
-        lda combo_subindex
-        bne dcm_open0_done
-        lda #$1b                   ; '[' -- see dcm_open1_done's own
-                                     ; comment on why this is $1b, not
-                                     ; the raw ASCII $5b '[' literal
-        jsr describe_combo_putc
-dcm_open0_done:
+        lda describe_combo_col
+        sta dcm_start_col
         jsr describe_combo_append
         lda dcm_highlight
-        beq dcm_close0_done
+        beq dcm_skip_invert0
         lda combo_subindex
-        bne dcm_close0_done
-        lda #$1d                   ; ']' -- see dcm_open1_done's own
-                                     ; comment
-        jsr describe_combo_putc
-dcm_close0_done:
+        bne dcm_skip_invert0
+        jsr dcm_invert_range        ; flip reverse-video on [dcm_start_
+                                     ; col, describe_combo_col) -- just
+                                     ; what describe_combo_append wrote
+dcm_skip_invert0:
         lda #$2c                   ; ',' -- c64list treats a literal
                                      ; comma as an addressing-mode
                                      ; separator even inside #'x', so
@@ -1219,38 +1257,37 @@ dcm_close0_done:
 dcm_no_carry:
 
         ; --- second sub-entry: describe_slot+1, combo_subindex 1 ---
-        lda dcm_highlight
-        beq dcm_open1_done
-        lda combo_subindex
-        cmp #1
-        bne dcm_open1_done
-        lda #$1b                   ; '[' -- describe_combo_putc pokes
-                                     ; straight into row_scratch/SCREEN_
-                                     ; RAM, bypassing CHROUT's PETSCII->
-                                     ; screencode translation (unlike
-                                     ; tada-client.asm's own `lda #'['
-                                     ; / jsr term_chrout` debug trace,
-                                     ; which goes through CHROUT and so
-                                     ; can use the raw ASCII value) --
-                                     ; the real screen code for '[' is
-                                     ; $1b (@=0,A-Z=1-26,[=27,£=28,]=29,
-                                     ; up-arrow=30,left-arrow=31), found
-                                     ; live 2026-09-18 after `lda #'['`
-                                     ; (i.e. raw ASCII $5b) rendered as
-                                     ; the wrong glyph
-        jsr describe_combo_putc
-dcm_open1_done:
+        lda describe_combo_col
+        sta dcm_start_col
         jsr describe_combo_append
         lda dcm_highlight
-        beq dcm_close1_done
+        beq dcm_skip_invert1
         lda combo_subindex
         cmp #1
-        bne dcm_close1_done
-        lda #$1d                   ; ']' -- see the comment just above
-        jsr describe_combo_putc
-dcm_close1_done:
+        bne dcm_skip_invert1
+        jsr dcm_invert_range
+dcm_skip_invert1:
         jmp dc_pad
 
+; EOR #$80 (reverse-video bit) on row_scratch+15+dcm_start_col through
+; row_scratch+15+describe_combo_col-1 -- exactly the bytes the most
+; recent describe_combo_append call just wrote, nothing else (the
+; comma/padding stay plain either way).
+dcm_invert_range:
+        ldx dcm_start_col
+dcm_invert_loop:
+        cpx describe_combo_col
+        bcs dcm_invert_done
+        lda row_scratch+15,x
+        eor #$80
+        sta row_scratch+15,x
+        inx
+        jmp dcm_invert_loop
+dcm_invert_done:
+        rts
+
+dcm_start_col:
+        byte 0
 dcm_highlight:
         byte 0
 
@@ -1796,6 +1833,25 @@ row_help1:
 row_help2:
         byte $20,$20,$20,$20, $5d
         ascii " S: Save   Stop: Cancel       "
+        byte $5d, $20,$20,$20,$20
+
+; Alternate footer shown only while HOME_MERGE_ROW is selected (Ryan's
+; ask, 2026-09-18) -- Left/Right only does anything on that one row, so
+; the standard "Up/Down: Select  Return: Bind" / "S: Save  Stop:
+; Cancel" footer stops being the whole story there. 'S: Save' is left
+; out of row_help2_merged entirely (not just blanked to spaces) --
+; Save still genuinely works from this row, this is purely about
+; keeping the alternate footer focused on what Left/Right/Return mean
+; here rather than repeating the global Save reminder. draw_help_footer
+; (below) picks between this pair and row_help1/row_help2 every time
+; selected_row changes.
+row_help1_merged:
+        byte $20,$20,$20,$20, $5d
+        ascii " Left/Right: Choose shortcut  "
+        byte $5d, $20,$20,$20,$20
+row_help2_merged:
+        byte $20,$20,$20,$20, $5d
+        ascii " Return: Edit     Stop: Cancel"
         byte $5d, $20,$20,$20,$20
 
 ; key_capture_combo swaps row_help1's screen line for one of these two
