@@ -58,7 +58,7 @@ BINDING_SIZE   = 3 + MACRO_TEXT_LEN
 ; as two separate "Home" rows here would look like a duplicate/bug
 ; (Ryan's own catch live 2026-09-18), so this list instead folds them
 ; into ONE row: HOME_MERGE_ROW is that row's index (still 2 -- rows 0/1
-; are unaffected), TOTAL_ROWS is one less than MAX_BINDINGS since slot
+; are unaffected), NAV_ROWS is one less than NAV_SLOT_COUNT since slot
 ; 3 no longer gets its own row, and combo_subindex (declared near
 ; selected_row below) tracks which of the two underlying slots
 ; (HOME_MERGE_ROW's primary slot + combo_subindex, 0 or 1) CRSR-LEFT/
@@ -69,7 +69,37 @@ BINDING_SIZE   = 3 + MACRO_TEXT_LEN
 ; never changes a slot's action byte, so which slots merge is fixed at
 ; build time, not something that needs runtime discovery.
 HOME_MERGE_ROW = 2
-TOTAL_ROWS     = MAX_BINDINGS - 1
+
+; --- Two-screen split (Ryan's ask, 2026-09-18): the list is now one of
+; two pages, "Keymap Editor" (the 5 nav rows above) and "Macro Editor"
+; (the remaining macro slots), selected via a header row shown above
+; row 0 -- CRSR-UP past row 0 moves focus onto the header (header_
+; focused=1); CRSR-LEFT/RIGHT while there toggle active_page and
+; redraw; CRSR-DOWN returns focus to the list at that page's row 0.
+; NAV_SLOT_COUNT is the number of real keymap_table slots the nav page
+; covers (word-left, word-right, Home's two merged slots, end, open-
+; editor); every slot from there up is a macro slot. NAV_ROWS/MACRO_
+; ROWS are each page's own row count (NAV_ROWS accounts for the Home
+; merge, same as the old TOTAL_ROWS did); PAGE_ROWS_MAX is the larger
+; of the two, used as draw_list's fixed loop bound so switching to a
+; shorter page still blanks whatever the longer page left on screen
+; (see draw_list's own comment).
+NAV_SLOT_COUNT = 6
+NAV_ROWS       = HOME_MERGE_ROW + 3   ; word-left, word-right, home
+                                         ; (merged), end, open-editor = 5
+MACRO_ROWS     = MAX_BINDINGS - NAV_SLOT_COUNT   ; 9
+PAGE_ROWS_MAX  = MACRO_ROWS
+
+; Column/length of each heading within row_title_base's 30-char field
+; (draw_title) -- "Keymap Editor" (13 chars) at column 2, "Macro
+; Editor" (12 chars) at column 18: 2+13+3+12 = 30. Must be defined here,
+; before draw_title's own use of them below, same forward-reference
+; caveat BOX_TOP_ROW/BOX_ROWS's own comment documents for this
+; assembler's `=` constants.
+KEYMAP_LABEL_COL = 2
+KEYMAP_LABEL_LEN = 13
+MACRO_LABEL_COL  = 18
+MACRO_LABEL_LEN  = 12
 
 MOD_SHIFT = 1
 MOD_CMDRE = 2
@@ -138,7 +168,10 @@ module_start:
         lda #0
         sta selected_row
         sta combo_subindex
+        sta header_focused
+        sta active_page
         jsr draw_popup
+        jsr draw_title
         jsr draw_list
 
         ; Clear keymap.asm's own "Opening keymap editor..." status-row
@@ -213,23 +246,68 @@ keymap_keys:
         word key_capture_combo    ; the selected row (nav slots only)
 KEYMAP_KEYS_END = * - keymap_keys
 
+; CRSR-UP past row 0 moves focus onto the header instead of wrapping to
+; the last row (Ryan's ask, 2026-09-18) -- see the two-screen-split
+; comment near NAV_ROWS/MACRO_ROWS above. Already-header-focused is a
+; no-op: there's nothing above the header to move to.
 key_row_up:
+        lda header_focused
+        bne kru_rts
         lda selected_row
-        beq kru_wrap
+        bne kru_dec
+        lda #1
+        sta header_focused
+        jsr draw_list            ; hide the row marker -- describe_
+                                    ; binding_row's own marker check
+                                    ; skips it entirely while header_
+                                    ; focused is set
+        jsr draw_title
+        jmp draw_help_footer      ; picks the header-focused footer now
+kru_rts:
+        rts
+kru_dec:
         dec selected_row
         jmp key_row_reset_sub
-kru_wrap:
-        lda #TOTAL_ROWS-1
+
+; CRSR-DOWN while header-focused returns to the list at the active
+; page's row 0 (mirrors key_row_up's own header entry above). CRSR-DOWN
+; from the list's own LAST row now also moves to the header instead of
+; wrapping back to row 0 (Ryan's ask, 2026-09-19 -- symmetric with
+; CRSR-UP past row 0) -- get_page_rows (not the old fixed TOTAL_ROWS)
+; gives the active page's own row count, since that now depends on
+; active_page.
+key_row_down:
+        lda header_focused
+        beq krd_list
+        lda #0
+        sta header_focused
+        sta selected_row
+        sta combo_subindex
+        jsr draw_title              ; header_focused just cleared -- the
+                                       ; active heading's color needs to
+                                       ; drop back to white (key_row_done
+                                       ; below only redraws the list/
+                                       ; footer, not the title)
+        jmp key_row_done
+krd_list:
+        lda selected_row
+        clc
+        adc #1
+        sta krd_next_row
+        jsr get_page_rows
+        cmp krd_next_row
+        beq krd_header             ; next_row == page's row count -> past
+                                     ; the last row, enter the header
+        lda krd_next_row
         sta selected_row
         jmp key_row_reset_sub
-
-key_row_down:
-        inc selected_row
-        lda selected_row
-        cmp #TOTAL_ROWS
-        bne key_row_reset_sub
-        lda #0
-        sta selected_row
+krd_header:
+        lda #1
+        sta header_focused
+        jsr draw_list              ; hide the row marker, same as
+                                     ; key_row_up's own header entry
+        jsr draw_title
+        jmp draw_help_footer
 key_row_reset_sub:
         lda #0
         sta combo_subindex        ; moving to a different row always
@@ -257,7 +335,30 @@ key_row_done:
 ; same day, confirmed live -- Ryan's preference) -- see keymap_keys'
 ; own dispatch entries above. No-op on every other row -- nothing else
 ; has more than one sub-entry to move between.
+;
+; Repurposed while header_focused (2026-09-18): CRSR-LEFT/RIGHT there
+; instead toggle active_page and redraw -- both keys do the same thing
+; since there are only two pages, so either direction just flips it.
+; jmp (not a short branch) to toggle_active_page from here since that
+; routine lives elsewhere in the file and a direct beq/bne to it risks
+; the out-of-range-branch gotcha (see keymap.asm's own MAX_BINDINGS*
+; BINDING_SIZE comment / project memory feedback_6502_branch_range) --
+; the local beq to the fall-through label right below stays safely in
+; range either way.
+;
+; Also gated on active_page==0: HOME_MERGE_ROW is only a meaningful row
+; number on the Keymap Editor page -- on the Macro Editor page, that
+; same row index is an ordinary macro slot with no sub-entries, and
+; letting combo_subindex go nonzero there would silently point RETURN/
+; duplicate-checking (edit_slot = row_to_slot(selected_row) +
+; combo_subindex) at the WRONG macro slot, one past the intended one.
 key_subselect_prev:
+        lda header_focused
+        beq ksp_check_row
+        jmp toggle_active_page
+ksp_check_row:
+        lda active_page
+        bne ksp_rts
         lda selected_row
         cmp #HOME_MERGE_ROW
         bne ksp_rts
@@ -269,6 +370,12 @@ ksp_rts:
         rts
 
 key_subselect_next:
+        lda header_focused
+        beq ksn_check_row
+        jmp toggle_active_page
+ksn_check_row:
+        lda active_page
+        bne ksn_rts
         lda selected_row
         cmp #HOME_MERGE_ROW
         bne ksn_rts
@@ -279,17 +386,60 @@ key_subselect_next:
 ksn_rts:
         rts
 
-; --- row_to_slot: .x = a row index (0..TOTAL_ROWS-1) -> .x = the real
-; keymap_table slot that row's PRIMARY entry describes ---
-; Rows before HOME_MERGE_ROW map 1:1 to the same-numbered slot; rows
-; after it are shifted up by one (slot HOME_MERGE_ROW+1 no longer gets
-; its own row, folded into HOME_MERGE_ROW's row instead -- see that
-; constant's own comment). HOME_MERGE_ROW's row itself also maps to
-; slot HOME_MERGE_ROW unchanged (its primary/first sub-entry) -- callers
-; that need the SECOND sub-entry add combo_subindex on top of this
-; result themselves (see edit_slot below), since that only ever applies
-; to this one row.
+; --- toggle_active_page: flip active_page and redraw the title (new
+; highlighted heading) and list (that page's own rows) -- reached only
+; from key_subselect_prev/next above while header_focused is set.
+; Resets selected_row/combo_subindex to 0 so returning to the list (via
+; key_row_down) always lands on the new page's first row rather than
+; whatever row number happened to be selected on the OTHER page (which
+; may not even exist there -- e.g. Macro Editor's row 8 has no
+; counterpart on the 5-row Keymap Editor page).
+toggle_active_page:
+        lda active_page
+        eor #1
+        sta active_page
+        lda #0
+        sta selected_row
+        sta combo_subindex
+        jsr draw_title
+        jsr draw_list
+        jmp draw_help_footer
+
+; --- get_page_rows: .A = the active page's row count (NAV_ROWS or
+; MACRO_ROWS) -- used by key_row_down's wraparound and draw_list's own
+; loop, both of which need this rather than the old fixed TOTAL_ROWS
+; now that it depends on active_page.
+get_page_rows:
+        lda active_page
+        bne gpr_macro
+        lda #NAV_ROWS
+        rts
+gpr_macro:
+        lda #MACRO_ROWS
+        rts
+
+; --- row_to_slot: .x = a row index (0..MAX(NAV_ROWS,MACRO_ROWS)-1),
+; interpreted against active_page -> .x = the real keymap_table slot
+; that row's PRIMARY entry describes ---
+; Keymap Editor page (active_page=0): rows before HOME_MERGE_ROW map
+; 1:1 to the same-numbered slot; rows after it are shifted up by one
+; (slot HOME_MERGE_ROW+1 no longer gets its own row, folded into HOME_
+; MERGE_ROW's row instead -- see that constant's own comment). HOME_
+; MERGE_ROW's row itself also maps to slot HOME_MERGE_ROW unchanged
+; (its primary/first sub-entry) -- callers that need the SECOND sub-
+; entry add combo_subindex on top of this result themselves (see
+; edit_slot below), since that only ever applies to this one row.
+; Macro Editor page (active_page=1): no merge -- slot = row +
+; NAV_SLOT_COUNT, the first real slot number past the nav page's own.
 row_to_slot:
+        lda active_page
+        beq rts_nav_page
+        txa
+        clc
+        adc #NAV_SLOT_COUNT
+        tax
+        rts
+rts_nav_page:
         cpx #HOME_MERGE_ROW+1
         bcc rts_row_to_slot        ; row <= HOME_MERGE_ROW: slot == row
         inx                         ; row > HOME_MERGE_ROW: slot = row+1
@@ -356,6 +506,10 @@ ssa_done:
 ; silently creating a duplicate -- the original plan's "editor-time
 ; only" duplicate check.
 key_capture_combo:
+        lda header_focused         ; no row is selected while the header
+        beq kcc_have_row            ; itself has focus -- nothing to bind
+        rts
+kcc_have_row:
         jsr selected_slot_addr
         ldy #2                     ; action byte
         lda (scr_ptr_lo),y
@@ -618,17 +772,32 @@ draw_message_row:
         jmp poke_line
 
 ; --- draw_help_footer: (re)paint rows 18/19 with whichever footer
-; matches selected_row -- row_help1/row_help2 normally, or row_help1_
-; merged/row_help2_merged while HOME_MERGE_ROW is selected (Left/Right
-; only does anything there, so the standard "Up/Down: Select  Return:
-; Bind" / "S: Save  Stop: Cancel" footer stops being the whole story).
-; Called from key_row_up/down (via key_row_done) whenever selected_row
+; matches the current focus/selection -- row_help1_header/row_help2_
+; header while header_focused (Left/Right/Down are what matter there,
+; not Up/Down: Select or RETURN: Bind); otherwise row_help1/row_help2
+; normally, or row_help1_merged/row_help2_merged while HOME_MERGE_ROW
+; is selected ON THE KEYMAP EDITOR PAGE specifically (active_page==0 --
+; that same row number is an ordinary macro row on the other page, with
+; no Left/Right sub-entry to call out). Called from key_row_up/down
+; (via key_row_done) whenever selected_row/header_focused/active_page
 ; changes, and from kcc_done to restore rows 18/19 after the capture
 ; wait's own message/live-readout overwrote them.
 draw_help_footer:
+        lda header_focused
+        beq dhf_list_focus
+        ldx #<row_help1_header
+        ldy #>row_help1_header
+        jsr draw_message_row
+        ldx #<row_help2_header
+        ldy #>row_help2_header
+        jmp dhf_row2
+dhf_list_focus:
+        lda active_page
+        bne dhf_normal
         lda selected_row
         cmp #HOME_MERGE_ROW
         beq dhf_merged
+dhf_normal:
         ldx #<row_help1
         ldy #>row_help1
         jsr draw_message_row
@@ -856,15 +1025,12 @@ draw_popup:
         sta poke_dst_hi
         jsr poke_line
 
-        lda #<row_title
-        sta poke_src_lo
-        lda #>row_title
-        sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+1)*40)
-        sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+1)*40)
-        sta poke_dst_hi
-        jsr poke_line
+        ; Row +1 (the title) is left blank here -- module_start's own
+        ; jsr draw_title (right after this returns) fills it with the
+        ; two selectable page headings instead of a single static
+        ; string; nothing renders to the physical screen in between
+        ; (no vsync wait, just consecutive jsr calls), same as how the
+        ; list rows below start blank until draw_list's own first call.
 
         lda #<row_blank
         sta poke_src_lo
@@ -949,19 +1115,166 @@ draw_popup_blank_list:
         sta poke_dst_hi
         jmp poke_line
 
-; --- draw_list: (re)draw all TOTAL_ROWS rows from keymap_table ---
+; --- draw_title: (re)draw row +1 (the header) from row_title_base,
+; reverse-videoing whichever page's heading is active_page's current
+; value -- same EOR #$80 technique describe_combo_merged's dcm_invert_
+; range uses for the sub-entry highlight, applied here to a fixed
+; screen row instead of a variable one (the header never moves), so a
+; compile-time absolute address is used directly rather than set_
+; screen_line_local's runtime row math. Called from module_start (once,
+; at open) and from key_row_up/toggle_active_page (whenever header_
+; focused or active_page changes).
+draw_title:
+        ldx #0
+dt_copy_loop:
+        lda row_title_base,x
+        sta row_scratch,x
+        inx
+        cpx #30
+        bne dt_copy_loop
+
+        lda active_page
+        bne dt_macro_active
+        ldx #KEYMAP_LABEL_COL
+        ldy #KEYMAP_LABEL_LEN
+        jmp dt_do_invert
+dt_macro_active:
+        ldx #MACRO_LABEL_COL
+        ldy #MACRO_LABEL_LEN
+dt_do_invert:
+        stx dt_pos
+dt_invert_loop:
+        ldx dt_pos
+        lda row_scratch,x
+        eor #$80
+        sta row_scratch,x
+        inc dt_pos
+        dey
+        bne dt_invert_loop
+
+        ; Color: both headings reset to white every call, then the
+        ; ACTIVE one recolored yellow if the header currently has focus
+        ; (Ryan's ask, 2026-09-19) -- reverse video alone (above) marks
+        ; WHICH page is active regardless of focus; this second cue
+        ; marks whether the header itself is the thing CRSR-LEFT/RIGHT
+        ; would act on right now, same distinction row_scratch's marker
+        ; column draws between "this is the selected row" (list-
+        ; focused) and no marker at all (header-focused). Resetting
+        ; BOTH ranges to white unconditionally (rather than just the
+        ; formerly-focused one) means toggle_active_page's own draw_
+        ; title call never has to remember which heading was last
+        ; colored.
+        ldx #KEYMAP_LABEL_COL
+        ldy #KEYMAP_LABEL_LEN
+        lda #1                     ; white
+        jsr dt_set_color
+        ldx #MACRO_LABEL_COL
+        ldy #MACRO_LABEL_LEN
+        lda #1
+        jsr dt_set_color
+        lda header_focused
+        beq dt_color_done
+        lda active_page
+        bne dt_focus_macro
+        ldx #KEYMAP_LABEL_COL
+        ldy #KEYMAP_LABEL_LEN
+        jmp dt_focus_color
+dt_focus_macro:
+        ldx #MACRO_LABEL_COL
+        ldy #MACRO_LABEL_LEN
+dt_focus_color:
+        lda #7                     ; yellow
+        jsr dt_set_color
+dt_color_done:
+
+        ; Assemble the full 40-byte row directly at its fixed screen
+        ; address (5 border bytes + row_scratch's 30 + 5 border bytes),
+        ; same split draw_list's own dl_left_border/dl_middle/dl_right_
+        ; border uses, but via plain abs,Y addressing since this row's
+        ; address is a compile-time constant, not a per-call variable
+        ; one -- no set_screen_line_local / (scr_ptr_lo),y needed.
+        ldy #0
+dt_left_border:
+        lda row_blank,y
+        sta SCREEN_RAM+(BOX_TOP_ROW+1)*40,y
+        iny
+        cpy #5
+        bne dt_left_border
+dt_middle:
+        ldx #0
+dt_middle_loop:
+        lda row_scratch,x
+        sta SCREEN_RAM+(BOX_TOP_ROW+1)*40,y
+        iny
+        inx
+        cpx #30
+        bne dt_middle_loop
+dt_right_border:
+        lda row_blank,y
+        sta SCREEN_RAM+(BOX_TOP_ROW+1)*40,y
+        iny
+        cpy #40
+        bne dt_right_border
+        rts
+
+; --- dt_set_color: .X = start column within row +1's 30-char field,
+; .Y = length, .A = VIC-II color number -> pokes that many COLOR_RAM
+; cells starting there. +5 in the address below is the same border
+; offset row_scratch's own content sits at within the physical 40-byte
+; row (see draw_list's dl_left_border for the SCREEN_RAM equivalent).
+; Reuses dt_pos as its position counter, same as dt_invert_loop above
+; -- the two never run concurrently (both only ever called from within
+; draw_title itself).
+dt_set_color:
+        sta dt_color_val
+        stx dt_pos
+dt_set_color_loop:
+        ldx dt_pos
+        lda dt_color_val
+        sta COLOR_RAM+(BOX_TOP_ROW+1)*40+5,x
+        inc dt_pos
+        dey
+        bne dt_set_color_loop
+        rts
+
+dt_color_val:
+        byte 0
+
+dt_pos:
+        byte 0
+
+; --- draw_list: (re)draw PAGE_ROWS_MAX rows -- the active page's own
+; rows (NAV_ROWS or MACRO_ROWS, from keymap_table via describe_binding_
+; row) plus, if the OTHER page is longer, blank rows over whatever it
+; left behind on screen (Ryan's two-screen-split ask, 2026-09-18: the
+; loop always runs to PAGE_ROWS_MAX -- the longer page's count -- so
+; toggling from Macro Editor's 9 rows down to Keymap Editor's 5 clears
+; rows 5-8 instead of leaving stale macro rows showing underneath).
 ; Called once at startup and again after every CRSR UP/DOWN/LEFT/RIGHT
 ; -- redraws every row rather than just the marker/highlight column,
-; simplest correct thing for a list this small (14 rows * 40 bytes =
-; 560 bytes, negligible). One fewer row than MAX_BINDINGS's 15 real
-; slots -- HOME_MERGE_ROW's own comment explains why two of those
-; slots share a single displayed row.
+; simplest correct thing for a list this small (9 rows * 40 bytes = 360
+; bytes, negligible).
 draw_list:
+        jsr get_page_rows
+        sta page_row_count
         ldx #0
 draw_list_loop:
         stx draw_list_row
+        cpx page_row_count
+        bcs dl_row_blank           ; past the active page's own rows --
+                                     ; blank row_scratch instead of
+                                     ; describing a real slot
         jsr describe_binding_row  ; fills row_scratch (30 bytes)
-
+        jmp dl_place
+dl_row_blank:
+        ldy #0
+dl_row_blank_loop:
+        lda blank_char
+        sta row_scratch,y
+        iny
+        cpy #30
+        bne dl_row_blank_loop
+dl_place:
         ldx draw_list_row
         txa
         clc
@@ -1005,11 +1318,24 @@ dl_right_border:
 
         ldx draw_list_row
         inx
-        cpx #TOTAL_ROWS
+        cpx #PAGE_ROWS_MAX
         bne draw_list_loop
         rts
 
 draw_list_row:
+        byte 0
+
+; get_page_rows's result, cached once per draw_list call rather than
+; re-fetched every loop iteration (cheap either way, but cpx needs a
+; memory operand -- CPX has no indexed addressing mode -- so this has
+; to live somewhere regardless).
+page_row_count:
+        byte 0
+
+; key_row_down's own scratch -- selected_row+1, cached here so it can be
+; compared against get_page_rows's result (which clobbers A) and then
+; either stored (still in range) or discarded (out of range -> header).
+krd_next_row:
         byte 0
 
 ; --- describe_binding_row: build row_scratch (30 bytes) for row .x ---
@@ -1023,9 +1349,10 @@ draw_list_row:
 ; single time a row was drawn. Confirmed via the VICE monitor: row_
 ; scratch = $2d93, +30 = $2db1 = selected_row exactly.
 ;
-; .x is a ROW index (0..TOTAL_ROWS-1), NOT a raw keymap_table slot
-; index, since 2026-09-18 -- HOME_MERGE_ROW's own comment explains why
-; those can now differ (row_to_slot converts). describe_slot always
+; .x is a ROW index (0..page_row_count-1 for the CURRENT active_page --
+; row_to_slot itself reads active_page too), NOT a raw keymap_table
+; slot index, since 2026-09-18 -- HOME_MERGE_ROW's own comment explains
+; why those can now differ (row_to_slot converts). describe_slot always
 ; holds the row's PRIMARY slot (both merged slots share the same
 ; action, so the primary slot's action/name describes the whole row
 ; either way); the marker and merged-combo highlight both need the ROW
@@ -1034,7 +1361,10 @@ describe_binding_row:
         stx describe_row
         jsr row_to_slot            ; .x (row) -> .x (primary slot)
         stx describe_slot
-        ; marker
+        ; marker -- suppressed entirely while header_focused (no row is
+        ; "selected" in that state, focus is on the header instead)
+        lda header_focused
+        bne dbr_no_marker
         lda selected_row
         cmp describe_row
         bne dbr_no_marker
@@ -1620,6 +1950,22 @@ row_scratch:
 selected_row:
         byte 0
 
+; 0 = Keymap Editor page (the 5 nav rows), 1 = Macro Editor page (the
+; remaining macro slots) -- see the two-screen-split comment near NAV_
+; ROWS/MACRO_ROWS above. Only CRSR-LEFT/RIGHT while header_focused
+; (toggle_active_page) ever change this.
+active_page:
+        byte 0
+
+; 0 = a list row has focus (selected_row is meaningful), 1 = the header
+; above the list has focus (selected_row/combo_subindex are not --
+; describe_binding_row's own marker check skips entirely while this is
+; set, and key_capture_combo/key_subselect_prev/next's row-specific
+; logic are no-ops here, repurposed instead for page-toggling). Set by
+; key_row_up on row 0, cleared by key_row_down.
+header_focused:
+        byte 0
+
 ; Which of HOME_MERGE_ROW's two underlying slots (0 = describe_slot
 ; itself, 1 = describe_slot+1) CRSR-LEFT/CRSR-RIGHT and RETURN act on.
 ; Only ever nonzero while selected_row == HOME_MERGE_ROW -- key_row_up/
@@ -1818,10 +2164,17 @@ top_border:
         byte $20,$20,$20,$20, $70
         area 30, $40
         byte $6e, $20,$20,$20,$20
-row_title:
-        byte $20,$20,$20,$20, $5d
-        ascii "         Keymap Editor        "
-        byte $5d, $20,$20,$20,$20
+; row_title_base: draw_title's own plain-text source for the header --
+; NOT framed with the $20x4/$5d border bytes row_blank/row_help1/etc.
+; carry, since draw_title assembles those itself (same 5+30+5 technique
+; draw_list uses for the list rows below, see that routine's own
+; comment) rather than a single fixed poke_line source -- it needs to
+; EOR #$80 whichever heading is active before the border goes on.
+; "Keymap Editor" (13 chars) starts at column KEYMAP_LABEL_COL (2),
+; "Macro Editor" (12 chars) at MACRO_LABEL_COL (18) -- 2+13+3+12 = 30,
+; both constants declared with draw_title below.
+row_title_base:
+        ascii "  Keymap Editor   Macro Editor"
 row_blank:
         byte $20,$20,$20,$20, $5d
         ascii "                              "
@@ -1852,6 +2205,20 @@ row_help1_merged:
 row_help2_merged:
         byte $20,$20,$20,$20, $5d
         ascii " Return: Edit     Stop: Cancel"
+        byte $5d, $20,$20,$20,$20
+
+; Footer shown while header_focused (Ryan's two-screen-split ask,
+; 2026-09-18) -- Left/Right and Down are what matter there; 'S: Save'
+; is left out same as row_help2_merged's own precedent (Save still
+; works, this just keeps the alternate footer focused on this state's
+; own keys rather than repeating the global reminder).
+row_help1_header:
+        byte $20,$20,$20,$20, $5d
+        ascii " Left/Right: Choose section   "
+        byte $5d, $20,$20,$20,$20
+row_help2_header:
+        byte $20,$20,$20,$20, $5d
+        ascii " Down: Select     Stop: Cancel"
         byte $5d, $20,$20,$20,$20
 
 ; key_capture_combo swaps row_help1's screen line for one of these two
