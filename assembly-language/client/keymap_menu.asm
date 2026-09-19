@@ -1124,11 +1124,25 @@ draw_popup_blank_list:
 ; screen_line_local's runtime row math. Called from module_start (once,
 ; at open) and from key_row_up/toggle_active_page (whenever header_
 ; focused or active_page changes).
+;
+; Uses its OWN title_scratch buffer, NOT row_scratch -- real bug caught
+; live 2026-09-19: describe_binding_row's 30-byte row_scratch layout
+; (marker(1) space(1) name(12) space(1) combo(15)) has a gap at offset
+; 14 that NOTHING ever explicitly writes (it's meant to just stay the
+; static separator space row_scratch's own `area 30, $20` initializes
+; it to). When draw_title borrowed that same buffer as scratch space,
+; row_title_base's own offset 14 (the 'r' in "Editor") got copied in
+; and then never overwritten by any later draw_list row, since every
+; row's own describe_binding_row call also skips offset 14 -- so every
+; list row showed a stray 'r' right where the name/combo separator
+; should be blank, on both pages, confirmed via a live row_scratch
+; memory dump. A dedicated buffer here closes off this whole class of
+; leakage rather than papering over just this one coincidental offset.
 draw_title:
         ldx #0
 dt_copy_loop:
         lda row_title_base,x
-        sta row_scratch,x
+        sta title_scratch,x
         inx
         cpx #30
         bne dt_copy_loop
@@ -1145,9 +1159,9 @@ dt_do_invert:
         stx dt_pos
 dt_invert_loop:
         ldx dt_pos
-        lda row_scratch,x
+        lda title_scratch,x
         eor #$80
-        sta row_scratch,x
+        sta title_scratch,x
         inc dt_pos
         dey
         bne dt_invert_loop
@@ -1188,11 +1202,12 @@ dt_focus_color:
 dt_color_done:
 
         ; Assemble the full 40-byte row directly at its fixed screen
-        ; address (5 border bytes + row_scratch's 30 + 5 border bytes),
-        ; same split draw_list's own dl_left_border/dl_middle/dl_right_
-        ; border uses, but via plain abs,Y addressing since this row's
-        ; address is a compile-time constant, not a per-call variable
-        ; one -- no set_screen_line_local / (scr_ptr_lo),y needed.
+        ; address (5 border bytes + title_scratch's 30 + 5 border
+        ; bytes), same split draw_list's own dl_left_border/dl_middle/
+        ; dl_right_border uses, but via plain abs,Y addressing since
+        ; this row's address is a compile-time constant, not a per-call
+        ; variable one -- no set_screen_line_local / (scr_ptr_lo),y
+        ; needed.
         ldy #0
 dt_left_border:
         lda row_blank,y
@@ -1203,7 +1218,7 @@ dt_left_border:
 dt_middle:
         ldx #0
 dt_middle_loop:
-        lda row_scratch,x
+        lda title_scratch,x
         sta SCREEN_RAM+(BOX_TOP_ROW+1)*40,y
         iny
         inx
@@ -1220,8 +1235,8 @@ dt_right_border:
 ; --- dt_set_color: .X = start column within row +1's 30-char field,
 ; .Y = length, .A = VIC-II color number -> pokes that many COLOR_RAM
 ; cells starting there. +5 in the address below is the same border
-; offset row_scratch's own content sits at within the physical 40-byte
-; row (see draw_list's dl_left_border for the SCREEN_RAM equivalent).
+; offset title_scratch's own content sits at within the physical 40-
+; byte row (see draw_list's dl_left_border for the SCREEN_RAM equivalent).
 ; Reuses dt_pos as its position counter, same as dt_invert_loop above
 ; -- the two never run concurrently (both only ever called from within
 ; draw_title itself).
@@ -1945,6 +1960,12 @@ fill_remaining_hi:
         byte 0
 
 row_scratch:
+        area 30, $20
+
+; draw_title's OWN scratch buffer -- kept separate from row_scratch
+; above (see draw_title's own comment for the real leaked-'r' bug a
+; shared buffer caused).
+title_scratch:
         area 30, $20
 
 selected_row:
