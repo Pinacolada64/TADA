@@ -1702,9 +1702,17 @@ dc_key_next:
         ; (mode 2, mixed case) maps screen codes $41-$5A straight to
         ; uppercase glyphs, same as PETSCII already has them. $20-$3F
         ; (space, digits, punctuation) is likewise identical between
-        ; PETSCII and screen code in this charset. Anything outside
-        ; both ranges (control codes, unnamed cursor/function keys,
-        ; SHIFT/CBM-modified letter codes) still falls back to hex --
+        ; PETSCII and screen code in this charset. A Commodore+letter
+        ; combo (Ryan's ask, 2026-09-19: "C= + C" showing as "C= + $bc"
+        ; doesn't read as a letter to anyone either) is recovered via
+        ; cmdre_key_codes below -- holding C= while pressing a letter
+        ; doesn't produce that letter's own PETSCII code at all, it
+        ; produces one of 26 fixed alternate-charset graphic codes (the
+        ; standard C64 KERNAL "Commodore-key" table), so there's no
+        ; range check for it the way plain letters/punctuation get --
+        ; only an exact 26-entry lookup recovers which letter it was.
+        ; Anything left over (control codes, unnamed cursor/function
+        ; keys, SHIFT-modified letter codes) still falls back to hex --
         ; there's no single glyph for those without a bigger table.
 dk_hex:
         lda describe_key
@@ -1717,10 +1725,26 @@ dk_hex:
 dk_try_symbol:
         lda describe_key
         cmp #$20
-        bcc dk_hex_fallback
+        bcc dk_try_cmdre_letter
         cmp #$40                  ; > '?' ($3f)?
-        bcs dk_hex_fallback
+        bcs dk_try_cmdre_letter
         jsr describe_combo_putc   ; $20-$3f: PETSCII == screen code already
+        rts
+dk_try_cmdre_letter:
+        ldx #0
+dktcl_loop:
+        cpx #26
+        beq dk_hex_fallback        ; scanned all 26, no match -- give up
+        lda cmdre_key_codes,x
+        cmp describe_key
+        beq dktcl_found
+        inx
+        jmp dktcl_loop
+dktcl_found:
+        txa                         ; .x is this match's index into
+        clc                         ; cmdre_key_codes, 0='A'..25='Z' --
+        adc #'A'                    ; same alphabetical order as the
+        jsr describe_combo_putc    ; table itself (see its own comment)
         rts
 dk_hex_fallback:
         lda #'$'
@@ -1728,6 +1752,16 @@ dk_hex_fallback:
         lda describe_key
         jmp describe_combo_put_hex_byte ; tail call -- its own rts
                                           ; returns straight to our caller
+
+; --- cmdre_key_codes: the 26 fixed PETSCII/screen codes GETIN reports
+; for Commodore+A through Commodore+Z (index 0='A'..25='Z') -- the
+; standard C64 KERNAL "Commodore-key" alternate-charset graphic codes,
+; NOT the letters' own codes. Cross-checked against Ryan's own live
+; report (2026-09-19): Commodore+C showed as "$bc" before this table
+; existed, and index 2 ('C') here is indeed $bc.
+cmdre_key_codes:
+        byte $b0,$bf,$bc,$ac,$b1,$bb,$a5,$b4,$a2,$b5,$a1,$b6,$a7
+        byte $aa,$b9,$af,$ab,$b2,$ae,$a3,$b8,$be,$b3,$bd,$b7,$ad
 
 ; --- dc_pad: pad row_scratch+15..+29 with blank_char from describe_
 ; combo_col onward -- shared tail for describe_combo (single combo) and
