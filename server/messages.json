@@ -64,7 +64,7 @@
     "Phase 2; assuming the shield takes damage, how much. Base damage absorbed = 3 + (% shield/25) ie: for every 25% of shield, 1 additional damage point is absorbed.",
     "Formal shield training: +1 damage Paladin: +2 damage",
     "There is a chance that larger monsters may rip the shield out of your hands. Probability: Huge=16%, Large=13%, Big=10%, Man sized=6% If Formal shield training: probability -3%",
-    "Notice that your shield size affects its ability to absorb damage. Also not that this is reduced every time it does take damage."
+    "Notice that your shield size affects its ability to absorb damage. Also note that this is reduced every time it does take damage."
   ],
   "15": [
     "If you join a Guild, you may expect the following changes:",
