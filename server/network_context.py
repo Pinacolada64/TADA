@@ -454,6 +454,19 @@ def _petscii_input_to_ascii(data: bytes) -> str:
                  arrows (Ryan's call), so it's left unhandled/discarded
                  here like any other unmapped control/graphics byte.
       0xC1-0xDA  A-Z shifted in lowercase charset (0xC1 = 'A', 0xDA = 'Z')
+      0xDD       Shift+'-' -> '|'. Verified the same way as 0xA0 above --
+                 py65 disassembly of kernal-901246-01.bin: matrix position
+                 43 (the '-' key) is $2D in the unshifted table ($EB81+43)
+                 and $DD in the shift table ($EBC2+43). Conveniently the
+                 exact same byte formatting.py's _PETSCII_RAW_BYTE_OVERRIDES
+                 sends back out for '|' (the box-drawing vertical bar,
+                 '│') -- input and output round-trip through the identical
+                 wire byte. Before this branch existed, 0xDD fell through
+                 every case here undetected: 'say "|"'/'say "||"' silently
+                 became 'say ""' server-side (empty message, "Say what?"),
+                 and mid-message pipes vanished outright, well before
+                 petscii_encode() or say.py's escape handling ever saw
+                 them -- confirmed live 9/19/26.
     Everything else (control codes, graphics) is discarded. 0x5E is
     outside 0x20-0x40 because cbmcodecs2 decodes it to the UPWARDS ARROW
     glyph (U+2191), not '^' -- see formatting.py's
@@ -482,6 +495,8 @@ def _petscii_input_to_ascii(data: bytes) -> str:
             chars.append('^')
         elif b == 0xA0:                # Shift+Space
             chars.append('_')
+        elif b == 0xDD:                # Shift+'-'
+            chars.append('|')
         elif 0x61 <= b <= 0x7A:        # a-z (some terminal modes)
             chars.append(chr(b))
         elif 0xC1 <= b <= 0xDA:        # shifted A-Z in lowercase charset → uppercase
