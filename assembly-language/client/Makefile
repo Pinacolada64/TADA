@@ -116,15 +116,8 @@ $(TARGET)-vice-labels: $(TARGET).prg
 	$(CONVERT_LABELS) $(TARGET)_pp.sym $(TARGET)-vice-labels
 
 # Step 4: generate VICE monitor commands to auto-load labels
-# TEMP (2026-08-17, Ryan+Claude live debugging the play-#test SID-stream
-# hang): also auto-arms watchpoints on sid_mode/sid_remaining_lo/hi so
-# they survive killing and relaunching VICE between attempts -- a fresh
-# remote-monitor connection doesn't carry over watchpoints set on a
-# previous VICE process. Revert to just the `ll` line once that bug's
-# found and fixed.
 monitor-commands: $(TARGET)-vice-labels
 	echo "ll \"$(TARGET)-vice-labels\"" > monitor-commands
-	echo "watch store 0314 0319" >> monitor-commands
 
 # Default target: build everything
 all: $(TARGET).prg $(TARGET)-vice-labels monitor-commands $(addsuffix .prg,$(MODULES))
