@@ -542,6 +542,18 @@ kcc_have_row:
         jsr draw_message_row
         lda #0
         sta capture_display_key
+        lda #$ff                    ; sentinel -- guarantees update_
+        sta ucd_prev_mod             ; capture_display's own change-
+                                       ; check (see its comment) redraws
+                                       ; on THIS call: a real captured
+                                       ; mod is always masked to 3 bits
+                                       ; (0-7), so $ff can never match
+                                       ; and be mistaken for "unchanged"
+                                       ; -- without this reset, a SECOND
+                                       ; capture later in the same visit
+                                       ; could inherit the FIRST one's
+                                       ; leftover ucd_prev_mod/key and
+                                       ; wrongly skip its own first draw
         jsr update_capture_display  ; draw the (blank) live row once
                                        ; up front, before the first key
 kcc_wait:
@@ -639,10 +651,26 @@ capture_display_key:
 ; instant the physical key releases, independent of GETIN's own
 ; buffered timing. Clobbers A/X/Y and scr_ptr_lo/hi (both already
 ; treated as call-clobbered by every other routine in this file).
+;
+; Only the describe_combo/poke_line block (ucd_redraw below) is
+; skipped when nothing changed since the last tick -- real bug caught
+; live 2026-09-20 (Ryan's report: "the cursor blink routine from the
+; keytable editor is not consistent," compared against config_menu.
+; asm's own steadier demo_cursor_update): this routine used to run
+; that ~40-byte describe_combo+poke_line rebuild on EVERY kcc_wait
+; tick regardless of whether capture_live_mod/key had actually changed,
+; making each loop iteration's cost -- and so the exact moment $a2 gets
+; sampled for JT_UPDATE_CURSOR's own blink-phase check -- uneven, unlike
+; config_menu.asm's config_loop (a cheap demo_cursor_update + GETIN
+; spin every tick, nothing else). JT_CURSOR_HIDE and the final
+; reposition + JT_UPDATE_CURSOR call still run unconditionally every
+; tick -- both cheap, and JT_UPDATE_CURSOR's own $a2 sample is the part
+; that actually needs a steady polling rate, so isolating it from the
+; expensive text rebuild is what fixes the jitter, not skipping it too.
 update_capture_display:
         jsr JT_CURSOR_HIDE          ; erase wherever the cursor was left
-                                     ; blinking last tick, BEFORE this
-                                     ; tick's text overwrites that row --
+                                     ; blinking last tick, BEFORE any
+                                     ; redraw below overwrites that row --
                                      ; a harmless no-op on the very first
                                      ; call (cursor_phase starts at 0,
                                      ; see key_capture_combo's own
@@ -656,11 +684,22 @@ update_capture_display:
         bne ucd_have_key
         lda #0                     ; no key held -- key_names' $00
         sta capture_live_key        ; sentinel blanks the field for us
-        jmp ucd_describe
+        jmp ucd_check_change
 ucd_have_key:
         lda capture_display_key
         sta capture_live_key
-ucd_describe:
+ucd_check_change:
+        lda capture_live_mod
+        cmp ucd_prev_mod
+        bne ucd_redraw
+        lda capture_live_key
+        cmp ucd_prev_key
+        beq ucd_position            ; both unchanged -- skip the rebuild
+ucd_redraw:
+        lda capture_live_mod
+        sta ucd_prev_mod
+        lda capture_live_key
+        sta ucd_prev_key
         lda #<capture_live_mod
         sta scr_ptr_lo
         lda #>capture_live_mod
@@ -687,13 +726,16 @@ ucd_copy_loop:
         lda #>(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
         sta poke_dst_hi
         jsr poke_line
-
+ucd_position:
         ; Point PNT/PNTR ($d1/$d2/$d3) at the cell right after the live
         ; text just printed (capture_live_row+11 is column 11 of this
         ; physical row -- see ucd_copy_loop above) -- JT_UPDATE_CURSOR
         ; toggles reverse-video on THAT cell if the blink timer calls
         ; for it this tick, giving a real cursor that visibly sits right
         ; where the next character would go, "following" the printout.
+        ; Uses ucd_text_len's own cached value even on a skip-redraw
+        ; tick -- unchanged since the last real redraw, so the cursor's
+        ; column doesn't move just because the text didn't.
         lda #<(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
         sta $d1
         lda #>(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
@@ -706,6 +748,16 @@ ucd_copy_loop:
                                      ; straight to our caller
 
 ucd_text_len:
+        byte 0
+; Last mod/key values a redraw actually ran for -- see this routine's
+; own header comment. key_capture_combo resets ucd_prev_mod to $ff
+; (impossible for a real 3-bit mod value) right before its own first
+; update_capture_display call each time it starts a fresh wait, so
+; that first call always redraws regardless of whatever a PREVIOUS
+; capture in the same popup visit left cached here.
+ucd_prev_mod:
+        byte 0
+ucd_prev_key:
         byte 0
 
 ; --- capture_check_duplicate: is capture_mod/capture_key already
