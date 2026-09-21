@@ -4,8 +4,23 @@
 Walks the live command registry (CommandProcessor.discover()) and the
 standalone concept topics (commands/help._TOPICS), formats each one with
 commands.help.format_help() -- the same formatter the live 'help' command
-uses -- strips the |color| markup tokens, and lays the result out as a PDF
-via reportlab.
+uses -- and lays the result out as a PDF via reportlab.
+
+format_help()'s output is meant for a real client's send pipeline, which
+still has two escaping passes left to run on it (network_context.py's
+ctx.send() -> tada_utilities.substitute_tokens(), then
+formatting.ansi_encode()/petscii_encode() -> formatting.highlight_brackets()):
+  - |color|...|reset| tokens get resolved to real color codes/removed
+  - [[literal]] double-bracket escapes (written by format_help()'s
+    _auto_escape(), see Help's class docstring) collapse to a literal
+    [literal] via highlight_brackets()
+  - %% double-percent escapes (see the "tokens" concept topic) collapse
+    to a literal % via substitute_tokens()
+This script has no live client/player to run the real pipeline against,
+so it reproduces the same three collapses directly (strip |tokens|, run
+highlight_brackets() with a PlainCodec, collapse %% -> %) -- skipping
+any of them would leave the PDF showing raw [[...]] / %% escapes instead
+of the literal text a player actually sees.
 
 Usage:
     .venv/bin/python3 tools/gen_help_pdf.py [output.pdf]
@@ -30,12 +45,21 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 
 from commands.command_processor import CommandProcessor
 from commands.help import _TOPICS, _TOPIC_PRIMARY_NAME, format_help
+from formatting import highlight_brackets, PlainCodec
 
 TOKEN_RE = re.compile(r"\|[a-z_]+\|")
+_PLAIN_CODEC = PlainCodec()
 
 
 def strip_tokens(line: str) -> str:
-    return TOKEN_RE.sub("", line)
+    """Resolve a format_help() line down to what a player actually sees:
+    strip |color| tokens, collapse [[literal]] to [literal] (and apply
+    [highlight] as plain text, delimiters removed) via highlight_brackets(),
+    and collapse %% to a literal % -- see this module's docstring."""
+    line = TOKEN_RE.sub("", line)
+    line = highlight_brackets(line, _PLAIN_CODEC)
+    line = line.replace("%%", "%")
+    return line
 
 
 def collect_entries():
