@@ -705,6 +705,24 @@ kcc_rts:
 ; already in this popup's charset); anything else typed is silently
 ; ignored, same as capture_macro_combo's own RETURN-rejection shape.
 ;
+; CRSR-LEFT/RIGHT move macro_edit_pos, a separate cursor offset within
+; macro_text_scratch (0..macro_edit_len) -- added 2026-09-22, Ryan's
+; ask. Before this, every insert/backspace implicitly worked at the
+; END of the buffer (macro_edit_len doubled as the only cursor); now
+; macro_edit_pos is the real insertion point and macro_edit_len is
+; just the total length, so a player can move back into already-typed
+; text (e.g. to fix a typo mid-word) instead of only ever appending or
+; trimming off the end. kemt_try_insert shifts everything from
+; macro_edit_pos onward one byte right to open a gap; kemt_backspace
+; shifts everything from macro_edit_pos onward one byte left to close
+; one, same as any ordinary line editor's insert-mode behavior (this
+; popup's own read_line-style input line, tada-client.asm, already
+; works this same way via cursor_pos -- this mirrors that rather than
+; inventing new mechanics). key_edit_macro_text seeds macro_edit_pos
+; to macro_edit_len on entry (cursor starts after the existing text,
+; matching this routine's old end-only behavior for anyone who never
+; touches CRSR-LEFT/RIGHT at all).
+;
 ; Works on BOTH ACTION_EMPTY and ACTION_MACRO slots, in either order
 ; relative to key_capture_trigger -- a player can set a macro's text
 ; before or after its own trigger. Accepting text always sets ACTION_
@@ -754,6 +772,9 @@ kemt_copy_loop:
         jmp kemt_copy_loop
 kemt_copy_done:
         stx macro_edit_len
+        stx macro_edit_pos           ; cursor starts after the existing
+                                       ; text -- see this routine's own
+                                       ; header comment on macro_edit_pos
 
         lda $d1
         sta capture_saved_pnt_lo
@@ -773,12 +794,42 @@ kemt_wait:
         beq kemt_done
         cmp #$14                    ; DEL
         beq kemt_backspace
+        cmp #$9d                    ; CRSR-LEFT -- move cursor left
+        beq kemt_cursor_left
+        cmp #$1d                    ; CRSR-RIGHT -- move cursor right
+        beq kemt_cursor_right
         jsr kemt_try_insert
         jmp kemt_wait
+kemt_cursor_left:
+        lda macro_edit_pos
+        beq kemt_wait                ; already at the start
+        dec macro_edit_pos
+        jsr kemt_redraw
+        jmp kemt_wait
+kemt_cursor_right:
+        lda macro_edit_pos
+        cmp macro_edit_len
+        beq kemt_wait                ; already at the end
+        inc macro_edit_pos
+        jsr kemt_redraw
+        jmp kemt_wait
 kemt_backspace:
-        lda macro_edit_len
-        beq kemt_wait                ; nothing to remove
+        lda macro_edit_pos
+        beq kemt_wait                ; nothing before the cursor to
+                                       ; remove -- see this routine's
+                                       ; own header comment on
+                                       ; macro_edit_pos vs macro_edit_len
+        ldx macro_edit_pos           ; shift scratch[pos..len-1] left
+kemt_backspace_shift:                 ; by one, closing the gap left by
+        cpx macro_edit_len            ; the removed character (macro_
+        beq kemt_backspace_shift_done ; text_scratch-1,x is a valid
+        lda macro_text_scratch,x      ; absolute,X address -- the base
+        sta macro_text_scratch-1,x    ; is just computed one byte
+        inx                           ; earlier, same trick spares a
+        jmp kemt_backspace_shift      ; second index register)
+kemt_backspace_shift_done:
         dec macro_edit_len
+        dec macro_edit_pos
         jsr kemt_redraw
         jmp kemt_wait
 kemt_accept:
@@ -863,12 +914,17 @@ kemt_redraw_position:
         sta $d1
         lda #>STATUS_ROW_SCREEN
         sta $d2
-        lda macro_edit_len
-        sta $d3
+        lda macro_edit_pos           ; the cursor's own position, NOT
+        sta $d3                       ; macro_edit_len -- see key_edit_
+                                        ; macro_text's own header comment
+                                        ; on macro_edit_pos vs macro_
+                                        ; edit_len (2026-09-22)
         jmp JT_UPDATE_CURSOR         ; tail call
 
-; --- kemt_try_insert: .a = a GETIN byte -> append it to macro_text_
-; scratch if printable (dc_key's own two established ranges) and
+; --- kemt_try_insert: .a = a GETIN byte -> insert it into macro_text_
+; scratch AT macro_edit_pos (shifting everything from there onward one
+; byte right to open a gap -- see key_edit_macro_text's own header
+; comment) if printable (dc_key's own two established ranges) and
 ; there's room left (macro_edit_len < MACRO_TEXT_LEN). Silently no-ops
 ; otherwise -- full buffer or an unprintable key -- same "ignore rather
 ; than error" shape this file already uses elsewhere in a wait loop.
@@ -889,15 +945,27 @@ kemt_insert_go:
         lda macro_edit_len
         cmp #MACRO_TEXT_LEN
         bcs kemt_insert_rts
-        tax
+        ldx macro_edit_len            ; shift scratch[pos..len-1] right
+kemt_insert_shift:                     ; by one, from the END backward,
+        cpx macro_edit_pos             ; to open a gap at pos (macro_
+        beq kemt_insert_shift_done     ; text_scratch-1,x mirrors kemt_
+        lda macro_text_scratch-1,x     ; backspace_shift's own trick --
+        sta macro_text_scratch,x       ; see that routine's own comment)
+        dex
+        jmp kemt_insert_shift
+kemt_insert_shift_done:
+        ldx macro_edit_pos
         lda kemt_typed
         sta macro_text_scratch,x
         inc macro_edit_len
+        inc macro_edit_pos
         jsr kemt_redraw
 kemt_insert_rts:
         rts
 
 kemt_typed:
+        byte 0
+macro_edit_pos:
         byte 0
 macro_edit_len:
         byte 0
