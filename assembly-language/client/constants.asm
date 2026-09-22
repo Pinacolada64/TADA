@@ -69,13 +69,18 @@ PROTO_HELP_STREAM_CONFIRM    = $c019
 ; called directly (rules out the keyboard buffer), and the status-line
 ; clock froze too (consistent with mainline never reaching anywhere
 ; past the tight poll, not a keyboard-specific issue). JT_RESUME_LOCAL
-; (jmp read_line) skips straight past wait_for_data for exactly this
-; case -- safe because read_line's own entry point already
-; unconditionally resets linelen/cursor_pos to 0 regardless of how it
-; was reached (a pre-existing characteristic, not something this
+; (jmp resume_local, tada-client.asm) skips straight past wait_for_data
+; for exactly this case -- safe because read_line's own entry point
+; already unconditionally resets linelen/cursor_pos to 0 regardless of
+; how it was reached (a pre-existing characteristic, not something this
 ; introduces): a player mid-line when they press F7 already lost that
 ; partial text under the OLD hardcoded-F7-check code too, since that
 ; also `jmp`'d away from read_line's own call frame the same way.
+; resume_local runs read_line THEN send_line THEN loops back to prompt_
+; loop, NOT a bare jmp straight into read_line -- see resume_local's own
+; comment for a second, later bug (2026-09-22) that plain jmp caused:
+; read_line_done's own rts has nowhere correct to return to without a
+; jsr read_line ahead of it.
 JT_RESUME_LOCAL              = $c01a
 
 ; JT_STATUS_PUSH_RESET/JT_BUILD_STATUS_LINE -- added 2026-09-18 so

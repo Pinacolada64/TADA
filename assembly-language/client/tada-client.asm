@@ -379,6 +379,38 @@ prompt_loop:
         jsr send_line            ; ship it, CR-terminated
         jmp prompt_loop
 
+; --- resume_local: JT_RESUME_LOCAL's real target (see constants.asm's
+; own comment on why this exists alongside JT_RESUME) -- prompt_loop's
+; OWN body minus the leading wait_for_data call, NOT a bare `jmp read_
+; line`. Real bug caught live 2026-09-22 (Ryan's report: after Save or
+; Cancel closes the keymap popup, the NEXT typed command's first RETURN
+; is silently swallowed -- "the cursor sits there blinking until I hit
+; Return again"). Root cause: keymap_dispatch's own ACTION_OPEN_EDITOR
+; case reaches load_keymap_menu via `jmp`, not `jsr` ("never returns
+; here" by design, matching JT_RESUME's own contract) -- so the JSR-
+; keymap_dispatch call frame from read_line_not_return is STILL sitting
+; on the stack, unwound, underneath module_entry_sp's own snapshot.
+; JT_RESUME (jmp prompt_loop) never notices, since prompt_loop is a
+; flat loop with no RTS of its own to go wrong. But a bare `jmp read_
+; line` for JT_RESUME_LOCAL relies on read_line_done's OWN rts to find
+; its way back to send_line -- and that rts pops the STALE keymap_
+; dispatch return address sitting on top of the restored stack instead,
+; landing back inside read_line_not_return's own dispatch tail rather
+; than send_line. send_line silently never runs; the typed line sits in
+; linebuf, still there for the NEXT real RETURN press (now reached via
+; the correct, un-stale path) to finally send -- exactly the "type a
+; command, first Return is silently eaten, second Return sends it"
+; symptom. Fix: jsr (not jmp) read_line here pushes a FRESH return
+; address on top of whatever module_entry_sp's restore left buried
+; below it, so read_line_done's rts always finds ITS OWN correct
+; target regardless of that older, now-permanently-unreachable frame
+; (harmless dead stack space, not a leak that grows -- module_entry_sp
+; is recaptured fresh on every popup visit, never compounding).
+resume_local:
+        jsr read_line
+        jsr send_line
+        jmp prompt_loop
+
 ; --- Wait for data from server ---
 ; Blocks until at least one byte arrives, displays every byte as it
 ; comes in, then keeps draining until a 16-bit idle-poll countdown
@@ -988,6 +1020,18 @@ STATUS_QUEUE_MAX     = 4
 STATUS_SLOT_LEN      = 40       ; 39 visible chars max + null terminator
 STATUS_ROTATE_JIFFIES_LO = $2c  ; 300 jiffies (~5s @ ~60Hz), low byte
 STATUS_ROTATE_JIFFIES_HI = $01  ; 300 jiffies, high byte
+; A single queued message (the common case -- keymap editor's "Saved
+; keymap."/"Aborted.", etc.) never met status_service's own count>=2
+; rotate gate, so it just sat on STATUS_ROW forever, stale, long after
+; whatever it described was over (Ryan's ask, 2026-09-22, after already
+; finding it stuck showing "Aborted." from an earlier keymap-editor
+; Cancel during unrelated later gameplay). Reuses the SAME $a2/$a1-
+; jiffy-delta timing status_service/status_rotate already use, just a
+; longer threshold and a "clear" action instead of "rotate to next" --
+; long enough to actually read the message, short enough not to feel
+; permanently stuck.
+STATUS_CLEAR_JIFFIES_LO = $84   ; 900 jiffies (~15s @ ~60Hz), low byte
+STATUS_CLEAR_JIFFIES_HI = $03   ; 900 jiffies, high byte
 
 status_build_from_table:
         stx scr_ptr_lo
@@ -1081,18 +1125,29 @@ status_slot_addr:
         rts
 
 ; Called from sid_service_background every read_line poll iteration.
+; count==0: nothing queued, nothing to do. count==1: no rotation target,
+; but now checked against the LONGER clear timeout (status_clear, below)
+; so a lone message doesn't sit there forever. count>=2: original
+; rotate-to-next-message timing, unchanged.
 status_service:
         lda status_queue_count
+        beq status_service_rts
+        jsr status_calc_elapsed     ; status_elapsed_lo/hi = jiffies
+                                       ; since status_rotate_last_lo/hi
+        lda status_queue_count
         cmp #2
-        bcc status_service_rts    ; 0 or 1 messages queued -- nothing to
-                                    ; rotate to
-        lda $a2
-        sec
-        sbc status_rotate_last_lo
-        sta status_elapsed_lo
-        lda $a1
-        sbc status_rotate_last_hi
-        sta status_elapsed_hi
+        bcs status_service_check_rotate
+        lda status_elapsed_hi
+        cmp #STATUS_CLEAR_JIFFIES_HI
+        bcc status_service_rts
+        bne status_service_clear_due
+        lda status_elapsed_lo
+        cmp #STATUS_CLEAR_JIFFIES_LO
+        bcc status_service_rts
+status_service_clear_due:
+        jsr status_clear
+        jmp status_service_rts
+status_service_check_rotate:
         lda status_elapsed_hi
         cmp #STATUS_ROTATE_JIFFIES_HI
         bcc status_service_rts
@@ -1103,6 +1158,20 @@ status_service:
 status_service_due:
         jsr status_rotate
 status_service_rts:
+        rts
+
+; .a/.  -> status_elapsed_lo/hi = jiffies elapsed since status_rotate_
+; last_lo/hi (the timestamp status_push_buf/status_rotate/status_clear
+; all stamp whenever STATUS_ROW was last actually redrawn). Shared by
+; both the rotate and clear timing checks in status_service above.
+status_calc_elapsed:
+        lda $a2
+        sec
+        sbc status_rotate_last_lo
+        sta status_elapsed_lo
+        lda $a1
+        sbc status_rotate_last_hi
+        sta status_elapsed_hi
         rts
 
 status_elapsed_lo:
@@ -1124,6 +1193,16 @@ status_rotate_redraw:
         lda $a1
         sta status_rotate_last_hi
         rts
+
+; --- status_clear: the lone-message timeout's own action -- reset the
+; queue to empty and repaint STATUS_ROW blank (redraw_status_row's own
+; count==0 path already does exactly that). No status_rotate_last_lo/hi
+; update needed afterward: status_service's own count==0 check (above)
+; skips straight past both timing branches until something is pushed
+; again, at which point status_push_buf re-stamps it itself.
+status_clear:
+        jsr status_push_reset
+        jmp redraw_status_row       ; tail call
 
 ; --- redraw_status_row: repaint STATUS_ROW with the currently-selected
 ; queued message (or an all-blank bar if the queue is empty), reverse
@@ -1235,8 +1314,13 @@ jump_table_template:
         byte SID_STREAM_START, SID_STREAM_CONFIRM, CANVAS_STREAM_CONFIRM
         byte CANVAS_STREAM_CANCEL, DISPLAY_STREAM_CONFIRM
         byte DISPLAY_STREAM_CANCEL, APPLY_STREAM_CONFIRM, HELP_STREAM_CONFIRM
-        jmp read_line             ; JT_RESUME_LOCAL -- see constants.asm's
-                                     ; own comment on why this exists
+        jmp resume_local           ; JT_RESUME_LOCAL -- read_line then
+                                     ; send_line then loop, NOT a bare
+                                     ; `jmp read_line` -- see resume_
+                                     ; local's own comment for the real
+                                     ; swallowed-first-RETURN bug this
+                                     ; fixes, and constants.asm's own
+                                     ; comment on why this entry exists
                                      ; alongside JT_RESUME
         jmp status_push_reset     ; JT_STATUS_PUSH_RESET -- see
                                      ; constants.asm's own comment; lets
