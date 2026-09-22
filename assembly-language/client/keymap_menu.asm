@@ -128,6 +128,18 @@ ACTION_MACRO       = 255
 KEY_NUM_RETURN  = 1
 KEY_NUM_RUNSTOP = 63
 
+; Resident status row's own fixed screen address -- tada-client.asm
+; defines STATUS_ROW(23)/STATUS_ROW_OFFSET(920) in its own private
+; scope, not constants.asm, so this file needs its own copy (same
+; "kept in sync by hand" precedent MAX_BINDINGS/BINDING_SIZE's own
+; comment documents). key_edit_macro_text (below) uses this as a wider
+; (40-column) input row for a macro's own text -- Ryan's idea,
+; 2026-09-22 -- borrowing it only while that routine's own wait loop
+; runs; nothing else touches the status row's raw bytes during a
+; keymap-editor visit (status_service isn't polled from any of this
+; file's own loops), so there's no live rotation/clock to fight with.
+STATUS_ROW_SCREEN = SCREEN_RAM + 920
+
 ; $2900 -- see tada-client.asm's OVERLAY_BUF comment (moved here
 ; 2026-09-02 after this module's own first live test re-triggered the
 ; BACKUP_CHARS/BACKUP_COLORS collision that comment documents).
@@ -257,8 +269,11 @@ keymap_keys:
         word key_save
         byte $03                  ; RUN/STOP -- cancel and exit
         word key_cancel
-        byte $0d                  ; RETURN -- capture a new combo for
-        word key_capture_combo    ; the selected row (nav slots only)
+        byte $0d                  ; RETURN -- nav rows: capture a new
+        word key_capture_combo    ; combo; macro rows: edit the text
+        byte $54                  ; 'T' -- macro rows only: capture a
+        word key_capture_trigger   ; new trigger combo (see that
+                                     ; routine's own header comment)
 KEYMAP_KEYS_END = * - keymap_keys
 
 ; CRSR-UP past row 0 moves focus onto the header instead of wrapping to
@@ -595,7 +610,7 @@ kcc_teardown:
                                      ; as key_row_up/down's own call
         jmp draw_list                ; tail call
 
-; --- key_capture_combo: RETURN on the selected row -> wait for the
+; --- key_capture_combo: RETURN on the selected NAV row -> wait for the
 ; next real keypress (plus whatever SHIFT/C=/CTRL is held per $028d,
 ; same modifier-read keymap.asm's own keymap_dispatch uses) and store
 ; it as that row's new modifier+key, leaving its action byte untouched.
@@ -608,15 +623,12 @@ kcc_teardown:
 ; a duplicate -- the original plan's "editor-time only" duplicate
 ; check.
 ;
-; On the Macro Editor page, RETURN hands off to capture_macro_combo
-; instead (Ryan's ask, 2026-09-22) -- see that routine's own header
-; comment for why macro triggers need SFDX's matrix-position identity
-; rather than this routine's own GETIN-decoded-byte one. That handoff
-; happens regardless of the selected slot's current action (ACTION_
-; EMPTY = binding a brand new macro's trigger for the first time,
-; ACTION_MACRO = rebinding an existing one) -- unlike the nav-page path
-; below, which still no-ops on ACTION_EMPTY since there's nothing there
-; to rebind.
+; On the Macro Editor page, RETURN instead hands off to key_edit_macro_
+; text (Ryan's ask, 2026-09-22: "Return on a macro row says 'I want to
+; edit this macro'" -- matching "Return: Edit" already used elsewhere
+; in this popup, and text editing being the far more common action on
+; a macro row than rebinding its trigger). Trigger capture itself moved
+; to 'T' -- see key_capture_trigger's own header comment.
 key_capture_combo:
         lda header_focused         ; no row is selected while the header
         beq kcc_have_row            ; itself has focus -- nothing to bind
@@ -624,7 +636,7 @@ key_capture_combo:
 kcc_have_row:
         lda active_page
         beq kcc_nav_page
-        jmp capture_macro_combo
+        jmp key_edit_macro_text
 kcc_nav_page:
         jsr selected_slot_addr
         ldy #2                     ; action byte
@@ -666,10 +678,248 @@ kcc_done:
 kcc_rts:
         rts
 
-; --- capture_macro_combo: RETURN on a Macro Editor row -> wait for the
-; next real keypress and store its PHYSICAL matrix position (SFDX,
-; $cb, keyboard_rollover.asm) as that macro slot's new trigger, rather
-; than key_capture_combo's own GETIN-decoded byte (Ryan's ask,
+; --- key_edit_macro_text: RETURN on a Macro Editor row -> type/edit
+; that slot's own macro text (up to MACRO_TEXT_LEN=24 chars), using the
+; RESIDENT status row (STATUS_ROW_SCREEN, all 40 columns -- wider than
+; anything inside the popup's own box) as the input widget (Ryan's
+; idea, 2026-09-22). Reuses the same JT_CURSOR_HIDE/JT_UPDATE_CURSOR
+; blink trampolines key_capture_combo's own live readout already uses,
+; just pointed at a fixed resident screen row instead of one inside
+; this popup. No-op while the header has focus or on the Keymap Editor
+; page (nav rows have no text of their own).
+;
+; Edits happen in macro_text_scratch, a local copy -- the real slot
+; is only overwritten on accept (RETURN), matching every other capture
+; routine's own "scratch first" convention; RUN/STOP cancels, discarding
+; the scratch copy untouched. DEL backspaces. Only the input mechanics
+; are GETIN-based here, unlike capture_macro_combo's own SFDX-based
+; trigger capture -- this is genuinely TEXT the player is composing
+; (real characters like 'l','o','o','k'), not a single physical key's
+; own identity, so GETIN's decoded bytes are exactly what's wanted.
+; Printable range matches dc_key's own established convention ($41-$5A
+; 'A'-'Z', $20-$3F space/digits/punctuation -- PETSCII == screen code
+; already in this popup's charset); anything else typed is silently
+; ignored, same as capture_macro_combo's own RETURN-rejection shape.
+;
+; Works on BOTH ACTION_EMPTY and ACTION_MACRO slots, in either order
+; relative to key_capture_trigger -- a player can set a macro's text
+; before or after its own trigger. Accepting text always sets ACTION_
+; MACRO (even if no trigger's been captured yet, symmetric with key_
+; capture_trigger's own "sets ACTION_MACRO once accepted regardless of
+; what the other field currently holds" behavior). A slot with ACTION_
+; MACRO but mod=key=0 (text set, no trigger yet) simply isn't reachable
+; by any real keypress until a trigger's also captured -- keymap_
+; dispatch's own key match can never see a real event that's key-number
+; 0, so this is a safe interim state, not a real conflict.
+;
+; Status row handling: while editing, this routine pokes STATUS_ROW_
+; SCREEN's raw bytes directly, bypassing the resident status QUEUE
+; entirely -- safe because status_service is never polled from any of
+; this file's own loops (nothing else can race to redraw that row
+; during a keymap-editor visit). On exit (accept or cancel), rather
+; than snapshot/restore the row's own raw bytes, this just pushes a
+; fresh blank message through the NORMAL push_keymap_status_msg path --
+; simpler, and it re-syncs the resident queue's own bookkeeping with
+; what's on screen, so a LATER status_service tick (once back in
+; ordinary gameplay) doesn't get confused by a screen state the queue
+; never knew about.
+key_edit_macro_text:
+        lda header_focused
+        bne kemt_rts
+        lda active_page
+        beq kemt_rts
+        jsr edit_slot
+        jsr selected_slot_addr
+
+        ; Copy the slot's current text (offset+3..+26) into scratch,
+        ; tracking the real length explicitly in macro_edit_len rather
+        ; than relying on NUL-termination alone -- macro_text_scratch
+        ; is a fixed, reused buffer, and a PREVIOUS edit's now-stale
+        ; trailing bytes must never be treated as live content just
+        ; because this edit's own text happens to be shorter.
+        ldy #3
+        ldx #0
+kemt_copy_loop:
+        cpx #MACRO_TEXT_LEN
+        beq kemt_copy_done
+        lda (scr_ptr_lo),y
+        beq kemt_copy_done
+        sta macro_text_scratch,x
+        iny
+        inx
+        jmp kemt_copy_loop
+kemt_copy_done:
+        stx macro_edit_len
+
+        lda $d1
+        sta capture_saved_pnt_lo
+        lda $d2
+        sta capture_saved_pnt_hi
+        lda $d3
+        sta capture_saved_pntr
+
+        jsr kemt_redraw              ; draw the initial text + cursor
+kemt_wait:
+        jsr GETIN
+        cmp #0
+        beq kemt_wait
+        cmp #$0d
+        beq kemt_accept
+        cmp #$03                    ; RUN/STOP -- cancel, no change
+        beq kemt_done
+        cmp #$14                    ; DEL
+        beq kemt_backspace
+        jsr kemt_try_insert
+        jmp kemt_wait
+kemt_backspace:
+        lda macro_edit_len
+        beq kemt_wait                ; nothing to remove
+        dec macro_edit_len
+        jsr kemt_redraw
+        jmp kemt_wait
+kemt_accept:
+        jsr selected_slot_addr       ; recompute -- kemt_redraw doesn't
+                                       ; touch scr_ptr_lo/hi, but this
+                                       ; matches every other capture
+                                       ; routine's own "don't trust a
+                                       ; pointer this old" convention
+        ldy #3
+        ldx #0
+kemt_write_loop:
+        cpx macro_edit_len
+        bcs kemt_write_pad
+        lda macro_text_scratch,x
+        sta (scr_ptr_lo),y
+        iny
+        inx
+        jmp kemt_write_loop
+kemt_write_pad:
+        cpx #MACRO_TEXT_LEN
+        beq kemt_write_action
+        lda #0
+        sta (scr_ptr_lo),y
+        iny
+        inx
+        jmp kemt_write_pad
+kemt_write_action:
+        ldy #2
+        lda (scr_ptr_lo),y
+        cmp #ACTION_MACRO
+        beq kemt_done
+        lda #ACTION_MACRO
+        sta (scr_ptr_lo),y
+kemt_done:
+        jsr JT_CURSOR_HIDE
+        lda capture_saved_pnt_lo
+        sta $d1
+        lda capture_saved_pnt_hi
+        sta $d2
+        lda capture_saved_pntr
+        sta $d3
+        ldx #<keymap_status_clear_msg
+        ldy #>keymap_status_clear_msg
+        jsr push_keymap_status_msg   ; restore the status row via the
+                                       ; normal queue path -- see this
+                                       ; routine's own header comment
+        jmp draw_list                 ; tail call -- refresh the row's
+                                        ; own name column (may now show
+                                        ; real text instead of blank/
+                                        ; "-- empty --")
+kemt_rts:
+        rts
+
+; --- kemt_redraw: repaint STATUS_ROW_SCREEN with macro_text_scratch's
+; current content (macro_edit_len bytes), reverse video (matching
+; redraw_status_row's own convention -- this IS that same physical
+; row), padded to 40 columns, then position the live blink cursor right
+; after the text via JT_CURSOR_HIDE/JT_UPDATE_CURSOR -- same technique
+; update_capture_display's own live readout uses, just a fixed absolute
+; row instead of a per-call variable one (the status row never moves).
+kemt_redraw:
+        jsr JT_CURSOR_HIDE
+        ldy #0
+kemt_redraw_loop:
+        cpy macro_edit_len
+        bcs kemt_redraw_pad
+        lda macro_text_scratch,y
+        ora #$80
+        sta STATUS_ROW_SCREEN,y
+        iny
+        jmp kemt_redraw_loop
+kemt_redraw_pad:
+        lda #$a0                    ; reverse-video space
+kemt_redraw_pad_loop:
+        cpy #40
+        bcs kemt_redraw_position
+        sta STATUS_ROW_SCREEN,y
+        iny
+        jmp kemt_redraw_pad_loop
+kemt_redraw_position:
+        lda #<STATUS_ROW_SCREEN
+        sta $d1
+        lda #>STATUS_ROW_SCREEN
+        sta $d2
+        lda macro_edit_len
+        sta $d3
+        jmp JT_UPDATE_CURSOR         ; tail call
+
+; --- kemt_try_insert: .a = a GETIN byte -> append it to macro_text_
+; scratch if printable (dc_key's own two established ranges) and
+; there's room left (macro_edit_len < MACRO_TEXT_LEN). Silently no-ops
+; otherwise -- full buffer or an unprintable key -- same "ignore rather
+; than error" shape this file already uses elsewhere in a wait loop.
+kemt_try_insert:
+        sta kemt_typed
+        cmp #$41
+        bcc kemt_try_punct
+        cmp #$5b
+        bcs kemt_try_punct
+        jmp kemt_insert_go
+kemt_try_punct:
+        lda kemt_typed
+        cmp #$20
+        bcc kemt_insert_rts
+        cmp #$40
+        bcs kemt_insert_rts
+kemt_insert_go:
+        lda macro_edit_len
+        cmp #MACRO_TEXT_LEN
+        bcs kemt_insert_rts
+        tax
+        lda kemt_typed
+        sta macro_text_scratch,x
+        inc macro_edit_len
+        jsr kemt_redraw
+kemt_insert_rts:
+        rts
+
+kemt_typed:
+        byte 0
+macro_edit_len:
+        byte 0
+macro_text_scratch:
+        area MACRO_TEXT_LEN, 0
+
+; --- key_capture_trigger: 'T' on a Macro Editor row -> capture a new
+; trigger combo for that slot, via capture_macro_combo below. Moved off
+; RETURN (Ryan's ask, 2026-09-22 -- see key_capture_combo's own header
+; comment) onto its own key, since RETURN now means "edit this row's
+; text" instead. Same header_focused/active_page guards key_capture_
+; combo's own RETURN dispatch applied before the split -- a no-op while
+; the header has focus or on the Keymap Editor page.
+key_capture_trigger:
+        lda header_focused
+        bne kt_rts
+        lda active_page
+        beq kt_rts
+        jmp capture_macro_combo
+kt_rts:
+        rts
+
+; --- capture_macro_combo: capture a macro slot's own trigger -- wait
+; for the next real keypress and store its PHYSICAL matrix position
+; (SFDX, $cb, keyboard_rollover.asm) as that macro slot's new trigger,
+; rather than key_capture_combo's own GETIN-decoded byte (Ryan's ask,
 ; 2026-09-22: GETIN folds CTRL+M down to the exact same $0d byte a
 ; bare RETURN also produces, so a decoded-byte capture can't tell a
 ; deliberate Ctrl+M trigger apart from an accidental Return -- SFDX's
@@ -710,9 +960,10 @@ kcc_rts:
 ; below uses for an ordinary conflicting-trigger rejection.
 ;
 ; A brand new macro (ACTION_EMPTY going in) becomes ACTION_MACRO once a
-; trigger is accepted, with empty text until the not-yet-built macro-
-; text sub-editor fills it in; an existing macro (ACTION_MACRO already)
-; just gets its trigger updated, text untouched.
+; trigger is accepted, with empty text until key_edit_macro_text ('T'
+; is now key_capture_trigger's own dispatch key, not RETURN -- see that
+; routine's own header comment) fills it in; an existing macro (ACTION_
+; MACRO already) just gets its trigger updated, text untouched.
 ;
 ; KNOWN GAP: capture_check_macro_duplicate only scans OTHER MACRO slots
 ; -- nav-function slots store a DECODED byte, not a matrix position, so
@@ -1093,7 +1344,11 @@ draw_help_footer:
         jmp dhf_row2
 dhf_list_focus:
         lda active_page
-        bne dhf_normal
+        beq dhf_nav_page
+        jmp dhf_macro_footer         ; full-range jmp -- dhf_macro_footer
+                                       ; is declared after dhf_row2 below,
+                                       ; outside a plain branch's reach
+dhf_nav_page:
         lda selected_row
         cmp #HOME_MERGE_ROW
         beq dhf_merged
@@ -1120,6 +1375,19 @@ dhf_row2:
         sta poke_dst_hi
         jmp poke_line               ; tail call -- its own rts returns
                                      ; straight to our caller
+
+; Macro Editor page's own footer (Ryan's ask, 2026-09-22: advertise the
+; new RETURN=edit-text / T=capture-trigger split rather than leaving it
+; undiscoverable) -- row_help2 itself is reused unchanged for line two,
+; identical to the nav page's own (S: Save / Stop: Cancel apply here
+; exactly the same way).
+dhf_macro_footer:
+        ldx #<row_help1_macro
+        ldy #>row_help1_macro
+        jsr draw_message_row
+        ldx #<row_help2
+        ldy #>row_help2
+        jmp dhf_row2
 
 ; --- Save: write keymap_table back to KEYMAP.CFG, restore, hand back ---
 ; SCRATCH the old file first, then a plain (no "@0:") SAVE -- Ryan's
@@ -2599,6 +2867,13 @@ row_help1_header:
 row_help2_header:
         byte $20,$20,$20,$20, $5d
         ascii " Down: Select     Stop: Cancel"
+        byte $5d, $20,$20,$20,$20
+
+; Macro Editor page's own footer line one -- see dhf_macro_footer's own
+; comment (line two reuses row_help2 unchanged).
+row_help1_macro:
+        byte $20,$20,$20,$20, $5d
+        ascii " Return: Edit    T: Trigger   "
         byte $5d, $20,$20,$20,$20
 
 ; key_capture_combo swaps row_help1's screen line for one of these two
