@@ -411,14 +411,37 @@ keymap_dispatch:
         lda #>keymap_table
         sta scr_ptr_hi
         ldx #MAX_BINDINGS
+; keymap_dispatch_loop branches on the SLOT's own action byte to pick
+; which basis a MACRO slot's own key byte is matched against -- 2026-
+; 09-22 fix (Ryan's ask, after the keymap editor's own T-trigger UI
+; shipped without this half ever being wired up): a macro slot stores
+; its trigger's PHYSICAL MATRIX POSITION (capture_macro_combo's own
+; SFDX-based capture in keymap_menu.asm, not this file -- see that
+; routine's own header comment for why: GETIN folds CTRL+M down to the
+; same $0d byte a bare RETURN produces, so only the matrix position can
+; tell them apart), but this scan used to compare EVERY slot's key byte
+; against keymap_dispatch_key -- a GETIN-DECODED byte -- regardless of
+; which basis that slot actually stored. The two numbering systems
+; barely overlap for the same physical key (e.g. 'T' is matrix
+; position 22 but decodes to $54), so a captured trigger could never
+; actually match during real gameplay -- the whole feature worked in
+; the editor (captured, saved, displayed) but silently never fired.
+; Nav slots are UNCHANGED (still keymap_dispatch_key, still the CRSR-
+; UP/LEFT shift-masking below, which exists specifically to compensate
+; for GETIN's OWN decode quirk of baking Shift into a cursor key's
+; byte -- SFDX has no such quirk, a physical key's matrix position
+; never changes just because Shift is also held, so a macro trigger
+; needs no equivalent masking at all).
 keymap_dispatch_loop:
         ldy #2                    ; action byte
         lda (scr_ptr_lo),y
         cmp #ACTION_EMPTY
         beq keymap_dispatch_next  ; unused slot -- skip without even
                                     ; checking key/modifier
-        ldy #1                    ; key byte
-        lda (scr_ptr_lo),y
+        cmp #ACTION_MACRO
+        beq keymap_dispatch_macro_key
+        ldy #1                    ; key byte -- nav slot, decoded-byte
+        lda (scr_ptr_lo),y          ; basis
         cmp keymap_dispatch_key
         bne keymap_dispatch_next  ; wrong key -- try the next slot
                                     ; (deliberately not stopping here:
@@ -427,6 +450,19 @@ keymap_dispatch_loop:
                                     ; CRSR-DOWN for End vs CTRL+CRSR-
                                     ; DOWN for Word Right, same as the
                                     ; built-in default already does)
+        jmp keymap_dispatch_nav_mod
+keymap_dispatch_macro_key:
+        ldy #1                    ; key byte -- macro slot, matrix-
+        lda (scr_ptr_lo),y          ; position basis (see this loop's
+        cmp $cb                     ; own header comment above)
+        bne keymap_dispatch_next
+        lda $028d
+        and #(MOD_SHIFT|MOD_CMDRE|MOD_CTRL)
+        sta keymap_dispatch_temp
+        jmp keymap_dispatch_mod_ready ; no shift-masking for macros --
+                                        ; see this loop's own header
+                                        ; comment
+keymap_dispatch_nav_mod:
         lda $028d                 ; live SHIFT/Commodore/CTRL status --
         and #(MOD_SHIFT|MOD_CMDRE|MOD_CTRL) ; $028D (653 decimal, SFDX)
         sta keymap_dispatch_temp  ; is the KERNAL's live SHIFT/Commodore/
