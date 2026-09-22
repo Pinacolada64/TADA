@@ -33,7 +33,8 @@
 {const: CHARSET_UPPER_LOWER $17}
 
 ; Comment out to strip all {ifdef:debug}...{endif} diagnostic output
-; (the <XX>/[XX] read_line trace, hex_digits/print_hex_byte helpers, etc).
+; (the <XX>/[XX]/{MM} read_line trace -- raw GETIN byte, buffer length,
+; live $028d modifier byte -- hex_digits/print_hex_byte helpers, etc).
 {undef: debug}
 
 ; SwiftLink ACIA registers
@@ -1851,7 +1852,24 @@ read_line_loop:
         pla
 
         ; TEMP diagnostic: print every raw byte GETIN returns as <XX>,
-        ; and the current buffer length as [XX], right before dispatch.
+        ; the current buffer length as [XX], and the live SHIFT/
+        ; Commodore/CTRL modifier byte ($028d, same one keymap_dispatch
+        ; itself reads) as {MM}, right before dispatch. The {MM} field
+        ; added 2026-09-22 -- Ryan's live report that CTRL+CRSR-LEFT/UP
+        ; "didn't do anything" and this trace's own <XX>/[XX] "didn't
+        ; show anything different" between plain and CTRL+ cursor
+        ; presses turned out to be expected, not a clue: GETIN's own
+        ; decoded byte for a cursor key doesn't change when a modifier
+        ; is ALSO held (keymap_dispatch's own comment on this same
+        ; fact), so <XX> alone can never distinguish plain CRSR-LEFT
+        ; from CTRL+CRSR-LEFT -- only $028d can. {MM} shows exactly
+        ; what keymap_dispatch would have seen, e.g. $04 for CTRL, $00
+        ; for nothing held, letting a live comparison of physical Ctrl
+        ; vs Tab (VICE's Symbolic/Positional keymaps swap which one
+        ; lands on the C64's real CTRL vs Commodore key -- see
+        ; keymap_default's own 2026-08-24 note) show directly which
+        ; key VICE is actually reporting as CTRL, without needing a
+        ; monitor session at all.
 {ifdef: debug}
         pha
         lda #'<'
@@ -1867,6 +1885,19 @@ read_line_loop:
         jsr print_hex_byte
         lda #']'
         jsr term_chrout
+        lda #$7b                 ; '{' -- can't use a quoted literal here,
+        jsr term_chrout           ; c64list's own macro syntax reserves
+                                    ; '{' and misparses `#'{'` as the
+                                    ; start of a directive (confirmed
+                                    ; live 2026-09-22: "{ could not be
+                                    ; encoded" assembler error)
+        lda $028d
+        jsr print_hex_byte
+        lda #$7d                 ; '}' -- same reasoning, for symmetry
+        jsr term_chrout           ; with the opening brace above (this
+                                    ; one alone assembled fine, but a
+                                    ; matched pair reads clearer than
+                                    ; one quoted and one numeric)
         pla
 {endif}
 
