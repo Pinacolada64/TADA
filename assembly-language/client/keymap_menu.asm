@@ -1281,6 +1281,20 @@ capture_live_mod:
 capture_live_key:
         byte 0
 
+; describe_binding_row's own equivalent of capture_live_mod/key above --
+; a fake binding record (mod byte then key byte, already-decoded) so a
+; macro row's own describe_combo call (dbr_macro_done) can point scr_
+; ptr_lo/hi somewhere describe_combo_append's (scr_ptr_lo),y reads are
+; actually valid for, same reasoning as capture_live_mod/key's own
+; comment. dbr_macro_key_raw is scratch for the STORED matrix-position
+; byte, before key_num_unshifted converts it into list_trigger_key.
+list_trigger_mod:
+        byte 0
+list_trigger_key:
+        byte 0
+dbr_macro_key_raw:
+        byte 0
+
 ; --- update_capture_display: refresh row 19's live readout, and blink
 ; a real cursor (via JT_CURSOR_HIDE/JT_UPDATE_CURSOR) right after
 ; whatever's currently printed there -- Ryan's ask, 2026-09-18: hide
@@ -1965,7 +1979,31 @@ dt_right_border:
         iny
         cpy #40
         bne dt_right_border
-        rts
+
+        ; Column headers, row +2 -- Ryan's ask, 2026-09-22: label the
+        ; list's own two columns ("Function"/"Combo" on the Keymap
+        ; Editor page, "Macro"/"Trigger" on the Macro Editor page),
+        ; page-aware the same way the footer (draw_help_footer) already
+        ; is. draw_popup's own one-time row+2 blank poke (module_start
+        ; calls draw_popup then this, before the first real paint) is
+        ; harmless leftover setup -- this always overwrites it.
+        lda active_page
+        bne dt_columns_macro
+        ldx #<row_columns_nav
+        ldy #>row_columns_nav
+        jmp dt_columns_poke
+dt_columns_macro:
+        ldx #<row_columns_macro
+        ldy #>row_columns_macro
+dt_columns_poke:
+        stx poke_src_lo
+        sty poke_src_hi
+        lda #<(SCREEN_RAM+(BOX_TOP_ROW+2)*40)
+        sta poke_dst_lo
+        lda #>(SCREEN_RAM+(BOX_TOP_ROW+2)*40)
+        sta poke_dst_hi
+        jmp poke_line                ; tail call -- its own rts returns
+                                     ; straight to our caller
 
 ; --- dt_set_color: .X = start column within row +1's 30-char field,
 ; .Y = length, .A = VIC-II color number -> pokes that many COLOR_RAM
@@ -2182,9 +2220,39 @@ dbr_macro_pad:
         cpx #12
         bne dbr_macro_pad
 dbr_macro_done:
-        jmp dbr_combo_blank        ; a macro's own trigger combo still
-                                     ; shows normally below -- only the
-                                     ; NAME column took the early exit
+        ; Show the macro's own captured trigger, if it has one -- Ryan's
+        ; ask, 2026-09-22. scr_ptr_lo/hi still points at this slot's own
+        ; base (dbr_macro_copy above only ever used Y-indexed reads, never
+        ; touched it). mod=key=0 together means "no trigger captured
+        ; yet" (key_edit_macro_text's own header comment on this exact
+        ; state) -- blank rather than showing a misleading "trigger".
+        ;
+        ; The stored key byte is a MATRIX POSITION (capture_macro_combo's
+        ; own SFDX-based capture, not a GETIN-decoded byte the way nav
+        ; slots store one -- see that routine's own header comment for
+        ; why), so it can't be hand ed to describe_combo directly: key_
+        ; names is indexed by decoded bytes, and a raw matrix position
+        ; would either mismatch entirely or collide with an unrelated
+        ; decoded byte in that range. key_num_unshifted (already used
+        ; the exact same way by update_capture_display's own live
+        ; readout) converts matrix position -> decoded byte first.
+        ldy #0
+        lda (scr_ptr_lo),y          ; mod
+        sta list_trigger_mod
+        ldy #1
+        lda (scr_ptr_lo),y          ; key (matrix position)
+        sta dbr_macro_key_raw
+        ora list_trigger_mod
+        beq dbr_combo_blank          ; both zero -- no trigger yet
+        ldx dbr_macro_key_raw
+        lda key_num_unshifted,x
+        sta list_trigger_key
+        lda #<list_trigger_mod
+        sta scr_ptr_lo
+        lda #>list_trigger_mod
+        sta scr_ptr_hi
+        jsr describe_combo
+        rts
 dbr_nav_name:
         cmp #ACTION_WORD_LEFT
         bne dbr_try_word_right
@@ -2990,6 +3058,26 @@ top_border:
 ; both constants declared with draw_title below.
 row_title_base:
         ascii "  Keymap Editor   Macro Editor"
+
+; Column headers, row +2 (draw_title's own dt_columns_poke) -- Ryan's
+; ask, 2026-09-22. Full 40-byte poke_line sources (unlike row_title_
+; base above), same shape as row_help1/help2 below, since these are
+; plain unhighlighted text with no per-page invert/color logic needed
+; the way the title row's own two headings have. Column alignment
+; matches describe_binding_row's own row_scratch layout exactly:
+; marker(1) space(1) name(12) space(1) combo(15) -- 2 leading blanks
+; (marker+separator), the label left-justified in each field, verified
+; 30 ascii chars total the same way row_help1/row_help2's own strings
+; are.
+row_columns_nav:
+        byte $20,$20,$20,$20, $5d
+        ascii "  Function     Combo          "
+        byte $5d, $20,$20,$20,$20
+row_columns_macro:
+        byte $20,$20,$20,$20, $5d
+        ascii "  Macro        Trigger        "
+        byte $5d, $20,$20,$20,$20
+
 row_blank:
         byte $20,$20,$20,$20, $5d
         ascii "                              "
