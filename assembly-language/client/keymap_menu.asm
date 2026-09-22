@@ -113,6 +113,21 @@ ACTION_END         = 4
 ACTION_OPEN_EDITOR = 5
 ACTION_MACRO       = 255
 
+; SFDX ($cb, keyboard_rollover.asm) "key-number" values for RETURN and
+; RUN/STOP -- confirmed 2026-09-22 against the actual KERNAL ROM's own
+; unshifted decode table (canonical key-number order == SFDX order),
+; not just recalled -- see server/CLAUDE.md's own "C64 keyboard
+; matrix" reference for the full table and how these were derived.
+; capture_macro_combo (below) uses these to reject RETURN as a
+; bindable macro trigger and to cancel on RUN/STOP, the same way
+; key_capture_combo's own GETIN-based capture checks #$0d/#$03 --
+; except by PHYSICAL matrix position instead of GETIN's decoded byte,
+; since GETIN folds CTRL+M down to the same $0d byte RETURN itself
+; produces (Ryan's ask, 2026-09-22: a macro trigger needs to tell those
+; two apart, which only the matrix position can).
+KEY_NUM_RETURN  = 1
+KEY_NUM_RUNSTOP = 63
+
 ; $2900 -- see tada-client.asm's OVERLAY_BUF comment (moved here
 ; 2026-09-02 after this module's own first live test re-triggered the
 ; BACKUP_CHARS/BACKUP_COLORS collision that comment documents).
@@ -491,45 +506,25 @@ ssa_no_carry:
 ssa_done:
         rts
 
-; --- key_capture_combo: RETURN on the selected row -> wait for the
-; next real keypress (plus whatever SHIFT/C=/CTRL is held per $028d,
-; same modifier-read keymap.asm's own keymap_dispatch uses) and store
-; it as that row's new modifier+key, leaving its action byte (and any
-; macro text) untouched. No-op on an empty slot (ACTION_EMPTY --
-; nothing to rebind) or a macro slot (ACTION_MACRO -- RETURN there is
-; reserved for the not-yet-built macro-text sub-editor, see this
-; file's own header comment); only the four nav actions (WORD_LEFT/
-; WORD_RIGHT/HOME/END) actually capture. RUN/STOP during the wait
-; cancels (matches the prompt's own "Stop to cancel" text) without
-; changing anything. A captured combo already bound to some OTHER slot
-; is rejected with an inline message and the wait resumes, rather than
-; silently creating a duplicate -- the original plan's "editor-time
-; only" duplicate check.
-key_capture_combo:
-        lda header_focused         ; no row is selected while the header
-        beq kcc_have_row            ; itself has focus -- nothing to bind
-        rts
-kcc_have_row:
-        jsr selected_slot_addr
-        ldy #2                     ; action byte
-        lda (scr_ptr_lo),y
-        cmp #ACTION_EMPTY
-        beq kcc_rts
-        cmp #ACTION_MACRO
-        beq kcc_rts
-
-        ; Snapshot the KERNAL's own PNT/PNTR ($d1/$d2/$d3 -- cursor_
-        ; toggle's own screen-position pointer, read_line_loop's own
-        ; update_cursor uses the same pair) before update_capture_
-        ; display starts repositioning them at the live readout below --
-        ; restored in kcc_done so this wait's own cursor blinking can't
-        ; leak a stale position into read_line once this popup closes.
-        ; cursor_phase itself needs no snapshot/restore: read_line_loop's
-        ; own cursor_hide call (right before dispatching ANY keystroke,
-        ; including the F7 that opened this popup) already guarantees
-        ; it's 0 (erased) on entry here, and kcc_done's own JT_CURSOR_
-        ; HIDE call puts it back to exactly that same state before
-        ; restoring $d1-$d3, so the two states always match up.
+; --- kcc_setup/kcc_teardown: shared prologue/epilogue for key_capture_
+; combo (nav rows, GETIN-decoded-byte identity) and capture_macro_combo
+; (macro rows, SFDX-matrix-position identity, below) -- factored out
+; 2026-09-22 rather than duplicated by hand when the macro-trigger
+; capture needed the exact same snapshot/prompt/restore/redraw shape
+; but a genuinely different wait-loop identity mechanism in between.
+;
+; kcc_setup: snapshot the KERNAL's own PNT/PNTR ($d1/$d2/$d3 -- cursor_
+; toggle's own screen-position pointer, read_line_loop's own update_
+; cursor uses the same pair) before update_capture_display starts
+; repositioning them at the live readout -- restored by kcc_teardown so
+; this wait's own cursor blinking can't leak a stale position into
+; read_line once this popup closes. cursor_phase itself needs no
+; snapshot/restore: read_line_loop's own cursor_hide call (right before
+; dispatching ANY keystroke, including the F7 that opened this popup)
+; already guarantees it's 0 (erased) on entry here, and kcc_teardown's
+; own JT_CURSOR_HIDE call puts it back to exactly that same state
+; before restoring $d1-$d3, so the two states always match up.
+kcc_setup:
         lda $d1
         sta capture_saved_pnt_lo
         lda $d2
@@ -554,8 +549,70 @@ kcc_have_row:
                                        ; could inherit the FIRST one's
                                        ; leftover ucd_prev_mod/key and
                                        ; wrongly skip its own first draw
-        jsr update_capture_display  ; draw the (blank) live row once
-                                       ; up front, before the first key
+        jmp update_capture_display  ; tail call -- draws the (blank)
+                                       ; live row once up front, before
+                                       ; the first key; its own rts
+                                       ; returns straight to our caller
+
+kcc_teardown:
+        jsr JT_CURSOR_HIDE          ; erase the live-readout cursor at
+                                     ; its CURRENT ($d1-$d3) position --
+                                     ; must happen before restoring
+                                     ; those below, while they still
+                                     ; point at the real on-screen spot
+                                     ; the cursor was last drawn at
+        lda capture_saved_pnt_lo
+        sta $d1
+        lda capture_saved_pnt_hi
+        sta $d2
+        lda capture_saved_pntr
+        sta $d3
+        jsr draw_help_footer        ; restore rows 18/19 -- row 19 was
+                                     ; overwritten by the live combo
+                                     ; readout; picks the plain or
+                                     ; HOME_MERGE_ROW-specific footer
+                                     ; depending on selected_row, same
+                                     ; as key_row_up/down's own call
+        jmp draw_list                ; tail call
+
+; --- key_capture_combo: RETURN on the selected row -> wait for the
+; next real keypress (plus whatever SHIFT/C=/CTRL is held per $028d,
+; same modifier-read keymap.asm's own keymap_dispatch uses) and store
+; it as that row's new modifier+key, leaving its action byte untouched.
+; No-op on an empty slot (ACTION_EMPTY -- nothing to rebind); only the
+; four nav actions (WORD_LEFT/WORD_RIGHT/HOME/END) and ACTION_OPEN_
+; EDITOR actually capture. RUN/STOP during the wait cancels (matches
+; the prompt's own "Stop to cancel" text) without changing anything. A
+; captured combo already bound to some OTHER nav slot is rejected with
+; an inline message and the wait resumes, rather than silently creating
+; a duplicate -- the original plan's "editor-time only" duplicate
+; check.
+;
+; On the Macro Editor page, RETURN hands off to capture_macro_combo
+; instead (Ryan's ask, 2026-09-22) -- see that routine's own header
+; comment for why macro triggers need SFDX's matrix-position identity
+; rather than this routine's own GETIN-decoded-byte one. That handoff
+; happens regardless of the selected slot's current action (ACTION_
+; EMPTY = binding a brand new macro's trigger for the first time,
+; ACTION_MACRO = rebinding an existing one) -- unlike the nav-page path
+; below, which still no-ops on ACTION_EMPTY since there's nothing there
+; to rebind.
+key_capture_combo:
+        lda header_focused         ; no row is selected while the header
+        beq kcc_have_row            ; itself has focus -- nothing to bind
+        rts
+kcc_have_row:
+        lda active_page
+        beq kcc_nav_page
+        jmp capture_macro_combo
+kcc_nav_page:
+        jsr selected_slot_addr
+        ldy #2                     ; action byte
+        lda (scr_ptr_lo),y
+        cmp #ACTION_EMPTY
+        beq kcc_rts
+
+        jsr kcc_setup
 kcc_wait:
         jsr GETIN
         cmp #0
@@ -587,28 +644,173 @@ kcc_got_key:
         lda capture_key
         sta (scr_ptr_lo),y
 kcc_done:
-        jsr JT_CURSOR_HIDE          ; erase the live-readout cursor at
-                                     ; its CURRENT ($d1-$d3) position --
-                                     ; must happen before restoring
-                                     ; those below, while they still
-                                     ; point at the real on-screen spot
-                                     ; the cursor was last drawn at
-        lda capture_saved_pnt_lo
-        sta $d1
-        lda capture_saved_pnt_hi
-        sta $d2
-        lda capture_saved_pntr
-        sta $d3
-        jsr draw_help_footer        ; restore rows 18/19 -- row 19 was
-                                     ; overwritten by the live combo
-                                     ; readout; picks the plain or
-                                     ; HOME_MERGE_ROW-specific footer
-                                     ; depending on selected_row, same
-                                     ; as key_row_up/down's own call
-        jsr draw_list
+        jmp kcc_teardown             ; tail call
 kcc_rts:
         rts
 
+; --- capture_macro_combo: RETURN on a Macro Editor row -> wait for the
+; next real keypress and store its PHYSICAL matrix position (SFDX,
+; $cb, keyboard_rollover.asm) as that macro slot's new trigger, rather
+; than key_capture_combo's own GETIN-decoded byte (Ryan's ask,
+; 2026-09-22: GETIN folds CTRL+M down to the exact same $0d byte a
+; bare RETURN also produces, so a decoded-byte capture can't tell a
+; deliberate Ctrl+M trigger apart from an accidental Return -- SFDX's
+; matrix position can, see KEY_NUM_RETURN/KEY_NUM_RUNSTOP's own comment
+; and server/CLAUDE.md's "C64 keyboard matrix" reference for how those
+; were verified).
+;
+; Edge-detects directly on SFDX rather than snapshotting it when GETIN
+; fires: SFDX is live/unbuffered while GETIN is buffered, so a fast
+; tap-and-release could already be back at $40 (no key) by the time
+; GETIN's own byte surfaces here, capturing a stale/wrong matrix
+; position for a quick tap. Polling SFDX directly every tick has no
+; such lag. GETIN is still polled too, purely to keep capture_display_
+; key current -- update_capture_display's own live-readout NAME lookup
+; (not its on/off decision, which already reads $cb directly) depends
+; on that byte, and this routine doesn't touch update_capture_display
+; itself at all.
+;
+; RUN/STOP (key-number 63) cancels, same as key_capture_combo's own
+; GETIN-based #$03 check. RETURN (key-number 1) is explicitly rejected
+; -- never valid as a macro trigger, since the player needs a real,
+; unshadowed RETURN to ever send a typed command -- with the same
+; inline-message-then-resume-wait shape capture_check_macro_duplicate
+; below uses for an ordinary conflicting-trigger rejection.
+;
+; A brand new macro (ACTION_EMPTY going in) becomes ACTION_MACRO once a
+; trigger is accepted, with empty text until the not-yet-built macro-
+; text sub-editor fills it in; an existing macro (ACTION_MACRO already)
+; just gets its trigger updated, text untouched.
+;
+; KNOWN GAP: capture_check_macro_duplicate only scans OTHER MACRO slots
+; -- nav-function slots store a DECODED byte, not a matrix position, so
+; a plain byte compare against them isn't meaningful, and a nav/macro
+; cross-conflict isn't caught yet. Realistic nav bindings are cursor
+; keys/F7; real collision risk with a macro's own CTRL/C=/SHIFT+letter-
+; or-digit trigger is low today, but this is an honest limitation, not
+; a silently-ignored one.
+capture_macro_combo:
+        jsr edit_slot                ; establishes edit_slot_value for
+                                       ; capture_check_macro_duplicate's
+                                       ; own "skip the slot being
+                                       ; edited" check below -- selected_
+                                       ; slot_addr (used later, once a
+                                       ; trigger's accepted) calls this
+                                       ; again itself, redundant but
+                                       ; harmless
+        jsr kcc_setup
+cmc_wait:
+        jsr GETIN
+        cmp #0
+        beq cmc_no_getin
+        sta capture_display_key
+cmc_no_getin:
+        jsr update_capture_display
+        lda $cb                     ; SFDX -- THIS decides capture,
+                                       ; not GETIN above
+        cmp #$40
+        beq cmc_wait                 ; no key currently held -- keep
+                                       ; waiting/blinking
+        cmp #KEY_NUM_RUNSTOP
+        beq cmc_done                 ; cancel -- no change
+        cmp #KEY_NUM_RETURN
+        bne cmc_have_key
+        ldx #<capture_return_reserved_msg
+        ldy #>capture_return_reserved_msg
+        jsr draw_message_row
+        jmp cmc_wait
+cmc_have_key:
+        sta capture_key              ; a MATRIX position here, NOT a
+                                        ; decoded byte -- see this
+                                        ; routine's own header comment
+        lda $028d
+        and #(MOD_SHIFT|MOD_CMDRE|MOD_CTRL)
+        sta capture_mod
+        jsr capture_check_macro_duplicate
+        bcs cmc_wait                  ; duplicate -- message shown, retry
+
+        jsr selected_slot_addr        ; recompute -- the duplicate scan
+                                        ; above reused scr_ptr_lo/hi
+        ldy #0
+        lda capture_mod
+        sta (scr_ptr_lo),y
+        ldy #1
+        lda capture_key
+        sta (scr_ptr_lo),y
+        ldy #2
+        lda (scr_ptr_lo),y
+        cmp #ACTION_MACRO
+        beq cmc_done                  ; already a macro -- action stays
+        lda #ACTION_MACRO             ; brand new -- was ACTION_EMPTY
+        sta (scr_ptr_lo),y
+cmc_done:
+        jmp kcc_teardown               ; tail call
+
+; --- capture_check_macro_duplicate: is capture_mod/capture_key (a
+; MATRIX position) already bound to some OTHER macro slot's own
+; trigger? Only scans the macro range (NAV_SLOT_COUNT..MAX_BINDINGS-1)
+; -- see capture_macro_combo's own header comment on why a nav/macro
+; cross-check isn't done here.
+capture_check_macro_duplicate:
+        lda KEYMAP_TABLE_PTR
+        sta scr_ptr_lo
+        lda KEYMAP_TABLE_PTR+1
+        sta scr_ptr_hi
+        ldx #0
+ccmd_advance_loop:
+        cpx #NAV_SLOT_COUNT           ; walk scr_ptr_lo/hi up to the
+        beq ccmd_scan_start            ; first real macro slot before
+                                         ; the actual scan starts
+        lda scr_ptr_lo
+        clc
+        adc #BINDING_SIZE
+        sta scr_ptr_lo
+        bcc ccmd_advance_no_carry
+        inc scr_ptr_hi
+ccmd_advance_no_carry:
+        inx
+        jmp ccmd_advance_loop
+ccmd_scan_start:
+ccmd_loop:
+        cpx edit_slot_value
+        beq ccmd_next                 ; skip the slot being edited
+        ldy #2
+        lda (scr_ptr_lo),y
+        cmp #ACTION_MACRO
+        bne ccmd_next                 ; not a macro slot (still empty)
+        ldy #0
+        lda (scr_ptr_lo),y
+        cmp capture_mod
+        bne ccmd_next
+        ldy #1
+        lda (scr_ptr_lo),y
+        cmp capture_key
+        bne ccmd_next
+        ldx #<capture_conflict_msg
+        ldy #>capture_conflict_msg
+        jsr draw_message_row
+        sec
+        rts
+ccmd_next:
+        lda scr_ptr_lo
+        clc
+        adc #BINDING_SIZE
+        sta scr_ptr_lo
+        bcc ccmd_no_carry
+        inc scr_ptr_hi
+ccmd_no_carry:
+        inx
+        cpx #MAX_BINDINGS
+        bne ccmd_loop
+        clc
+        rts
+
+; Shared scratch between key_capture_combo (nav rows) and capture_
+; macro_combo (macro rows) -- capture_key holds a GETIN-decoded byte
+; when the former wrote it, or an SFDX matrix position when the latter
+; did (see capture_macro_combo's own header comment); never both in
+; the same visit, since only one of the two routines ever runs at a
+; time. capture_mod is the same $028d-masked modifier byte either way.
 capture_key:
         byte 0
 capture_mod:
@@ -2350,6 +2552,12 @@ capture_prompt_msg:
 capture_conflict_msg:
         byte $20,$20,$20,$20, $5d
         ascii " That combo is already used!  "
+        byte $5d, $20,$20,$20,$20
+; capture_macro_combo's own rejection message when the captured SFDX
+; matrix position is KEY_NUM_RETURN -- see that routine's own comment.
+capture_return_reserved_msg:
+        byte $20,$20,$20,$20, $5d
+        ascii " RETURN cannot be a trigger!  "
         byte $5d, $20,$20,$20,$20
 
 ; --- capture_live_row: row 19's content during the capture wait --
