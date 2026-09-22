@@ -8,6 +8,7 @@
 
 |blue|{$c0:38}|reset|
 
-|yellow|         A dungeon adventure for your |red|Commodore 64|yellow|!|reset|
+|yellow|      A dungeon adventure for your
+|red|             Commodore 64|yellow|!|reset|
 |white|
 |blue|{$c0:38}|reset|
