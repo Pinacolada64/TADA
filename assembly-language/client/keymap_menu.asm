@@ -535,8 +535,6 @@ kcc_setup:
         ldx #<capture_prompt_msg
         ldy #>capture_prompt_msg
         jsr draw_message_row
-        lda #0
-        sta capture_display_key
         lda #$ff                    ; sentinel -- guarantees update_
         sta ucd_prev_mod             ; capture_display's own change-
                                        ; check (see its comment) redraws
@@ -554,7 +552,29 @@ kcc_setup:
                                        ; the first key; its own rts
                                        ; returns straight to our caller
 
+; kcc_drain_getin: discard any bytes left sitting in the KERNAL
+; keyboard buffer -- called first thing by kcc_teardown (below) so a
+; physical keypress that satisfied SFDX during capture_macro_combo's
+; own wait (which never itself calls GETIN, see that routine's own
+; header comment) can't leak into keymap_menu_loop's next GETIN poll
+; once this popup regains control. Real bug caught live 2026-09-22:
+; without this, a captured Ctrl+C (SFDX-distinct from RUN/STOP, so the
+; capture itself succeeded) still left GETIN's OWN decoded byte for
+; that same keypress ($03 -- CTRL+letter follows the classic ASCII
+; control-code range, and 'C' is the 3rd letter) sitting unread in the
+; buffer; the very next idle-poll GETIN call read it back and matched
+; keymap_keys' own RUN/STOP entry, silently closing the whole popup
+; right after a successful capture. A no-op for key_capture_combo's own
+; nav-row path, which already consumes its one GETIN byte itself as
+; part of normal capture -- harmless to run unconditionally either way.
+kcc_drain_getin:
+        jsr GETIN
+        cmp #0
+        bne kcc_drain_getin
+        rts
+
 kcc_teardown:
+        jsr kcc_drain_getin
         jsr JT_CURSOR_HIDE          ; erase the live-readout cursor at
                                      ; its CURRENT ($d1-$d3) position --
                                      ; must happen before restoring
@@ -621,8 +641,6 @@ kcc_wait:
                                        ; modifiers/blank-on-release live
         jmp kcc_wait
 kcc_got_key:
-        sta capture_display_key     ; cache for the live row regardless
-                                       ; of accept/reject below
         pha
         jsr update_capture_display
         pla
@@ -662,13 +680,27 @@ kcc_rts:
 ; Edge-detects directly on SFDX rather than snapshotting it when GETIN
 ; fires: SFDX is live/unbuffered while GETIN is buffered, so a fast
 ; tap-and-release could already be back at $40 (no key) by the time
-; GETIN's own byte surfaces here, capturing a stale/wrong matrix
-; position for a quick tap. Polling SFDX directly every tick has no
-; such lag. GETIN is still polled too, purely to keep capture_display_
-; key current -- update_capture_display's own live-readout NAME lookup
-; (not its on/off decision, which already reads $cb directly) depends
-; on that byte, and this routine doesn't touch update_capture_display
-; itself at all.
+; GETIN's own byte surfaces, capturing a stale/wrong matrix position
+; for a quick tap. Polling SFDX directly every tick has no such lag.
+;
+; Does NOT poll GETIN at all -- real bug caught live 2026-09-22 (Ryan's
+; report: capturing Ctrl+C as a trigger "aborts" the whole popup).
+; GETIN's own decode table folds CTRL+C down to $03, byte-for-byte the
+; SAME value RUN/STOP produces -- keymap_menu_loop's own outer dispatch
+; treats a GETIN $03 as "close the popup." An earlier draft of this
+; routine still called GETIN every tick (purely to feed update_capture_
+; display's live-readout NAME lookup via capture_display_key), which
+; left that same physical keypress's OWN decoded byte sitting unread in
+; the KERNAL's keyboard buffer once accepted -- the very next GETIN
+; call after this routine returned (keymap_menu_loop's own idle poll)
+; picked it back up and misread it as Cancel, even though the capture
+; itself had already succeeded via SFDX. Fixed two ways: this routine
+; no longer touches GETIN at all (update_capture_display now derives
+; its live-readout name from SFDX too, via key_num_unshifted -- see
+; that table's own comment), and kcc_teardown now unconditionally
+; drains the keyboard buffer before returning, so any byte that DID
+; still make it in (e.g. from a rejected/duplicate attempt along the
+; way) can't leak into the next dispatch either.
 ;
 ; RUN/STOP (key-number 63) cancels, same as key_capture_combo's own
 ; GETIN-based #$03 check. RETURN (key-number 1) is explicitly rejected
@@ -700,14 +732,9 @@ capture_macro_combo:
                                        ; harmless
         jsr kcc_setup
 cmc_wait:
-        jsr GETIN
-        cmp #0
-        beq cmc_no_getin
-        sta capture_display_key
-cmc_no_getin:
         jsr update_capture_display
-        lda $cb                     ; SFDX -- THIS decides capture,
-                                       ; not GETIN above
+        lda $cb                     ; SFDX -- the only thing this loop
+                                       ; ever reads to decide capture
         cmp #$40
         beq cmc_wait                 ; no key currently held -- keep
                                        ; waiting/blinking
@@ -835,12 +862,6 @@ capture_live_mod:
         byte 0
 capture_live_key:
         byte 0
-; Cached from the last real GETIN event seen this wait (not necessarily
-; the one that ends up accepted -- a rejected duplicate re-enters the
-; wait and this keeps showing what was actually pressed). 0 = nothing
-; cached yet.
-capture_display_key:
-        byte 0
 
 ; --- update_capture_display: refresh row 19's live readout, and blink
 ; a real cursor (via JT_CURSOR_HIDE/JT_UPDATE_CURSOR) right after
@@ -878,6 +899,19 @@ capture_display_key:
 ; reverse-video cell out from under cursor_phase's own bookkeeping; the
 ; unchanged path (ucd_position) calls JT_UPDATE_CURSOR directly, same
 ; shape as both reference implementations.
+;
+; THIRD change, 2026-09-22: the held key's display byte now comes from
+; SFDX itself (via key_num_unshifted, below) instead of a GETIN-decoded
+; byte cached in a capture_display_key variable -- that variable (and
+; the GETIN polling that fed it) is gone entirely. Two reasons: (1) it
+; let capture_macro_combo avoid touching GETIN at all, closing the
+; keyboard-buffer leak described in that routine's own header comment,
+; and (2) it's more correct for the live preview either way -- GETIN's
+; decoded byte is only ever describe_key's own SFDX-independent guess
+; at what a given modifier combo produces, so CTRL+D showed as a raw
+; "$04" fallback before (the exact "ctrl+$04 doesn't read as ctrl+D"
+; complaint the ORIGINAL nav-capture display fix was for); the matrix-
+; derived byte always renders as the physical letter/symbol.
 update_capture_display:
         lda $028d                  ; SHFLAG -- live modifier state
         and #(MOD_SHIFT|MOD_CMDRE|MOD_CTRL)
@@ -890,8 +924,9 @@ update_capture_display:
         sta capture_live_key        ; sentinel blanks the field for us
         jmp ucd_check_change
 ucd_have_key:
-        lda capture_display_key
-        sta capture_live_key
+        tax
+        lda key_num_unshifted,x     ; matrix position -> the physical
+        sta capture_live_key         ; key's own unshifted byte
 ucd_check_change:
         lda capture_live_mod
         cmp ucd_prev_mod
@@ -2104,6 +2139,31 @@ key_names:
                                      ; empty name that lets dc_pad's
                                      ; own blanking do the rest
 KEY_NAMES_END = * - key_names
+
+; --- key_num_unshifted: SFDX matrix position (0-63, index) -> that
+; physical key's own UNSHIFTED decode byte -- a hand-copied snapshot of
+; the actual KERNAL ROM's own unshifted keyboard-decode table (see
+; server/CLAUDE.md's "C64 keyboard matrix" reference for the full
+; table and how it was verified byte-for-byte against the ROM, not
+; recalled). update_capture_display indexes this directly with SFDX to
+; get a byte describe_key/dc_key's own existing A-Z/punctuation
+; rendering already knows how to show -- reused as-is rather than a
+; second renderer, same as describe_combo already reuses across both
+; the saved list and this live readout. The four modifier-key slots
+; (LSHIFT=15, RSHIFT=51, CTRL=58, CBM=61) hold the ROM's own internal
+; flag bytes, not real characters -- describe_key's hex fallback
+; handles those honestly (a lone SHIFT/CTRL/CBM press with nothing else
+; held is an edge case this popup was never going to render as a named
+; key anyway).
+key_num_unshifted:
+        byte $14,$0d,$1d,$88,$85,$86,$87,$11
+        byte $33,$57,$41,$34,$5a,$53,$45,$01
+        byte $35,$52,$44,$36,$43,$46,$54,$58
+        byte $37,$59,$47,$38,$42,$48,$55,$56
+        byte $39,$49,$4a,$30,$4d,$4b,$4f,$4e
+        byte $2b,$50,$4c,$2d,$2e,$3a,$40,$2c
+        byte $5c,$2a,$3b,$13,$01,$3d,$5e,$2f
+        byte $31,$5f,$04,$32,$20,$02,$51,$03
 
 ; .a = one character -> row_scratch+15+describe_combo_col, advances
 ; the column. Bounds-checked against the 15-byte combo field so a
