@@ -1109,6 +1109,20 @@ kcm_rts:
 ; routine's own header comment) fills it in; an existing macro (ACTION_
 ; MACRO already) just gets its trigger updated, text untouched.
 ;
+; cmc_wait_release (below) exists because SFDX is LIVE, not buffered
+; like GETIN: 'T' itself is the physical key that dispatched here in
+; the first place, and is very often STILL held down the instant this
+; routine starts running (typing is fast relative to a poll loop) --
+; without first waiting for SFDX to go back to $40 (nothing held),
+; cmc_wait's own capture check would immediately see 'T' itself as
+; "a key is held" and self-capture IT as the trigger before the player
+; ever gets a chance to press their intended one. Real bug caught live
+; 2026-09-22 (Ryan's report: "I see a flash of a message... but it
+; quickly goes back to the main menu keystrokes listing" -- the prompt
+; drawing then capture_macro_combo completing and restoring the footer
+; within the same fraction of a second, both matching a same-keypress
+; self-capture exactly).
+;
 ; KNOWN GAP: capture_check_macro_duplicate only scans OTHER MACRO slots
 ; -- nav-function slots store a DECODED byte, not a matrix position, so
 ; a plain byte compare against them isn't meaningful, and a nav/macro
@@ -1126,6 +1140,15 @@ capture_macro_combo:
                                        ; again itself, redundant but
                                        ; harmless
         jsr kcc_setup
+cmc_wait_release:
+        jsr update_capture_display
+        lda $cb                     ; SFDX -- wait for whatever's
+        cmp #$40                     ; currently held (almost always
+        bne cmc_wait_release          ; 'T' itself, still physically
+                                        ; down) to be released before
+                                        ; watching for a NEW keypress --
+                                        ; see this routine's own header
+                                        ; comment on why this exists
 cmc_wait:
         jsr update_capture_display
         lda $cb                     ; SFDX -- the only thing this loop
