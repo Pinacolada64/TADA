@@ -274,6 +274,10 @@ keymap_keys:
         byte $54                  ; 'T' -- macro rows only: capture a
         word key_capture_trigger   ; new trigger combo (see that
                                      ; routine's own header comment)
+        byte $14                  ; DEL -- macro rows only: clear the
+        word key_clear_macro       ; slot back to ACTION_EMPTY, after a
+                                     ; Y/N confirm (see that routine's
+                                     ; own header comment)
 KEYMAP_KEYS_END = * - keymap_keys
 
 ; CRSR-UP past row 0 moves focus onto the header instead of wrapping to
@@ -914,6 +918,78 @@ key_capture_trigger:
         beq kt_rts
         jmp capture_macro_combo
 kt_rts:
+        rts
+
+; --- key_clear_macro: DEL on a Macro Editor row -> zero that slot back
+; to ACTION_EMPTY (modifier, key, action, AND macro_text all cleared --
+; a stale trigger or leftover text sitting under an ACTION_EMPTY byte
+; would be invisible in the list but would still round-trip through
+; Save/Load, so this clears the whole BINDING_SIZE run, not just the
+; action byte), after a Y/N confirm on rows 18/19 (same draw_message_
+; row infra key_capture_combo's own capture_prompt_msg/capture_
+; conflict_msg use). Same header_focused/active_page guards key_
+; capture_trigger's own comment explains; also a no-op on an already-
+; empty slot -- nothing to confirm clearing.
+;
+; No live readout/cursor here (unlike kcc_setup/kemt_redraw) -- this
+; is a static Y/N prompt, not something the player types text or a
+; combo into, so there's no $d1-$d3 cursor state to save/restore.
+key_clear_macro:
+        lda header_focused
+        bne kcm_rts
+        lda active_page
+        beq kcm_rts
+        jsr edit_slot
+        jsr selected_slot_addr
+        ldy #2                     ; action byte
+        lda (scr_ptr_lo),y
+        cmp #ACTION_EMPTY
+        beq kcm_rts                ; already empty -- nothing to clear
+
+        ldx #<kcm_confirm_msg1
+        ldy #>kcm_confirm_msg1
+        jsr draw_message_row
+        ldx #<kcm_confirm_msg2
+        ldy #>kcm_confirm_msg2
+        stx poke_src_lo
+        sty poke_src_hi
+        lda #<(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        sta poke_dst_lo
+        lda #>(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        sta poke_dst_hi
+        jsr poke_line
+kcm_wait:
+        jsr GETIN
+        cmp #0
+        beq kcm_wait
+        cmp #$59                   ; 'Y' -- confirmed, clear the slot
+        beq kcm_clear
+        cmp #$4e                   ; 'N' -- explicit decline
+        beq kcm_done
+        cmp #$03                   ; RUN/STOP -- same as 'N'
+        beq kcm_done
+        jmp kcm_wait                ; anything else -- ignore, keep
+                                       ; waiting for a real Y/N answer
+kcm_clear:
+        jsr selected_slot_addr      ; recompute -- the wait loop above
+                                       ; didn't touch scr_ptr_lo/hi, but
+                                       ; this matches every other
+                                       ; confirm/capture routine's own
+                                       ; "don't trust a pointer this
+                                       ; old" convention
+        ldy #0
+kcm_clear_loop:
+        lda #0
+        sta (scr_ptr_lo),y
+        iny
+        cpy #BINDING_SIZE
+        bne kcm_clear_loop
+kcm_done:
+        jsr draw_help_footer         ; restore rows 18/19
+        jmp draw_list                 ; tail call -- row may now show
+                                        ; "-- empty --" instead of the
+                                        ; cleared macro's old text
+kcm_rts:
         rts
 
 ; --- capture_macro_combo: capture a macro slot's own trigger -- wait
@@ -2874,6 +2950,19 @@ row_help2_header:
 row_help1_macro:
         byte $20,$20,$20,$20, $5d
         ascii " Return: Edit    T: Trigger   "
+        byte $5d, $20,$20,$20,$20
+
+; key_clear_macro's own Y/N confirm, rows 18/19 -- same draw_message_
+; row/poke_line pair key_capture_combo's own live-readout row and
+; draw_help_footer already use, verified 30 ascii chars each the same
+; way row_help1/row_help2's own strings are.
+kcm_confirm_msg1:
+        byte $20,$20,$20,$20, $5d
+        ascii " Really clear this macro?     "
+        byte $5d, $20,$20,$20,$20
+kcm_confirm_msg2:
+        byte $20,$20,$20,$20, $5d
+        ascii " Y: yes          N/Stop: no   "
         byte $5d, $20,$20,$20,$20
 
 ; key_capture_combo swaps row_help1's screen line for one of these two
