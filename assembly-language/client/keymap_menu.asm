@@ -2108,10 +2108,86 @@ dl_right_border:
         inx
         cpx #PAGE_ROWS_MAX
         bne draw_list_loop
-        rts
+        jmp update_macro_status_preview ; tail call -- its own rts
+                                          ; returns straight to our caller
 
 draw_list_row:
         byte 0
+
+; --- update_macro_status_preview: repaint STATUS_ROW_SCREEN with the
+; CURRENTLY SELECTED macro row's own full text (up to MACRO_TEXT_LEN=
+; 24 columns -- well under the available 40) while just BROWSING the
+; list -- Ryan's ask, 2026-09-22: the list's own name column truncates
+; long macro text to 12 chars, so seeing the WHOLE thing means a live
+; preview on the status row as the player moves CRSR up/down.
+;
+; Called from draw_list's own tail -- every full-list redraw already
+; happens from there (key_row_up/down, toggle_active_page, module_
+; start, and every capture/edit/clear routine's own exit all already
+; tail-call or jsr draw_list), so every one of those already keeps the
+; list in sync gets this preview refreshed for free too, with a single
+; change point, rather than adding a second call at each of those
+; sites by hand.
+;
+; NOT called from key_edit_macro_text's own kemt_* routines -- those
+; already own this exact physical row for a different purpose (the
+; live text-INPUT widget) while their own wait loop runs; draw_list
+; itself is never called from inside that loop (only once, at kemt_
+; done, after it's already finished with the row), so there's no
+; conflict over who owns the row's raw bytes at any given moment.
+;
+; Blanks the row entirely whenever there's nothing meaningful to
+; preview: header-focused (no row is "selected"), the Keymap Editor
+; page (nav rows have no text of their own -- their combo is already
+; visible in the list itself, unlike a macro's text), or an ACTION_
+; EMPTY macro slot.
+update_macro_status_preview:
+        lda header_focused
+        bne umsp_blank
+        lda active_page
+        beq umsp_blank
+        jsr selected_slot_addr      ; scr_ptr_lo/hi -> the selected row's
+                                       ; own real slot (combo_subindex is
+                                       ; always 0 on this page -- key_
+                                       ; subselect_prev/next's own guard
+                                       ; only ever sets it nonzero on
+                                       ; HOME_MERGE_ROW, a Keymap Editor
+                                       ; page row)
+        ldy #2                     ; action byte
+        lda (scr_ptr_lo),y
+        cmp #ACTION_MACRO
+        bne umsp_blank              ; empty slot -- nothing to preview
+        ldy #3
+        ldx #0
+umsp_copy_loop:
+        cpx #MACRO_TEXT_LEN
+        beq umsp_pad
+        lda (scr_ptr_lo),y
+        beq umsp_pad                ; NUL -- pad the rest with blanks
+        ora #$80
+        sta STATUS_ROW_SCREEN,x
+        iny
+        inx
+        jmp umsp_copy_loop
+umsp_pad:
+        lda #$a0                    ; reverse-video space
+umsp_pad_loop:
+        cpx #40
+        beq umsp_rts
+        sta STATUS_ROW_SCREEN,x
+        inx
+        jmp umsp_pad_loop
+umsp_rts:
+        rts
+umsp_blank:
+        ldx #0
+umsp_blank_loop:
+        lda #$a0
+        sta STATUS_ROW_SCREEN,x
+        inx
+        cpx #40
+        bne umsp_blank_loop
+        rts
 
 ; get_page_rows's result, cached once per draw_list call rather than
 ; re-fetched every loop iteration (cheap either way, but cpx needs a
