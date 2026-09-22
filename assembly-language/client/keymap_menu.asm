@@ -231,12 +231,12 @@ keymap_keys:
         word key_row_up
         byte $11                  ; cursor down -- next row
         word key_row_down
-        byte $9d                  ; cursor left -- next sub-entry within
+        byte $1d                  ; cursor left -- next sub-entry within
         word key_subselect_next    ; a merged row (Home only, for now);
                                      ; no-op on any other row -- reversed
                                      ; from LEFT=prev/RIGHT=next 2026-09-18
                                      ; (Ryan's preference, confirmed live)
-        byte $1d                  ; cursor right -- previous sub-entry
+        byte $9d                  ; cursor right -- previous sub-entry
         word key_subselect_prev
         byte $53                  ; 'S' -- save and exit
         word key_save
@@ -652,29 +652,31 @@ capture_display_key:
 ; buffered timing. Clobbers A/X/Y and scr_ptr_lo/hi (both already
 ; treated as call-clobbered by every other routine in this file).
 ;
-; Only the describe_combo/poke_line block (ucd_redraw below) is
-; skipped when nothing changed since the last tick -- real bug caught
-; live 2026-09-20 (Ryan's report: "the cursor blink routine from the
-; keytable editor is not consistent," compared against config_menu.
-; asm's own steadier demo_cursor_update): this routine used to run
-; that ~40-byte describe_combo+poke_line rebuild on EVERY kcc_wait
-; tick regardless of whether capture_live_mod/key had actually changed,
-; making each loop iteration's cost -- and so the exact moment $a2 gets
-; sampled for JT_UPDATE_CURSOR's own blink-phase check -- uneven, unlike
-; config_menu.asm's config_loop (a cheap demo_cursor_update + GETIN
-; spin every tick, nothing else). JT_CURSOR_HIDE and the final
-; reposition + JT_UPDATE_CURSOR call still run unconditionally every
-; tick -- both cheap, and JT_UPDATE_CURSOR's own $a2 sample is the part
-; that actually needs a steady polling rate, so isolating it from the
-; expensive text rebuild is what fixes the jitter, not skipping it too.
+; The describe_combo/poke_line block (ucd_redraw below) only runs when
+; capture_live_mod/key actually changed since the last tick -- fixes a
+; real bug caught live 2026-09-20 (Ryan's report: "the cursor blink
+; routine from the keytable editor is not consistent," compared
+; against config_menu.asm's own steadier demo_cursor_update): this
+; routine used to run that ~40-byte rebuild on EVERY tick regardless,
+; making each iteration's cost uneven.
+;
+; SECOND bug in the same area, caught the same day once the first fix
+; alone didn't resolve Ryan's report: JT_CURSOR_HIDE used to run
+; unconditionally at the top of EVERY tick, immediately followed by a
+; fresh JT_UPDATE_CURSOR call at the bottom -- toggling the cursor off
+; and back on every single tick even when nothing should change,
+; layering a rapid extra flicker on top of the real, slower blink
+; period. Neither config_menu.asm's demo_cursor_update nor read_line_
+; loop's own real usage of update_cursor (cursor_hide is only called
+; once, right before dispatching an ACTUAL keystroke -- never on an
+; idle poll tick) ever do this; JT_UPDATE_CURSOR's own internal cursor_
+; phase-vs-$a2 check already decides on its own whether a transition is
+; due. Fix: JT_CURSOR_HIDE now only runs inside ucd_redraw, immediately
+; before the poke_line call that would otherwise overwrite a still-
+; reverse-video cell out from under cursor_phase's own bookkeeping; the
+; unchanged path (ucd_position) calls JT_UPDATE_CURSOR directly, same
+; shape as both reference implementations.
 update_capture_display:
-        jsr JT_CURSOR_HIDE          ; erase wherever the cursor was left
-                                     ; blinking last tick, BEFORE any
-                                     ; redraw below overwrites that row --
-                                     ; a harmless no-op on the very first
-                                     ; call (cursor_phase starts at 0,
-                                     ; see key_capture_combo's own
-                                     ; comment on why that's guaranteed)
         lda $028d                  ; SHFLAG -- live modifier state
         and #(MOD_SHIFT|MOD_CMDRE|MOD_CTRL)
         sta capture_live_mod
@@ -694,8 +696,17 @@ ucd_check_change:
         bne ucd_redraw
         lda capture_live_key
         cmp ucd_prev_key
-        beq ucd_position            ; both unchanged -- skip the rebuild
+        beq ucd_position            ; both unchanged -- straight to the
+                                       ; cheap blink-check, no hide/redraw
 ucd_redraw:
+        jsr JT_CURSOR_HIDE          ; erase the cursor at its OLD position
+                                     ; (still in $d1-$d3 from last tick)
+                                     ; before this redraw overwrites the
+                                     ; row underneath it -- a harmless
+                                     ; no-op on the very first call
+                                     ; (cursor_phase starts at 0, see
+                                     ; key_capture_combo's own comment on
+                                     ; why that's guaranteed)
         lda capture_live_mod
         sta ucd_prev_mod
         lda capture_live_key
@@ -2217,27 +2228,27 @@ name_open_editor:
 ; NUL-terminated modifier-prefix/key-name fragments -- describe_combo
 ; copies these via copy_mod_prefix/copy_key_name (stops at the NUL, not
 ; a fixed length, since these vary in length and get concatenated).
-{alpha:poke}
+{alpha:pokealt}
 mod_ctrl_name:
-        ascii "CTRL+"
+        ascii "Ctrl+"
         byte 0
 mod_cmdre_name:
         ascii "C=+"
         byte 0
 mod_shift_name:
-        ascii "SHFT+"
+        ascii "Shift+"
         byte 0
 key_left_name:
-        ascii "LEFT"
+        ascii "Left"
         byte 0
 key_right_name:
-        ascii "RIGHT"
+        ascii "Right"
         byte 0
 key_up_name:
-        ascii "UP"
+        ascii "Crsr Up"
         byte 0
 key_down_name:
-        ascii "DOWN"
+        ascii "Crsr Down"
         byte 0
 key_f1_name:
         ascii "F1"
@@ -2252,10 +2263,10 @@ key_f7_name:
         ascii "F7"
         byte 0
 key_home_name:
-        ascii "HOME"
+        ascii "Home"
         byte 0
 key_clear_name:
-        ascii "CLEAR"
+        ascii "Clear"
         byte 0
 key_none_name:
         byte 0                     ; empty string -- see key_names' own
