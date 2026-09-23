@@ -218,9 +218,37 @@ init_keymap:
         jsr KERNAL_SETNAM
         lda #2                   ; file number -- distinct from load_
         ldx #8                   ; help_menu/load_keymap_menu's #1,
-        ldy #1                   ; unrelated but harmless either way
+        ldy #0                   ; unrelated but harmless either way.
+                                    ; Secondary address 0 (NOT 1, unlike
+                                    ; load_keymap_menu's own LOAD just
+                                    ; above) -- Ryan's diagnosis,
+                                    ; 2026-09-22: KEYMAP.CFG is a plain
+                                    ; DATA file key_save (keymap_menu.
+                                    ; asm) writes via a bare KERNAL SAVE
+                                    ; from keymap_table, not a real .prg
+                                    ; with a deliberately-chosen `orig`
+                                    ; address the way keymap_menu.asm's
+                                    ; own overlay is -- SAVE still writes
+                                    ; a real 2-byte address header (the
+                                    ; source address at save time), but
+                                    ; secondary address 1 here would
+                                    ; blindly TRUST that header and load
+                                    ; wherever it says, which only stays
+                                    ; safe for as long as keymap_table's
+                                    ; own real address never changes
+                                    ; between the save and a later boot's
+                                    ; own build. Secondary address 0
+                                    ; forces the explicit ldx/ldy target
+                                    ; below instead, regardless of
+                                    ; whatever the file's own header
+                                    ; bytes claim -- a genuinely stale or
+                                    ; mismatched header can otherwise
+                                    ; load the file over arbitrary,
+                                    ; possibly-live code.
         jsr KERNAL_SETLFS
-        lda #0
+        lda #0                    ; load (not verify)
+        ldx KEYMAP_TABLE_PTR      ; explicit target address -- required
+        ldy KEYMAP_TABLE_PTR+1     ; whenever secondary address is 0
         jsr KERNAL_LOAD
         bcs init_keymap_use_default
         jmp init_keymap_clear_error ; loaded successfully -- keymap_
