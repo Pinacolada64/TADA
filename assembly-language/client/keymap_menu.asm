@@ -923,26 +923,81 @@ kemt_redraw_position:
         jmp JT_UPDATE_CURSOR         ; tail call
 
 ; --- macro_char_to_screencode: .A = a byte from a macro's own stored
-; text -> .A = the correct SCREEN CODE to poke for it -- almost always
-; identity (this file's own long-established "PETSCII == screencode"
-; convention for the $20-$3F/$41-$5A printable range kemt_try_insert
-; accepts), EXCEPT the back-arrow auto-submit marker ($5f -- see
-; keymap_insert_macro's own header comment in keymap.asm): unlike a
-; letter, a punctuation/graphic PETSCII byte's own screen-code position
-; is a DIFFERENT, lower byte in EITHER charset (only letters have two
-; case-dependent charset positions the way $41-$5A vs $01-$1A do) --
-; confirmed via a live VICE screenshot, not guessed: $5f poked directly
-; showed an unrelated graphic, $1f showed the real left-arrow. Only .A
-; is touched -- safe to call from a loop using X/Y as index counters.
+; text -> .A = the correct SCREEN CODE to poke for it. Only .A is
+; touched -- safe to call from a loop using X/Y as index counters.
 ; Used by every routine that pokes a macro's own text directly (kemt_
 ; redraw, describe_binding_row's dbr_macro_copy, update_macro_status_
 ; preview) -- NOT by keymap_insert_macro (keymap.asm), which echoes the
 ; RAW stored byte via a real jsr term_chrout/CHROUT during actual
-; gameplay, and CHROUT already does this exact translation itself for
-; that one byte, the normal way, with no help needed from this routine.
+; gameplay, and CHROUT already does the SAME translation this routine
+; does, the normal way, given the stored-byte convention below.
+;
+; Real live find, 2026-09-22 (Ryan's own lowercase-typing ask led here):
+; CHROUT's own PETSCII->screencode translation, in THIS client's own
+; upper/lowercase charset, is the OPPOSITE of the naive assumption a
+; direct poke's own identity convention this file used to rely on --
+; confirmed via a real typed-and-echoed keystroke, not guessed: CHROUT
+; of PETSCII $41-$5A ("uppercase" by ASCII convention) echoes as
+; LOWERCASE (screencode $01-$1A), and CHROUT of $61-$7A ("lowercase" by
+; ASCII convention) echoes as UPPERCASE (screencode $41-$5A) -- because
+; this client only ever switched the VIC's own DISPLAY charset at boot
+; (tada-client.asm's own CHARSET_UPPER_LOWER), never the KERNAL's
+; separate keyboard DECODE table, so an unshifted letter key always
+; still produces the "conventionally uppercase" $41-$5A PETSCII byte
+; regardless of charset -- and CHROUT, charset-aware, correctly renders
+; THAT byte as lowercase to match what a genuine lowercase-mode
+; terminal's own unshifted key would mean. A real, pre-existing bug
+; this uncovers: every macro's text tested THIS SESSION, before this
+; fix, displayed correctly in the editor's own OLD identity-mapped
+; direct-poke convention but would have echoed in the OPPOSITE case
+; during real gameplay (via keymap_insert_macro's own CHROUT call) --
+; never actually seen, since every prior verification only checked
+; linebuf's own raw bytes, not the live screen render.
+;
+; Fixed by CHOOSING a stored-byte convention that's CHROUT-consistent
+; instead of fighting it: kemt_try_insert (below) now stores $61-$7A
+; for what the player types UNSHIFTED (still displays/echoes as
+; UPPERCASE, matching the feature's ORIGINAL established behavior --
+; no player-visible change there) and $41-$5A for a genuine SHIFT+
+; letter press (a NEW capability, Ryan's actual ask -- see kemt_try_
+; shift_letter's own comment), so CHROUT's real echo and this routine's
+; own direct-poke translation FINALLY agree with each other, by
+; construction, rather than by coincidence. This is a BREAKING change
+; to the stored byte format -- any macro text saved before this fix
+; will now display in the OPPOSITE case than it did before (still
+; correct going forward, just not compatible with old saves; this
+; feature is still draft-PR-only, no shipped save format to preserve).
+;
+; The back-arrow auto-submit marker ($5f -- keymap_insert_macro's own
+; header comment in keymap.asm) is a separate, ALREADY-correct special
+; case: unlike a letter, a punctuation/graphic PETSCII byte's own
+; screen-code position is a DIFFERENT, lower byte in EITHER charset
+; (only letters have two case-dependent charset positions) -- confirmed
+; via a live VICE screenshot, not guessed: $5f poked directly showed an
+; unrelated graphic, $1f showed the real left-arrow.
 macro_char_to_screencode:
         cmp #$5f
-        bne mcts_rts
+        beq mcts_arrow
+        cmp #$41
+        bcc mcts_rts                 ; < $41 -- space/digit/punctuation,
+                                        ; identity
+        cmp #$5b
+        bcc mcts_lower                ; $41-$5A -- shift-typed, lower
+                                        ; case-intended
+        cmp #$61
+        bcc mcts_rts                  ; $5b-$60 gap -- shouldn't occur,
+                                        ; identity fallback
+        cmp #$7b
+        bcs mcts_rts                   ; $7b+ -- shouldn't occur,
+                                         ; identity fallback
+        sec                            ; $61-$7A -- unshifted-typed,
+        sbc #$20                       ; upper case-intended -> screen
+        rts                             ; code $41-$5A
+mcts_lower:
+        sec
+        sbc #$40                     ; $41-$5A -> screen code $01-$1A
+        rts
+mcts_arrow:
         lda #$1f
 mcts_rts:
         rts
@@ -950,25 +1005,47 @@ mcts_rts:
 ; --- kemt_try_insert: .a = a GETIN byte -> insert it into macro_text_
 ; scratch AT macro_edit_pos (shifting everything from there onward one
 ; byte right to open a gap -- see key_edit_macro_text's own header
-; comment) if printable (dc_key's own two established ranges, plus the
-; back-arrow auto-submit marker $5f -- Ryan's ask, 2026-09-22, see
-; keymap_insert_macro's own header comment in keymap.asm) and there's
-; room left (macro_edit_len < MACRO_TEXT_LEN). Silently no-ops
-; otherwise -- full buffer or an unprintable key -- same "ignore rather
-; than error" shape this file already uses elsewhere in a wait loop.
-; Stores $5f as-is (the real PETSCII byte, not its own screen code --
-; macro_char_to_screencode below converts only when DISPLAYING it,
-; keeping the stored byte the exact one keymap_insert_macro's own scan
-; and CHROUT's real-gameplay echo both need to see).
+; comment) if printable and there's room left (macro_edit_len <
+; MACRO_TEXT_LEN). Silently no-ops otherwise -- full buffer or an
+; unprintable key -- same "ignore rather than error" shape this file
+; already uses elsewhere in a wait loop.
+;
+; Case handling (Ryan's ask, 2026-09-22 -- see macro_char_to_screencode's
+; own comment for the full CHROUT-consistency reasoning this all rests
+; on): an UNSHIFTED letter key ($41-$5A -- this ROM's own decode table
+; never produces this range for a SHIFTED letter press, so no ambiguity
+; at all here) stores $61-$7A (uppercase-intended, unchanged player-
+; visible behavior from before this fix). A SHIFT+letter press --
+; kemt_lookup_shift_letter's own table, below -- stores $41-$5A (lower
+; case-intended, the NEW capability). $5f (back-arrow) and $20-$3F
+; (space/digit/punctuation) are unchanged from before, stored as-is.
+;
+; The shift+letter lookup runs FIRST, unconditionally -- real bug
+; caught live 2026-09-22: 9 of the 26 shift+letter codes (including 8
+; of the ones that collide with real punctuation, plus shift+Q's own
+; $02) are LESS than $41, so an earlier version of this routine that
+; only checked the lookup table for bytes >= $5b never even reached it
+; for those -- they fell straight into the punctuation branch below
+; and were (correctly, by coincidence) stored as literal punctuation,
+; but a GENUINE shift+B/C/I/M/Q/R/W/Y/Z press could never be recognized
+; as a letter at all. Confirmed via a live VICE breakpoint at kemt_
+; lookup_shift_letter's own SFDX check: it was never even reached.
 kemt_try_insert:
         sta kemt_typed
+        jsr kemt_lookup_shift_letter
+        bcs kemt_insert_go            ; matched -- kemt_typed already
+                                        ; holds the lower case-intended
+                                        ; ($41-$5A) byte to store
+        lda kemt_typed
         cmp #$5f
-        beq kemt_insert_go           ; back-arrow -- accept unconditionally,
-                                       ; same as the two established ranges
+        beq kemt_insert_go           ; back-arrow -- accept unconditionally
         cmp #$41
         bcc kemt_try_punct
         cmp #$5b
         bcs kemt_try_punct
+        clc                          ; unshifted letter -- store upper
+        adc #$20                      ; case-intended ($61-$7A)
+        sta kemt_typed
         jmp kemt_insert_go
 kemt_try_punct:
         lda kemt_typed
@@ -997,6 +1074,85 @@ kemt_insert_shift_done:
         jsr kemt_redraw
 kemt_insert_rts:
         rts
+
+; --- kemt_lookup_shift_letter: kemt_typed = a GETIN byte -> if it
+; matches one of the 26 real SHIFT+letter codes this ROM's own decode
+; table produces (kemt_shift_letter_codes below -- read straight out
+; of ~/Documents/c64/JiffyDOS/Jiffydos-Kernal.rom, same method server/
+; CLAUDE.md's own "C64 keyboard matrix" reference already used), kemt_
+; typed is OVERWRITTEN with that letter's own lower case-intended
+; stored byte ($41-$5A -- kemt_shift_letter_stored) and carry SET;
+; otherwise kemt_typed is left UNCHANGED and carry CLEAR.
+;
+; Real C64 PETSCII property, not a bug: SHIFT+letter doesn't produce a
+; case-flipped letter code at all -- it selects one of 26 unrelated
+; GRAPHIC glyphs from the charset's other half, and 8 of those 26
+; values are BYTE-IDENTICAL to ordinary punctuation from a completely
+; different, unrelated key (e.g. SHIFT+B's own code is the exact same
+; byte as SHIFT+8's own '(' -- GETIN can't tell the two apart, since
+; both physical keys produce the identical decoded value by KERNAL
+; design). kemt_shift_letter_keynum (parallel table, same index) holds
+; a NONZERO real SFDX matrix position ONLY for those 8 ambiguous
+; entries (0 for the other 18, which are never produced by any OTHER
+; key and so need no disambiguation at all) -- when nonzero, this live-
+; checks SFDX against that letter's own key-number before accepting;
+; a mismatch (SFDX reads $40, already released, or genuinely shows the
+; OTHER colliding key) falls through to carry CLEAR, letting kemt_try_
+; insert's own kemt_try_punct path handle it as the ordinary
+; punctuation character it actually was, rather than risk silently
+; corrupting deliberately-typed punctuation into an unintended letter.
+; Ryan's own call, 2026-09-22, choosing this over converting the whole
+; macro-text typing loop to SFDX-based polling (capture_macro_combo's
+; own approach) -- GETIN already gives a clean, edge-detected event for
+; every keystroke including these; only the 8 ambiguous BYTE VALUES
+; specifically need an SFDX cross-check, not the whole loop's own
+; input model.
+kemt_lookup_shift_letter:
+        ldx #0
+klsl_loop:
+        cpx #KEMT_SHIFT_LETTER_END
+        beq klsl_miss
+        lda kemt_shift_letter_codes,x
+        cmp kemt_typed
+        bne klsl_next
+        lda kemt_shift_letter_keynum,x
+        beq klsl_hit                 ; 0 -- unambiguous, no SFDX check
+                                        ; needed at all
+        cmp $cb                      ; SFDX -- live matrix position
+        bne klsl_miss                  ; doesn't match -- this was
+                                         ; really the OTHER (punctuation)
+                                         ; key, not this letter
+klsl_hit:
+        lda kemt_shift_letter_stored,x
+        sta kemt_typed
+        sec
+        rts
+klsl_next:
+        inx
+        jmp klsl_loop
+klsl_miss:
+        clc
+        rts
+
+; kemt_shift_letter_codes/_keynum/_stored: three parallel 26-entry
+; tables (A-Z order), indexed together by kemt_lookup_shift_letter
+; above -- see that routine's own header comment for what each column
+; means. _codes verified against the actual KERNAL ROM (not guessed);
+; _keynum is 0 except for the 8 real punctuation collisions (B/C/I/M/
+; R/W/Y/Z); _stored is simply $41-$5A in A-Z order.
+kemt_shift_letter_codes:
+        byte $d7, $28, $26, $d2, $d3, $c3, $d9, $c2, $29, $c9
+        byte $cd, $d0, $30, $cf, $cb, $db, $02, $25, $da, $c6
+        byte $c8, $d5, $23, $d4, $27, $24
+KEMT_SHIFT_LETTER_END = * - kemt_shift_letter_codes
+kemt_shift_letter_keynum:
+        byte $00, $1c, $14, $00, $00, $00, $00, $00, $21, $00
+        byte $00, $00, $24, $00, $00, $00, $00, $11, $00, $00
+        byte $00, $00, $09, $00, $19, $0c
+kemt_shift_letter_stored:
+        byte $41, $42, $43, $44, $45, $46, $47, $48, $49, $4a
+        byte $4b, $4c, $4d, $4e, $4f, $50, $51, $52, $53, $54
+        byte $55, $56, $57, $58, $59, $5a
 
 kemt_typed:
         byte 0
