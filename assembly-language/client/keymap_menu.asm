@@ -897,6 +897,7 @@ kemt_redraw_loop:
         cpy macro_edit_len
         bcs kemt_redraw_pad
         lda macro_text_scratch,y
+        jsr macro_char_to_screencode
         ora #$80
         sta STATUS_ROW_SCREEN,y
         iny
@@ -921,15 +922,49 @@ kemt_redraw_position:
                                         ; edit_len (2026-09-22)
         jmp JT_UPDATE_CURSOR         ; tail call
 
+; --- macro_char_to_screencode: .A = a byte from a macro's own stored
+; text -> .A = the correct SCREEN CODE to poke for it -- almost always
+; identity (this file's own long-established "PETSCII == screencode"
+; convention for the $20-$3F/$41-$5A printable range kemt_try_insert
+; accepts), EXCEPT the back-arrow auto-submit marker ($5f -- see
+; keymap_insert_macro's own header comment in keymap.asm): unlike a
+; letter, a punctuation/graphic PETSCII byte's own screen-code position
+; is a DIFFERENT, lower byte in EITHER charset (only letters have two
+; case-dependent charset positions the way $41-$5A vs $01-$1A do) --
+; confirmed via a live VICE screenshot, not guessed: $5f poked directly
+; showed an unrelated graphic, $1f showed the real left-arrow. Only .A
+; is touched -- safe to call from a loop using X/Y as index counters.
+; Used by every routine that pokes a macro's own text directly (kemt_
+; redraw, describe_binding_row's dbr_macro_copy, update_macro_status_
+; preview) -- NOT by keymap_insert_macro (keymap.asm), which echoes the
+; RAW stored byte via a real jsr term_chrout/CHROUT during actual
+; gameplay, and CHROUT already does this exact translation itself for
+; that one byte, the normal way, with no help needed from this routine.
+macro_char_to_screencode:
+        cmp #$5f
+        bne mcts_rts
+        lda #$1f
+mcts_rts:
+        rts
+
 ; --- kemt_try_insert: .a = a GETIN byte -> insert it into macro_text_
 ; scratch AT macro_edit_pos (shifting everything from there onward one
 ; byte right to open a gap -- see key_edit_macro_text's own header
-; comment) if printable (dc_key's own two established ranges) and
-; there's room left (macro_edit_len < MACRO_TEXT_LEN). Silently no-ops
+; comment) if printable (dc_key's own two established ranges, plus the
+; back-arrow auto-submit marker $5f -- Ryan's ask, 2026-09-22, see
+; keymap_insert_macro's own header comment in keymap.asm) and there's
+; room left (macro_edit_len < MACRO_TEXT_LEN). Silently no-ops
 ; otherwise -- full buffer or an unprintable key -- same "ignore rather
 ; than error" shape this file already uses elsewhere in a wait loop.
+; Stores $5f as-is (the real PETSCII byte, not its own screen code --
+; macro_char_to_screencode below converts only when DISPLAYING it,
+; keeping the stored byte the exact one keymap_insert_macro's own scan
+; and CHROUT's real-gameplay echo both need to see).
 kemt_try_insert:
         sta kemt_typed
+        cmp #$5f
+        beq kemt_insert_go           ; back-arrow -- accept unconditionally,
+                                       ; same as the two established ranges
         cmp #$41
         bcc kemt_try_punct
         cmp #$5b
@@ -2178,6 +2213,7 @@ umsp_copy_loop:
         beq umsp_pad
         lda (scr_ptr_lo),y
         beq umsp_pad                ; NUL -- pad the rest with blanks
+        jsr macro_char_to_screencode
         ora #$80
         sta STATUS_ROW_SCREEN,x
         iny
@@ -2299,6 +2335,7 @@ dbr_macro_copy:
         beq dbr_macro_done
         lda (scr_ptr_lo),y
         beq dbr_macro_pad          ; NUL -- pad the rest with spaces
+        jsr macro_char_to_screencode
         sta row_scratch+2,x
         iny
         inx

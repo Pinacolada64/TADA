@@ -1947,6 +1947,20 @@ read_line_not_return:
         ; live here.
         jsr keymap_dispatch
         bcc read_line_not_keymap
+        lda keymap_macro_submit    ; set by keymap_insert_macro when the
+        beq read_line_dispatch_loop ; matched macro's own text contained
+                                      ; the back-arrow auto-submit marker
+                                      ; ($5f -- Ryan's ask, 2026-09-22,
+                                      ; see that routine's own header
+                                      ; comment in keymap.asm)
+        lda #0
+        sta keymap_macro_submit     ; clear for the next macro/keystroke
+        jmp read_line_done          ; same stack depth a real RETURN
+                                      ; reaching read_line_done normally
+                                      ; would use -- read_line_not_return
+                                      ; is reached by a plain branch, not
+                                      ; a nested jsr, from read_line_loop
+read_line_dispatch_loop:
         jmp read_line_loop
 read_line_not_keymap:
 

@@ -619,6 +619,13 @@ keymap_dispatch_save_lo:
 keymap_dispatch_save_hi:
         byte 0
 
+; Set by keymap_insert_macro when the macro's own text contains the
+; back-arrow auto-submit marker; read_line_not_return (tada-client.asm)
+; checks and clears this right after keymap_dispatch returns -- see
+; keymap_insert_macro's own header comment below.
+keymap_macro_submit:
+        byte 0
+
 ; --- keymap_insert_macro: insert a matched binding's macro_text into
 ; linebuf at cursor_pos ---
 ; Same shift-and-insert idea as tada-client.asm's read_line_store, just
@@ -630,7 +637,24 @@ keymap_dispatch_save_hi:
 ; same "buffer full, ignore the rest" behavior read_line_store already
 ; has for a single typed character, just covering the whole remaining
 ; macro instead of one char.
+;
+; The back-arrow character ($5f -- Ryan's ask, 2026-09-22) is a special
+; auto-submit marker rather than ordinary text: hitting it stops the
+; scan right there (anything after it in macro_text is never inserted,
+; same "stop early" shape the buffer-full case below already has) and
+; sets keymap_macro_submit, which read_line_not_return (tada-client.asm)
+; checks right after this call returns -- nonzero there means jump
+; straight to read_line_done instead of looping back for another key,
+; exactly as if the player had typed the macro's own text and then
+; pressed RETURN themselves. $5f is PETSCII for the real left-arrow
+; key -- classic BASIC-listing shorthand for "this maps to RETURN" --
+; not $1f (that's the ARROW'S OWN screen code, a different byte; see
+; keymap_menu_editor's own macro_char_to_screencode comment for why
+; letters and this one punctuation/graphic byte need different
+; treatment converting between the two).
 keymap_insert_macro:
+        lda #0
+        sta keymap_macro_submit
         ldy #3                     ; macro_text starts at binding
                                      ; offset 3 (past modifier/key/action)
 keymap_insert_macro_scan:
@@ -638,6 +662,12 @@ keymap_insert_macro_scan:
         beq keymap_insert_macro_done
         lda (scr_ptr_lo),y
         beq keymap_insert_macro_done  ; NUL terminator
+        cmp #$5f                   ; back-arrow -- auto-submit marker,
+        bne keymap_insert_macro_char ; not ordinary text -- see this
+        lda #1                       ; routine's own header comment
+        sta keymap_macro_submit
+        jmp keymap_insert_macro_done
+keymap_insert_macro_char:
         pha
         lda linelen
         cmp #MAX_LINE-1
