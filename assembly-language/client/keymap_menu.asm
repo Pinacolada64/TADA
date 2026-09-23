@@ -1014,11 +1014,15 @@ mcts_rts:
 ; own comment for the full CHROUT-consistency reasoning this all rests
 ; on): an UNSHIFTED letter key ($41-$5A -- this ROM's own decode table
 ; never produces this range for a SHIFTED letter press, so no ambiguity
-; at all here) stores $61-$7A (uppercase-intended, unchanged player-
-; visible behavior from before this fix). A SHIFT+letter press --
-; kemt_lookup_shift_letter's own table, below -- stores $41-$5A (lower
-; case-intended, the NEW capability). $5f (back-arrow) and $20-$3F
-; (space/digit/punctuation) are unchanged from before, stored as-is.
+; at all here) stores $41-$5A as-is (lowercase-intended). A SHIFT+
+; letter press -- kemt_lookup_shift_letter's own table, below -- stores
+; $61-$7A (uppercase-intended, +$20 added in klsl_hit itself). This
+; matches ordinary keyboard convention (plain key = lowercase, Shift =
+; uppercase) -- Ryan's own follow-up ask, 2026-09-22, after the FIRST
+; version of this shipped with the two swapped (unshifted=uppercase,
+; Shift=lowercase): technically consistent with CHROUT either way, but
+; unintuitive to actually type. $5f (back-arrow) and $20-$3F (space/
+; digit/punctuation) are unaffected either way, stored as-is.
 ;
 ; The shift+letter lookup runs FIRST, unconditionally -- real bug
 ; caught live 2026-09-22: 9 of the 26 shift+letter codes (including 8
@@ -1034,19 +1038,16 @@ kemt_try_insert:
         sta kemt_typed
         jsr kemt_lookup_shift_letter
         bcs kemt_insert_go            ; matched -- kemt_typed already
-                                        ; holds the lower case-intended
-                                        ; ($41-$5A) byte to store
+                                        ; holds the upper case-intended
+                                        ; ($61-$7A) byte to store
         lda kemt_typed
         cmp #$5f
         beq kemt_insert_go           ; back-arrow -- accept unconditionally
         cmp #$41
         bcc kemt_try_punct
         cmp #$5b
-        bcs kemt_try_punct
-        clc                          ; unshifted letter -- store upper
-        adc #$20                      ; case-intended ($61-$7A)
-        sta kemt_typed
-        jmp kemt_insert_go
+        bcc kemt_insert_go            ; unshifted letter -- store as-is,
+                                        ; lower case-intended ($41-$5A)
 kemt_try_punct:
         lda kemt_typed
         cmp #$20
@@ -1080,9 +1081,11 @@ kemt_insert_rts:
 ; table produces (kemt_shift_letter_codes below -- read straight out
 ; of ~/Documents/c64/JiffyDOS/Jiffydos-Kernal.rom, same method server/
 ; CLAUDE.md's own "C64 keyboard matrix" reference already used), kemt_
-; typed is OVERWRITTEN with that letter's own lower case-intended
-; stored byte ($41-$5A -- kemt_shift_letter_stored) and carry SET;
-; otherwise kemt_typed is left UNCHANGED and carry CLEAR.
+; typed is OVERWRITTEN with that letter's own UPPER case-intended
+; stored byte (kemt_shift_letter_stored's own $41-$5A entry, +$20 ->
+; $61-$7A -- matches ordinary keyboard convention, Shift = uppercase;
+; see kemt_try_insert's own header comment) and carry SET; otherwise
+; kemt_typed is left UNCHANGED and carry CLEAR.
 ;
 ; Real C64 PETSCII property, not a bug: SHIFT+letter doesn't produce a
 ; case-flipped letter code at all -- it selects one of 26 unrelated
@@ -1124,7 +1127,10 @@ klsl_loop:
                                          ; key, not this letter
 klsl_hit:
         lda kemt_shift_letter_stored,x
-        sta kemt_typed
+        clc
+        adc #$20                     ; $41-$5A -> $61-$7A, upper case-
+        sta kemt_typed                ; intended (see this routine's
+                                        ; own header comment)
         sec
         rts
 klsl_next:
