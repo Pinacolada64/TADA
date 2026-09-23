@@ -1822,7 +1822,10 @@ draw_popup_blank_list:
         sta poke_src_hi
         lda blank_list_row
         clc
-        adc #BOX_TOP_ROW+3
+        adc #BOX_TOP_ROW+4  ; +4, not +3 -- list moved down one row to
+                              ; make room for a real blank row +2/+3
+                              ; separator (draw_title's own column-
+                              ; headers comment, 2026-09-22)
         jsr set_screen_line_local
         lda scr_ptr_lo
         sta poke_dst_lo
@@ -1980,13 +1983,23 @@ dt_right_border:
         cpy #40
         bne dt_right_border
 
-        ; Column headers, row +2 -- Ryan's ask, 2026-09-22: label the
+        ; Column headers, row +3 -- Ryan's ask, 2026-09-22: label the
         ; list's own two columns ("Function"/"Combo" on the Keymap
         ; Editor page, "Macro"/"Trigger" on the Macro Editor page),
         ; page-aware the same way the footer (draw_help_footer) already
-        ; is. draw_popup's own one-time row+2 blank poke (module_start
-        ; calls draw_popup then this, before the first real paint) is
-        ; harmless leftover setup -- this always overwrites it.
+        ; is. Row +3, not +2 right under the title -- a SECOND Ryan ask,
+        ; same day: the headers sitting directly against the title row
+        ; made them look like they might also be part of the title's
+        ; own CRSR-LEFT/RIGHT-selectable heading bar. Row +2 is left
+        ; genuinely blank (draw_popup's own one-time poke there, never
+        ; touched again by anything) as real visual separation instead.
+        ; The list itself moves down to match (draw_list's own dl_place
+        ; comment) -- borrowed from the existing (oversized) gap between
+        ; the list and the footer rather than growing the box, since
+        ; BOX_ROWS=21 already ends one row short of STATUS_ROW(23) on
+        ; purpose and growing it would collide with that (now doubly
+        ; important -- STATUS_ROW is also the macro-text editor's own
+        ; input widget and the browsing preview's own display row).
         lda active_page
         bne dt_columns_macro
         ldx #<row_columns_nav
@@ -1998,9 +2011,9 @@ dt_columns_macro:
 dt_columns_poke:
         stx poke_src_lo
         sty poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+2)*40)
+        lda #<(SCREEN_RAM+(BOX_TOP_ROW+3)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+2)*40)
+        lda #>(SCREEN_RAM+(BOX_TOP_ROW+3)*40)
         sta poke_dst_hi
         jmp poke_line                ; tail call -- its own rts returns
                                      ; straight to our caller
@@ -2066,7 +2079,8 @@ dl_place:
         ldx draw_list_row
         txa
         clc
-        adc #BOX_TOP_ROW+3
+        adc #BOX_TOP_ROW+4  ; +4, not +3 -- see draw_popup_blank_list's
+                              ; own comment on this same shift
         jsr set_screen_line_local  ; scr_ptr_lo/hi = this row's base --
                                      ; already zero page (unlike poke_
                                      ; dst_lo/hi below, which are plain
