@@ -1015,39 +1015,52 @@ mcts_rts:
 ; on): an UNSHIFTED letter key ($41-$5A -- this ROM's own decode table
 ; never produces this range for a SHIFTED letter press, so no ambiguity
 ; at all here) stores $41-$5A as-is (lowercase-intended). A SHIFT+
-; letter press -- kemt_lookup_shift_letter's own table, below -- stores
-; $61-$7A (uppercase-intended, +$20 added in klsl_hit itself). This
-; matches ordinary keyboard convention (plain key = lowercase, Shift =
+; letter press stores $61-$7A (uppercase-intended). This matches
+; ordinary keyboard convention (plain key = lowercase, Shift =
 ; uppercase) -- Ryan's own follow-up ask, 2026-09-22, after the FIRST
-; version of this shipped with the two swapped (unshifted=uppercase,
-; Shift=lowercase): technically consistent with CHROUT either way, but
-; unintuitive to actually type. $5f (back-arrow) and $20-$3F (space/
-; digit/punctuation) are unaffected either way, stored as-is.
+; version of this shipped with the two swapped: technically consistent
+; with CHROUT either way, but unintuitive to actually type. $5f (back-
+; arrow) and $20-$3F (space/digit/punctuation) are unaffected either
+; way, stored as-is.
 ;
-; The shift+letter lookup runs FIRST, unconditionally -- real bug
-; caught live 2026-09-22: 9 of the 26 shift+letter codes (including 8
-; of the ones that collide with real punctuation, plus shift+Q's own
-; $02) are LESS than $41, so an earlier version of this routine that
-; only checked the lookup table for bytes >= $5b never even reached it
-; for those -- they fell straight into the punctuation branch below
-; and were (correctly, by coincidence) stored as literal punctuation,
-; but a GENUINE shift+B/C/I/M/Q/R/W/Y/Z press could never be recognized
-; as a letter at all. Confirmed via a live VICE breakpoint at kemt_
-; lookup_shift_letter's own SFDX check: it was never even reached.
+; SHIFT+letter's own real GETIN byte, corrected live 2026-09-22 (Ryan's
+; report: "typing an uppercase S types an E" -- traced to a genuinely
+; wrong ROM read, not real punctuation collisions as an EARLIER version
+; of this comment claimed). SHIFT+letter is simply the unshifted byte
+; with bit 7 set ($C1-$DA) -- the standard PETSCII convention -- read
+; straight from the KERNAL's own decode-table DISPATCH routine ($EB48),
+; which gives the shifted table's real base address ($EBC2). An earlier
+; pass here instead ASSUMED the shifted table immediately follows the
+; unshifted table's own 64 bytes ($EB81), landing one byte early
+; ($EBC1 instead of the real $EBC2) and silently pulling every single
+; shift+letter code from the wrong ROM position. Re-derived from the
+; verified dispatch-table address this time, not patched entry-by-entry.
+; There is NO punctuation collision at all with the correct $C1-$DA
+; range -- the earlier (wrong) values happened to land on real
+; punctuation bytes purely as an artifact of the same off-by-one read,
+; which is what motivated a whole SFDX cross-check mechanism to solve a
+; collision that never actually existed. A straight arithmetic check
+; replaces that entire 3-table lookup.
 kemt_try_insert:
         sta kemt_typed
-        jsr kemt_lookup_shift_letter
-        bcs kemt_insert_go            ; matched -- kemt_typed already
-                                        ; holds the upper case-intended
-                                        ; ($61-$7A) byte to store
-        lda kemt_typed
         cmp #$5f
         beq kemt_insert_go           ; back-arrow -- accept unconditionally
         cmp #$41
-        bcc kemt_try_punct
+        bcc kemt_try_shift_letter
         cmp #$5b
         bcc kemt_insert_go            ; unshifted letter -- store as-is,
                                         ; lower case-intended ($41-$5A)
+kemt_try_shift_letter:
+        lda kemt_typed
+        cmp #$c1
+        bcc kemt_try_punct
+        cmp #$db
+        bcs kemt_try_punct
+        sec
+        sbc #$60                     ; $C1-$DA -- SHIFT+letter (real
+        sta kemt_typed                ; PETSCII: unshifted OR $80) --
+        jmp kemt_insert_go             ; store upper case-intended
+                                         ; ($61-$7A)
 kemt_try_punct:
         lda kemt_typed
         cmp #$20
@@ -1075,90 +1088,6 @@ kemt_insert_shift_done:
         jsr kemt_redraw
 kemt_insert_rts:
         rts
-
-; --- kemt_lookup_shift_letter: kemt_typed = a GETIN byte -> if it
-; matches one of the 26 real SHIFT+letter codes this ROM's own decode
-; table produces (kemt_shift_letter_codes below -- read straight out
-; of ~/Documents/c64/JiffyDOS/Jiffydos-Kernal.rom, same method server/
-; CLAUDE.md's own "C64 keyboard matrix" reference already used), kemt_
-; typed is OVERWRITTEN with that letter's own UPPER case-intended
-; stored byte (kemt_shift_letter_stored's own $41-$5A entry, +$20 ->
-; $61-$7A -- matches ordinary keyboard convention, Shift = uppercase;
-; see kemt_try_insert's own header comment) and carry SET; otherwise
-; kemt_typed is left UNCHANGED and carry CLEAR.
-;
-; Real C64 PETSCII property, not a bug: SHIFT+letter doesn't produce a
-; case-flipped letter code at all -- it selects one of 26 unrelated
-; GRAPHIC glyphs from the charset's other half, and 8 of those 26
-; values are BYTE-IDENTICAL to ordinary punctuation from a completely
-; different, unrelated key (e.g. SHIFT+B's own code is the exact same
-; byte as SHIFT+8's own '(' -- GETIN can't tell the two apart, since
-; both physical keys produce the identical decoded value by KERNAL
-; design). kemt_shift_letter_keynum (parallel table, same index) holds
-; a NONZERO real SFDX matrix position ONLY for those 8 ambiguous
-; entries (0 for the other 18, which are never produced by any OTHER
-; key and so need no disambiguation at all) -- when nonzero, this live-
-; checks SFDX against that letter's own key-number before accepting;
-; a mismatch (SFDX reads $40, already released, or genuinely shows the
-; OTHER colliding key) falls through to carry CLEAR, letting kemt_try_
-; insert's own kemt_try_punct path handle it as the ordinary
-; punctuation character it actually was, rather than risk silently
-; corrupting deliberately-typed punctuation into an unintended letter.
-; Ryan's own call, 2026-09-22, choosing this over converting the whole
-; macro-text typing loop to SFDX-based polling (capture_macro_combo's
-; own approach) -- GETIN already gives a clean, edge-detected event for
-; every keystroke including these; only the 8 ambiguous BYTE VALUES
-; specifically need an SFDX cross-check, not the whole loop's own
-; input model.
-kemt_lookup_shift_letter:
-        ldx #0
-klsl_loop:
-        cpx #KEMT_SHIFT_LETTER_END
-        beq klsl_miss
-        lda kemt_shift_letter_codes,x
-        cmp kemt_typed
-        bne klsl_next
-        lda kemt_shift_letter_keynum,x
-        beq klsl_hit                 ; 0 -- unambiguous, no SFDX check
-                                        ; needed at all
-        cmp $cb                      ; SFDX -- live matrix position
-        bne klsl_miss                  ; doesn't match -- this was
-                                         ; really the OTHER (punctuation)
-                                         ; key, not this letter
-klsl_hit:
-        lda kemt_shift_letter_stored,x
-        clc
-        adc #$20                     ; $41-$5A -> $61-$7A, upper case-
-        sta kemt_typed                ; intended (see this routine's
-                                        ; own header comment)
-        sec
-        rts
-klsl_next:
-        inx
-        jmp klsl_loop
-klsl_miss:
-        clc
-        rts
-
-; kemt_shift_letter_codes/_keynum/_stored: three parallel 26-entry
-; tables (A-Z order), indexed together by kemt_lookup_shift_letter
-; above -- see that routine's own header comment for what each column
-; means. _codes verified against the actual KERNAL ROM (not guessed);
-; _keynum is 0 except for the 8 real punctuation collisions (B/C/I/M/
-; R/W/Y/Z); _stored is simply $41-$5A in A-Z order.
-kemt_shift_letter_codes:
-        byte $d7, $28, $26, $d2, $d3, $c3, $d9, $c2, $29, $c9
-        byte $cd, $d0, $30, $cf, $cb, $db, $02, $25, $da, $c6
-        byte $c8, $d5, $23, $d4, $27, $24
-KEMT_SHIFT_LETTER_END = * - kemt_shift_letter_codes
-kemt_shift_letter_keynum:
-        byte $00, $1c, $14, $00, $00, $00, $00, $00, $21, $00
-        byte $00, $00, $24, $00, $00, $00, $00, $11, $00, $00
-        byte $00, $00, $09, $00, $19, $0c
-kemt_shift_letter_stored:
-        byte $41, $42, $43, $44, $45, $46, $47, $48, $49, $4a
-        byte $4b, $4c, $4d, $4e, $4f, $50, $51, $52, $53, $54
-        byte $55, $56, $57, $58, $59, $5a
 
 kemt_typed:
         byte 0

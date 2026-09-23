@@ -167,13 +167,23 @@
   needed because GETIN's own *decoded* byte collides two different
   physical keys onto the same value (CTRL+M and a bare RETURN both
   decode to `$0d`) in a way SFDX's matrix position never does.
-- To re-derive or extend this table (e.g. the shifted/Commodore-key
-  decode tables) directly from a ROM file: search for a byte run
-  matching the expected sequence (fuzzy-match is fine — the 4
-  modifier-key slots above are typically the only mismatches against a
-  hand-built reference, since their real ROM bytes are internal flag
-  values rather than 0). See this memory's own commit history / the
-  2026-09-22 session for the exact Python one-liner used.
+- **SHIFT+letter's own GETIN byte is simply the unshifted byte with bit
+  7 set (`$C1`-`$DA` for A-Z)** — standard PETSCII, confirmed against
+  the ROM 2026-09-22. **Do not derive this (or any other decode table)
+  by assuming it "immediately follows" the unshifted table's own 64
+  bytes in the ROM file** — a real bug this session: an earlier pass
+  assumed exactly that (`unshifted_base + 64`) and landed one byte
+  early (`$EBC1` instead of the real `$EBC2`), silently pulling every
+  single shift+letter code from the wrong ROM position. The **correct**
+  way to get ANY of these tables' real addresses is to disassemble the
+  KERNAL's own decode-table DISPATCH routine at `$EB48` (`keyboard_
+  rollover.asm`'s own comment already names this address) — it reads a
+  4-entry pointer table at `$EB79` (`unshifted, shifted, commodore,
+  control`, 2 bytes each) indexed by `$028D`/2. On this ROM: unshifted
+  `$EB81`, shifted `$EBC2`, commodore `$EC03`, control `$EC78`. Reading
+  that pointer table directly is one VICE monitor `d $eb48 $eb90` /
+  `m $eb79 $eb80` away and is authoritative — no guessing about layout
+  needed at all.
 
 ## GitHub CLI
 
