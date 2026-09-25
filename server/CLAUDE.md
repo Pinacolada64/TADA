@@ -18,6 +18,15 @@
   untouched existing all-caps strings elsewhere just to convert them —
   but converting one *is* fine when it's actually asked for; just ask
   Ryan first rather than doing a drive-by sweep.
+- **Wrap command names in player-facing text with `|command|...|reset|`.**
+  When a new message or Help text (summary/description/notes) tells the
+  player about a command they can type — e.g. `'type
+  |command|FOLLOW|reset| to switch Guild Follow off'` or `'Drops off
+  everyone who answered your |command|FOLLOW ME|reset|.'` — wrap the
+  command in this markup so it renders in the player's own command
+  color (PREFS 'C'; see formatting.py and the `markup` help topic).
+  Admin notes, code comments, and SPUR source quotes don't need it.
+  Don't churn untouched existing strings just to add it.
 - **Keep `ctx.prompt()` prompt strings short — aim for well under 40
   characters.** The prompt text becomes a client's single-line input
   prefix (see tada_client.py's input_window) with nowhere to wrap on an

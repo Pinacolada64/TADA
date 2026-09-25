@@ -38,7 +38,7 @@ class StayCommand(Command):
     help = Help(
         summary  = 'Leave the guild members following you here.',
         description = (
-            'Drops off everyone who answered your FOLLOW ME. Guildmates who '
+            'Drops off everyone who answered your |command|FOLLOW ME|reset|. Guildmates who '
             'are logged off stay in this room, and are told who they '
             'followed the next time they log in; guildmates who are playing '
             'stop following you. Logging off does the same thing '

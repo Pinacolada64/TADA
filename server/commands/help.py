@@ -1069,10 +1069,10 @@ register_topic(
             "opportunities the other guilds don't get. Civilian is the "
             "safest choice and the one recommended for a first "
             "character.\n\n"
-            "GUILD FOLLOW MODE (an on/off toggle, see FOLLOW) is "
+            "GUILD FOLLOW MODE (an on/off toggle, see |command|FOLLOW|reset|) is "
             "separate from which guild you're in -- it controls whether "
             "you're willing to tag along when a fellow guild member says "
-            "FOLLOW ME, not membership itself. A leader's STAY (or "
+            "|command|FOLLOW ME|reset|, not membership itself. A leader's |command|STAY|reset| (or "
             "logging off) leaves their followers where they stand."
         ),
         category=HelpCategory.CONCEPT,

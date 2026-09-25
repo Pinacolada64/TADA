@@ -61,14 +61,14 @@ class FollowCommand(Command):
     help = Help(
         summary  = 'Toggle Guild Follow, or FOLLOW ME to lead guildmates.',
         description = (
-            'FOLLOW on its own toggles Guild Follow: when on, you are willing '
-            'to follow fellow guild members when one of them says FOLLOW ME.\n\n'
-            'FOLLOW ME gathers guildmates standing in your room who have Guild '
+            '|command|FOLLOW|reset| on its own toggles Guild Follow: when on, you are willing '
+            'to follow fellow guild members when one of them says |command|FOLLOW ME|reset|.\n\n'
+            '|command|FOLLOW ME|reset| gathers guildmates standing in your room who have Guild '
             'Follow on -- you are asked about each one in turn. Guildmates who '
             'are playing right now walk with you whenever you take an exit, '
             'until they move off on their own or switch Guild Follow off. '
             'Guildmates who have logged off are carried along with you until '
-            'you STAY (or log off yourself), which leaves them where you stand; '
+            'you |command|STAY|reset| (or log off yourself), which leaves them where you stand; '
             'they are told who they followed the next time they log in.\n\n'
             'Guild members only -- Civilians and Outlaws have no guild to '
             'follow.'
@@ -211,7 +211,7 @@ class FollowCommand(Command):
             other.guild_following = str(leader.id)
             await cand.send([
                 f'{leader.name} leads the way -- you fall in behind.',
-                '(Move on your own, or type FOLLOW to switch Guild Follow off, to break away.)',
+                '(Move on your own, or type |command|FOLLOW|reset| to switch Guild Follow off, to break away.)',
             ])
         else:
             leader.carried_followers = guild_follow.carried(leader) + [{'id': cand['id'], 'name': name}]
