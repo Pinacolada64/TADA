@@ -82,6 +82,13 @@
   reimplemented inline in `../SPUR-data/level-2/tada_level_builder.py`'s
   `_decode_7bit()`/`_follow_chain()`/`extract_messages()`) to get anything
   meaningful out of them.
+- **When implementing a new feature, check BOTH master's `SPUR-code/`
+  and the `skip` branch's.** The `skip` branch often adds or improves
+  features compared to master's copy of the SPUR source, so porting from
+  master alone can miss a better/more complete version. `skip` exists
+  only as `origin/skip` (no local branch) — read its files without
+  checking it out, e.g. `git show origin/skip:SPUR-code/SPUR.BAR.S`, and
+  compare with `git diff master origin/skip -- SPUR-code/<FILE>.S`.
 - **`../programming-notes/spur-variables.md` is the cross-reference for
   every scratch/global variable in `SPUR-code/*.S`.** Classic 1980s BASIC:
   short 1-2-letter (+digit, +`$`) names get reused for unrelated purposes
