@@ -82,6 +82,13 @@
   reimplemented inline in `../SPUR-data/level-2/tada_level_builder.py`'s
   `_decode_7bit()`/`_follow_chain()`/`extract_messages()`) to get anything
   meaningful out of them.
+- **When implementing a new feature, check BOTH master's `SPUR-code/`
+  and the `skip` branch's.** The `skip` branch often adds or improves
+  features compared to master's copy of the SPUR source, so porting from
+  master alone can miss a better/more complete version. `skip` exists
+  only as `origin/skip` (no local branch) — read its files without
+  checking it out, e.g. `git show origin/skip:SPUR-code/SPUR.BAR.S`, and
+  compare with `git diff master origin/skip -- SPUR-code/<FILE>.S`.
 - **`../programming-notes/spur-variables.md` is the cross-reference for
   every scratch/global variable in `SPUR-code/*.S`.** Classic 1980s BASIC:
   short 1-2-letter (+digit, +`$`) names get reused for unrelated purposes
@@ -126,3 +133,72 @@
   that connection for the rest of the run. Grep a command's actual
   `ctx.prompt(...)` call before writing a bot wait condition for it,
   rather than guessing which field its text lands in.
+
+## C64 keyboard matrix / SFDX key-number layout
+
+- **`SFDX` ($cb, keyboard_rollover.asm's own live "matrix coordinate of
+  the key currently held") uses the SAME canonical 0-63 "key-number"
+  order as the stock KERNAL's own unshifted keyboard-decode table** —
+  confirmed 2026-09-22 by reading the actual table bytes straight out
+  of `~/Documents/c64/JiffyDOS/Jiffydos-Kernal.rom` (offset 2945) rather
+  than trusting recalled references (a real PDF, "Mapping the Commodore
+  64," is also available in `~/Documents/c64` if the ROM ever isn't
+  handy — reading the ROM directly turned out to be just as easy and
+  is authoritative for *this exact* KERNAL, JiffyDOS included, not just
+  a stock one). $40 = no key held. Table (index, key, unshifted
+  PETSCII/screen byte):
+  ```
+   0 INST/DEL     $14    16 5            $35    32 9            $39    48 POUND        $5c
+   1 RETURN       $0d    17 R            $52    33 I            $49    49 *            $2a
+   2 CRSR RIGHT   $1d    18 D            $44    34 J            $4a    50 ;            $3b
+   3 F7           $88    19 6            $36    35 0            $30    51 HOME/CLR     $13
+   4 F1           $85    20 C            $43    36 M            $4d    52 RIGHT SHIFT  $01*
+   5 F3           $86    21 F            $46    37 K            $4b    53 =            $3d
+   6 F5           $87    22 T            $54    38 O            $4f    54 UP ARROW     $5e
+   7 CRSR DOWN    $11    23 X            $58    39 N            $4e    55 /            $2f
+   8 3            $33    24 7            $37    40 +            $2b    56 1            $31
+   9 W            $57    25 Y            $59    41 P            $50    57 LEFT ARROW   $5f
+  10 A            $41    26 G            $47    42 L            $4c    58 CTRL         $04*
+  11 4            $34    27 8            $38    43 -            $2d    59 2            $32
+  12 Z            $5a    28 B            $42    44 .            $2e    60 SPACE        $20
+  13 S            $53    29 H            $48    45 :            $3a    61 COMMODORE    $02*
+  14 E            $45    30 U            $55    46 @            $40    62 Q            $51
+  15 LEFT SHIFT   $01*   31 V            $56    47 ,            $2c    63 RUN/STOP     $03
+  ```
+  `*` = an internal KERNAL modifier-flag byte, not a real PETSCII
+  character (SHIFT/CTRL/CBM keys have no "unshifted char" of their
+  own). **RETURN is key-number 1, RUN/STOP is key-number 63** — the two
+  constants that actually mattered for the keymap editor's macro-
+  trigger capture (`keymap_menu.asm`'s `capture_macro_combo`, rejecting
+  RETURN as a bindable trigger and canceling capture on RUN/STOP),
+  needed because GETIN's own *decoded* byte collides two different
+  physical keys onto the same value (CTRL+M and a bare RETURN both
+  decode to `$0d`) in a way SFDX's matrix position never does.
+- **SHIFT+letter's own GETIN byte is simply the unshifted byte with bit
+  7 set (`$C1`-`$DA` for A-Z)** — standard PETSCII, confirmed against
+  the ROM 2026-09-22. **Do not derive this (or any other decode table)
+  by assuming it "immediately follows" the unshifted table's own 64
+  bytes in the ROM file** — a real bug this session: an earlier pass
+  assumed exactly that (`unshifted_base + 64`) and landed one byte
+  early (`$EBC1` instead of the real `$EBC2`), silently pulling every
+  single shift+letter code from the wrong ROM position. The **correct**
+  way to get ANY of these tables' real addresses is to disassemble the
+  KERNAL's own decode-table DISPATCH routine at `$EB48` (`keyboard_
+  rollover.asm`'s own comment already names this address) — it reads a
+  4-entry pointer table at `$EB79` (`unshifted, shifted, commodore,
+  control`, 2 bytes each) indexed by `$028D`/2. On this ROM: unshifted
+  `$EB81`, shifted `$EBC2`, commodore `$EC03`, control `$EC78`. Reading
+  that pointer table directly is one VICE monitor `d $eb48 $eb90` /
+  `m $eb79 $eb80` away and is authoritative — no guessing about layout
+  needed at all.
+
+## GitHub CLI
+
+- **`gh pr edit` errors on this repo** with `GraphQL: Projects (classic)
+  is being deprecated ... (repository.pullRequest.projectCards)` and the
+  edit silently does not apply (e.g. `--body-file` leaves the PR's body
+  unchanged) — confirmed live 2026-09-19 editing PR #53's description.
+  Use the REST API directly instead: `gh api repos/<owner>/<repo>/pulls/
+  <n> -X PATCH -f "body=$(cat file.md)"` (note: `-f body=@file.md` does
+  NOT read the file the way curl's `@` syntax does — it sets the field
+  to the literal string `@file.md` — use command substitution instead).
