@@ -336,12 +336,13 @@ def _petscii_token_strip_replace(match: re.Match) -> str:
 
 
 # Characters that cbmcodecs2's petscii_c64en_lc codec has no mapping for
-# (it maps 0x5E to the UPWARDS ARROW glyph, not '^'), so a plain
-# .encode(codec_name) errors='replace's it to '?'. Maps straight to the
-# raw PETSCII byte a real Commodore screen needs instead. '^' is the
-# up-arrow key -- the same physical key/glyph HistoryCommand's '^N'
-# shortcut uses, so this is what makes it round-trip to the C64 screen
-# instead of showing as '?'. See _petscii_input_to_ascii in
+# (it maps 0x5E to the UPWARDS ARROW glyph, not '^', and has no slot at
+# all for '|' -- see the "guild territory sigils" comment below), so a
+# plain .encode(codec_name) errors='replace's them to '?'. Each maps
+# straight to the raw PETSCII byte a real Commodore screen needs instead.
+# '^' is the up-arrow key -- the same physical key/glyph HistoryCommand's
+# '^N' shortcut uses, so this is what makes it round-trip to the C64
+# screen instead of showing as '?'. See _petscii_input_to_ascii in
 # network_context.py for the matching keyboard-input (C64 -> server)
 # direction of this same 0x5E mapping.
 #
@@ -360,6 +361,16 @@ def _petscii_token_strip_replace(match: re.Match) -> str:
 _PETSCII_RAW_BYTE_OVERRIDES: dict[str, int] = {
     '^': 0x5E,  # up-arrow glyph
     '_': 0xE4,  # underline-ish glyph (-> screen code 0x64 via CHROUT)
+    '|': 0xDD,  # box-drawing vertical bar ('│', U+2502) -- the same glyph
+                # the C64 client's own popup-window borders use (screen
+                # code $5D there -- assembly-language/client/config_menu.asm's
+                # top_border comment). $5D is a SCREEN code, not the wire/
+                # CHROUT byte this dict needs: '│'.encode('petscii_c64en_lc')
+                # (cbmcodecs2, already handles this character fine on its
+                # own) gives 0xDD ($5D + 0x80), the same relationship as
+                # the '_' entry above -- confirmed live on real hardware
+                # 9/19/26 that raw screen-code $5D (sent via '{$5d}') is
+                # wrong, rendering as ']' instead.
 }
 
 
