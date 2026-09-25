@@ -68,9 +68,10 @@
   than working around the missing packages.
 - **Local runs skip e2e tests by default.** `pyproject.toml`'s `addopts`
   already includes `-m "not e2e"`, so a plain `pytest` / `pytest -q` (no
-  extra flags) finishes in ~20s instead of ~60-130s. The 6 tests marked
+  extra flags) finishes in ~20s instead of ~60-130s. The 7 tests marked
   `@pytest.mark.e2e` start a real `Server` and real sockets
   (`tests/e2e/test_abrupt_disconnect.py`, `tests/e2e/test_duel_disconnect_forfeit_e2e.py`,
+  `tests/e2e/test_follow_me_e2e.py`,
   `tests/e2e/test_graceful_shutdown.py`, `tests/e2e/test_network_e2e_real_login.py`,
   `tests/e2e/test_network_e2e_reconnect.py`, `tests/movement/test_move_south_room1.py`).
   CI (`.github/workflows/ci.yml` and `e2e-tests.yml`) overrides with `-m ""`

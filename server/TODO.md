@@ -1593,6 +1593,29 @@
   value, so may need a way to know a given HQ room's owning guild,
   e.g. from the room name/level data or a small static mapping).
 
+- [DONE 9/24/26, branch feature/follow-me] FOLLOW ME + STAY ported as a
+  hybrid (Ryan's call): online guildmates follow live via
+  `guild_follow.bring_followers()` from `_move()`; logged-off guildmates
+  parked in the room are carried (session-only `carried_followers`) and
+  dropped off by STAY or automatically on logoff (SPUR's LOGON.STAY),
+  with the one-shot "You followed <name>" login notice. Correction to
+  the scoping below: SPUR's `come` recruited *logged-off* characters
+  (single-user BBS), not online ones. Still open:
+  - come.e unconscious-carry case (helper follower/ally with >10 HP,
+    one body max) -- unconscious candidates are just refused for now.
+  - Guild-leader verification gate (`flag(3)+flag(6)+flag(13)=0`, "You
+    must be verified by your guild leader first..") -- no such
+    verification step exists in the port yet.
+  - stay.a's `#!` / `<<` `lo$` room markers (meaning unidentified);
+    other-guild turf, '+' free-fire and `@@` water/vacuum are ported.
+  - Followers only come along on normal map exits (`_move()`); special
+    exits (bar, shoppe, guild HQ, Allys Guild) and teleports leave live
+    followers behind (they "lose track" on the leader's next move).
+  - EditPlayer entry for the new persisted `followed_leader_name` field
+    (one-shot "You followed <name>" login notice, cleared once shown) --
+    Ryan, 9/24/26: add later, not needed yet. Decide which
+    `commands/editplayer.py` menu it belongs in.
+  Original scoping notes, kept for history:
 - FOLLOW ME command (scoping only, not started -- see `commands/
   follow.py`'s `FOLLOW`/`FL`, already built, which is only half of this:
   the personal opt-in flag, `PlayerFlags.GUILD_FOLLOW_MODE`). SPUR's
