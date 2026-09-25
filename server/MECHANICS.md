@@ -928,10 +928,15 @@ No SPUR-source mechanic exists for wager/stakes (gold only changes hands via win
   already matches this port's own sentence-case convention (see CLAUDE.md) here; skip
   regressed it, so master is the one to follow if porting the raw string verbatim mattered.
 - **STATS / STAT2** — two-level stat display; STAT2 shows extended information (`SPUR.MISC5.S`)
-- **FOLLOW ME command** — causes nearby players or allies to follow the player
-  (`SPUR.MISC5.S`, dispatched off its own token — a *different* mechanic from the
-  guild-follow toggle, which is ported; see "Guild follow toggle" above). The
-  companion-tracking "FOLLOW ME" itself is still not built.
+- ✅ **FOLLOW ME / STAY** (`guild_follow.py`, `commands/follow.py`, `commands/stay.py`,
+  9/24/26) — `SPUR.MISC5.S`'s `come` + `SPUR.MISC4.S`'s `stay`: recruits same-guild
+  characters in the room whose Guild Follow toggle (see "Guild follow toggle" above)
+  is on. Ported as a hybrid: online guildmates follow the leader live on every map
+  exit; logged-off ones are carried and dropped off by STAY or automatically on
+  logoff (SPUR's LOGON.STAY), then see "You followed <name> to your current
+  location" at their next login. Carried followers also count toward duel guild
+  support. Unconscious-carry case and guild-leader verification gate still open
+  (TODO.md).
 - ✅ **MAP** (`commands/map.py`) — the Ranger's wilderness sense, `SPUR.MISC5.S:13`'s
   `#`-bound `ranger` ability (gated `xp>2` / character level 3+), given a real command
   name here since this port's `#` is the admin TeleportCommand. SPUR just `show.file`d

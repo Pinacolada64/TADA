@@ -409,6 +409,17 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
         lines.append('  No allies... sniff...')
     lines.append('')
 
+    # FOLLOW ME followers (guild_follow.py) -- SPUR.SUB.S's pr.guild,
+    # "FOLLOWING GUILD MEMBERS:", printed right after the ally roster.
+    server = getattr(ctx, 'server', None) if ctx is not None else None
+    import guild_follow
+    following = ([f.player.name for f in guild_follow.live_followers(server, player)] if server else [])
+    following += [f"{e.get('name')} (carried)" for e in guild_follow.carried(player)]
+    if following:
+        lines.append('Following guild members:')
+        lines.extend(f'  {name}' for name in following)
+        lines.append('')
+
     # World bosses
     lines.append(
         'King of the Wraiths: '

@@ -380,6 +380,10 @@ def _guild_support(side: '_DuelSide') -> int:
         other_player = getattr(other_ctx, 'player', None) if other_ctx else None
         if other_player is not None and getattr(other_player, 'guild', None) == guild:
             count += 1
+    # Logged-off guildmates carried along by FOLLOW ME (guild_follow.py)
+    # -- SPUR's own follow.b loop counts exactly these yt$ entries.
+    import guild_follow
+    count += len(guild_follow.carried(side.player))
     return min(count, 5)
 
 

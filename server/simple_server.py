@@ -428,6 +428,15 @@ class Server:
                     await active_duel.forfeit(player)
                 except Exception:
                     logging.exception('%s: failed to forfeit duel on disconnect', addr)
+            # SPUR.LOGON.S:384's LOGON.STAY: a FOLLOW ME leader logging off
+            # (any exit path) drops carried guildmates here and releases
+            # live ones; a live follower's leader is told they're gone.
+            if player is not None:
+                try:
+                    import guild_follow
+                    await guild_follow.drop_off_on_logoff(ctx)
+                except Exception:
+                    logging.exception('%s: failed guild-follow drop-off on disconnect', addr)
             # Belt-and-suspenders save for any exit path that *isn't* a
             # clean quit (an uncaught exception/CancelledError anywhere in
             # _login()/_game_loop(), a raw socket error, etc.) -- those
@@ -1280,6 +1289,14 @@ class Server:
 
         from spells.charm import try_charm_join_offer
         await try_charm_join_offer(ctx, level=level, room_no=room_no)
+
+        # FOLLOW ME's live followers (guild_follow.py) arrive alongside the
+        # leader -- moved before the leader's own room display so it lists
+        # them as present.
+        import guild_follow
+        await guild_follow.bring_followers(ctx, from_level=level, from_room=int(room_no),
+                                           to_level=target_level, to_room=int(dest),
+                                           direction=direction)
 
         if target_level != level:
             await self._teleport_to(ctx, target_level, int(dest), message_number=message_number)

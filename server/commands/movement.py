@@ -272,6 +272,11 @@ class MoveCommand(Command):
             await ctx.send(f'Go where? ({hint})')
             return CommandResult.fail('No direction.', error='no_direction')
 
+        # A FOLLOW ME follower who walks off on their own breaks away
+        # (guild_follow.py) -- being led moves them without coming here.
+        import guild_follow
+        await guild_follow.stop_following(ctx)
+
         # Check for special exits before normal movement
         game_map = getattr(ctx.server, 'game_map', None)
         room_no  = getattr(ctx.client, 'room', 1) or 1

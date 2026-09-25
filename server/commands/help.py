@@ -1069,14 +1069,17 @@ register_topic(
             "opportunities the other guilds don't get. Civilian is the "
             "safest choice and the one recommended for a first "
             "character.\n\n"
-            "GUILD FOLLOW MODE (an on/off toggle, see FOLLOW) is "
+            "GUILD FOLLOW MODE (an on/off toggle, see |command|FOLLOW|reset|) is "
             "separate from which guild you're in -- it controls whether "
-            "you automatically tag along when a fellow guild member "
-            "moves, not membership itself."
+            "you're willing to tag along when a fellow guild member says "
+            "|command|FOLLOW ME|reset|, not membership itself. A leader's |command|STAY|reset| (or "
+            "logging off) leaves their followers where they stand."
         ),
         category=HelpCategory.CONCEPT,
         usage=[
             ("follow",          "Toggle Guild Follow Mode."),
+            ("follow me",       "Lead willing guildmates in your room."),
+            ("stay",            "Drop off the guildmates following you."),
             ("duel <player>",   "Challenge a player in your room to a SPORT DUEL."),
             ("duel #standings", "Show guild win/loss duel standings."),
         ],
@@ -1091,7 +1094,8 @@ register_topic(
             "commands/new_player.py's _choose_guild() (_GUILD_INFO). "
             "PlayerFlags.GUILD_MEMBER/GUILD_AUTODUEL/GUILD_FOLLOW_MODE "
             "(flags.py) -- GUILD_FOLLOW_MODE is wired to live behavior "
-            "(commands/follow.py); GUILD_AUTODUEL is set but has no "
+            "(commands/follow.py's FOLLOW ME, commands/stay.py, "
+            "guild_follow.py); GUILD_AUTODUEL is set but has no "
             "consuming logic yet. Guild HQ virtual area: "
             "guild_hq/main.py. combat/duel.py's DuelCommand.execute() "
             "has no guild-eligibility check on who can challenge whom -- "
