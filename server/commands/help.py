@@ -331,7 +331,7 @@ register_topic(
                                          "saying you want to add Bob to a group named "
                                          "'friends'."),
             ("connect Alice",           "To log in as Alice and be prompted for the password "
-                                         "separately, type 'connect Alice'."),
+                                         "separately, type |command|connect Alice|reset|."),
         ],
         notes=[
             "A command-specific switch (like '#hide' or '#add') only makes "
@@ -518,7 +518,7 @@ register_topic(
         summary="What \"Ease of use\" on READY means",
         description=(
             "Ease of use is a multiplier applied on top of a hit's random "
-            "damage roll ('help basedamage') -- shown on READY as a score "
+            "damage roll (|command|help basedamage|reset|) -- shown on READY as a score "
             "of 5-9. A higher score means more of that roll's raw damage "
             "actually lands.\n\n"
             "There's also a hidden perk: on a strong enough attack roll, "
@@ -1160,7 +1160,7 @@ register_topic(
         category=HelpCategory.CONCEPT,
         usage=[
             ("mp",                "Quickly toggle More Prompt on/off."),
-            ("prefs",             "Open PREFS; 'M' also toggles More Prompt."),
+            ("prefs",             "Open |command|PREFS|reset|; 'M' also toggles More Prompt."),
         ],
         admin_notes=[
             "PlayerFlags.MORE_PROMPT (flags.py); toggled by "
@@ -1193,7 +1193,7 @@ register_topic(
         ),
         category=HelpCategory.CONCEPT,
         usage=[
-            ("prefs", "Open PREFS; Client Type is on the Terminal Settings submenu."),
+            ("prefs", "Open |command|PREFS|reset|; Client Type is on the Terminal Settings submenu."),
         ],
         see_also=["colors"],
         admin_notes=[
@@ -1467,7 +1467,7 @@ register_topic(
         notes=[
             "Lost or forgot a combination you already have? It isn't "
             "rerolled or consumed by checking it again -- Locker's is "
-            "reprinted on your claim tag (READ it), and Elevator's "
+            "reprinted on your claim tag (|command|READ|reset| it), and Elevator's "
             "stays the same if you still have the scrap of paper to "
             "re-read.",
         ],
@@ -1847,20 +1847,20 @@ class HelpCommand(Command):
         ],
         examples = [
             ("help",          "Show all commands"),
-            ("help say",      "Help for the 'say' command"),
+            ("help say",      "Help for the |command|say|reset| command"),
             ("help #cat",     "List all categories"),
             ("help #summary", "List all commands with their summaries"),
             ("help #search caravan", "Search for commands mentioning 'caravan'"),
         ],
         notes = [
-            "You can use 'help', 'h', or '?' interchangeably.",
+            "You can use |command|help|reset|, |command|h|reset|, or |command|?|reset| interchangeably.",
             "Command names are case-insensitive.",
             "A category name (with or without '#cat') accepts a "
             "substring if it's unambiguous, in either direction -- "
-            "'help admin' and 'help concepts' both work, same as the "
+            "|command|help admin|reset| and |command|help concepts|reset| both work, same as the "
             "full 'help administrative'/'help concept'.",
-            "A concept topic name (e.g. 'help easeofuse') also accepts "
-            "an unambiguous substring, e.g. 'help ease'.",
+            "A concept topic name (e.g. |command|help easeofuse|reset|) also accepts "
+            "an unambiguous substring, e.g. |command|help ease|reset|.",
         ],
     )
 
@@ -1975,7 +1975,7 @@ class HelpCommand(Command):
             for i in range(0, len(entries), n_cols):
                 lines.append("  " + "  ".join(_vis_ljust(e, col_w) for e in entries[i : i + n_cols]))
 
-        lines += ["", "Type 'help <command>' for more detail."]
+        lines += ["", "Type |command|help <command>|reset| for more detail."]
         await ctx.send(*lines)
         return CommandResult.ok("General help displayed.")
 
@@ -2012,7 +2012,7 @@ class HelpCommand(Command):
             ]
             lines.extend(format_summary_table(items, width))
 
-        lines += ["", "Type 'help <command>' for full detail on one command."]
+        lines += ["", "Type |command|help <command>|reset| for full detail on one command."]
         await ctx.send(*lines)
         return CommandResult.ok("Summary table displayed.")
 
@@ -2036,7 +2036,7 @@ class HelpCommand(Command):
         lines = [_heading("Available categories:"), ""]
         lines.extend(format_two_column(items, width))
         lines.append("")
-        lines.append("Type 'help #cat <category>' to list its commands/topics.")
+        lines.append("Type |command|help #cat <category>|reset| to list its commands/topics.")
         await ctx.send(*lines)
         return CommandResult.ok()
 
@@ -2055,13 +2055,13 @@ class HelpCommand(Command):
 
         if not matched:
             await ctx.send(
-                f"Unknown category '{category_name}'. Type 'help #cat' for a list."
+                f"Unknown category '{category_name}'. Type |command|help #cat|reset| for a list."
             )
             return CommandResult.fail(error="unknown_category")
 
         if matched == HelpCategory.ADMINISTRATIVE and not _is_privileged_viewer(ctx):
             await ctx.send(
-                f"Unknown category '{category_name}'. Type 'help #cat' for a list."
+                f"Unknown category '{category_name}'. Type |command|help #cat|reset| for a list."
             )
             return CommandResult.fail(error="unknown_category")
 
@@ -2159,7 +2159,7 @@ class HelpCommand(Command):
 
             await ctx.send(
                 f"No help found for '{command_name}'. "
-                "Type 'help' for a list of commands."
+                "Type |command|help|reset| for a list of commands."
             )
             return CommandResult.fail(error="no_help")
 

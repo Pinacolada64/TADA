@@ -81,7 +81,7 @@ def _login_mail_lines(player) -> list[str]:
         return []
     plural = 's' if count != 1 else ''
     return ['', f"|yellow|You have {count} unread mail message{plural}.|reset| "
-                "(type 'mail' to read)"]
+                "(type |command|mail|reset| to read)"]
 
 
 def _login_recovery_lines(player) -> list[str]:
@@ -97,7 +97,7 @@ def _login_recovery_lines(player) -> list[str]:
         return []
     label = load_recovery_file(path).get('activity_label') or 'writing something'
     return ['', f"|yellow|Before the server disconnected, you were {label}.|reset| "
-                "(type 'edit' to resume)"]
+                "(type |command|edit|reset| to resume)"]
 
 
 def _item_name(ctx, item_id) -> str | None:
@@ -246,7 +246,7 @@ class ConnectCommand(Command):
             await ctx.send(
                 "Usage:  connect <username> [[<password>]]",
                 "        connect guest",
-                "Type 'new' to create a new character.",
+                "Type |command|new|reset| to create a new character.",
             )
             return CommandResult.fail(
                 "Please supply a username and password.",
@@ -301,7 +301,7 @@ class ConnectCommand(Command):
         await ctx.send(
             f"Welcome, {guest_name}!",
             "You are connected as a guest.  Your session will not be saved.",
-            "Type 'help' for a list of commands.",
+            "Type |command|help|reset| for a list of commands.",
         )
         log.info("Guest connected as %r from %s", guest_name,
                  getattr(ctx.client, "addr", "unknown"))

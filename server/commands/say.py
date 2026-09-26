@@ -123,7 +123,7 @@ class SayCommand(Command):
             ('say #verb',            'Preview your current say verb'),
             ('say #verb=off',        'Clear the custom verb'),
             ('say #split [on|off]',  "Report, or set, Say Split (same as PREFS 'Y')"),
-            ('say #unsplit',         "Shorthand for 'say #split off'"),
+            ('say #unsplit',         "Shorthand for |command|say #split off|reset|"),
         ],
         examples = [
             ('say Hello there!',   'SAY broadcasts a message to everyone in your room, '
@@ -224,7 +224,7 @@ class SayCommand(Command):
             else:
                 await ctx.send('No custom say verb set -- the verb follows your '
                                 "trailing punctuation (says/asks/exclaims/mutters). "
-                                "Set one with 'say #verb=<word>'.")
+                                "Set one with |command|say #verb=<word>|reset|.")
             return CommandResult.ok()
 
         value = switch[len('#verb='):].strip()

@@ -134,7 +134,7 @@ class TeleportCommand(Command):
             ('#5 18',         "A second number is the level -- |command|#5 18|reset| goes to room 18 "
                                "on level 5 specifically, rather than assuming your "
                                "current level."),
-            ('teleport 1',    "'teleport'/'t' are longer aliases for the same '#' "
+            ('teleport 1',    "|command|teleport|reset|/|command|t|reset| are longer aliases for the same |command|#|reset| "
                                'command -- all three forms behave identically.'),
             ('teleport guild', 'A name (not a number) searches by fragment instead -- '
                                 'lists every room whose name contains "guild", or jumps '
@@ -321,8 +321,8 @@ class TeleportCommand(Command):
         lines = ['Saved teleport destinations:', '']
         for dest_name, (level, room) in sorted(destinations.items(), key=lambda kv: kv[0].lower()):
             lines.append(f'  {dest_name} -> level {level}, room {room}')
-        lines += ['', 'Use teleport <name> to jump there, #learn <name> to save the '
-                       'current room, or #<room number>.']
+        lines += ['', 'Use |command|teleport <name>|reset| to jump there, |command|#learn <name>|reset| to save the '
+                       'current room, or |command|#<room number>|reset|.']
         await ctx.send(lines)
         return CommandResult.ok()
 

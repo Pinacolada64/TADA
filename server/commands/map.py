@@ -561,7 +561,7 @@ class MapCommand(Command):
 
         if args and args[0].lower().lstrip('#') == 'overview':
             if not _is_debug(player):
-                await ctx.send("You need Debug Mode on for that -- see the DBG command.")
+                await ctx.send("You need Debug Mode on for that -- see the |command|DBG|reset| command.")
                 return CommandResult.fail('Not in debug mode.', error='not_debug')
 
             game_map = getattr(ctx.server, 'game_map', None)
