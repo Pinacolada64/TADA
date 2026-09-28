@@ -165,6 +165,12 @@ KERNAL_LOAD   = $ffd5
 ; from, instead of assuming device 8.
 {const: CURRENT_DRIVE $ba}
 
+; KERNAL keyboard buffer: NDX ($c6) = number of keys waiting, KEYD
+; ($0277, 10 bytes) = the keys themselves, oldest first. Read directly by
+; wait_for_connect to spot RUN/STOP without consuming other keys.
+{const: KBD_NDX $c6}
+{const: KBD_BUF $0277}
+
 ; KERNAL_PLOT is X=row, Y=column (carry set = read current position into
 ; X/Y, carry clear = set position from X/Y) -- NOT the commonly-cited
 ; opposite. Verified empirically 2026-08-20 by poking a stub into free
@@ -363,7 +369,13 @@ start:
         dex
         bne <@
 
-        ; wait for server to send negotiation menu, display it
+        ; wait for server to send negotiation menu, display it -- unless
+        ; RUN/STOP gives up first (see wait_for_connect), in which case
+        ; drop into offline mode instead of blocking here forever
+        jsr wait_for_connect
+        bcc start_connected
+        jmp go_offline
+start_connected:
         jsr wait_for_data
 
         ; respond: 40 columns (C64)
@@ -419,6 +431,82 @@ resume_local:
         jsr send_line
         jmp prompt_loop
 
+; --- wait_for_connect: block for the server's first byte, or RUN/STOP ---
+; Output: carry clear = a byte is waiting in rx_buf (left there, not
+;         consumed -- wait_for_data picks it up as usual)
+;         carry set = RUN/STOP was pressed, give up on connecting
+; Only used for the very first wait in start:, not wait_for_data in
+; general -- once connected, RUN/STOP stays an ordinary key. Ryan's ask
+; 2026-09-28: be able to try the local-only popups (F7's keymap editor)
+; on real hardware with no network for the modem to join, instead of
+; sitting on "Connecting..." until power-off.
+; RUN/STOP is detected as its decoded $03 in the KERNAL keyboard buffer
+; (kr_scan hands every keypress to the stock decode routine, which
+; still fills $0277 -- see keyboard_rollover.asm), scanned in place
+; rather than via GETIN so the buffer isn't disturbed unless it's
+; actually there. The whole buffer is scanned, not just its head, so a
+; stray key typed ahead of RUN/STOP doesn't mask it.
+wait_for_connect:
+        lda rx_tail
+        cmp rx_head
+        bne wait_for_connect_data  ; head != tail: server's first byte is in
+        ldx KBD_NDX
+        beq wait_for_connect       ; keyboard buffer empty
+wait_for_connect_scan:
+        dex
+        lda KBD_BUF,x
+        cmp #$03                   ; RUN/STOP
+        beq wait_for_connect_stop
+        cpx #0
+        bne wait_for_connect_scan
+        jmp wait_for_connect
+wait_for_connect_stop:
+        lda #0
+        sta KBD_NDX                ; flush -- nothing typed so far means anything
+        sec
+        rts
+wait_for_connect_data:
+        clc
+        rts
+
+; --- go_offline: RUN/STOP aborted the initial connect ---
+; Says so, swaps the status line's "Connecting..." for "Offline", then
+; runs the ordinary prompt_loop with wait_for_data/send_line both
+; short-circuited by the offline flag (see their own guards) -- so
+; read_line, and everything it dispatches locally (F7 -> keymap editor,
+; which resumes via JT_RESUME/JT_RESUME_LOCAL back into prompt_loop/
+; resume_local), all still work, but nothing ever blocks on the ACIA:
+; wait_for_data would wait forever for a server that isn't there, and
+; sl_send could spin on SL_TDRE if the modem isn't asserting CTS.
+go_offline:
+        lda #1
+        sta offline
+        lda #<status_msg_offline
+        sta usl_src+1
+        lda #>status_msg_offline
+        sta usl_src+2
+        jsr update_status_line
+        lda #<offline_msg
+        ldy #>offline_msg
+        jsr print_msg
+        jmp prompt_loop
+
+; --- print_msg: term_chrout a null-terminated string ---
+; Input: .A/.Y = string address lo/hi (max 255 bytes). term_chrout
+; itself preserves X/Y, so Y is safe as the index across the loop.
+print_msg:
+        sta print_msg_src+1
+        sty print_msg_src+2
+        ldy #0
+print_msg_src:
+        lda $ffff,y                ; operand patched above
+        beq print_msg_done
+        jsr term_chrout
+        iny
+        bne print_msg_src
+print_msg_done:
+        rts
+
 ; --- Wait for data from server ---
 ; Blocks until at least one byte arrives, displays every byte as it
 ; comes in, then keeps draining until a 16-bit idle-poll countdown
@@ -444,6 +532,11 @@ resume_local:
 ; 6551 has a single-byte receive register, no FIFO), which showed up as
 ; the first few characters of each chunk going missing.
 wait_for_data:
+        lda offline
+        beq wait_for_data_online
+        rts                       ; offline -- no server to wait for, see
+                                  ; go_offline
+wait_for_data_online:
         lda #0
         sta sid_background        ; foreground context -- diagnostics may print
 wait_for_data_first:
@@ -537,7 +630,9 @@ update_status_line:
         jsr set_screen_line
         ldy #0
 usl_copy:
-        lda status_msg,y
+usl_src:
+        lda status_msg,y          ; operand repointed to status_msg_offline
+                                  ; by go_offline
         beq usl_pad
         sta (scr_ptr_lo),y
         iny
@@ -2307,6 +2402,12 @@ print_hex_byte:                  ; .A = byte to print in hex
 ; not CRLF, so only $0d goes out after the line, matching the negotiation
 ; response above ("lda #'4'" / "lda #$0d").
 send_line:
+        lda offline
+        beq send_line_online
+        lda #<not_connected_msg   ; offline -- say so instead of sending
+        ldy #>not_connected_msg   ; (see go_offline)
+        jmp print_msg
+send_line_online:
         ldx #0
 send_line_loop:
         lda linebuf,x
@@ -3135,7 +3236,31 @@ status_msg:
         ascii {usedef:__BuildDate}
         ascii " - Connecting..."
         byte 0
+status_msg_offline:
+        ascii " TADA client "
+        ascii {usedef:__BuildDate}
+        ascii " - Offline"
+        byte 0
 {alpha:normal}
+
+; go_offline/send_line's messages -- plain CHROUT (term_chrout) text, so
+; {alpha:alt} for real mixed-case PETSCII (uppercase letters in $C1-$DA,
+; lowercase in $41-$5A) under the upper/lowercase charset.
+{alpha:alt}
+offline_msg:
+        byte $0d
+        ascii "Connect aborted -- working offline."
+        byte $0d
+        ascii "F7 still opens the keymap editor."
+        byte $0d, 0
+not_connected_msg:
+        ascii "Not connected."
+        byte $0d, 0
+{alpha:normal}
+
+offline:
+        byte 0                   ; 1 = RUN/STOP aborted the initial connect
+                                  ; (see go_offline)
 
 linelen:
         byte 0
