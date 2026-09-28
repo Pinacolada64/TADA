@@ -118,6 +118,13 @@
 {const: KERNAL_SETLFS $ffba}
 {const: KERNAL_LOAD    $ffd5}
 
+; KERNAL's FA (current device number) zero-page byte: the last device
+; SETLFS was given -- after a plain `LOAD"TADA-CLIENT",9`, still 9 when
+; this program starts running. setlfs_current_drive reads it so the
+; overlay LOADs come from whichever drive the client itself was loaded
+; from, instead of assuming device 8.
+{const: CURRENT_DRIVE $ba}
+
 ; KERNAL_PLOT is X=row, Y=column (carry set = read current position into
 ; X/Y, carry clear = set position from X/Y) -- NOT the commonly-cited
 ; opposite. Verified empirically 2026-08-20 by poking a stub into free
@@ -1526,11 +1533,12 @@ jump_table_template:
 ; code+buffers sitting in memory the whole time -- it's only loaded when
 ; a "banner edit" session actually starts.
 ;
-; Uses LOAD "...",8,1 (secondary address 1: use the address embedded in
-; the file's own 2-byte header, i.e. OVERLAY_BUF, same convention as a
-; normal `LOAD"program",8,1`) rather than passing an explicit target
-; address, so the module's own assembly is the single source of truth
-; for where it lives.
+; Uses LOAD "...",<drive>,1 (secondary address 1: use the address
+; embedded in the file's own 2-byte header, i.e. OVERLAY_BUF, same
+; convention as a normal `LOAD"program",8,1`) rather than passing an
+; explicit target address, so the module's own assembly is the single
+; source of truth for where it lives. <drive> is whichever device the
+; client itself was loaded from -- see setlfs_current_drive.
 ;
 ; The rest of this stream (the 16-bit length prefix + 2000-byte canvas
 ; body) is still arriving over SwiftLink while the disk LOAD runs --
@@ -1543,11 +1551,7 @@ load_petscii_editor:
         ldx #<petscii_editor_filename
         ldy #>petscii_editor_filename
         jsr KERNAL_SETNAM
-        lda #1                   ; file number (arbitrary, unused after LOAD)
-        ldx #8                   ; device 8
-        ldy #1                   ; secondary address 1 -- use the file's
-                                  ; own embedded load address
-        jsr KERNAL_SETLFS
+        jsr setlfs_current_drive ; file #1, drive from CURRENT_DRIVE, SA 1
         lda #0                   ; ignored when SA=1, but LOAD still wants A=0
         jsr KERNAL_LOAD
         bcs load_overlay_error   ; carry set -- .a holds the KERNAL
@@ -1570,7 +1574,7 @@ load_petscii_editor:
 
 ; --- Load the config_menu overlay module and hand control to it ---
 ; Called from handle_recv_byte_display_confirm once a real display-
-; settings stream is confirmed starting. Same LOAD "...",8,1 (secondary
+; settings stream is confirmed starting. Same LOAD "...",<drive>,1 (secondary
 ; address 1) convention as load_petscii_editor above -- see that
 ; routine's own comment for the full reasoning (shared here rather than
 ; repeated).
@@ -1579,15 +1583,30 @@ load_config_menu:
         ldx #<config_menu_filename
         ldy #>config_menu_filename
         jsr KERNAL_SETNAM
-        lda #1
-        ldx #8
-        ldy #1
-        jsr KERNAL_SETLFS
+        jsr setlfs_current_drive
         lda #0
         jsr KERNAL_LOAD
         bcs load_overlay_error
         jsr ensure_buffer_a_front ; see load_petscii_editor's own comment
         jmp OVERLAY_BUF
+
+; SETLFS for an overlay LOAD: file #1 (arbitrary, unused after LOAD),
+; the drive the client was loaded from (CURRENT_DRIVE), secondary address
+; 1 -- use the file's own embedded load address. Falls back to device 8
+; if CURRENT_DRIVE is below 8 (0-7 are keyboard/tape/RS-232/screen/
+; printers, never a disk drive -- e.g. the client was started some way
+; that never touched a drive), so LOAD is never aimed at a non-disk
+; device.
+setlfs_current_drive:
+        lda CURRENT_DRIVE
+        cmp #8
+        bcs setlfs_drive_ok
+        lda #8
+setlfs_drive_ok:
+        tax
+        lda #1                   ; file number
+        ldy #1                   ; secondary address 1
+        jmp KERNAL_SETLFS        ; its rts returns to our caller
 
 ; LOAD failed (either overlay module) -- report the KERNAL error number
 ; and hand control back to the ordinary prompt loop instead of jumping
