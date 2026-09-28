@@ -12,8 +12,53 @@ Sections: Open PRs → Merged PRs (newest first).
 
 ## Open PRs
 
+#### [#55](https://github.com/Pinacolada64/TADA/pull/55) `fix/dwarf-horse-collision` → `master` — Stop the Dwarf overwriting other monsters; isolate his state in tests
+- **Tip:** `c3f4a10` (1 commit), up to date with `master`. **Running live** (server restarted on this branch 2026-09-28).
+- Root cause of the intermittent `tests/horses` failures: `_place_dwarf()` restored the
+  Dwarf's saved room by writing his monster number over the session's wild horse
+  (rooms 30/52/68). Game fix: `_eligible_rooms()` skips rooms holding another
+  monster, and `_place_dwarf()` relocates instead of overwriting an occupied room.
+- Test isolation: `encounters/dwarf.py`'s hard-coded `run/server/dwarf_state.json`
+  was shared with the live server (same `server/` directory). A new session autouse
+  `_isolate_dwarf_state` fixture in `tests/conftest.py` stops tests reading/moving
+  the live Dwarf. Follow-up: `room_alignment.py`, `winners.py` and the login path at
+  `simple_server.py:737` have the same hard-coded-path pattern.
+
+#### [#54](https://github.com/Pinacolada64/TADA/pull/54) `feature/follow-me` → `master` — Port SPUR's FOLLOW ME and STAY guild-follower commands
+- **Tip:** `9c99f63` (2 commits), up to date with `master`.
+- `follow me` (SPUR.MISC5.S `come`) recruits same-guild characters in the room with
+  Guild Follow on; `stay` (SPUR.MISC4.S) drops them off. Hybrid model: online
+  guildmates follow live on every map exit; logged-off ones are carried and dropped
+  off by STAY or on logoff (LOGON.STAY), then see "You followed <name>..." at next
+  login. Carried followers add to duel guild support. New `guild_follow.py`,
+  `commands/stay.py`; CLAUDE.md gains the `|command|...|reset|` convention.
+- Deferred (TODO.md): unconscious-carry case, guild-leader verification gate,
+  `#!`/`<<` room markers, editplayer entry for `followed_leader_name`.
+
+#### [#53](https://github.com/Pinacolada64/TADA/pull/53) `feature/keymap-editor` → `feature/help-popup` — Keymap editor: rebindable nav functions, macros, combo capture
+- **Tip:** `5112cff` (46 commits on top of `feature/help-popup`). **Stacked** — base is
+  `feature/help-popup`, which has no PR of its own yet (see Feature branches below).
+- Client-side keymap editor for the C64 client, persisted to `KEYMAP.CFG`: 15-slot
+  `keymap_table` with table-driven dispatch, Keymap/Macro Editor popup pages,
+  combo capture, F7 as a rebindable entry, and `keyboard_rollover.asm` (3-key
+  rollover scan replacing the stock KERNAL scan).
+
+#### [#52](https://github.com/Pinacolada64/TADA/pull/52) `feature/command-token-sweep-2` → `master` — Sweep `|command|` color tokens into remaining command mentions
+- **Tip:** `be45969` (4 commits, incl. merge of `master` `e40ae2a`), up to date with `master`.
+- Three passes of the `|command|...|reset|` markup sweep begun in #51: Help text across
+  19 command files (`8cf7e0b`), `simple_server.py`'s pre-login menu and hints
+  (`6c69f03`), and an AST-scan-driven pass over 61 more player-facing strings in 26
+  files (`be45969`): "Type/Use/Try X" instructions, quoted invocations, alias lists.
+
+#### [#50](https://github.com/Pinacolada64/TADA/pull/50) `fix/switch-consistency` → `master` — Fix `#<switch>` consistency
+- **Tip:** `50d58cf` (3 commits), **9 commits behind `master`** (needs a merge before landing).
+- `board edit` accepted alongside `board #edit`; `map.py`/`teleport.py` moved onto
+  `parse_args()`'s switch/positional split; `news.py`/`banner_edit.py` gain `#`-switch
+  forms (`news #post`, etc.). `ban.py` deliberately left as-is. Two bot scripts
+  updated to `news #post`.
+
 #### [#47](https://github.com/Pinacolada64/TADA/pull/47) `fix/dwarf-hoard-floor` → `master` — Dwarf hoard resets to a 500-silver floor, not zero
-- **Tip:** `296a0c5` (2 commits). Rebased onto current `master`.
+- **Tip:** `296a0c5` (2 commits), **14 commits behind `master`** (needs a merge before landing).
 - Ports SPUR.MISC.S's original `dh=0:dl=500` payout: killing the Dwarf right
   after someone else drained his hoard used to net **nothing**; now it's a
   guaranteed 500-silver minimum. `encounters/dwarf.py` (`config.dwarf_silver = 500`
@@ -30,7 +75,7 @@ Sections: Open PRs → Merged PRs (newest first).
 | Branch | Tip | Status |
 |--------|-----|--------|
 | `feat/helpstaff` | `52b49ca` | WIP snapshot — `helpstaff` command (ask an available staffer for help: request → relay to `PlayerFlags.HELPSTAFF_AVAILABLE` players → first to `helpstaff accept <name>` is teleported in). 182-line command + 237-line test, recovered verbatim from tag `pre-30-cleanup` after the #30 mishap. **Not wired**: still needs the `HELPSTAFF_AVAILABLE` flag added to `flags.py`, `Server.pending_help_requests` init, command registration, and an editplayer toggle. Isolated test run: 5 pass / 9 fail (all on the missing flag). |
-| `feature/help-popup` | `e5ce52f` | Native C64 help / keyboard-shortcuts / credits popup overlay (`help_menu.asm` + `commands/help_menu.py`, 8 commits). Pushed to `origin` 2026-09-09 as a backup — was local-only. Supersedes the two overlay commits on the now-deleted `dwarf-hoard-floor`. **Needs a live end-to-end retest** before a PR (see the `LOAD $05` history). |
+| `feature/help-popup` | `e5ce52f` | Native C64 help / keyboard-shortcuts / credits popup overlay (`help_menu.asm` + `commands/help_menu.py`, 8 commits). Pushed to `origin` 2026-09-09 as a backup — was local-only. Supersedes the two overlay commits on the now-deleted `dwarf-hoard-floor`. **Needs a live end-to-end retest** before a PR (see the `LOAD $05` history). #53 (`feature/keymap-editor`) is stacked on this branch. |
 
 ---
 
@@ -38,6 +83,9 @@ Sections: Open PRs → Merged PRs (newest first).
 
 | PR | Merge commit | Branch | Title |
 |----|--------------|--------|-------|
+| [#49](https://github.com/Pinacolada64/TADA/pull/49) | `1bdc83a` | `feat/text-editor-split-join` | Line editor `.e s`plit / `.e j`oin subcommands (undo/redo-checkpointed); `.e` "show buffers" moved to `.e b`. Merged alongside #51, which carried the same commits. |
+| [#51](https://github.com/Pinacolada64/TADA/pull/51) | `666e6c6` | `feature/command-color-tokens` | PREFS-configurable `\|command\|...\|reset\|` markup token for literal command syntax, swept into player-facing text; `.e split`/`.e join`; `board` "read new" rework (`rn`/`ra`/`sa`/`ld` folded into the listing's "Read which" prompt, `sn` added). |
+| [#48](https://github.com/Pinacolada64/TADA/pull/48) | `fdae53b` | `feature/reply-target-token` | `page`/`whisper` `#reply`/`#r` (reply to your last correspondent) and `#last [N]` (recent-recipient history, 10-entry ring buffer); `command_settings.page`/`.whisper` namespaces. |
 | [#46](https://github.com/Pinacolada64/TADA/pull/46) | `fe4c1ed` | `feature/pose` | `pose` / `emote` / `me` command with a bare `:` shortcut (wired like `say`'s `"`). Third-person action text shown to the room verbatim, de-conjugated to first person for the actor. |
 | [#36](https://github.com/Pinacolada64/TADA/pull/36) | `8ccff36` | `feature/give-drink-polish` | Drinking from a pool appends "(Your thirst has been quenched.)" for non-expert players. (The branch's other commit — a `give` ally pick-list — was dropped before merge: `master` already had it via `inventory_select`.) |
 | [#33](https://github.com/Pinacolada64/TADA/pull/33) | `44be439` | `feature/say-verb-switch` | `say #verb` (comma-based dialogue attribution) + `say #split` / `#unsplit` (inline equivalents of the PREFS 'Y' toggle), with in-game help coverage. |
