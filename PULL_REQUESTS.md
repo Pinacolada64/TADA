@@ -12,17 +12,16 @@ Sections: Open PRs → Merged PRs (newest first).
 
 ## Open PRs
 
-#### [#55](https://github.com/Pinacolada64/TADA/pull/55) `fix/dwarf-horse-collision` → `master` — Stop the Dwarf overwriting other monsters; isolate his state in tests
-- **Tip:** `c3f4a10` (1 commit), up to date with `master`. **Running live** (server restarted on this branch 2026-09-28).
-- Root cause of the intermittent `tests/horses` failures: `_place_dwarf()` restored the
-  Dwarf's saved room by writing his monster number over the session's wild horse
-  (rooms 30/52/68). Game fix: `_eligible_rooms()` skips rooms holding another
-  monster, and `_place_dwarf()` relocates instead of overwriting an occupied room.
-- Test isolation: `encounters/dwarf.py`'s hard-coded `run/server/dwarf_state.json`
-  was shared with the live server (same `server/` directory). A new session autouse
-  `_isolate_dwarf_state` fixture in `tests/conftest.py` stops tests reading/moving
-  the live Dwarf. Follow-up: `room_alignment.py`, `winners.py` and the login path at
-  `simple_server.py:737` have the same hard-coded-path pattern.
+#### [#56](https://github.com/Pinacolada64/TADA/pull/56) `fix/client-load-current-drive` → `master` — C64 client: LOAD overlays from the current drive ($ba), not device 8
+- **Tip:** `224565a` (1 commit), up to date with `master`. Assembles clean; **not yet live-tested in VICE** (load from drive 9, open config popup / banner edit).
+- `load_petscii_editor` / `load_config_menu` hard-coded device 8, so a client loaded
+  from any other drive couldn't find its overlay modules. Both now go through
+  `setlfs_current_drive`, which reads KERNAL's FA byte (`$ba`, the drive the client
+  was loaded from) and falls back to 8 if it's below 8.
+- Same fix cherry-picked onto `feature/keymap-editor` (#53) as `df5d47a`, plus
+  `cd777d4` converting that branch's own help/keymap LOAD/SAVE/error-channel sites
+  (new `current_drive_to_x` helper). Expect a small, trivial `tada-client.asm`
+  overlap when both land.
 
 #### [#54](https://github.com/Pinacolada64/TADA/pull/54) `feature/follow-me` → `master` — Port SPUR's FOLLOW ME and STAY guild-follower commands
 - **Tip:** `9c99f63` (2 commits), up to date with `master`.
@@ -83,6 +82,7 @@ Sections: Open PRs → Merged PRs (newest first).
 
 | PR | Merge commit | Branch | Title |
 |----|--------------|--------|-------|
+| [#55](https://github.com/Pinacolada64/TADA/pull/55) | `1e8a675` | `fix/dwarf-horse-collision` | Stop the Dwarf overwriting other monsters (`_place_dwarf()` no longer writes over an occupied room, e.g. the wild horse in rooms 30/52/68); session autouse `_isolate_dwarf_state` fixture keeps tests off the live `dwarf_state.json`. Follow-up: `room_alignment.py`, `winners.py`, `simple_server.py:737` share the hard-coded-path pattern. |
 | [#49](https://github.com/Pinacolada64/TADA/pull/49) | `1bdc83a` | `feat/text-editor-split-join` | Line editor `.e s`plit / `.e j`oin subcommands (undo/redo-checkpointed); `.e` "show buffers" moved to `.e b`. Merged alongside #51, which carried the same commits. |
 | [#51](https://github.com/Pinacolada64/TADA/pull/51) | `666e6c6` | `feature/command-color-tokens` | PREFS-configurable \|command\|...\|reset\| markup token for literal command syntax, swept into player-facing text; `.e split`/`.e join`; `board` "read new" rework (`rn`/`ra`/`sa`/`ld` folded into the listing's "Read which" prompt, `sn` added). |
 | [#48](https://github.com/Pinacolada64/TADA/pull/48) | `fdae53b` | `feature/reply-target-token` | `page`/`whisper` `#reply`/`#r` (reply to your last correspondent) and `#last [N]` (recent-recipient history, 10-entry ring buffer); `command_settings.page`/`.whisper` namespaces. |
