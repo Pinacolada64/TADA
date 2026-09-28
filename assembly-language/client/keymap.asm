@@ -355,7 +355,14 @@ load_keymap_menu:
         jsr setlfs_current_drive
         lda #0
         jsr KERNAL_LOAD
-        bcs load_overlay_error
+        bcc load_keymap_menu_ok
+        ; jmp, not bcs: load_overlay_error (tada-client.asm) is far out
+        ; of branch range from here -- c64list assembled the old `bcs`
+        ; silently as B0 FF (branch into its own operand), so a failed
+        ; LOAD (e.g. KEYMAP.ED missing from the disk) crashed instead of
+        ; printing the ?LO error.
+        jmp load_overlay_error
+load_keymap_menu_ok:
         jmp OVERLAY_BUF
 
 ; {alpha:pokealt} makes the `ascii` line below emit real screen codes
