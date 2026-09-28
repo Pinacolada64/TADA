@@ -322,7 +322,12 @@ class Server:
             # in-memory room.monster mutation from a prior session is gone.
             from encounters.dwarf import DWARF_LEVEL, MONSTER_NUMBER
             room = self.game_map.get_room(DWARF_LEVEL, current_room())
-            if room is not None:
+            if room is not None and getattr(room, 'monster', 0) not in (0, MONSTER_NUMBER):
+                # Someone else got there first this boot (e.g. the wild
+                # horse, placed just before this) -- move him on rather
+                # than overwrite it.
+                relocate(self.game_map)
+            elif room is not None:
                 room.monster = MONSTER_NUMBER
 
     # -----------------------------------------------------------------------
