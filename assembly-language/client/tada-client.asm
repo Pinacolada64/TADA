@@ -2548,7 +2548,13 @@ handle_recv_byte_maybe_start:
 
 handle_recv_byte_confirm:
         cmp #SID_STREAM_CONFIRM
-        beq handle_recv_byte_start
+        bne handle_recv_byte_not_sid
+        ; jmp, not beq: handle_recv_byte_start sits exactly 128 bytes
+        ; past the branch -- one byte out of range, which c64list
+        ; assembled silently as `beq *+1` (F0 FF), jumping into its own
+        ; operand byte instead of starting the SID stream.
+        jmp handle_recv_byte_start
+handle_recv_byte_not_sid:
         cmp #CANVAS_STREAM_CONFIRM
         beq handle_recv_byte_canvas_confirm
         cmp #DISPLAY_STREAM_CONFIRM
