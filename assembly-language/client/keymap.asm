@@ -216,8 +216,9 @@ init_keymap:
         ldx #<keymap_data_filename
         ldy #>keymap_data_filename
         jsr KERNAL_SETNAM
+        jsr current_drive_to_x   ; drive the client was loaded from
         lda #2                   ; file number -- distinct from load_
-        ldx #8                   ; help_menu/load_keymap_menu's #1,
+                                  ; help_menu/load_keymap_menu's #1,
         ldy #0                   ; unrelated but harmless either way.
                                     ; Secondary address 0 (NOT 1, unlike
                                     ; load_keymap_menu's own LOAD just
@@ -297,17 +298,17 @@ init_keymap_clear_error:
         rts
 
 ; --- read_error_channel: drain the drive's command/error channel ---
-; OPEN 15,8,15 / read until EOI / CLOSE 15 -- the standard KERNAL
+; OPEN 15,<drive>,15 / read until EOI / CLOSE 15 -- the standard KERNAL
 ; pattern for clearing a drive's error status after any operation
 ; (LOAD, SAVE, etc). Discards every byte read rather than displaying
 ; it: the point here is purely to clear the ERROR LED, not to surface
 ; the message anywhere -- init_keymap already knows success/failure
 ; from LOAD's own carry flag and has nothing further to say about it.
 read_error_channel:
-        lda #0                    ; filename length 0 -- OPEN 15,8,15
+        lda #0                    ; filename length 0 -- OPEN 15,<drive>,15
         jsr KERNAL_SETNAM          ; (the command/error channel) takes
-        lda #15                    ; no filename
-        ldx #8
+        jsr current_drive_to_x     ; no filename
+        lda #15
         ldy #15
         jsr KERNAL_SETLFS
         jsr KERNAL_OPEN
@@ -351,10 +352,7 @@ load_keymap_menu:
         ldx #<keymap_menu_filename
         ldy #>keymap_menu_filename
         jsr KERNAL_SETNAM
-        lda #1
-        ldx #8
-        ldy #1
-        jsr KERNAL_SETLFS
+        jsr setlfs_current_drive
         lda #0
         jsr KERNAL_LOAD
         bcs load_overlay_error

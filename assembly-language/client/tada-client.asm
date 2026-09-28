@@ -1401,7 +1401,7 @@ load_config_menu:
 
 ; --- Load the help_menu overlay module and hand control to it ---
 ; Called from handle_recv_byte_help_confirm once a real help/keys/credits
-; stream is confirmed starting. Same LOAD "...",8,1 (secondary address 1)
+; stream is confirmed starting. Same LOAD "...",<drive>,1 (secondary address 1)
 ; convention as load_petscii_editor/load_config_menu above -- see load_
 ; petscii_editor's own comment for the full reasoning (shared here rather
 ; than repeated).
@@ -1410,10 +1410,7 @@ load_help_menu:
         ldx #<help_menu_filename
         ldy #>help_menu_filename
         jsr KERNAL_SETNAM
-        lda #1
-        ldx #8
-        ldy #1
-        jsr KERNAL_SETLFS
+        jsr setlfs_current_drive
         lda #0
         jsr KERNAL_LOAD
         bcs load_overlay_error
@@ -1425,17 +1422,27 @@ load_help_menu:
 ; if CURRENT_DRIVE is below 8 (0-7 are keyboard/tape/RS-232/screen/
 ; printers, never a disk drive -- e.g. the client was started some way
 ; that never touched a drive), so LOAD is never aimed at a non-disk
-; device.
+; device -- see current_drive_to_x just below.
 setlfs_current_drive:
-        lda CURRENT_DRIVE
-        cmp #8
-        bcs setlfs_drive_ok
-        lda #8
-setlfs_drive_ok:
-        tax
+        jsr current_drive_to_x
         lda #1                   ; file number
         ldy #1                   ; secondary address 1
         jmp KERNAL_SETLFS        ; its rts returns to our caller
+
+; .X = the drive to use for any disk I/O: CURRENT_DRIVE, or 8 if that's
+; below 8. Clobbers .A, so call it BEFORE loading .A with the file
+; number. Also called directly by keymap.asm ({include:}d, so this is an
+; ordinary global label there) for its own KEYMAP.CFG load and command-
+; channel OPENs, whose file/secondary addresses differ from
+; setlfs_current_drive's.
+current_drive_to_x:
+        lda CURRENT_DRIVE
+        cmp #8
+        bcs current_drive_ok
+        lda #8
+current_drive_ok:
+        tax
+        rts
 
 ; LOAD failed (either overlay module) -- report the KERNAL error number
 ; and hand control back to the ordinary prompt loop instead of jumping

@@ -1711,8 +1711,8 @@ key_save:
         ldx #<keymap_filename
         ldy #>keymap_filename
         jsr KERNAL_SETNAM
+        jsr current_drive_to_x
         lda #2
-        ldx #8
         ldy #1
         jsr KERNAL_SETLFS
         ; KERNAL SAVE wants .A = a ZERO-PAGE address whose 2 bytes hold
@@ -1793,8 +1793,8 @@ scratch_keymap_file:
         ldx #<keymap_scratch_command
         ldy #>keymap_scratch_command
         jsr KERNAL_SETNAM
+        jsr current_drive_to_x
         lda #15
-        ldx #8
         ldy #15
         jsr KERNAL_SETLFS
         jsr KERNAL_OPEN
@@ -1839,8 +1839,8 @@ key_cancel:
 read_error_channel:
         lda #0
         jsr KERNAL_SETNAM
+        jsr current_drive_to_x
         lda #15
-        ldx #8
         ldy #15
         jsr KERNAL_SETLFS
         jsr KERNAL_OPEN
@@ -1867,6 +1867,27 @@ read_error_channel_loop:
 {const: KERNAL_CLRCHN $ffcc}
 {const: KERNAL_CHRIN  $ffcf}
 {const: KERNAL_READST $ffb7}
+
+; KERNAL's FA (current device number) byte -- own copy of tada-client.
+; asm's CURRENT_DRIVE, same reason as the KERNAL block above. Still the
+; drive the client was loaded from by the time this overlay runs (every
+; disk operation since boot, including this overlay's own LOAD, went to
+; that same drive).
+{const: CURRENT_DRIVE $ba}
+
+; .X = drive for this module's SAVE/SCRATCH/error-channel OPENs: own
+; copy of tada-client.asm's current_drive_to_x (separate assembly --
+; the resident routine isn't reachable except through a JT_* entry,
+; not worth adding for 7 bytes). Falls back to 8 if CURRENT_DRIVE is
+; below 8. Clobbers .A -- call before loading the file number.
+current_drive_to_x:
+        lda CURRENT_DRIVE
+        cmp #8
+        bcs current_drive_ok
+        lda #8
+current_drive_ok:
+        tax
+        rts
 
 ; Zero page -- own copy, not shared with tada-client.asm's scr_ptr_lo/
 ; hi (separate assembly, doesn't {include:} anything from that file --
