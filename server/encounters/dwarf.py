@@ -132,6 +132,13 @@ def _eligible_rooms(game_map) -> list[int]:
         align_value = getattr(alignment, 'value', alignment)
         if align_value in _EXCLUDED_ALIGNMENTS:
             continue
+        # He shares the room's single monster slot, so a room that already
+        # holds another monster (a map-placed one, or the session's wild
+        # horse -- simple_server.py's _place_wild_horse()) is off limits:
+        # moving in would overwrite it, and moving out again would zero the
+        # slot, wiping that monster out for the rest of the session.
+        if getattr(room, 'monster', 0) not in (0, MONSTER_NUMBER):
+            continue
         eligible.append(num)
     return eligible
 
