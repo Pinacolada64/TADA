@@ -35,14 +35,13 @@
 ; redraw_status_row at DISPLAY time, not here at build time -- already
 ; tested and working that way, so this wrapper doesn't change it.
 ;
-; TODO (Ryan, 2026-08-20): once hourglass_mode display is wired up
-; (PlayerFlags.HOURGLASS, see the deferred phase-2 design in project
-; memory), the clock belongs on the RIGHT side of STATUS_ROW -- whatever
-; renders that will need to co-exist with this left-aligned message
-; content and redraw_status_row's own padding, not fight over the same
-; columns. Not designed yet; flagging so build_status_line's contract
-; (a left-aligned, null-terminated string) doesn't quietly become
-; something the clock rendering can't fit next to.
+; Hourglass clock (Ryan's 2026-08-20 TODO, done 2026-09-29): the clock
+; (PlayerFlags.HOURGLASS) lives on the RIGHT side of STATUS_ROW, in its
+; own clock_buf rather than the message queue -- redraw_status_row_to
+; truncates this left-aligned message content one column short of it
+; and pads only up to where it starts, so the two never fight over the
+; same columns and build_status_line's contract (a left-aligned, null-
+; terminated string) is unchanged. See clock_recv in tada-client.asm.
 build_status_line:
         jsr status_build_from_table
         jmp status_push_buf

@@ -123,6 +123,16 @@
                                      ; credits pages, player flips between
                                      ; them locally with CRSR LEFT/RIGHT)
 
+; Hourglass clock stream marker -- same idea/reasoning as APPLY_STREAM_
+; CONFIRM above: consumed inline (no overlay), body is the player's
+; formatted time-of-day as PETSCII text (0 bytes = hide the clock),
+; painted right-aligned on the status row by redraw_status_row_to. Sent
+; with every prompt while PlayerFlags.HOURGLASS is on, in place of the
+; old "[hh:mm] " prompt prefix. Matches commands/c64_display.py's
+; encode_clock() (server side) exactly.
+{const: CLOCK_STREAM_CONFIRM $0b}   ; unused C64 control code -- see
+                                      ; SID_STREAM_CONFIRM's own comment
+
 ; KERNAL routines used by load_petscii_editor/load_config_menu to LOAD an
 ; overlay module from disk on demand (see load_petscii_editor's own
 ; comment for why this is a separate on-disk module rather than resident
@@ -1633,7 +1643,7 @@ redraw_status_row_to:
         lda row_offsets,x
         sta rsrt_store+1
         sta rsrt_pad_store+1
-        sta rsrt_blank_store+1
+        sta rsrt_clock_store+1
         sta rsrt_color_store+1
         lda row_offsets+1,x
         pha
@@ -1641,7 +1651,7 @@ redraw_status_row_to:
         adc rsrt_buf_hi
         sta rsrt_store+2
         sta rsrt_pad_store+2
-        sta rsrt_blank_store+2
+        sta rsrt_clock_store+2
         pla
         clc
         adc #>COLOR_RAM
@@ -1653,13 +1663,25 @@ rsrt_color_store:
         sta $ffff,y
         dey
         bpl rsrt_color_loop
+        ; Hourglass clock (clock_len bytes, 0 = none) owns the row's
+        ; right end: the message stops one column short of it (a gap)
+        ; and padding stops where it starts. With no clock these reduce
+        ; to the old fixed 39/40.
+        lda #39
+        sec
+        sbc clock_len
+        sta rsrt_msg_limit
+        lda #40
+        sec
+        sbc clock_len
+        sta rsrt_clock_col
         lda status_queue_count
         beq rsrt_blank
         lda status_queue_read
         jsr status_slot_addr        ; scr_ptr_lo/hi = &status_queue[read]
         ldy #0
 rsrt_copy:
-        cpy #39
+        cpy rsrt_msg_limit
         bcs rsrt_pad
         lda (scr_ptr_lo),y
         beq rsrt_pad
@@ -1671,26 +1693,35 @@ rsrt_store:
 rsrt_pad:
         lda #$a0                    ; reverse-video space
 rsrt_pad_loop:
-        cpy #40
-        bcs rsrt_rts
+        cpy rsrt_clock_col
+        bcs rsrt_clock
 rsrt_pad_store:
         sta STATUS_ROW_OFFSET,y
         iny
         jmp rsrt_pad_loop
+rsrt_clock:
+        ldx #0
+rsrt_clock_loop:
+        cpy #40
+        bcs rsrt_rts
+        lda clock_buf,x
+        ora #$80                    ; reverse video, same as the message
+rsrt_clock_store:
+        sta STATUS_ROW_OFFSET,y
+        inx
+        iny
+        jmp rsrt_clock_loop
 rsrt_rts:
         rts
 rsrt_blank:
-        ldy #0
-        lda #$a0
-rsrt_blank_loop:
-rsrt_blank_store:
-        sta STATUS_ROW_OFFSET,y
-        iny
-        cpy #40
-        bne rsrt_blank_loop
-        rts
+        ldy #0                      ; nothing queued: all padding (plus
+        jmp rsrt_pad                ; the clock, if any)
 
 rsrt_buf_hi:
+        byte 0
+rsrt_msg_limit:
+        byte 0
+rsrt_clock_col:
         byte 0
 ; The status bar's color -- the text color in effect at boot (init_
 ; screen), which is what row 23's color RAM always held before the bar
@@ -1726,6 +1757,52 @@ status_queue_read:
 status_rotate_last_lo:
         byte 0
 status_rotate_last_hi:
+        byte 0
+
+; --- clock_recv: body of a CLOCK_STREAM_CONFIRM stream (see that const's
+; own comment) -- 16-bit length (high byte ignored, the server never
+; sends more than CLOCK_MAX), then that many PETSCII bytes of formatted
+; time. Stores them as screen codes in clock_buf (anything past
+; CLOCK_MAX is read and dropped, so the stream stays in sync) and
+; repaints the status row. Reads through apply_recv_byte for the same
+; misfire-can't-hang reasoning as handle_recv_byte_apply_confirm; a
+; timeout just leaves the previous clock in place.
+CLOCK_MAX = 12
+clock_recv:
+        jsr apply_recv_byte         ; length, low byte
+        bcc clock_recv_rts
+        sta clock_remaining
+        jsr apply_recv_byte         ; length, high byte (ignored)
+        bcc clock_recv_rts
+        lda #0
+        sta clock_recv_idx
+clock_recv_loop:
+        lda clock_remaining
+        beq clock_recv_done
+        dec clock_remaining
+        jsr apply_recv_byte
+        bcc clock_recv_rts
+        ldx clock_recv_idx
+        cpx #CLOCK_MAX
+        bcs clock_recv_loop         ; over-long: drain and drop
+        jsr so_petscii_to_screen
+        sta clock_buf,x
+        inc clock_recv_idx
+        jmp clock_recv_loop
+clock_recv_done:
+        lda clock_recv_idx
+        sta clock_len
+        jmp redraw_status_row       ; tail call
+clock_recv_rts:
+        rts
+
+clock_buf:
+        area CLOCK_MAX, 0
+clock_len:
+        byte 0                      ; 0 = no clock shown (hourglass off)
+clock_recv_idx:
+        byte 0
+clock_remaining:
         byte 0
 
 ; --- Build-date/time status message -- shown at boot as its own batch
@@ -2682,6 +2759,8 @@ handle_recv_byte_not_sid:
         beq handle_recv_byte_apply_confirm
         cmp #HELP_STREAM_CONFIRM
         beq handle_recv_byte_help_confirm
+        cmp #CLOCK_STREAM_CONFIRM
+        beq handle_recv_byte_clock_confirm
         ; False alarm: the earlier $01 wasn't really a stream start.
         ; Display both the swallowed $01 and this byte as ordinary text
         ; instead of silently treating either as SID framing.
@@ -2722,6 +2801,14 @@ handle_recv_byte_help_confirm:
         lda #0
         sta sid_mode
         jmp load_help_menu
+
+; A hourglass clock stream is confirmed -- consumed inline by clock_recv
+; (next to the status queue it paints into), same no-overlay approach as
+; handle_recv_byte_apply_confirm below.
+handle_recv_byte_clock_confirm:
+        lda #0
+        sta sid_mode
+        jmp clock_recv
 
 ; A silent-apply stream is confirmed (sent at login/reconnect -- see
 ; commands/connect.py's encode_apply_for_player()). Unlike the canvas/

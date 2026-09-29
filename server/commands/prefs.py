@@ -290,7 +290,8 @@ _DATE_TIME_HELP: dict[str, list[str]] = {
     'h': [
         '',
         '|cyan|Hourglass Display|reset|',
-        "Shows the current time in front of your command prompt. Purely "
+        "Shows the current time in front of your command prompt (on the "
+        "right side of the status line, on the C64 client). Purely "
         "a visual clock -- it doesn't yet affect in-game time limits or "
         "control 12-hour (AM/PM) vs 24-hour formatting or timezone.",
         '',
