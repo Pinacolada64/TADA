@@ -1,8 +1,5 @@
-; constants_128.asm -- keymap_menu.asm's view of its host when it's built
-; into client-128.asm instead of loaded as the C64 client's KEYMAP.ED
-; overlay. The Makefile's keymap_menu_128.asm rule swaps this in for
-; constants.asm (the only other change it makes is dropping the overlay's
-; `orig`), so the popup's source stays shared with the C64 client.
+; constants_128.asm -- keymap_menu_128.asm's view of its host,
+; client-128.asm; the 128 counterpart of the C64 overlay's constants.asm.
 ;
 ; The JT_* names are NOT defined here: on the C64 they're fixed jump-
 ; table addresses at $c000, which is ROM on the 128. keymap_host_128.asm
@@ -20,3 +17,6 @@
 KM_SHFLAG                    = $d3
 KM_SFDX                      = $d4
 KM_KEY_NONE                  = 88
+
+; Modifier bits the editor captures: SHIFT 1, C= 2, CTRL 4, ALT 8 ($d3).
+KM_MOD_MASK                  = 15

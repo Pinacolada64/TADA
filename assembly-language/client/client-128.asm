@@ -277,12 +277,14 @@ out_char_vdc:
 ; clear = .A is what the editor should handle (normally the key itself).
 ;
 ; Order: any key first clears a status-row override ("Saved keymap."
-; etc.). In 80 columns, plain CRSR UP/DOWN (any modifier but CTRL, so C=
-; still pages) belong to scrollback (vdc_key_hook); every other key
-; leaves scrollback. Then the keymap (keymap_128.asm's km_dispatch) gets
-; the key -- word jumps, home/end, macros, F7 for the editor. So in 80
-; columns a keymap binding on plain CRSR UP/DOWN (the defaults' Home/
-; End) is shadowed by scrollback; in 40 columns it works as on the C64. ---
+; etc.). In 80 columns, plain (or SHIFTed) CRSR UP/DOWN scroll the
+; dialogue a line (vdc_key_hook); every other key leaves scrollback. Then
+; the keymap (keymap_128.asm's km_dispatch) gets the key -- word jumps,
+; home/end, macros, F7 for the editor, and Page Up/Page Down (ALT + the
+; grey arrows by default), which is why CRSR with C=, CTRL or ALT held
+; skips the line scroll. So in 80 columns a keymap binding on plain
+; CRSR UP/DOWN (the defaults' Home/End) is shadowed by scrollback; in 40
+; columns it works as on the C64. ---
 editor_key_hook:
         sta editor_hook_key
         lda status_override+1
@@ -297,18 +299,28 @@ editor_hook_no_msg:
         cmp #$91
         beq editor_hook_crsr
         cmp #$11
-        bne editor_hook_leave_sb
+        bne editor_hook_keymap
 editor_hook_crsr:
         lda $d3
-        and #4                    ; CTRL + CRSR: keymap territory
-        bne editor_hook_leave_sb
+        and #$0e                  ; C=, CTRL or ALT + CRSR: keymap
+        bne editor_hook_keymap    ; territory (SHIFT is CRSR UP itself)
         lda editor_hook_key
         jmp vdc_key_hook
-editor_hook_leave_sb:
-        jsr sb_exit
 editor_hook_keymap:
         lda editor_hook_key
-        jmp km_dispatch
+        jsr km_dispatch
+        ; Any key but Page Up/Down leaves scrollback -- after the keymap,
+        ; not before, or every Page Up would snap to the live view first
+        ; and could never page more than once. Keeps .A and carry.
+        php
+        pha
+        lda km_paged
+        bne editor_hook_rts
+        jsr sb_exit
+editor_hook_rts:
+        pla
+        plp
+        rts
 
 editor_hook_key:
         byte 0

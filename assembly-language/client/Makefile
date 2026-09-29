@@ -294,18 +294,10 @@ status:
 TARGET128       = client-128
 LAUNCH_VICE128  = x128
 
-# The Keymap Editor popup is the C64 client's own keymap_menu.asm, built
-# into the 128 client rather than loaded as an overlay: this rule swaps
-# in constants_128.asm (the 128 host's keyboard addresses; the JT_*
-# entry points are labels in keymap_host_128.asm) and comments out the
-# overlay's `orig`, then it gets its own preprocessing pass like any
-# split module. -def:c128 turns on its {ifdef:c128} parts (the 128's
-# extra key numbers).
-keymap_menu_128.asm: keymap_menu.asm
-	sed -e 's/{include:constants.asm}/{include:constants_128.asm}/' \
-	    -e 's/^\([[:space:]]*\)orig \$$3800/\1; orig $$3800 -- KEYMAP.ED overlay address, unused when built into client-128/' \
-	    keymap_menu.asm > keymap_menu_128.asm
-
+# The Keymap Editor popup (keymap_menu_128.asm, forked from the C64
+# client's keymap_menu.asm) is built into the 128 client rather than
+# loaded as an overlay; like any split module it gets its own
+# preprocessing pass first.
 keymap_menu_128_pp.asm: keymap_menu_128.asm constants_128.asm
 	$(PREPROCESSOR) keymap_menu_128.asm
 
@@ -313,7 +305,7 @@ $(TARGET128)_pp.asm: $(TARGET128).asm input_editor.asm vdc.asm vdc_screen.asm ke
 	$(PREPROCESSOR) $(TARGET128).asm
 
 $(TARGET128).prg: $(TARGET128)_pp.asm
-	$(C64LIST) $(TARGET128)_pp.asm -prg:$(TARGET128) -sym -ovr -def:c128
+	$(C64LIST) $(TARGET128)_pp.asm -prg:$(TARGET128) -sym -ovr
 	python3 ./check_128_layout.py $(TARGET128).prg $(TARGET128)_pp.sym
 
 $(TARGET128)-vice-labels: $(TARGET128).prg
@@ -342,7 +334,7 @@ build128: all128
 
 clean128:
 	rm -f $(TARGET128)_pp.asm \
-	      keymap_menu_128.asm keymap_menu_128_pp.asm \
+	      keymap_menu_128_pp.asm \
 	      $(TARGET128)_pp.prg \
 	      $(TARGET128)_pp.sym \
 	      $(TARGET128).prg \

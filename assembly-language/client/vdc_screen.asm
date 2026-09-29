@@ -704,62 +704,20 @@ sb_page_fwd_move:
         jsr sb_redraw
         jmp draw_status_row
 
-; --- vdc_key_hook: input_editor.asm's per-key hook in 80-column mode.
-; .A = the GETIN byte. CRSR UP/DOWN scroll a line, C= + CRSR UP/DOWN a
-; page; carry set = handled. Anything else (CTRL + CRSR too -- that's
-; the editor's word jump) leaves scrollback first and returns carry
-; clear with .A unchanged for the editor to handle as usual.
-;
-; Why these keys: the 128's own decode tables (kernal-318020-05.bin,
-; normal/shift/C=/CTRL/caps at $FA80/$FAD9/$FB32/$FB8B/$FBE4) give the
-; top-row arrow keys (key numbers 83-86) the same $91/$11/$9d/$1d in
-; EVERY table, so C= or CTRL with them still reaches GETIN and is only
-; visible in $D3 (SHFLAG: 1 SHIFT, 2 C=, 4 CTRL). The main-keyboard CRSR
-; key gives $91 under SHIFT or C= and $ff under CTRL -- so on that key
-; C= + CRSR (up) pages back, and paging forward needs the top-row down
-; arrow. The editor ignored CRSR UP/DOWN before this (see its edkeys
-; table), so nothing is taken away from it. ---
+; --- vdc_key_hook: client-128.asm's editor_key_hook hands it plain (or
+; SHIFTed) CRSR UP/DOWN in 80 columns: scroll back / forward a line.
+; Always consumes the key (carry set). Paging used to be hardwired here
+; too (C= + CRSR); since 2026-09-29 it's the keymap's Page Up/Page Down
+; (keymap_128.asm, ALT + the grey arrows by default), so it can be
+; rebound. ---
 vdc_key_hook:
-        sta sb_key
-vdc_key_mods:
-        lda $d3                 ; SHFLAG (vice128_vdc_test.py patches this
-        sta sb_mods             ; operand to fake a held C= key)
-        lda sb_key
         cmp #$91
-        beq vdc_key_up
-        cmp #$11
-        beq vdc_key_down
-vdc_key_pass:
-        jsr sb_exit
-        lda sb_key
-        clc
-        rts
-vdc_key_up:
-        lda sb_mods
-        and #4                  ; CTRL: not ours
-        bne vdc_key_pass
-        lda sb_mods
-        and #2                  ; C=: page
-        bne vdc_key_page_back
+        bne vdc_key_down
         jsr sb_line_back
         sec
         rts
-vdc_key_page_back:
-        jsr sb_page_back
-        sec
-        rts
 vdc_key_down:
-        lda sb_mods
-        and #4
-        bne vdc_key_pass
-        lda sb_mods
-        and #2
-        bne vdc_key_page_fwd
         jsr sb_line_fwd
-        sec
-        rts
-vdc_key_page_fwd:
-        jsr sb_page_fwd
         sec
         rts
 
@@ -887,7 +845,7 @@ sb_msg_of:
         ascii " of "
         byte 0
 sb_msg_keys:
-        ascii " -- CRSR: line, C=+CRSR: page, other keys return"
+        ascii " -- CRSR: a line, Alt+grey CRSR: a page"
         byte 0
 {alpha:normal}
 
@@ -917,7 +875,5 @@ sb_offset:        byte 0        ; rows scrolled back; 0 = live view
 sb_row:           byte 0
 sb_tmp:           byte 0
 sb_loop:          byte 0
-sb_key:           byte 0
-sb_mods:          byte 0
 sb_status_buf:
         area VDC_COLS+4, 0      ; VDC_COLS + terminator + dec3 slack

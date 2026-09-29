@@ -7,10 +7,12 @@ monitor's "bank vdc", VIC screen/color RAM, the client's own variables --
 rather than screenshots:
   A  boot (80 columns): $FF00 = $0e, F1-F8 reprogrammed to $85-$8c, the
      CTRL decode pointer ($0344) moved to the patched RAM copy, default
-     keymap in keymap_table (no KEYMAP.CFG yet)
+     keymap in keymap_table (no KEYMAP128.CFG yet), including Page Up/
+     Page Down = ALT + grey CRSR (key numbers 83/84) in slots 15-16
   B  F7 (delivered the way the editor hands out an F-key string: $d1/$d2)
      opens the popup; the IRQ copies it onto the VDC at columns 20-59,
-     dialogue greyed, status row blanked around it
+     dialogue greyed, status row blanked around it; the Keymap Editor
+     page lists Page Up/Page Down with their "Alt+" combos
   C  CRSR DOWN moves the selection; VDC rows 2-23 stay in sync with the
      VIC screen the popup draws on
   D  RUN/STOP: dialogue and colors restored, 80-column status "Aborted."
@@ -21,8 +23,8 @@ rather than screenshots:
   G  a macro slot (poked into keymap_table, trigger key number 10) types
      "look" and submits it via the back-arrow marker (the matrix match is
      faked by patching "cmp $d4" to "cmp #10")
-  H  'S' in the popup saves KEYMAP.CFG; a fresh boot LOADs it back (the
-     macro slot survives), and the file is on the disk
+  H  'S' in the popup saves KEYMAP128.CFG; a fresh boot LOADs it back
+     (the macro slot survives), and the file is on the disk
   I  40 columns: same disk, F7 opens the popup on the real screen with
      the rest greyed, RUN/STOP puts screen and colors back
 The VICE windows take real keystrokes too, so leave them alone while
@@ -185,18 +187,24 @@ try:
                                                    0x87, 0x8b, 0x88, 0x8c])
           and (ctrl[0] | ctrl[1] << 8) == S['km_ctrl_table']
           and dump('default', S['km_ctrl_table'] + 2, 6)[0] == 0x1d
-          and table[0:3] == bytes([4, 0x1d, 1]) and table[135:138] == bytes([0, 0x88, 5]))
+          and table[0:3] == bytes([4, 0x1d, 1]) and table[135:138] == bytes([0, 0x88, 5])
+          and dump('default', S['keymap_table'] + 27 * 15, 3) == bytes([8, 83, 6])
+          and dump('default', S['keymap_table'] + 27 * 16, 3) == bytes([8, 84, 7]))
 
     # B
     press_f7()
+    listed = [decode(vic(r)) for r in range(5, 16)]
+    page_rows = [t for t in listed if 'Page' in t]
     check('B F7 opens the popup, presented at VDC columns 20-59, rest grey',
           byte_at(S['km_present_on']) == 1
           and decode(vdc(5, 20, 40)).strip().startswith(']')
           and vdc(2, 20, 40) == vic(2)
           and all(a == ALT | WHITE for a in vdc_attr(2, 20, 40))
           and all(a == ALT | GREY_VDC for a in vdc_attr(0))
-          and all(c == 0xa0 for c in vdc(23, 0, 20)),
-          f'|{decode(vdc(5, 20, 40))}|')
+          and all(c == 0xa0 for c in vdc(23, 0, 20))
+          and len(page_rows) == 2
+          and all('Alt+' in t for t in page_rows),
+          f'{page_rows}')
 
     # C
     keys(bytes([0x11]), settle=1.5)
@@ -220,7 +228,8 @@ try:
 
     # F
     type_text('one two')
-    at = S['km_dispatch'] + 3           # lda $d3 (a5 d3)
+    at = S['km_dispatch'] + 8           # lda $d3 (a5 d3), after sta km_key/
+                                        # lda #0/sta km_paged
     orig = dump('default', at, 2)
     poke(at, 0xa9, 0x04)                # lda #4: CTRL held
     keys(bytes([0x1d]))                 # CTRL+CRSR-RIGHT: word left
@@ -273,7 +282,7 @@ try:
     reloaded = dump('default', slot6, 9)
     check('H save, then a fresh boot LOADs the macro back from KEYMAP.CFG',
           saved_status.startswith('Saved keymap')
-          and 'keymap.cfg' in listing.lower()
+          and 'keymap128.cfg' in listing.lower()
           and reloaded == bytes([0, 10, 0xff, *b'LOOK', 0x5f, 0]),
           f'|{saved_status}| {reloaded.hex()}')
     vice.terminate(); time.sleep(2)
