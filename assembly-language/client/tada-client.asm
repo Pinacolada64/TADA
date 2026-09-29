@@ -150,6 +150,10 @@ KERNAL_LOAD   = $ffd5
 ; characters with; the $05/$9f etc. color codes just change this byte.
 {const: KERNAL_COLOR $0286}
 {const: KBD_BUF $0277}
+; KERNAL's MODE flag: bit 7 set disables the SHIFT+C= charset toggle
+; (what CHR$(8) sets, CHR$(9) clears) -- see switch_to_bank3_with_
+; charset's step 4.
+{const: KERNAL_MODE $0291}
 
 ; KERNAL_PLOT is X=row, Y=column (carry set = read current position into
 ; X/Y, carry clear = set position from X/Y) -- NOT the commonly-cited
@@ -1108,6 +1112,19 @@ switch_to_bank3_with_charset:
         sta front_hi
         sta HIBASE
 
+        ; --- 4. Lock out the KERNAL's SHIFT+C= charset toggle ---
+        ; MODE ($0291) bit 7 set = same as PRINT CHR$(8). Stock $EB48
+        ; (reached via kr_keylog whenever SHFLAG == 3, i.e. SHIFT+C= held)
+        ; otherwise does `$d018 EOR #$02` -- on a stock C64 that swaps
+        ; the ROM's two character sets, but here it flips char-ptr slot
+        ; 2 ($d000, gothic_charset) to slot 3 ($d800, COLOR_RAM's
+        ; address, not glyph data): every character becomes stripes
+        ; until $d018 is manually re-poked to VIC_D018_INIT. gothic_
+        ; charset is the only charset there is, so there's nothing
+        ; valid for that toggle to switch to.
+        lda #$80
+        sta KERNAL_MODE
+
         cli
         rts
 
@@ -1225,6 +1242,21 @@ ensure_buffer_a_front_rts:
 term_chrout:
         stx term_saved_x
         sty term_saved_y
+        ; Swallow the KERNAL case-switch codes ($0e lowercase, $8e
+        ; uppercase) instead of printing them. CHROUT handles them by
+        ; ORing/ANDing $d018 bit 1 -- on a stock C64 that picks between
+        ; the ROM's two character sets, but here it moves the char
+        ; pointer off gothic_charset ($d000) onto $d800 (COLOR_RAM's
+        ; address, not glyph data) or $c000, and every character turns
+        ; to stripes. Confirmed live 2026-09-28: the server's own
+        ; terminal-negotiation menu starts with $0e (correct for real
+        ; terminal programs like CCGMS, which need it for lowercase), so
+        ; every connect was leaving $d018 at $17 instead of VIC_D018_
+        ; INIT's $14. This client is always in "lowercase" already.
+        cmp #$0e
+        beq term_chrout_rts
+        cmp #$8e
+        beq term_chrout_rts
         pha
         ldx $d6
         cpx #PROMPT_ROW
