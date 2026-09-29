@@ -11,14 +11,21 @@
 ; up front.
 ;
 ; Today this does the first two items on that wishlist: read the 40/80
-; column switch at startup, and (VIC/40-column path only -- the 80-
-; column/VDC path is still just a placeholder message) set up a
+; column switch at startup, and (VIC/40-column path) set up a
 ; scrolling dialogue window via ESC-T/ESC-B, a static status row, and a
 ; static input row below it, mirroring tada-client.asm's STATUS_ROW/
 ; PROMPT_ROW layout for a familiar player experience across both
 ; clients. Still no SwiftLink, no server connection, no tab-stop sync
 ; client code (that part already landed server-side only, see
 ; terminal.c128_tab_sync_bytes()).
+;
+; The 80-column (VDC) path (2026-09-29) keeps the same row layout but
+; draws dialogue itself -- vdc.asm (8563 register/block-copy/fill
+; primitives, modeled on the editor ROM's own $CDCC/$C40D/$C4A5) and
+; vdc_screen.asm (dialogue output with block-copy scrolling, a 200-row
+; scrollback history in bank 0 RAM under BASIC, CRSR UP/DOWN to view
+; it). The input row still goes through input_editor.asm's KERNAL
+; PLOT/CHROUT, which the editor points at the VDC in 80 columns.
 ;
 ; Verified against Compute's 128 Programmer's Guide (pdftotext -layout;
 ; see 128_CLIENT_MECHANICS.md's own citation note about why a naive
@@ -52,6 +59,14 @@
 ; MMU mode configuration register -- bit 7 is the 40/80 switch.
 {const: MMU_MODE_CONFIG $d505}
 {const: SWITCH_40_COL_MASK $80}
+
+; Editor zero page: bit 7 set = the editor is driving the 80-column
+; (VDC) screen. See start's comment on why this, not the switch.
+{const: EDITOR_MODE_80 $d7}
+
+; Widest screen (VDC) -- sizes inputbuf and status_line; scr_cols holds
+; the live width (40 or 80).
+{const: MAX_COLS 80}
 
 ; KERNAL
 {const: KERNAL_CHROUT $ffd2}
@@ -111,20 +126,35 @@ start:
         lda #11
         jsr KERNAL_CHROUT
 
-        lda MMU_MODE_CONFIG
-        and #SWITCH_40_COL_MASK
-        bne forty_col_mode
+        ; Which screen is the editor actually driving? $D7 bit 7 (set =
+        ; 80 columns) rather than the $D505 switch bit: the switch is only
+        ; read at reset, and ESC-X can swap screens afterwards -- $D7 is
+        ; what CHROUT/PLOT (input_editor.asm) will really draw on, and
+        ; it's the flag the editor's own VDC code tests ($C161, $C6E7).
+        bit EDITOR_MODE_80
+        bmi eighty_col_mode
+        jmp forty_col_mode
 
+; --- 80 columns: our own VDC dialogue output (vdc_screen.asm) with block-
+; copy scrolling and a scrollback history; no ESC-T/ESC-B window at all,
+; since dialogue output never goes through CHROUT here. ---
 eighty_col_mode:
         lda #0
         sta screen_mode          ; 0 = VDC/80-column
+        lda #MAX_COLS
+        sta scr_cols
+        jsr init_irq
+        jsr vdc_screen_init
+        jsr draw_status_row
         ldx #0
 eighty_msg_loop:
         lda eighty_msg,x
-        beq done
-        jsr KERNAL_CHROUT
+        beq eighty_msg_done
+        jsr out_char
         inx
         jmp eighty_msg_loop
+eighty_msg_done:
+        jmp main_loop
 
 forty_col_mode:
         lda #1
@@ -165,17 +195,28 @@ demo_msg_loop:
 ; widened to the full screen for the duration of the call and narrowed
 ; back after -- narrowing does NOT re-clear (see set_window_narrow),
 ; since that would wipe the scrolled dialogue history on every line. ---
+;
+; In 80 columns there's no window to widen: the editor's window is the
+; whole screen and dialogue output bypasses CHROUT (vdc_screen.asm).
 main_loop:
+        lda screen_mode
+        beq main_loop_vdc
         jsr set_window_full
         jsr call_sliding_input
         jsr set_window_narrow
+        jmp main_loop_line
+main_loop_vdc:
+        jsr call_sliding_input
+main_loop_line:
         jsr clock_test_command    ; "clock <text>" sets the status-row
         bcs main_loop             ; clock locally -- see its own comment
+        jsr fill_test_command     ; "fill" prints FILL_TEST_LINES lines
+        bcs main_loop             ; to scroll back through
         ldx #0
 echo_prefix_loop:
         lda echo_prefix,x
         beq echo_body
-        jsr KERNAL_CHROUT
+        jsr out_char
         inx
         jmp echo_prefix_loop
 echo_body:
@@ -183,13 +224,41 @@ echo_body:
 echo_body_loop:
         lda inputbuf,x
         beq echo_done
-        jsr KERNAL_CHROUT
+        jsr out_char
         inx
         jmp echo_body_loop
 echo_done:
         lda #13
-        jsr KERNAL_CHROUT
+        jsr out_char
         jmp main_loop
+
+; --- out_char: .A = PETSCII for the dialogue area, whichever screen.
+; 40 columns: CHROUT into the ESC-T/ESC-B window. 80 columns: dlg_putc.
+; Preserves X (and Y) either way -- callers index strings with X. ---
+out_char:
+        pha
+        lda screen_mode
+        beq out_char_vdc
+        pla
+        jmp KERNAL_CHROUT
+out_char_vdc:
+        pla
+        jmp dlg_putc
+
+; --- editor_key_hook: called by input_editor.asm for every key. .A =
+; the GETIN byte; carry set = consumed (the editor just redraws), carry
+; clear = .A untouched, handle as usual. Only 80 columns has anything to
+; hook (scrollback, vdc_key_hook). ---
+editor_key_hook:
+        pha
+        lda screen_mode
+        beq editor_key_hook_vdc
+        pla
+        clc
+        rts
+editor_key_hook_vdc:
+        pla
+        jmp vdc_key_hook
 
 done:
         rts
@@ -312,17 +381,32 @@ set_window_full:
 ; The Hourglass clock (clock_len bytes of clock_buf, 0 = none) owns the
 ; row's right end, same as tada-client.asm's redraw_status_row_to: the
 ; message stops one column short of it (a gap), so with no clock the
-; message is capped at 39 columns. ---
+; message is capped at 39 columns.
+;
+; Both screens share this: the row is built in status_line (scr_cols
+; wide) and then copied to SCREEN_RAM (40 columns) or VDC row 23 (80,
+; vdc_draw_status_line). While scrolled back (80 columns only), the
+; scrollback position message replaces status_msg. ---
 draw_status_row:
         ldx #0
-draw_status_blank_loop:
         lda #(' ' | REVERSE_BIT)
-        sta SCREEN_RAM+STATUS_ROW_OFFSET,x
+draw_status_blank_loop:
+        sta status_line,x
         inx
-        cpx #ROW_BYTES
+        cpx scr_cols
         bne draw_status_blank_loop
 
-        lda #ROW_BYTES-1
+        lda #<status_msg
+        ldy #>status_msg
+        ldx sb_offset
+        beq draw_status_have_msg
+        jsr sb_status_text
+draw_status_have_msg:
+        sta draw_status_read+1
+        sty draw_status_read+2
+        lda scr_cols
+        sec
+        sbc #1
         sec
         sbc clock_len
         sta draw_status_limit
@@ -330,28 +414,40 @@ draw_status_blank_loop:
 draw_status_msg_loop:
         cpx draw_status_limit
         bcs draw_status_clock
-        lda status_msg,x
+draw_status_read:
+        lda $ffff,x               ; self-modified: status_msg or sb_status_buf
         beq draw_status_clock
         ora #REVERSE_BIT
-        sta SCREEN_RAM+STATUS_ROW_OFFSET,x
+        sta status_line,x
         inx
         jmp draw_status_msg_loop
 draw_status_clock:
-        lda #ROW_BYTES
+        lda scr_cols
         sec
         sbc clock_len
         tax                       ; first clock column
         ldy #0
 draw_status_clock_loop:
-        cpx #ROW_BYTES
-        bcs draw_status_done
+        cpx scr_cols
+        bcs draw_status_blit
         lda clock_buf,y
         ora #REVERSE_BIT
-        sta SCREEN_RAM+STATUS_ROW_OFFSET,x
+        sta status_line,x
         inx
         iny
         jmp draw_status_clock_loop
-draw_status_done:
+draw_status_blit:
+        lda screen_mode
+        bne draw_status_vic
+        jmp vdc_draw_status_line
+draw_status_vic:
+        ldx #0
+draw_status_vic_loop:
+        lda status_line,x
+        sta SCREEN_RAM+STATUS_ROW_OFFSET,x
+        inx
+        cpx #ROW_BYTES
+        bne draw_status_vic_loop
         rts
 
 draw_status_limit:
@@ -386,7 +482,7 @@ clock_putc:
         ldx clock_recv_idx
         cpx #CLOCK_MAX
         bcs clock_putc_rts
-        jsr clock_petscii_to_screen
+        jsr petscii_to_screen
         sta clock_buf,x
         inc clock_recv_idx
 clock_putc_rts:
@@ -401,29 +497,29 @@ clock_commit:
 ; .A (a printable PETSCII code, $20-$7f or $a0-$ff) -> screen code --
 ; same mapping as tada-client.asm's so_petscii_to_screen (this client's
 ; own old petscii_to_screencode went away with input_editor.asm).
-clock_petscii_to_screen:
+petscii_to_screen:
         cmp #$40
-        bcc clock_p2s_rts         ; $20-$3f: unchanged
+        bcc p2s_rts         ; $20-$3f: unchanged
         cmp #$60
-        bcc clock_p2s_sub40       ; $40-$5f -> $00-$1f
+        bcc p2s_sub40       ; $40-$5f -> $00-$1f
         cmp #$80
-        bcc clock_p2s_sub20       ; $60-$7f -> $40-$5f
+        bcc p2s_sub20       ; $60-$7f -> $40-$5f
         cmp #$c0
-        bcc clock_p2s_sub40       ; $a0-$bf -> $60-$7f
+        bcc p2s_sub40       ; $a0-$bf -> $60-$7f
         cmp #$ff
-        beq clock_p2s_pi
+        beq p2s_pi
         and #$7f                  ; $c0-$fe -> $40-$7e
-clock_p2s_rts:
+p2s_rts:
         rts
-clock_p2s_sub40:
+p2s_sub40:
         sec
         sbc #$40
         rts
-clock_p2s_sub20:
+p2s_sub20:
         sec
         sbc #$20
         rts
-clock_p2s_pi:
+p2s_pi:
         lda #$5e                  ; $ff is pi, same glyph as $de
         rts
 
@@ -464,6 +560,101 @@ clock_test_no:
 
 clock_test_word:
         ascii "clock"
+        byte 0
+
+; --- fill_test_command: another local stand-in until SwiftLink lands.
+; A bare "fill" prints FILL_TEST_LINES numbered lines through out_char --
+; enough to scroll the 80-column history well past one screen. Each line
+; switches color twice (yellow text, white number) so scrollback can be
+; checked for keeping attributes, not just characters. Carry set =
+; handled. Delete along with clock_test_command. ---
+FILL_TEST_LINES = 60
+fill_test_command:
+        ldx #0
+fill_test_match:
+        lda fill_test_word,x
+        beq fill_test_matched
+        cmp inputbuf,x
+        bne fill_test_no
+        inx
+        jmp fill_test_match
+fill_test_matched:
+        lda inputbuf,x
+        bne fill_test_no          ; "fill" exactly, nothing after it
+        lda #1
+        sta fill_test_n
+fill_test_line:
+        ldx #0
+fill_test_text_loop:
+        lda fill_test_text,x
+        beq fill_test_number
+        jsr out_char
+        inx
+        jmp fill_test_text_loop
+fill_test_number:
+        lda fill_test_n
+        jsr dec3
+        ldx #0
+fill_test_digit_loop:
+        lda dec3_buf,x
+        jsr out_char
+        inx
+        cpx #3
+        bne fill_test_digit_loop
+        lda #13
+        jsr out_char
+        inc fill_test_n
+        lda fill_test_n
+        cmp #FILL_TEST_LINES+1
+        bcc fill_test_line
+        sec
+        rts
+fill_test_no:
+        clc
+        rts
+
+fill_test_word:
+        ascii "fill"
+        byte 0
+fill_test_text:
+        byte $9e                  ; yellow
+{alpha:alt}
+        ascii "Scrollback test line "
+{alpha:normal}
+        byte $05, 0               ; white for the number
+fill_test_n:
+        byte 0
+
+; --- dec3: .A (0-255) -> dec3_buf = three ASCII/PETSCII digits, which
+; are also their own screen codes ($30-$39). Preserves X and Y. ---
+dec3:
+        sty dec3_saved_y
+        ldy #'0'
+dec3_hundreds:
+        cmp #100
+        bcc dec3_hundreds_done
+        sbc #100                  ; carry set from the cmp
+        iny
+        jmp dec3_hundreds
+dec3_hundreds_done:
+        sty dec3_buf
+        ldy #'0'
+dec3_tens:
+        cmp #10
+        bcc dec3_tens_done
+        sbc #10
+        iny
+        jmp dec3_tens
+dec3_tens_done:
+        sty dec3_buf+1
+        ora #'0'
+        sta dec3_buf+2
+        ldy dec3_saved_y
+        rts
+
+dec3_buf:
+        byte 0,0,0
+dec3_saved_y:
         byte 0
 
 clock_buf:
@@ -534,6 +725,8 @@ irq_dispatch_jmp:
         jmp $ffff
 
 {include:input_editor.asm}
+{include:vdc.asm}
+{include:vdc_screen.asm}
 
 irq_orig:
         byte 0,0                 ; saved KERNAL IRQ vector, set by init_irq
@@ -548,24 +741,38 @@ IRQ_TASK_TABLE_LEN = 2           ; entries * 2 -- keep in sync with the table ab
 ; --- Data ---
 
 ; screen_mode: 0 = VDC (80-column), 1 = VIC-II (40-column). Set once at
-; startup by the 40/80-switch check above; nothing reads it yet -- next
-; step is branching actual VIC-II vs VDC init routines on it, per
-; 128_CLIENT_MECHANICS.md's wishlist, instead of just reporting which
-; one was detected the way this stub does today.
+; startup by the $D7 check above; main_loop, out_char, editor_key_hook
+; and draw_status_row branch on it. scr_cols is the matching width.
 screen_mode:
         byte 0
+scr_cols:
+        byte ROW_BYTES
 
 forty_msg:
         ascii "40-column mode (vic-ii) detected."
         byte 13, 0
 
+; Printed through out_char (dlg_putc) at 80-column startup. {alpha:alt}
+; so capitals come out as real shifted PETSCII ($c1-$da) -- plain ascii
+; folds everything to $41-$5a, i.e. lowercase in this charset (confirmed
+; reading VDC RAM 2026-09-29: "VDC" showed as "vdc").
+{alpha:alt}
 eighty_msg:
-        ascii "80-column mode (vdc) detected."
-        byte 13, 0
+        ascii "80-column mode (VDC) detected."
+        byte 13
+        ascii "Dialogue rows 0-22 scroll by VDC block copy; status row 23, input row 24."
+        byte 13
+        ascii "CRSR up/down scrolls back through history a line, C= + CRSR a page."
+        byte 13
+        ascii "Type fill for 60 test lines."
+        byte 13, 13, 0
+{alpha:normal}
 
 ; Sent through CHROUT into the scrolling window -- plain PETSCII/ASCII
 ; text is fine here (not raw screen codes -- unlike status_msg below,
-; this never gets poked directly to SCREEN_RAM).
+; this never gets poked directly to SCREEN_RAM). {alpha:alt} for real
+; capitals, same as eighty_msg (plain ascii folds them to lowercase).
+{alpha:alt}
 demo_msg:
         ascii "40-column mode (vic-ii) detected."
         byte 13
@@ -577,6 +784,7 @@ demo_msg:
 echo_prefix:
         ascii "You typed: "
         byte 0
+{alpha:normal}
 
 ; status_msg: raw screen codes via {alpha:pokealt} (see
 ; sid_streaming.asm's status_lbl_* for the same convention and its own
@@ -590,7 +798,12 @@ status_msg:
 {alpha:normal}
 
 ; inputbuf: input_editor.asm's line buffer, one byte per input-row
-; column (ROW_BYTES=40) plus a null terminator -- call_sliding_input
-; points strptr at this before every call.
+; column (scr_cols, up to MAX_COLS=80) plus a null terminator --
+; call_sliding_input points strptr at this before every call.
 inputbuf:
-        area ROW_BYTES+1, 0
+        area MAX_COLS+1, 0
+
+; status_line: draw_status_row builds the status row here (screen codes,
+; scr_cols wide) before copying it to whichever screen is live.
+status_line:
+        area MAX_COLS, 0

@@ -225,7 +225,7 @@ status:
 TARGET128       = client-128
 LAUNCH_VICE128  = x128
 
-$(TARGET128)_pp.asm: $(TARGET128).asm input_editor.asm
+$(TARGET128)_pp.asm: $(TARGET128).asm input_editor.asm vdc.asm vdc_screen.asm
 	$(PREPROCESSOR) $(TARGET128).asm
 
 $(TARGET128).prg: $(TARGET128)_pp.asm

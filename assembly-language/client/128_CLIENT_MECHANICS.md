@@ -124,6 +124,112 @@ first attempt did), and reuse the existing `SCREEN_RAM+INPUT_ROW_OFFSET`
 `{const:}` convention `draw_status_row` already established rather than
 inventing a new addressing approach.
 
+## 80-column (VDC) text output -- built 2026-09-29
+
+`vdc.asm` (8563 primitives) and `vdc_screen.asm` (dialogue output,
+history, scrollback view). Same row layout as 40 columns: dialogue rows
+0-22, status row 23, input row 24. Tested by `vice128_vdc_test.py`
+(x128 `-80col -VDC16KB`, reads VDC RAM through the monitor's
+`bank vdc`, 8/8 passing).
+
+### How the editor ROM drives the VDC (research)
+
+Disassembled from VICE's `C128/kernal-318020-05.bin` ($C000-$FFFF)
+rather than recalled; the Programmer's Guide only documents the register
+handshake and the fill command.
+
+- **Register access** -- `$CDCC`: `stx $d600` / `bit $d600` / `bpl`
+  (wait for bit 7, ready) / `sta $d601`. `$CDDA` is the read twin.
+  `$CDCA`/`$CDD8` are the same with X preset to 31 (the data register).
+  `$CDE6`/`$CDF9` set R18/R19 (the update address) from the editor's
+  line pointers `$E0`/`$E2` + Y.
+- **Moving a line** (scrolling) -- `$C40D`, 80-column branch at `$C436`:
+  set R24 bit 7 (COPY), R18/R19 = destination, R32/R33 = source, then
+  write R30 = byte count, which starts the copy inside the chip. Again
+  for the attributes. The editor scrolls a window one line at a time
+  this way (`$C3DC` loop), so it works for any window margins. (If CTRL
+  is held, `$C3F7` adds a delay after each scroll -- the "slow scroll"
+  feature.)
+- **Clearing a line** -- `$C4A5`/`$C4C0`: R24 bit 7 clear (WRITE, i.e.
+  fill), R18/R19 = start, write one byte to R31, then R30 = count-1
+  repeats it. `$C53E` then reads R18/R19 back and writes one more byte
+  at a time until the address reaches the end. `vdc_fill` keeps that
+  check.
+- **No IRQ involvement** -- the editor IRQ (`$C194`) does the VIC raster
+  split, SCNKEY, and the 40-column cursor blink (`$C6E7`), which returns
+  at once when `$D7` bit 7 (80 columns active) is set. Nothing on the
+  IRQ side touches `$D600`, and the editor doesn't SEI around VDC
+  access either. Future NMI/IRQ tasks (SwiftLink) must stay off the
+  VDC for this to hold.
+- **Editor state** -- `$D7` bit 7 = editor on the VDC (used instead of
+  the `$D505` switch bit, since ESC-X can swap screens after reset);
+  `$0A2E`/`$0A2F` = VDC screen/attribute base high bytes (`$00`/`$08`);
+  `$F1` = current attribute. After `CHR$(14)`, `$F1` = `$87` (ALT bit 7
+  selects the lowercase half of the 512-character VDC set, plus color
+  7). R10 = `$20` turns the hardware cursor off (`$CDAE`).
+- **Colors** -- PETSCII color codes at `$CE4C` (VIC order), VDC RGBI
+  values at `$CE5C`: `00 0f 08 07 0b 04 02 0d 0a 0c 09 06 01 05 03 0e`.
+  Note dark grey = `$06`, grey = `$01`; I'd recalled them the other way
+  round and only the ROM caught it.
+- **Keys** -- decode tables at `$FA80` (normal), `$FAD9` (shift),
+  `$FB32` (C=), `$FB8B` (CTRL), `$FBE4` (caps lock). The top-row arrow
+  keys (key numbers 83-86) give `$91/$11/$9d/$1d` in every table, so
+  modifiers only show up in `$D3`. The main CRSR key gives `$ff` under
+  CTRL (why CTRL+main CRSR never worked for word jump) and `$91` under
+  SHIFT or C=.
+
+### Memory map
+
+VDC RAM (16K, stock flat 128): `$0000` screen, `$0800` attributes,
+`$1000`/`$1800` scrollback's saved copy of the live dialogue window
+(1840 bytes each), `$2000` character set. Every attribute sits `$0800`
+above its character, both in the live screen and in the save area.
+
+Main RAM: history ring of 200 rows x (80 chars + 80 attributes), bank 0
+`$4000-$7E7F` (chars) and `$8000-$BE7F` (attributes) -- RAM under the
+BASIC ROMs, reached by setting `$FF00` = `$0E` (I/O + KERNAL in, BASIC
+out; Guide figure 7-5) only inside the copy loops. The client code must
+stay below `$4000` for this (today it ends near `$2B00`); if it grows
+past that, move `HIST_CHARS_HI` up and shrink `HIST_LINES`.
+
+### Output, history and the scrollback view
+
+- `dlg_putc` keeps its own row/column and writes the VDC directly
+  (screen code + attribute per character). It handles CR, RVS on/off,
+  CLR, HOME and the 16 color codes. Wrap is deferred, so an exactly
+  80-character line followed by CR doesn't leave a blank row.
+- Scrolling = two block copies (1760 chars, 1760 attributes) plus a
+  fill of row 22. Before each scroll, the top row is read back out of
+  VDC RAM into the history ring. CLR first saves every row in use to
+  history.
+- Scrollback: the first CRSR UP block-copies the live window to the
+  save area. Rows above the offset come from history (CPU copy); the
+  rest come from the save area (block copy). A one-line step shifts the
+  window by block copy (bottom-up, row by row, when moving down: the
+  chip only copies upward through memory) and draws one new row. A page
+  (C= + CRSR, 20 rows) redraws everything. Any other key, and any
+  dialogue output, restores the saved live window. The status row shows
+  "Scrollback: NNN of NNN" while scrolled back.
+- Speed in x128 at 1 MHz: about 38 scrolled lines/sec (~26 ms per line,
+  most of it waiting on the block copies). FAST (2 MHz) mode is an easy
+  doubling for the CPU part if it's ever needed, since the VIC screen
+  isn't used in 80 columns.
+
+### Not done yet / ideas
+
+- A 64K VDC (C128DCR) could hold ~300 history rows in VDC RAM itself
+  (`$4000-$FFFF`) and draw scrollback entirely by block copy, no CPU
+  bytes at all -- needs R28 bit 4 (DRAM type) detection and a charset
+  reload. The main-RAM ring works on every 128, so it came first.
+- VDC hardware scrolling (R12/R13 display start) can't split the
+  screen, so it can't keep rows 23/24 still -- not usable here.
+- No SwiftLink yet: `fill` and `clock` are local stand-ins for server
+  output. Server CLR (`$93`) handling is written but only reachable
+  once real server text arrives.
+- The 128 has no Page Up/Down keys. If C= + main-keyboard CRSR paging
+  (back only) proves awkward, reprogramming F-key strings via PFKEY to
+  single bytes would free up F1-F8 as plain keys.
+
 ## Open questions
 
 - Does a real 128-native client want its own `Translation` enum member
@@ -134,8 +240,5 @@ inventing a new addressing approach.
   probably a 128" from "this is a C64", and it's a Client-Type-preset
   side effect, not an explicit flag -- may be worth promoting to a real
   `is_c128`-style field if more features here end up gated on it.
-- 80-column mode's VDC has its own separate character/color RAM the
-  VIC-II 40-column path doesn't -- any 80-column-specific rendering work
-  will need its own memory-layout section here once started, the same
-  level of detail `CLIENT_MECHANICS.md` has for the C64 client's zero
-  page/interrupt/SwiftLink layout.
+- ~~80-column mode's VDC memory layout~~ -- see "80-column (VDC) text
+  output" above.

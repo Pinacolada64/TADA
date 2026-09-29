@@ -85,9 +85,10 @@ call_sliding_input:
         sta strptr+1
         lda #0
         sta inputbuf            ; start from an empty string each call
-        lda #EDITOR_MAXLEN
-        sta maxlen
-        lda #EDITOR_MAXLEN-1
+        lda scr_cols             ; 40 or 80 -- client-128.asm's live
+        sta maxlen               ; screen width (EDITOR_MAXLEN above is
+        sec                      ; the 40-column value it started as)
+        sbc #1
         sta strwin                ; one column short of the full screen
                                    ; width, deliberately -- see comment above
         lda #EDITOR_ROW
@@ -175,6 +176,15 @@ gk1:
         pha             ; save key pressed
         jsr rvsoff      ; turn off cursor
         pla
+
+; client-128.asm's editor_key_hook sees every key first -- in 80 columns
+; CRSR UP/DOWN drive the scrollback view (vdc_screen.asm's vdc_key_hook)
+; and any other key leaves it. Carry set = consumed, just redraw; carry
+; clear = .A unchanged, carry on as below.
+        jsr editor_key_hook
+        bcc gk1_not_hooked
+        jmp getstr
+gk1_not_hooked:
 
 ; CTRL+CRSR-LEFT/CTRL+CRSR-DOWN -> word left/right, checked ahead of
 ; the ordinary edkeys table since GETIN's own byte for a cursor key
