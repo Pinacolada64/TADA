@@ -305,6 +305,64 @@ kr_c75d:
         sta CIAPRA
         rts
 
+; --- kr_init / kr_keylog: make CTRL+CRSR produce a key at all ---
+; The stock KERNAL's CTRL decode table ($EC78 on this ROM, confirmed by
+; disassembling $EB48's own 4-entry pointer table at $EB79 2026-09-28)
+; maps both unshifted CRSR keys (key-numbers 2 = CRSR RIGHT, 7 = CRSR
+; DOWN) to $FF, "no character" -- so CTRL+CRSR never reached the
+; keyboard buffer, GETIN never saw it, and keymap.asm's CTRL+CRSR word-
+; left/right defaults could never fire. (This, not a VICE/GTK Tab-key
+; quirk, is why keymap_default's 2026-08-24 note saw no GETIN event
+; for Tab+cursor.)
+; Fix: KEYLOG ($028F) -- the vector kr_scan already hands decoding off
+; through -- points at kr_keylog instead of stock $EB48. With CTRL held
+; it selects kr_ctrl_table, a RAM copy of the ROM's CTRL table with
+; those two entries patched to the plain $1D/$11, then continues into
+; the stock decode at $EAE0 exactly as $EB48 would; SHFLAG still reads
+; CTRL, so keymap_dispatch sees (MOD_CTRL, $1D/$11). Without CTRL it
+; just jumps to $EB48, unchanged. (Stock $EB48 also picks the CTRL
+; table for any SHFLAG with CTRL set, and its SHIFT+C= charset toggle
+; only fires for SHFLAG == 3 exactly, so skipping it here under CTRL
+; changes nothing else.)
+KR_ROM_CTRL_TABLE = $ec78
+KR_CTRL_TABLE_LEN = 65          ; 64 keys + the $FF end marker
+KR_KEY_CRSR_RIGHT = 2           ; key-numbers -- see CLAUDE.md's
+KR_KEY_CRSR_DOWN  = 7           ; SFDX table
+
+kr_init:
+        ldx #KR_CTRL_TABLE_LEN-1
+kr_init_copy:
+        lda KR_ROM_CTRL_TABLE,x
+        sta kr_ctrl_table,x
+        dex
+        bpl kr_init_copy
+        lda #$1d                ; CRSR RIGHT
+        sta kr_ctrl_table+KR_KEY_CRSR_RIGHT
+        lda #$11                ; CRSR DOWN
+        sta kr_ctrl_table+KR_KEY_CRSR_DOWN
+        sei                     ; KEYLOG is read from the IRQ -- don't
+        lda #<kr_keylog         ; let it see a half-written vector
+        sta KEYLOG
+        lda #>kr_keylog
+        sta KEYLOG+1
+        cli
+        rts
+
+kr_keylog:
+        lda SHFLAG
+        and #$04                ; CTRL
+        beq kr_keylog_stock
+        lda #<kr_ctrl_table
+        sta KEYTAB
+        lda #>kr_ctrl_table
+        sta KEYTAB+1
+        jmp $eae0               ; stock decode, same as $EB48's own exit
+kr_keylog_stock:
+        jmp $eb48
+
+kr_ctrl_table:
+        area KR_CTRL_TABLE_LEN, $ff
+
 ; --- Scratch state -- own copy per scan, not shared with anything else ---
 kr_c76d:
         byte 0,0,0,0,0,0,0,0

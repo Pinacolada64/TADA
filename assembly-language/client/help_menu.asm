@@ -50,7 +50,8 @@ BOX_ROWS    = 25
 ; $2100, NOT $2000 -- see tada-client.asm's OVERLAY_BUF comment for why
 ; (BACKUP_COLORS overlaps $2000-$20cf; a real, live-reproduced bug this
 ; exact module first exposed).
-        orig $2900
+        orig $3000                ; must match OVERLAY_BUF -- see
+                                  ; tada-client.asm
 
 module_start:
         tsx                          ; save the real stack depth we were

@@ -109,6 +109,10 @@ keyboard_rollover_pp.asm: keyboard_rollover.asm
 # Step 2: assemble to .prg and .sym in one pass
 $(TARGET).prg: $(TARGET)_pp.asm
 	$(C64LIST) $(TARGET)_pp.asm -prg:$(TARGET) -sym -ovr
+	@# Fail if the resident program has grown into OVERLAY_BUF -- see
+	@# tada-client.asm's OVERLAY_BUF comment (this collision has recurred
+	@# three times as floating labels drift upward).
+	python3 ./check_overlay_margin.py $(TARGET)_pp.sym
 
 # Step 3: convert symbols to VICE label format
 # Note: C64List names the sym file after the input file (tada-client_pp.sym)

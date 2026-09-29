@@ -140,10 +140,11 @@ KEY_NUM_RUNSTOP = 63
 ; file's own loops), so there's no live rotation/clock to fight with.
 STATUS_ROW_SCREEN = SCREEN_RAM + 920
 
-; $2900 -- see tada-client.asm's OVERLAY_BUF comment (moved here
+; $3000 (was $2900 until 2026-09-28) -- see tada-client.asm's OVERLAY_BUF comment (moved here
 ; 2026-09-02 after this module's own first live test re-triggered the
 ; BACKUP_CHARS/BACKUP_COLORS collision that comment documents).
-        orig $2900
+        orig $3000                ; must match OVERLAY_BUF -- see
+                                  ; tada-client.asm
 
 module_start:
         tsx                          ; save the real stack depth we were

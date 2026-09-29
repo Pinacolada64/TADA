@@ -233,7 +233,16 @@ KERNAL_PLOT = $fff0
 ; standalone .prg assemblies with their own hardcoded `orig $2900`, not
 ; part of this compilation unit at all (see load_petscii_editor's own
 ; comment on the embedded-load-address convention that makes that safe).
-OVERLAY_BUF = $2900
+;
+; **Recurred again 2026-09-28**: BACKUP_COLORS' end had crept to $28d0
+; (48 bytes of margin left), and ~110 bytes of new keyboard code pushed
+; rx_buf's page alignment from $1f00 to $2000 -- everything after it
+; moved up a whole page, putting BACKUP_COLORS' end at $29d0, 208 bytes
+; into the overlay area. Moved to $3000 (~1.5KB of headroom again), and
+; the Makefile's $(TARGET).prg rule now fails the build outright if
+; BACKUP_COLORS ever reaches OVERLAY_BUF, instead of leaving it to be
+; re-checked by hand. Every overlay module's `orig` must still match.
+OVERLAY_BUF = $3000
 
 ; Fixed low-page jump table the petscii_editor overlay (and any future
 ; loadable module) calls through instead of depending on this resident
@@ -361,6 +370,8 @@ start:
         jsr init_nmi             ; install our receive handler before the
         jsr init_swiftlink       ; ACIA is told to start raising NMIs on it
         jsr init_sid             ; silence the SID chip, clear playback state
+        jsr kr_init              ; CTRL+CRSR decode fix -- see its own
+                                  ; comment in keyboard_rollover.asm
         jsr init_irq             ; install the IRQ dispatcher (sid_play +
                                   ; round-robin task table)
 

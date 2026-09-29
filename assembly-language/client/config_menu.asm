@@ -36,11 +36,12 @@ BOX_ROWS    = 12
 ; SCREEN_RAM/COLOR_RAM/CHROUT/GETIN are macro_preprocessor.py built-ins
 ; (C64_CONSTANTS) -- no {const:} needed for those here.
 
-; $2900 -- see tada-client.asm's OVERLAY_BUF comment for why (BACKUP_
+; $3000 (was $2900 until 2026-09-28) -- see tada-client.asm's OVERLAY_BUF comment for why (BACKUP_
 ; COLORS drifts upward as the resident program grows and has now
 ; overlapped this address twice -- help_menu.asm first exposed it,
 ; keymap_menu.asm exposed the regression 2026-09-02).
-        orig $2900
+        orig $3000                ; must match OVERLAY_BUF -- see
+                                  ; tada-client.asm
 
 module_start:
         tsx                          ; save the real stack depth we were

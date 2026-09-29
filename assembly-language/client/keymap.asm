@@ -146,8 +146,18 @@ keymap_table:
 ; Still worth confirming CTRL+CRSR specifically via real typed input,
 ; on real hardware or a differently-configured VICE, before relying on
 ; it.
+;
+; RESOLVED 2026-09-28: the real cause was the KERNAL, not VICE -- its
+; CTRL decode table maps both CRSR keys to $FF ("no character"), so
+; CTRL+CRSR never produced a GETIN event on any machine. Fixed by
+; keyboard_rollover.asm's kr_init/kr_keylog (see its own comment).
+; Same date, word-left moved from CTRL+CRSR-LEFT to CTRL+CRSR-RIGHT so
+; both defaults sit on the unshifted keys.
 keymap_default:
-        byte MOD_CTRL, $9d, ACTION_WORD_LEFT
+        byte MOD_CTRL, $1d, ACTION_WORD_LEFT  ; CRSR RIGHT, not LEFT ($9d):
+                                    ; both word moves on the unshifted
+                                    ; cursor keys, no SHIFT needed
+                                    ; (Ryan's ask, 2026-09-28)
         area MACRO_TEXT_LEN, $20
         byte MOD_CTRL, $11, ACTION_WORD_RIGHT
         area MACRO_TEXT_LEN, $20
