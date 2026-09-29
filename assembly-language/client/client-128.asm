@@ -22,10 +22,17 @@
 ; The 80-column (VDC) path (2026-09-29) keeps the same row layout but
 ; draws dialogue itself -- vdc.asm (8563 register/block-copy/fill
 ; primitives, modeled on the editor ROM's own $CDCC/$C40D/$C4A5) and
-; vdc_screen.asm (dialogue output with block-copy scrolling, a 200-row
+; vdc_screen.asm (dialogue output with block-copy scrolling, a 150-row
 ; scrollback history in bank 0 RAM under BASIC, CRSR UP/DOWN to view
 ; it). The input row still goes through input_editor.asm's KERNAL
 ; PLOT/CHROUT, which the editor points at the VDC in 80 columns.
+;
+; The Keymap Editor (same day) is the C64 client's own keymap_menu.asm,
+; built in (keymap_host_128.asm hosts it, keymap_128.asm holds the table
+; and dispatch); F7 opens it in either mode, and KEYMAP.CFG is shared
+; with the C64 client. See 128_CLIENT_MECHANICS.md's Keymap Editor
+; section, and MMU_CLIENT_CONFIG below for why the program may now
+; extend past $4000.
 ;
 ; Verified against Compute's 128 Programmer's Guide (pdftotext -layout;
 ; see 128_CLIENT_MECHANICS.md's own citation note about why a naive
@@ -67,6 +74,19 @@
 ; Widest screen (VDC) -- sizes inputbuf and status_line; scr_cols holds
 ; the live width (40 or 80).
 {const: MAX_COLS 80}
+
+; MMU configuration for the whole run: bank 0 RAM at $4000-$bfff (BASIC
+; ROM out), I/O and the KERNAL in -- Compute's 128 Programmer's Guide
+; figure 7-5. The Keymap Editor (keymap_menu.asm, built in) pushes the
+; program past $4000, and the scrollback history lives in $6000-$bfff.
+; Checked against the ROMs 2026-09-29 before relying on it: the editor
+; ($C000-$CFFF) never writes $FF00, and the KERNAL only does so in
+; save/restore pairs (INDFET/INDSTA for LOAD/SAVE, DMA, the IRQ/NMI/BRK
+; stubs) or in JSRFAR/JMPFAR, which this client never calls. The one
+; catch: the KERNAL IRQ runs irq_handler with $FF00 = $00, so everything
+; an interrupt reaches must stay below $4000 -- see check_128_layout.py.
+{const: MMU_CONFIG_REG    $ff00}
+{const: MMU_CLIENT_CONFIG $0e}
 
 ; KERNAL
 {const: KERNAL_CHROUT $ffd2}
@@ -125,6 +145,11 @@ start:
         ; 64-mode only (9 is TAB here).
         lda #11
         jsr KERNAL_CHROUT
+
+        lda #MMU_CLIENT_CONFIG
+        sta MMU_CONFIG_REG
+        jsr km_init_keyboard      ; F-keys -> single codes, CTRL+CRSR fix
+        jsr init_keymap           ; KEYMAP.CFG, or the defaults
 
         ; Which screen is the editor actually driving? $D7 bit 7 (set =
         ; 80 columns) rather than the $D505 switch bit: the switch is only
@@ -199,6 +224,8 @@ demo_msg_loop:
 ; In 80 columns there's no window to widen: the editor's window is the
 ; whole screen and dialogue output bypasses CHROUT (vdc_screen.asm).
 main_loop:
+        tsx                       ; JT_RESUME_LOCAL (the Keymap Editor
+        stx main_loop_sp          ; closing) comes back to this depth
         lda screen_mode
         beq main_loop_vdc
         jsr set_window_full
@@ -247,18 +274,44 @@ out_char_vdc:
 
 ; --- editor_key_hook: called by input_editor.asm for every key. .A =
 ; the GETIN byte; carry set = consumed (the editor just redraws), carry
-; clear = .A untouched, handle as usual. Only 80 columns has anything to
-; hook (scrollback, vdc_key_hook). ---
+; clear = .A is what the editor should handle (normally the key itself).
+;
+; Order: any key first clears a status-row override ("Saved keymap."
+; etc.). In 80 columns, plain CRSR UP/DOWN (any modifier but CTRL, so C=
+; still pages) belong to scrollback (vdc_key_hook); every other key
+; leaves scrollback. Then the keymap (keymap_128.asm's km_dispatch) gets
+; the key -- word jumps, home/end, macros, F7 for the editor. So in 80
+; columns a keymap binding on plain CRSR UP/DOWN (the defaults' Home/
+; End) is shadowed by scrollback; in 40 columns it works as on the C64. ---
 editor_key_hook:
-        pha
+        sta editor_hook_key
+        lda status_override+1
+        beq editor_hook_no_msg
+        lda #0
+        sta status_override+1
+        jsr draw_status_row
+editor_hook_no_msg:
         lda screen_mode
-        beq editor_key_hook_vdc
-        pla
-        clc
-        rts
-editor_key_hook_vdc:
-        pla
+        bne editor_hook_keymap
+        lda editor_hook_key
+        cmp #$91
+        beq editor_hook_crsr
+        cmp #$11
+        bne editor_hook_leave_sb
+editor_hook_crsr:
+        lda $d3
+        and #4                    ; CTRL + CRSR: keymap territory
+        bne editor_hook_leave_sb
+        lda editor_hook_key
         jmp vdc_key_hook
+editor_hook_leave_sb:
+        jsr sb_exit
+editor_hook_keymap:
+        lda editor_hook_key
+        jmp km_dispatch
+
+editor_hook_key:
+        byte 0
 
 done:
         rts
@@ -396,11 +449,16 @@ draw_status_blank_loop:
         cpx scr_cols
         bne draw_status_blank_loop
 
+        ldx sb_offset
+        beq draw_status_not_sb
+        jsr sb_status_text
+        jmp draw_status_have_msg
+draw_status_not_sb:
+        lda status_override       ; a one-off message (the Keymap Editor's
+        ldy status_override+1     ; "Saved keymap.") until the next key
+        bne draw_status_have_msg
         lda #<status_msg
         ldy #>status_msg
-        ldx sb_offset
-        beq draw_status_have_msg
-        jsr sb_status_text
 draw_status_have_msg:
         sta draw_status_read+1
         sty draw_status_read+2
@@ -437,8 +495,9 @@ draw_status_clock_loop:
         iny
         jmp draw_status_clock_loop
 draw_status_blit:
-        lda screen_mode
-        bne draw_status_vic
+        lda screen_mode           ; VIC: 40 columns, or 80 columns with the
+        ora km_present_on         ; Keymap Editor open (its status row is
+        bne draw_status_vic       ; VIC row 23 then, see keymap_host_128.asm)
         jmp vdc_draw_status_line
 draw_status_vic:
         ldx #0
@@ -706,6 +765,10 @@ init_irq:
 
 irq_handler:
         jsr irq_dispatch_next
+        lda km_present_on         ; Keymap Editor open in 80 columns: copy
+        beq irq_handler_chain     ; its changes to the VDC (see
+        jsr km_present_tick       ; keymap_host_128.asm)
+irq_handler_chain:
         jmp (irq_orig)
 
 irq_dispatch_next:
@@ -727,6 +790,7 @@ irq_dispatch_jmp:
 {include:input_editor.asm}
 {include:vdc.asm}
 {include:vdc_screen.asm}
+{include:keymap_host_128.asm}
 
 irq_orig:
         byte 0,0                 ; saved KERNAL IRQ vector, set by init_irq
@@ -807,3 +871,20 @@ inputbuf:
 ; scr_cols wide) before copying it to whichever screen is live.
 status_line:
         area MAX_COLS, 0
+
+; status_override: a message draw_status_row shows instead of status_msg
+; (high byte 0 = none), set by JT_BUILD_STATUS_LINE, cleared by the next
+; key editor_key_hook sees.
+status_override:
+        word 0
+main_loop_sp:
+        byte 0
+
+; --- Above this line: everything an interrupt can reach, which must stay
+; below $4000 (see MMU_CLIENT_CONFIG). Below: the Keymap Editor, which
+; runs only in mainline, so it can sit above $4000. keymap_menu.asm is the
+; C64 client's own source, built for the 128 by the Makefile's
+; keymap_menu_128.asm rule (constants_128.asm instead of constants.asm,
+; no overlay `orig`). ---
+{include:keymap_menu_128_pp.asm}
+{include:keymap_128.asm}

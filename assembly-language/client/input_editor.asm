@@ -85,6 +85,12 @@ call_sliding_input:
         sta strptr+1
         lda #0
         sta inputbuf            ; start from an empty string each call
+        sta strlen              ; ...and say so: strlen used to keep the
+                                ; previous line's length, so a word-right
+                                ; (next_word) on a fresh empty line spun
+                                ; forever -- it compares cpos against
+                                ; strlen, and cright can't move past the
+                                ; terminator (2026-09-29)
         lda scr_cols             ; 40 or 80 -- client-128.asm's live
         sta maxlen               ; screen width (EDITOR_MAXLEN above is
         sec                      ; the 40-column value it started as)
@@ -186,45 +192,12 @@ gk1:
         jmp getstr
 gk1_not_hooked:
 
-; CTRL+CRSR-LEFT/CTRL+CRSR-DOWN -> word left/right, checked ahead of
-; the ordinary edkeys table since GETIN's own byte for a cursor key
-; ($9d/$11) doesn't change when CTRL is also held -- CTRL isn't part
-; of the cursor keys' own PETSCII encoding the way it is for letters.
-; $D3 is the KERNAL's live SHIFT/CONTROL/Commodore/ALT status bitmask,
-; updated by the same keyboard scan that fills GETIN's buffer (0=none,
-; 1=SHIFT, 2=Commodore, 4=CONTROL, 8=ALT -- confirmed via Compute's 128
-; Programmer's Guide, Appendix A); bit 2 (value 4) is CONTROL. Reading
-; it here (never writing) is safe regardless of anything else this
-; file does with zero page. F1/F7 used to be word-jump instead --
-; dropped because the 128's KERNAL auto-expands F1-F8 into whole
-; programmed command strings before GETIN ever sees a single
-; distinguishing byte for "F1 was pressed" (confirmed via the same
-; guide: pressing F8 "automatically enters the MONITOR command"),
-; making them unusable as plain single-key shortcuts on this client.
-        cmp #157        ; $9d - cursor left
-        bne gk1_check_ctrl_down
-        pha             ; stash key byte in case CTRL isn't held
-        lda $d3
-        and #4          ; CONTROL bit
-        beq gk1_left_plain
-        pla             ; CTRL held -- discard stashed byte, word-jump instead
-        jsr prev_word
-        jmp getstr
-gk1_left_plain:
-        pla             ; CTRL not held -- restore byte for normal dispatch
-        jmp gk1_dispatch
-gk1_check_ctrl_down:
-        cmp #17          ; $11 - cursor down
-        bne gk1_dispatch
-        pha
-        lda $d3
-        and #4
-        beq gk1_down_plain
-        pla
-        jsr next_word
-        jmp getstr
-gk1_down_plain:
-        pla
+; Word left/right used to be hardcoded here (CTRL+CRSR-LEFT/DOWN, read
+; off $D3 -- F1/F7 before that, dropped because the 128's KERNAL expanded
+; them into whole strings). Since 2026-09-29 they're keymap bindings like
+; everything else (keymap_128.asm, reached through editor_key_hook above;
+; the defaults are CTRL+CRSR-RIGHT/DOWN, shared with the C64 client), and
+; client-128.asm's km_init_keyboard reprograms the F-keys to plain codes.
 gk1_dispatch:
         ldx numkeys     ; see if key needs special handling
 gk2:
@@ -325,29 +298,33 @@ linefeed:
 space_rts:
         rts             ; return to getting input
 
+; prev_word: cursor to the start of the word before it -- skip any
+; spaces to the left, then the word itself, one cleft (which also slides
+; the view) per character. Rewritten 2026-09-29: the upstream version did
+; `dec cpos` AND `jsr cleft` per step, moving two characters at a time
+; and only testing every other one, so whether it stopped at a space
+; depended on word-length parity -- "one two" went straight to the start
+; of the line (found by vice128_keymap_test.py).
 prev_word:
-        ldy cpos        ; get cursor position in string
-        cpy lftlim      ; leftmost position?
-        beq prev_rts    ; yes, return
-        dec cpos
         ldy cpos
-        lda (strptr),y  ; get char under cursor
-        cmp #' '        ; found a space?
-        beq prev_space  ; yes, check for multiple spaces
-        jsr cleft       ; no, move string left
-        jmp prev_word   ; repeat
-
-prev_space:
-        jsr cleft       ; cleft decrements cpos & lcol if necessary
-        ldy cpos        ; get cursor position within string
-        cpy lftlim      ; leftmost position?
-        beq prev_rts    ; yes, return
-        lda (strptr),y  ; get char under cursor
-        cmp #' '        ; found a space?
-        bne prev_space  ; no
-
-prev_space2:
-        jsr cright      ; put cursor after space
+        cpy lftlim
+        beq prev_rts            ; at the left limit
+        dey
+        lda (strptr),y          ; character left of the cursor
+        cmp #' '
+        bne prev_in_word
+        jsr cleft               ; a space: step over it
+        jmp prev_word
+prev_in_word:
+        ldy cpos
+        cpy lftlim
+        beq prev_rts
+        dey
+        lda (strptr),y
+        cmp #' '
+        beq prev_rts            ; start of the word reached
+        jsr cleft
+        jmp prev_in_word
 
 prev_rts:
         rts             ; return to getting input

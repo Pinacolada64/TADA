@@ -28,10 +28,13 @@
 ; every used row when the server clears it) is read back out of VDC RAM
 ; into a ring of HIST_LINES rows in main RAM, characters and attributes
 ; both, so colors survive scrollback. The ring lives in bank 0 under the
-; BASIC ROMs ($4000-$bfff), reached by flipping $FF00 to $0e (I/O and
-; KERNAL still in, BASIC out -- Compute's 128 Programmer's Guide Figure
-; 7-5) only for the duration of each copy loop. This code sits below
-; $4000, so it stays visible in both configurations, and the KERNAL IRQ
+; BASIC ROMs ($6000-$bedf), reached with $FF00 = $0e (I/O and KERNAL
+; still in, BASIC out -- Compute's 128 Programmer's Guide Figure 7-5).
+; client-128.asm has run with that configuration throughout since the
+; Keymap Editor moved in (MMU_CLIENT_CONFIG); the copy loops below still
+; set it themselves and put back whatever they found, which costs nothing
+; and keeps them correct if they're ever called with ROMs in. This code
+; sits below $4000, so it stays visible either way, and the KERNAL IRQ
 ; saves/restores $FF00 around itself, so interrupts stay on throughout.
 ;
 ; Scrollback view: the first scroll-back key block-copies the live window
@@ -52,9 +55,13 @@ VDC_STATUS_ROW     = 23          ; client-128.asm's STATUS_ROW
 VDC_ATTR_HI        = $08         ; attribute = character address + $0800
 LIVE_SAVE_HI       = $10         ; save area = live address + $1000
 
-HIST_LINES         = 200         ; rows of history (200 * 80 = 16000 bytes each
-HIST_CHARS_HI      = $40         ; for chars at $4000-$7e7f and attributes
-HIST_ATTR_HI       = $40         ; $4000 above them, $8000-$be7f)
+HIST_LINES         = 150         ; rows of history (150 * 80 = 12000 bytes each
+HIST_CHARS_HI      = $60         ; for chars at $6000-$8edf and attributes
+HIST_ATTR_HI       = $30         ; $3000 above them, $9000-$bedf). Was 200
+                                 ; rows at $4000 until the built-in Keymap
+                                 ; Editor pushed the program past $4000;
+                                 ; the code must now end below $6000
+                                 ; (check_128_layout.py)
 MMU_CR             = $ff00
 MMU_HIST_CONFIG    = $0e         ; bank 0 RAM $4000-$bfff, I/O, KERNAL ROM
 SB_PAGE            = 20          ; lines per C= + CRSR page

@@ -185,12 +185,14 @@ VDC RAM (16K, stock flat 128): `$0000` screen, `$0800` attributes,
 (1840 bytes each), `$2000` character set. Every attribute sits `$0800`
 above its character, both in the live screen and in the save area.
 
-Main RAM: history ring of 200 rows x (80 chars + 80 attributes), bank 0
-`$4000-$7E7F` (chars) and `$8000-$BE7F` (attributes) -- RAM under the
-BASIC ROMs, reached by setting `$FF00` = `$0E` (I/O + KERNAL in, BASIC
-out; Guide figure 7-5) only inside the copy loops. The client code must
-stay below `$4000` for this (today it ends near `$2B00`); if it grows
-past that, move `HIST_CHARS_HI` up and shrink `HIST_LINES`.
+Main RAM: history ring of 150 rows x (80 chars + 80 attributes), bank 0
+`$6000-$8EDF` (chars) and `$9000-$BEDF` (attributes) -- RAM under the
+BASIC ROMs (Guide figure 7-5). It started as 200 rows at `$4000`, back
+when only the copy loops switched `$FF00` to `$0E`; since the Keymap
+Editor moved in (below), the client runs with `$FF00` = `$0E` the whole
+time, the program extends past `$4000`, and the ring moved up to make
+room. `check_128_layout.py` (run by the build) fails if the program
+reaches `$6000`.
 
 ### Output, history and the scrollback view
 
@@ -227,8 +229,117 @@ past that, move `HIST_CHARS_HI` up and shrink `HIST_LINES`.
   output. Server CLR (`$93`) handling is written but only reachable
   once real server text arrives.
 - The 128 has no Page Up/Down keys. If C= + main-keyboard CRSR paging
-  (back only) proves awkward, reprogramming F-key strings via PFKEY to
-  single bytes would free up F1-F8 as plain keys.
+  (back only) proves awkward, F1-F8 are now plain keys (the Keymap
+  Editor work reprograms them, below) and could take paging instead.
+
+## Keymap Editor (shared with the C64 client) -- built 2026-09-29
+
+The C64 client's Keymap Editor popup (`keymap_menu.asm`) is built into
+this client from the same source; the 128 keeps its own resident half.
+Tested by `vice128_keymap_test.py` (9/9): runs the client with a scratch
+`.d64` on drive 8, so `KEYMAP.CFG` really goes through KERNAL SAVE/LOAD.
+
+### Files
+
+- `keymap_menu.asm` -- shared, unchanged in behavior for the C64 (its
+  `KEYMAP.ED` still assembles byte-identical). The C64-only addresses it
+  read directly are now named in `constants.asm`: `KM_SHFLAG` (`$028D`),
+  `KM_SFDX` (`$CB`), `KM_KEY_NONE` (`$40`). An `{ifdef:c128}` block
+  extends its key-number table with the 128's 24 extra keys.
+- `constants_128.asm` -- the 128's values for those (`$D3`, `$D4`, 88).
+  The Makefile's `keymap_menu_128.asm` rule swaps it in for
+  `constants.asm` and comments out the overlay `orig`; the build passes
+  `-def:c128`.
+- `keymap_host_128.asm` -- the nine `JT_*` entry points the popup calls,
+  as real labels (the C64's jump table lives at `$C000`, ROM on the 128):
+  save/restore screen, resume, status line, and the popup's cursor.
+- `keymap_128.asm` -- `keymap_table` + `KEYMAP_TABLE_PTR`, the C64's six
+  default bindings, `init_keymap` (LOAD `KEYMAP.CFG` or copy the
+  defaults), and `km_dispatch`, which runs the actions on
+  `input_editor.asm` (prev_word/next_word/home, a new `km_end`, macro
+  text typed in through the editor's own `insert`/`cright`).
+
+`KEYMAP.CFG` is the same file on both machines: same 15 x 27-byte slots,
+same modifier bits (the 128's ALT is masked off), nav keys as GETIN
+bytes, macro triggers as matrix key numbers -- keys 0-63 are the same
+physical keys on both keyboards.
+
+### Drawing in 40 and 80 columns
+
+The popup is written for a 40x25 VIC-II screen and pokes `$0400`/`$D800`
+directly.
+
+- **40 columns:** it draws on the real screen. `JT_SAVE_SCREEN` backs up
+  screen + colors to `$1300` (free RAM, "reserved for foreign language
+  systems and function key software") and greys the colors, like the
+  C64's `save_screen`.
+- **80 columns:** the VIC screen still exists, it just isn't on the
+  monitor. The popup keeps drawing there, and `km_present_tick`, run
+  from the IRQ while the popup is open, copies VIC rows 2-23 to VDC
+  columns 20-59, three rows per tick (a full pass every ~130 ms),
+  translating colors through the editor's own table. A shadow copy at
+  `$1300` means only changed cells are written, so an idle popup is
+  just a compare loop. The dialogue is block-copied to the scrollback
+  save area and greyed; closing block-copies it back.
+- While the popup is open in 80 columns the IRQ owns the VDC: the status
+  row goes to VIC row 23 (40 wide) instead, and `JT_RESTORE_SCREEN`
+  stops the IRQ copy before touching the VDC itself.
+
+### MMU and memory
+
+The program now ends near `$4610`, so the client sets `$FF00` = `$0E`
+(RAM at `$4000-$BFFF`, I/O and KERNAL in) at startup and keeps it.
+Checked against the ROMs first: the editor never writes `$FF00`, and the
+KERNAL only does in save/restore pairs (INDFET/INDSTA used by LOAD/SAVE,
+DMA, the IRQ/NMI/BRK stubs) or in JSRFAR/JMPFAR, which the client never
+calls. The KERNAL IRQ runs `irq_handler` with `$FF00` = `$00`, so all
+IRQ-reachable code and data sits before the popup include in
+`client-128.asm`; `check_128_layout.py` fails the build if that part
+crosses `$4000`.
+
+### 128-specific keyboard fixes (`km_init_keyboard`)
+
+- **Function keys:** the editor expands F1-F8 into strings ("LIST"+RETURN
+  for F7) before GETIN sees a key, so the shared default "F7 opens the
+  editor" could never fire. PFKEY (`$FF65`) reprograms F1-F8 to
+  single bytes, the C64's own codes `$85-$8C`. BASIC's strings come back
+  with a reset.
+- **CTRL + main CRSR keys:** the 128's CTRL decode table (`$FB8B`) maps
+  them to `$FF` -- the same KERNAL quirk the C64 client fixed. The
+  editor reads its decode tables through RAM pointers at `$033E`
+  (normal, shift, C=, CTRL, ALT, caps; SCNKEY `$C647`), so a RAM copy
+  of the CTRL table with CRSR RIGHT/DOWN patched to `$1D/$11` is hooked
+  in at `$0344`.
+- LOAD/SAVE need `SETBNK` (`$FF68`) on the 128; `init_keymap` sets
+  bank 0 for data and filename once, and the KERNAL keeps it.
+
+### Key priority in `editor_key_hook`
+
+Any key first clears a status message ("Saved keymap."). In 80 columns
+plain CRSR UP/DOWN (any modifier but CTRL) go to scrollback; everything
+else leaves scrollback and goes to the keymap. So the defaults' Home/End
+on plain CRSR UP/DOWN only work in 40 columns; CLR/HOME still gives Home
+in 80. The old hardcoded CTRL+CRSR word jump in `input_editor.asm` is
+gone -- the keymap does it.
+
+### Bugs fixed on the way
+
+- `prev_word` (from sliding-input.asm) moved two characters per step
+  (`dec cpos` plus `jsr cleft`) and only tested every other one, so
+  word-left jumped past spaces depending on word length. Rewritten as
+  skip-spaces then skip-word, one `cleft` per character.
+- `call_sliding_input` never reset `strlen`, so word-right on a fresh
+  empty line after a submitted one spun forever.
+
+### Not done yet
+
+- Output arriving while the popup is open (once SwiftLink lands) must be
+  held back: dialogue output would touch the VDC while the IRQ copy owns
+  it.
+- `read_error_channel` (shared) loops until EOI, which never comes if no
+  drive answers at all -- a real 128 or C64 with the drive switched off
+  would hang on Save. Exiting on ST bit 7 too would fix it for both.
+- The popup's F-key/CTRL fixes stay in place after the client exits.
 
 ## Open questions
 

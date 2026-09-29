@@ -140,3 +140,13 @@ JT_CLEAR_SCREEN              = $c02f
 ; 6 bytes this used to start at, then JT_GET_CURSOR/JT_SET_CURSOR/
 ; JT_CLEAR_SCREEN the 9 after that ($c029 until 2026-09-28).
 KEYMAP_TABLE_PTR             = $c032
+
+; Keyboard-scan zero page keymap_menu.asm reads live, named here so the
+; same source also builds into client-128.asm (constants_128.asm gives
+; the 128's values: SHFLAG $d3, SFDX $d4, no-key 88). KM_SFDX holds the
+; matrix key number of the key held right now (keyboard_rollover.asm's
+; own SFDX, $cb), KM_KEY_NONE when nothing is held; KM_SHFLAG is the
+; live SHIFT(1)/C=(2)/CTRL(4) bitmask.
+KM_SHFLAG                    = $028d
+KM_SFDX                      = $cb
+KM_KEY_NONE                  = $40

@@ -660,7 +660,7 @@ kcc_got_key:
         cmp #$03                   ; RUN/STOP -- cancel, no change
         beq kcc_done
         sta capture_key
-        lda $028d
+        lda KM_SHFLAG
         and #(MOD_SHIFT|MOD_CMDRE|MOD_CTRL)
         sta capture_mod
         jsr capture_check_duplicate
@@ -1261,8 +1261,8 @@ capture_macro_combo:
         jsr kcc_setup
 cmc_wait_release:
         jsr update_capture_display
-        lda $cb                     ; SFDX -- wait for whatever's
-        cmp #$40                     ; currently held (almost always
+        lda KM_SFDX                     ; SFDX -- wait for whatever's
+        cmp #KM_KEY_NONE             ; currently held (almost always
         bne cmc_wait_release          ; 'T' itself, still physically
                                         ; down) to be released before
                                         ; watching for a NEW keypress --
@@ -1270,9 +1270,9 @@ cmc_wait_release:
                                         ; comment on why this exists
 cmc_wait:
         jsr update_capture_display
-        lda $cb                     ; SFDX -- the only thing this loop
+        lda KM_SFDX                     ; SFDX -- the only thing this loop
                                        ; ever reads to decide capture
-        cmp #$40
+        cmp #KM_KEY_NONE
         beq cmc_wait                 ; no key currently held -- keep
                                        ; waiting/blinking
         cmp #KEY_NUM_RUNSTOP
@@ -1287,7 +1287,7 @@ cmc_have_key:
         sta capture_key              ; a MATRIX position here, NOT a
                                         ; decoded byte -- see this
                                         ; routine's own header comment
-        lda $028d
+        lda KM_SHFLAG
         and #(MOD_SHIFT|MOD_CMDRE|MOD_CTRL)
         sta capture_mod
         jsr capture_check_macro_duplicate
@@ -1462,12 +1462,13 @@ dbr_macro_key_raw:
 ; complaint the ORIGINAL nav-capture display fix was for); the matrix-
 ; derived byte always renders as the physical letter/symbol.
 update_capture_display:
-        lda $028d                  ; SHFLAG -- live modifier state
+        lda KM_SHFLAG                  ; SHFLAG -- live modifier state
         and #(MOD_SHIFT|MOD_CMDRE|MOD_CTRL)
         sta capture_live_mod
-        lda $cb                    ; SFDX -- live matrix coordinate of
-                                     ; the key currently held, $40 = none
-        cmp #$40
+        lda KM_SFDX                    ; SFDX -- live matrix coordinate of
+                                     ; the key currently held, KM_KEY_NONE
+                                     ; ($40 on the C64) = none
+        cmp #KM_KEY_NONE
         bne ucd_have_key
         lda #0                     ; no key held -- key_names' $00
         sta capture_live_key        ; sentinel blanks the field for us
@@ -2896,6 +2897,17 @@ key_num_unshifted:
         byte $2b,$50,$4c,$2d,$2e,$3a,$40,$2c
         byte $5c,$2a,$3b,$13,$01,$3d,$5e,$2f
         byte $31,$5f,$04,$32,$20,$02,$51,$03
+{ifdef:c128}
+; The 128's extra keys, key numbers 64-87 (its SFDX is $d4, 88 = none),
+; from the 128 KERNAL's own unshifted decode table ($FA80+64 in
+; kernal-318020-05.bin): HELP, keypad 8 5, TAB, keypad 2 4 7 1, ESC,
+; keypad + -, LINE FEED, ENTER, keypad 6 9 3, ALT, keypad 0 ., the four
+; top-row arrows, NO SCROLL ($ff = no character). Keypad digits show as
+; their plain digit.
+        byte $84,$38,$35,$09,$32,$34,$37,$31
+        byte $1b,$2b,$2d,$0a,$0d,$36,$39,$33
+        byte $08,$30,$2e,$91,$11,$9d,$1d,$ff
+{endif}
 
 ; .a = one character -> row_scratch+15+describe_combo_col, advances
 ; the column. Bounds-checked against the 15-byte combo field so a

@@ -10,8 +10,8 @@ reliably -- see the VICE testing notes):
      banner with real capitals on row 0, reverse status row 23,
      hardware cursor off, empty history
   B  "fill": window shows lines 39-60 on rows 0-21 with their colors,
-     43 rows went to history, and the ring (bank 0 RAM $4000/$8000)
-     holds line 38 as its newest row
+     43 rows went to history, and the ring (bank 0 RAM $6000/$9000)
+     holds line 38 as its newest row (bank 0 RAM $6000/$9000)
   C  CRSR UP: one line back -- history row on top, live rows shifted
      down by block copy, status row shows the position
   D  three more CRSR UP: offset 4
@@ -175,8 +175,8 @@ try:
     rows = {r: vdc_row(r) for r in (0, 21, 22)}
     hist_count = byte_at(SYMS['hist_count'])
     slot = 42                            # newest pushed row = 43rd push
-    ring_chr = dump('ram', 0x4000 + slot * 80, 80)
-    ring_attr = dump('ram', 0x8000 + slot * 80, 80)
+    ring_chr = dump('ram', 0x6000 + slot * 80, 80)   # vdc_screen.asm's
+    ring_attr = dump('ram', 0x9000 + slot * 80, 80)  # HIST_CHARS_HI/ATTR
     check('B fill: lines 39-60 on rows 0-21 in color, 43 rows of history, '
           'ring holds line 38 with its colors',
           decode(rows[0]) == line_text(39)
