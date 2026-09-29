@@ -144,6 +144,29 @@ class TestFormatItem(unittest.TestCase):
         self.assertIn('Server Update', lines[3])
         self.assertEqual(lines[4:], ['Line one.', 'Line two.'])
 
+    def test_header_date_uses_player_date_format(self):
+        item = {'title': 'T', 'body': ['x'], 'lifetime': 'permanent',
+                'posted_at': '2026-01-02T09:30:00'}
+        ctx = MagicMock()
+        ctx.player.client_settings.screen_columns = 80
+        ctx.player.client_settings.date_format = '%m/%d/%Y'
+        ctx.player.client_settings.time_format = '%H:%M'
+        ctx.player.client_settings.timezone = ''
+        date_line = format_item(item, ctx)[0]
+        self.assertIn('01/02/2026', date_line)
+        self.assertNotIn('2026-01-02', date_line)
+
+    def test_range_lifetime_dates_use_player_date_format(self):
+        item = {'title': 'T', 'body': ['x'], 'lifetime': 'range',
+                'start_date': '2026-07-01', 'end_date': '2026-07-31',
+                'posted_at': '2026-06-01T00:00:00'}
+        ctx = MagicMock()
+        ctx.player.client_settings.screen_columns = 80
+        ctx.player.client_settings.date_format = '%m/%d/%Y'
+        ctx.player.client_settings.timezone = ''
+        lifetime_line = format_item(item, ctx)[1]
+        self.assertIn('07/01/2026 to 07/31/2026', lifetime_line)
+
     def test_centered_body_rerenders_per_viewer_screen_width(self):
         # The whole point of storing 'body' as structured Line dicts
         # instead of pre-rendered strings: the same saved item displays

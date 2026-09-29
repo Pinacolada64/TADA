@@ -72,21 +72,26 @@ class TestLoadSave(unittest.TestCase):
 
 
 class TestConfig(unittest.TestCase):
+    """load_config()/save_config() are a back-compat shim over
+    board/meta.py's per-board storage (board_meta.json) -- see that
+    module's docstring -- so 'the config file' here means the default
+    board's (id 1) own meta entry, not a standalone flat file anymore."""
+
     def test_missing_file_returns_defaults(self):
-        config = load_config(Path('/nonexistent/board_config.json'))
+        config = load_config(Path('/nonexistent/board_meta.json'))
         self.assertEqual(config, {'anonymous_mode': 'ask'})
 
     def test_round_trip(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / 'board_config.json'
+            path = Path(tmp) / 'board_meta.json'
             save_config({'anonymous_mode': 'yes'}, path)
             self.assertEqual(load_config(path), {'anonymous_mode': 'yes'})
 
-    def test_partial_saved_config_still_fills_in_defaults(self):
-        # e.g. a config file saved before some future second setting
+    def test_partial_saved_meta_still_fills_in_defaults(self):
+        # e.g. a meta file saved before some future second setting
         # existed -- missing keys should still resolve to their default.
         with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / 'board_config.json'
+            path = Path(tmp) / 'board_meta.json'
             path.write_text('{}')
             self.assertEqual(load_config(path), {'anonymous_mode': 'ask'})
 
@@ -221,12 +226,43 @@ class TestFormatThreadSummary(unittest.TestCase):
 
 
 class TestFormatThreadListing(unittest.TestCase):
-    def test_header_row_has_the_three_column_titles(self):
+    def test_header_row_has_the_four_column_titles(self):
         threads = [{'id': 1, 'title': 'Hello', 'replies': []}]
         lines = format_thread_listing(threads, width=40)
         self.assertIn('##', lines[0])
+        self.assertIn('Stat', lines[0])
+        self.assertIn('Resp', lines[0])
         self.assertIn('Title', lines[0])
-        self.assertIn('Replies', lines[0])
+
+    def test_new_root_shows_new_stat(self):
+        import datetime
+        threads = [{'id': 1, 'title': 'Hello', 'replies': [],
+                    'posted_at': '2026-01-05T00:00:00'}]
+        lines = format_thread_listing(threads, width=40, since=datetime.date(2026, 1, 1))
+        self.assertIn('*NEW*', lines[1])
+
+    def test_new_reply_only_shows_nrb_stat(self):
+        import datetime
+        threads = [{'id': 1, 'title': 'Hello', 'posted_at': '2025-12-01T00:00:00',
+                    'replies': [{'posted_at': '2026-01-05T00:00:00'}]}]
+        lines = format_thread_listing(threads, width=40, since=datetime.date(2026, 1, 1))
+        self.assertIn('*NRB*', lines[1])
+
+    def test_frozen_shows_fzn_stat_even_if_new(self):
+        import datetime
+        threads = [{'id': 1, 'title': 'Hello', 'replies': [], 'frozen': True,
+                    'posted_at': '2026-01-05T00:00:00'}]
+        lines = format_thread_listing(threads, width=40, since=datetime.date(2026, 1, 1))
+        self.assertIn('*FZN*', lines[1])
+        self.assertNotIn('*NEW*', lines[1])
+
+    def test_nothing_new_shows_no_stat_code(self):
+        import datetime
+        threads = [{'id': 1, 'title': 'Hello', 'replies': [], 'posted_at': '2025-01-01T00:00:00'}]
+        lines = format_thread_listing(threads, width=40, since=datetime.date(2026, 1, 1))
+        self.assertNotIn('*NEW*', lines[1])
+        self.assertNotIn('*NRB*', lines[1])
+        self.assertNotIn('*FZN*', lines[1])
 
     def test_row_shows_id_and_reply_count(self):
         threads = [{'id': 7, 'title': 'Hello', 'replies': [{}, {}]}]

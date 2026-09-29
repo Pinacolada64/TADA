@@ -104,6 +104,18 @@ class TestEligibleRooms(unittest.TestCase):
         self.assertIn(3, eligible)
         self.assertIn(5, eligible)
 
+    def test_excludes_rooms_holding_another_monster(self):
+        # He shares the room's one monster slot -- moving in would overwrite
+        # (and moving out would erase) whatever monster was already there,
+        # e.g. the session's wild horse.
+        from encounters.dwarf import MONSTER_NUMBER, _eligible_rooms
+        m = _make_map()
+        m.rooms[2].monster = 136          # wild horse
+        m.rooms[3].monster = MONSTER_NUMBER  # the Dwarf himself
+        eligible = _eligible_rooms(m)
+        self.assertNotIn(2, eligible)
+        self.assertIn(3, eligible)
+
 
 class TestRelocate(unittest.TestCase):
     def test_relocate_places_and_persists(self):

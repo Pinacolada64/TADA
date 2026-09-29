@@ -450,13 +450,16 @@ async def _try_spontaneous_charm(ctx: 'GameContext', monster: dict, monster_no: 
         return False  # full party -- SPUR: `if a1>0 if a2>0 if a3>0` skips the offer entirely
 
     from monsters import monster_display_name
-    await ctx.send(f'{monster_display_name(monster, capitalize=True)} looks at you adoringly...')
+    mdisp = monster_display_name(monster, capitalize=True)
+    look = 'look' if flags.get('multiple_monsters') else 'looks'
+    await ctx.send(f'{mdisp} {look} at you adoringly...')
     player.pending_charm = {
         'level':          level,
         'room_no':        room_no,
         'monster_number': monster_no,
         'name':           name,
-        'display_name':   monster_display_name(monster, capitalize=True),
+        'display_name':   mdisp,
+        'multiple_monsters': bool(flags.get('multiple_monsters')),
         'strength':       int(monster.get('strength', 0) or 0),
         'to_hit':         int(monster.get('to_hit', 0) or 0),
     }
@@ -575,9 +578,8 @@ async def try_shadow_ally(ctx: 'GameContext') -> None:
     ])
     raw = await ctx.prompt('Let them join? (Y/N)')
     if not raw or raw.strip().upper() != 'Y':
-        honor = int(getattr(player, 'honor', 0) or 0)
-        if honor >= _SHADOW_DECLINE_HONOR_FLOOR:
-            player.honor = honor - _SHADOW_DECLINE_HONOR_PENALTY
+        if int(getattr(player, 'honor', 0) or 0) >= _SHADOW_DECLINE_HONOR_FLOOR:
+            player.adjust_honor(-_SHADOW_DECLINE_HONOR_PENALTY)
         await ctx.send('"Perhaps later.."')
         return
 

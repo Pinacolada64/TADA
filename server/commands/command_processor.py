@@ -278,6 +278,11 @@ class CommandProcessor:
         if len(parts[0]) > 1 and parts[0].startswith('"'):
             parts = ['"', parts[0][1:]] + parts[1:]
 
+        # Split ':waves' into [':', 'waves'] so PoseCommand receives the
+        # emote text when the player uses the bare : shortcut without a space.
+        if len(parts[0]) > 1 and parts[0].startswith(':'):
+            parts = [':', parts[0][1:]] + parts[1:]
+
         cmd, _ = self.find_command(parts[0])
         args   = parts[1:]
         if cmd is None:
@@ -333,6 +338,10 @@ class CommandProcessor:
                 player = getattr(effective_ctx, 'player', None)
                 if player is not None:
                     player.moves_today = int(getattr(player, 'moves_today', 0) or 0) + 1
+                # Also flags this result for simple_server.py's game loop,
+                # which only runs the hunger/thirst tick (survival.py) on
+                # moves/attacks -- not on every command -- see survival.py.
+                result.data['counts_as_move'] = True
             return result
         except Exception as exc:
             log.exception("Error executing command %r", cmd.name)

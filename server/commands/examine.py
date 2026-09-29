@@ -85,7 +85,8 @@ def _item_type_phrase(item, raw: dict | None, plural: bool) -> str | None:
         if plural:
             return 'magical weapons' if is_magic else 'weapons'
         return 'a magical weapon' if is_magic else 'a weapon'
-    if isinstance(item, Rations):
+    if isinstance(item, Rations) or getattr(item, 'category', None) in (
+            ItemCategory.FOOD, ItemCategory.DRINK):
         kind = raw.get('kind') if raw else getattr(item, 'kind', None)
         if kind == 'food':
             return 'food'
@@ -108,7 +109,8 @@ def _raw_item_data(ctx, item) -> dict | None:
         return None
     if isinstance(item, Weapon):
         pool = getattr(ctx.server, 'weapons', None) or []
-    elif isinstance(item, Rations):
+    elif isinstance(item, Rations) or getattr(item, 'category', None) in (
+            ItemCategory.FOOD, ItemCategory.DRINK):
         pool = getattr(ctx.server, 'rations', None) or []
     else:
         pool = getattr(ctx.server, 'items', None) or []

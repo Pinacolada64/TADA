@@ -26,6 +26,9 @@ Settings managed here
                       client_settings.colors.highlight_color
   N  News Display     command_settings.news.show_all  (New only / Full directory)
   W  Movement Keys    command_settings.wasd_movement  (Compass / WASD)
+  Y  Say Split        command_settings.say.split      (On / Off) — a ',,'
+                      in a 'say' splits it into a mid-sentence attribution
+                      (commands/say.py)
   T  Client Type      client_settings.screen_columns/screen_rows/translation
                       — presets (C64/C128/TADA client) or a custom size.
                         Available over a real PETSCII connection too (a
@@ -90,9 +93,9 @@ _SETTING_HELP: dict[str, list[str]] = {
         '|cyan|More Prompt|reset|',
         "When output would be longer than one screen, pauses with a "
         "'-- More --' prompt between pages: Enter for the next page, "
-        "B or - to go back a page, Q to stop reading early. When off, "
+        "B or - to go back a page, [Q] Stop reading early. When off, "
         "everything is sent at once and scrolls by regardless of length. "
-        "Same setting as the standalone 'mp' command.",
+        "Same setting as the standalone |command|mp|reset| command.",
         '',
     ],
     'p': [
@@ -101,7 +104,7 @@ _SETTING_HELP: dict[str, list[str]] = {
         "If enabled, reading a message board thread (BOARD command) "
         "shows one message at a time with a [R]eply/[M]ail poster/<#>/"
         "Enter menu after each, instead of dumping the whole thread at "
-        "once. Same setting as the standalone 'pm' command.",
+        "once. Same setting as the standalone |command|pm|reset| command.",
         '',
     ],
     'c': [
@@ -141,8 +144,18 @@ _SETTING_HELP: dict[str, list[str]] = {
         "Controls what the bare single-letter movement keys mean. "
         "'Compass' (the default) uses n/s/e/w/u/d. 'WASD' uses w/a/s/d "
         "for north/west/south/east instead (u still means Up). Full "
-        "words (north, south, ...) and 'go <direction>' always work "
-        "either way.",
+        "words (north, south, ...) and |command|go <direction>|reset| "
+        "always work either way.",
+        '',
+    ],
+    'y': [
+        '',
+        '|cyan|Say Split|reset|',
+        "If enabled, a ',,' inside a SAY splits the line into a "
+        'mid-sentence attribution instead of one leading quote: '
+        '\'say This is something,,up with which I will not put!\' shows '
+        'as "This is something," you exclaim, "up with which I will not '
+        'put!" instead of "You exclaim, ...". Off by default.',
         '',
     ],
 }
@@ -156,9 +169,10 @@ _COLORS_GRAPHICS_HELP: dict[str, list[str]] = {
     'c': [
         '',
         '|cyan|Colors|reset|',
-        "Sets the text color and highlight color used for |white|[bracketed]"
-        "|reset| text throughout your session, e.g. item names or emphasis "
-        "in messages.",
+        "Sets the text color, highlight color used for |white|[bracketed]"
+        "|reset| text throughout your session (e.g. item names or emphasis "
+        "in messages), and command color used for game-command references "
+        "(e.g. |command|.h h|reset| in help text).",
         '',
     ],
     's': [
@@ -276,7 +290,8 @@ _DATE_TIME_HELP: dict[str, list[str]] = {
     'h': [
         '',
         '|cyan|Hourglass Display|reset|',
-        "Shows the current time in front of your command prompt. Purely "
+        "Shows the current time in front of your command prompt (on the "
+        "right side of the status line, on the C64 client). Purely "
         "a visual clock -- it doesn't yet affect in-game time limits or "
         "control 12-hour (AM/PM) vs 24-hour formatting or timezone.",
         '',
@@ -288,14 +303,34 @@ _DATE_TIME_HELP: dict[str, list[str]] = {
 # stored format shows its friendly name instead of the raw strftime
 # pattern; anything else (a value never set through this picker) shows
 # as 'Custom'.
+# Two columns, same 7 formats each: plain (no weekday) on the left,
+# a "Weekday, ..." twin of each on the right -- picking whether a
+# weekday shows up at all is otherwise nowhere in PREFS (it used to be
+# unconditionally prepended in board headers regardless of this choice;
+# Ryan's call 2026-08-27 was to fold it into the date format itself
+# instead, so a player can turn it off entirely). Column-8's weekday is
+# abbreviated for the abbreviated-month presets (13/14, matching 6/7)
+# and full otherwise, mirroring each row's own month style. Preset 8 is
+# the actual default (terminal.py's ClientSettings.date_format) --
+# matches what every date display looked like before this split.
 _DATE_FORMAT_PRESETS = [
-    ('1', 'Month Day, Year', '%B %d, %Y'),
-    ('2', 'MM/DD/YYYY',      '%m/%d/%Y'),
-    ('3', 'DD/MM/YYYY',      '%d/%m/%Y'),
-    ('4', 'YYYY-MM-DD',      '%Y-%m-%d'),
-    ('5', 'Day Month Year',  '%d %B %Y'),
+    ('1',  'Month Day, Year',           '%B %d, %Y'),
+    ('2',  'MM/DD/YYYY',                '%m/%d/%Y'),
+    ('3',  'DD/MM/YYYY',                '%d/%m/%Y'),
+    ('4',  'YYYY-MM-DD',                '%Y-%m-%d'),
+    ('5',  'Day Month Year',            '%d %B %Y'),
+    ('6',  'Mon Day, Year',             '%b %d, %Y'),  # short-month twins of 1/5,
+    ('7',  'Day Mon Year',              '%d %b %Y'),   # for a shorter board header
+    ('8',  'Weekday, Month Day, Year',  '%A, %B %d, %Y'),  # default -- see terminal.py
+    ('9',  'Weekday, MM/DD/YYYY',       '%A, %m/%d/%Y'),
+    ('10', 'Weekday, DD/MM/YYYY',       '%A, %d/%m/%Y'),
+    ('11', 'Weekday, YYYY-MM-DD',       '%A, %Y-%m-%d'),
+    ('12', 'Weekday, Day Month Year',   '%A, %d %B %Y'),
+    ('13', 'Weekday, Mon Day, Year',    '%a, %b %d, %Y'),
+    ('14', 'Weekday, Day Mon Year',     '%a, %d %b %Y'),
 ]
 _DATE_FORMAT_NAMES = {fmt: name for _, name, fmt in _DATE_FORMAT_PRESETS}
+_DATE_FORMAT_COLUMNS = len(_DATE_FORMAT_PRESETS) // 2  # rows per column (7)
 
 # Named strftime presets offered by the 'F' (Time Format) picker. Labels
 # are bracket-highlighted on their own option number ('[1]2-hour',
@@ -424,8 +459,10 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         wasd = getattr(ctx.player.command_settings, 'wasd_movement', False)
         t.add_row(['W', 'Movement Keys',
                    'Inverted T (WASD)' if wasd else 'Compass directions (N/E/S/W)', 'hw'])
+        say_split = getattr(ctx.player.command_settings.say, 'split', False)
+        t.add_row(['Y', 'Say Split', 'On' if say_split else 'Off', 'hy'])
 
-        valid_keys = ['X', 'M', 'P', 'C', 'N', 'T', 'D', 'W']
+        valid_keys = ['X', 'M', 'P', 'C', 'N', 'T', 'D', 'W', 'Y']
         keys_str   = ' '.join(valid_keys)
         return_key = getattr(cs, 'return_key', 'Enter')
         menu = (
@@ -433,8 +470,8 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
             + t.render(width=cs.screen_columns)
             + ['', f"{keys_str} to change, h<key> for details (e.g. h{valid_keys[0].lower()}), "
                    f"{return_key} to "
-                   + ('continue creating your character' if from_new_player
-                      else 'save settings and exit'),
+                   + ('continue creating your character.' if from_new_player
+                      else 'save settings and exit.'),
                    '']
         )
         # A new (non-expert) player is the one who most needs pointing at
@@ -467,6 +504,8 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
                       'format, hourglass clock)'),
                 ('W', 'Toggle Movement Keys (Compass directions / '
                       'Inverted T WASD)'),
+                ('Y', "Toggle Say Split (',,' in a say splits into a "
+                      "mid-sentence attribution)"),
             ]
             help_lines = (
                 ['', '|yellow|PREFS Options|reset|', '']
@@ -534,6 +573,12 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
             cs3.wasd_movement = not getattr(cs3, 'wasd_movement', False)
             await ctx.send(f"{option}{'|green|Inverted T (WASD)' if cs3.wasd_movement else '|green|Compass directions (N/E/S/W)'}|reset|")
 
+        elif ans == 'y':
+            option = "|white|Say Split: "
+            say_settings = ctx.player.command_settings.say
+            say_settings.split = not getattr(say_settings, 'split', False)
+            await ctx.send(f"{option}{'|green|On' if say_settings.split else '|red|Off'}|reset|")
+
         else:
             await ctx.send(f'Choose {",".join(valid_keys)}, or press {return_key} to save and exit.')
 
@@ -572,11 +617,12 @@ async def _colors_graphics_menu(ctx) -> None:
         colors     = getattr(cs, 'colors', None)
         text_col   = getattr(colors, 'text_color',      'White') if colors else 'White'
         hi_col     = getattr(colors, 'highlight_color', 'Red')   if colors else 'Red'
+        cmd_col    = getattr(colors, 'command_color',   'Cyan')  if colors else 'Cyan'
         border_key = getattr(cs, 'border_style', 'single')
 
         t = Table(headers=['Key', 'Setting', 'Current Value', 'Help'],
                   border_style=border_style_for_ctx(ctx))
-        t.add_row(['C', 'Colors', f'{text_col} text, {hi_col} highlight', 'hc'])
+        t.add_row(['C', 'Colors', f'{text_col} text, {hi_col} highlight, {cmd_col} command', 'hc'])
         from menu_system import MENU_COLOR_PRESETS
         _cur_menu_colors = getattr(cs, 'menu_colors', None)
         menu_colors_name = next(
@@ -593,16 +639,17 @@ async def _colors_graphics_menu(ctx) -> None:
             t.add_row(['B', 'Border Style', border_key.title(), 'hb'])
         t.add_row(['G', 'Graphics Test', '', 'hg'])
 
-        valid_keys = ['C', 'S', 'A']
+        valid_keys = ['c', 's', 'a']
         if not is_petscii:
-            valid_keys.append('B')
-        valid_keys.append('G')
+            valid_keys.append('b')
+        valid_keys.append('g')
 
         menu = (
             ['', '|yellow|Colors & Graphics|reset|', '']
             + t.render(width=cs.screen_columns)
             + ['', f"{' '.join(valid_keys)} to change, h<key> for details "
-                   f"(e.g. h{valid_keys[0].lower()}), {return_key} to return", '']
+                   f"(e.g. h{valid_keys[0].lower()}), {return_key} to go up a menu level"
+                if not ctx.player.is_expert else '', '']
         )
 
         raw = await ctx.prompt('colors & graphics', preamble_lines=menu)
@@ -610,7 +657,7 @@ async def _colors_graphics_menu(ctx) -> None:
             return
         ans = raw.strip().lower()
 
-        if len(ans) == 2 and ans[0] == 'h' and ans[1].upper() in valid_keys:
+        if len(ans) == 2 and ans[0] == 'h' and ans[1] in valid_keys:
             await ctx.send(*_COLORS_GRAPHICS_HELP[ans[1]])
             continue
 
@@ -625,7 +672,7 @@ async def _colors_graphics_menu(ctx) -> None:
         elif ans == 'g':
             await _show_graphics_test(ctx)
         else:
-            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to return.')
+            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to go up a menu level.')
 
 
 async def _terminal_menu(ctx) -> None:
@@ -670,7 +717,7 @@ async def _terminal_menu(ctx) -> None:
             ['', '|yellow|Terminal Settings|reset|', '']
             + t.render(width=cs.screen_columns)
             + ['', f"{' '.join(valid_keys)} to change, h<key> for details "
-                   f"(e.g. h{valid_keys[0].lower()}), {return_key} to return", '']
+                   f"(e.g. h{valid_keys[0].lower()}), {return_key} to go up a menu level", '']
         )
 
         raw = await ctx.prompt('terminal settings', preamble_lines=menu)
@@ -692,7 +739,7 @@ async def _terminal_menu(ctx) -> None:
             from commands.c64_display import pick_c64_display
             await pick_c64_display(ctx)
         else:
-            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to return.')
+            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to go up a menu level.')
 
 
 async def _date_time_menu(ctx) -> None:
@@ -729,7 +776,7 @@ async def _date_time_menu(ctx) -> None:
             ['', '|yellow|Date & Time|reset|', '']
             + t.render(width=cs.screen_columns)
             + ['', f"{' '.join(valid_keys)} to change, h<key> for details "
-                   f"(e.g. h{valid_keys[0].lower()}), {return_key} to return", '']
+                   f"(e.g. h{valid_keys[0].lower()}), {return_key} to go up a menu level", '']
         )
 
         raw = await ctx.prompt('date & time', preamble_lines=menu)
@@ -756,7 +803,7 @@ async def _date_time_menu(ctx) -> None:
                 ctx.player.set_flag(PlayerFlags.HOURGLASS)
                 await ctx.send(f'{option}|green|On|reset|')
         else:
-            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to return.')
+            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to go up a menu level.')
 
 
 # ---------------------------------------------------------------------------
@@ -805,6 +852,7 @@ async def _pick_border_style(ctx, codec) -> None:
     for num, letter, style_key, label in options:
         if ans in (num, letter, style_key, label.lower()):
             cs.border_style = style_key
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Border style set to {label}.')
             return
     await ctx.send('Border style unchanged.')
@@ -869,7 +917,9 @@ async def _show_graphics_test(ctx) -> None:
     from table import ASCII, SINGLE, DOUBLE, PETSCII
     from formatting import make_box_for_settings
 
-    lines = ['', '|yellow|Graphics Test|reset|', '']
+    lines = ['', '|yellow|Graphics Test|reset|', '', "Border Styles:", '']
+
+    # TODO: only display PETSCII border if is_petscii terminal
     for left, right in ((('ASCII', ASCII), ('Single', SINGLE)),
                         (('Double', DOUBLE), ('PETSCII', PETSCII))):
         lines.extend('  ' + ln for ln in _windowpane_pair_lines(left, right))
@@ -885,7 +935,7 @@ async def _show_graphics_test(ctx) -> None:
     lines.append(
         "If any of these look like garbage or boxes with question marks, "
         "try a different Border Style ('B'). On a real Commodore, PETSCII "
-        "not rendering right is usually a character-set/font issue rather "
+        "not rendering right is usually a character set/font issue rather "
         "than something to fix here."
     )
     await ctx.send(*lines)
@@ -923,7 +973,8 @@ async def _pick_colors(ctx) -> None:
             t.add_row([str(i), cn.value, swatch])
         return t.render(width=cs.screen_columns)
 
-    for attr, label in (('text_color', 'Text'), ('highlight_color', '[bracket] Highlight')):
+    for attr, label in (('text_color', 'Text'), ('highlight_color', '[bracket] Highlight'),
+                        ('command_color', 'Command')):
         current = getattr(colors, attr, None)
         await ctx.send(*(['', f'|yellow|{label} Color|reset| (current: {current}):']
                          + _palette_rows() + ['']))
@@ -937,6 +988,7 @@ async def _pick_colors(ctx) -> None:
                 chosen = palette[idx]
                 if colors:
                     setattr(colors, attr, chosen)
+                    ctx.player.unsaved_changes = True
                 await ctx.send(f'{label} color set to {chosen.value}.')
             else:
                 await ctx.send(f'{label} color unchanged - number out of range.')
@@ -960,11 +1012,11 @@ def _client_type_presets() -> list:
     never drift out of sync."""
     from terminal import Translation
     return [
-        ('1', 'Commodore 64',         40, 25, Translation.PETSCII),
-        ('2', 'Commodore 128',        40, 25, Translation.PETSCII),
-        ('3', 'Commodore 128',        80, 25, Translation.PETSCII),
-        ('4', 'TADA Client',          80, 25, Translation.ANSI),
-        ('5', 'Commodore 64 (ASCII)', 40, 25, Translation.ASCII),
+        ('1', 'Commodore 64 (PETSCII)', 40, 25, Translation.PETSCII),
+        ('2', 'Commodore 128',          40, 25, Translation.PETSCII),
+        ('3', 'Commodore 128',          80, 25, Translation.PETSCII),
+        ('4', 'TADA Client',            80, 25, Translation.ANSI),
+        ('5', 'Commodore 64 (ASCII)',   40, 25, Translation.ASCII),
     ]
 
 
@@ -1050,6 +1102,7 @@ async def _pick_client_type(ctx) -> None:
         if ans == num:
             cs.screen_columns = cols
             cs.screen_rows    = rows
+            ctx.player.unsaved_changes = True
             if encoding == Translation.PETSCII and not is_real_petscii:
                 # Apply the screen size, but never switch a non-PETSCII
                 # transport's translation to PETSCII -- that's what
@@ -1081,7 +1134,7 @@ async def _pick_client_type(ctx) -> None:
             # doesn't, in either PETSCII or ASCII-terminal mode), and so
             # does any ANSI/TADA client -- set as a side effect of picking
             # this client type, not asked separately.
-            if label not in ('Commodore 64', 'Commodore 64 (ASCII)'):
+            if label not in ('Commodore 64 (PETSCII)', 'Commodore 64 (ASCII)'):
                 cs.has_tab  = True
                 cs.tab_char = chr(9)
             else:
@@ -1113,6 +1166,7 @@ async def _pick_client_type(ctx) -> None:
 
     cs.screen_columns = cols
     cs.screen_rows    = rows
+    ctx.player.unsaved_changes = True
 
     if is_real_petscii:
         # Same guard as the preset branch above -- a real Commodore
@@ -1128,7 +1182,9 @@ async def _pick_client_type(ctx) -> None:
                         f'{translation.name} translation.')
         return
 
-    raw_trans = await ctx.prompt('PETSCII, ANSI color, or Plain text? (T/A/P)')
+    raw_trans = await ctx.prompt(
+        'T/A/P',
+        preamble_lines=['PETSCII, ANSI color, or Plain text? (T/A/P)'])
     ans_trans = (raw_trans or '').strip().lower()
     if ans_trans.startswith('t'):
         translation = Translation.PETSCII
@@ -1163,12 +1219,78 @@ async def _pick_client_type(ctx) -> None:
     await ctx.send(f'Client type set to: Custom, {cols}x{rows} screen size, {translation.name}.')
 
 
-def _tab_test_line() -> str:
-    """Build a sample line using |tab| so a player can see what their
-    current tab setting actually looks like -- goes through the normal
-    ctx.send() -> format_lines() pipeline, so it expands exactly like any
-    other |tab|/|tab:N| token in game text (see formatting._expand_tab_tokens())."""
-    return 'Tab test:|tab|1|tab|2|tab|3'
+def _tab_token_demo(ctx) -> list[str]:
+    """Borderless table showing the |tab|/!tab! token syntax a player would
+    type versus what it actually renders to for their current tab setting
+    -- plus the ||tab||/!!tab!! escape (see commands/help.py's 'colors'
+    topic, which established this same doubled-delimiter convention) that
+    shows the raw syntax as literal text instead of expanding it. Shown
+    regardless of whether the client has a real Tab key -- the token
+    syntax and its escape don't change either way, only what a real
+    (non-escaped) token expands to.
+
+    'You type:' cells are written pre-escaped (e.g. '!!tab!!') so the
+    single token-resolution pass inside ctx.send() renders them down to
+    the literal single-delimiter text a player would actually type
+    ('!tab!') -- writing the unescaped form directly would make ctx.send()
+    treat it as a real token and expand it instead of displaying it. Both
+    columns wrap the token in 'A'/'B' markers (matching each other) so
+    the tab's effect -- how much space lands between them -- is visible
+    even though the escaped 'You type:' side never actually expands.
+
+    'You get:' cells are pre-expanded here via the real
+    formatting._expand_tab_tokens(), not left as live tokens for
+    ctx.send() to expand later: Table's own column-width math measures
+    cell text via _visible_len(), which doesn't know a live tab token is
+    about to become several real spaces (it's built for zero-width color
+    tokens) -- letting one survive into the table would size the column
+    too narrow, then blow it out once ctx.send() actually expands it.
+    Pre-expanding sidesteps that entirely; the one exception is the escape
+    row's 'You get:' cell, which (like the 'You type:' column) is left in
+    escaped form since resolving an escape only trims two characters --
+    not worth a special case for that little drift.
+    """
+    from table import Table
+    from formatting import codec_for_settings, PETSCIICodec, _expand_tab_tokens
+
+    cs    = ctx.player.client_settings
+    codec = codec_for_settings(cs)
+    # PETSCII's easier-to-type '!' alternate delimiter (see formatting.py's
+    # _PETSCII_TOKEN_RE comment) for real Commodore clients; '|' otherwise.
+    d = '!' if isinstance(codec, PETSCIICodec) else '|'
+
+    def _expanded(token: str) -> str:
+        return _expand_tab_tokens(f'A{token}B', cs, codec)
+
+    t = Table(headers=['You type:', 'You get:'], border=False)
+    t.add_row([f'A{d}{d}tab{d}{d}B',       _expanded(f'{d}tab{d}')])
+    t.add_row([f'A{d}{d}tab:2{d}{d}B',     _expanded(f'{d}tab:2{d}')])
+    t.add_row([f'A{d}{d}tab:3{d}{d}B',     _expanded(f'{d}tab:3{d}')])
+    t.add_row([f'A{d}{d}{d}tab{d}{d}{d}B', f'A{d}{d}tab{d}{d}B'])
+    return t.render(width=cs.screen_columns)
+
+
+def _tab_alignment_demo(tab_width: int) -> list[str]:
+    """Build a numbered ruler plus a small |tab|-separated table, so a
+    player picking a tab width can see exactly which columns it lands on
+    (see formatting._expand_tab_tokens(), which advances each |tab| to the
+    next real tab stop rather than a flat tab_width-space repeat) and how
+    real text of varying width lines up -- or doesn't -- at those stops.
+    Only meaningful for simulated tabs (a real Tab key delegates stop
+    placement to the client terminal, invisible to this server), so
+    callers should skip this when tab.has_tab_key is True."""
+    if tab_width <= 0:
+        return []
+    ruler_width = max(tab_width * 4, 20)
+    ruler = ''.join(str((i + 1) % 10) for i in range(ruler_width))
+    stops = ''.join('^' if i % tab_width == 0 else ' ' for i in range(ruler_width))
+    return [
+        ruler,
+        stops,
+        'Name|tab|Lvl|tab|Class',
+        'Bob|tab|12|tab|Warrior',
+        'Alexandria|tab|3|tab|Wizard',
+    ]
 
 
 async def _pick_tab_settings(ctx) -> None:
@@ -1187,25 +1309,29 @@ async def _pick_tab_settings(ctx) -> None:
         preamble_lines=[
             '',
             '|yellow|Tab Key|reset|',
-            f"Does your client have a working Tab key? Currently: "
+            f"Does your client have a Tab key? Currently: "
             f"{'Yes' if tab.has_tab_key else 'No'}.",
             "If not, tabs are simulated with spaces instead.",
-            _tab_test_line(),
+            *_tab_token_demo(ctx),
         ],
     )
     if raw is None or not raw.strip():
         await ctx.send('Tab settings unchanged.')
         return
     tab.has_tab_key = raw.strip().lower().startswith('y')
+    ctx.player.unsaved_changes = True
     await ctx.send(f"Tab key: {'Yes' if tab.has_tab_key else 'No'}.")
 
     if tab.has_tab_key:
-        await ctx.send(_tab_test_line())
+        await ctx.send(*_tab_token_demo(ctx))
         return
 
     raw_width = await ctx.prompt(
         f'Tab width (0-{cs.screen_columns})',
-        preamble_lines=[f'Current tab width: {tab.tab_width}'],
+        preamble_lines=[
+            f'Current tab width: {tab.tab_width}',
+            *_tab_alignment_demo(tab.tab_width),
+        ],
     )
     if raw_width is None or not raw_width.strip().isdigit():
         return
@@ -1213,7 +1339,9 @@ async def _pick_tab_settings(ctx) -> None:
     if 0 <= width <= cs.screen_columns:
         tab.tab_width  = width
         tab.tab_output = ' ' * width
-        await ctx.send(f'Tab width set to {width}.', _tab_test_line())
+        ctx.player.unsaved_changes = True
+        await ctx.send(f'Tab width set to {width}.', *_tab_token_demo(ctx),
+                        *_tab_alignment_demo(width))
     else:
         await ctx.send(f'Tab width unchanged -- must be 0-{cs.screen_columns}.')
 
@@ -1244,6 +1372,7 @@ async def _pick_line_ending(ctx) -> None:
     for num, label, val, _desc in options:
         if ans == num or ans.lower() == label.lower():
             cs.line_ending = val
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Line ending set to {label}.')
             return
     await ctx.send('Line ending unchanged.')
@@ -1275,11 +1404,13 @@ async def _pick_timezone(ctx) -> None:
     for num, zone, label in _TIMEZONE_PRESETS:
         if ans == num or ans.lower() == label.lower():
             cs.timezone = zone
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Timezone set to {label}.')
             return
 
     if ans in zoneinfo.available_timezones():
         cs.timezone = ans
+        ctx.player.unsaved_changes = True
         await ctx.send(f'Timezone set to {ans}.')
         return
 
@@ -1288,16 +1419,26 @@ async def _pick_timezone(ctx) -> None:
 
 async def _pick_date_format(ctx) -> None:
     """Choose a date display format from a few common presets, previewed
-    against today's date."""
+    against today's date. Two stacked groups of the same 7 formats:
+    plain (1-7) first, then a "Weekday, ..." twin of each (8-14) --
+    see _DATE_FORMAT_PRESETS. Stacked rather than a wide side-by-side
+    table: this game's default screen width is 40 columns (real C64),
+    which mangles long labels ('Weekday, Month Day, Year') across
+    several table cells if they're squeezed into half the screen."""
     import datetime
 
     cs = ctx.player.client_settings
-    current = getattr(cs, 'date_format', '') or '%B %d, %Y'
+    current = getattr(cs, 'date_format', '') or '%A, %B %d, %Y'
     sample  = datetime.datetime.now()
 
     lines = ['', '|yellow|Date Format:|reset|', '']
-    for num, label, fmt in _DATE_FORMAT_PRESETS:
+    plain, with_weekday = (_DATE_FORMAT_PRESETS[:_DATE_FORMAT_COLUMNS],
+                            _DATE_FORMAT_PRESETS[_DATE_FORMAT_COLUMNS:])
+    for num, label, fmt in plain:
         lines.append(f'  {num}. {label:<16} {sample.strftime(fmt)}')
+    lines.append('')
+    for num, label, fmt in with_weekday:
+        lines.append(f'  {num}. {label:<25} {sample.strftime(fmt)}')
     # current may be a raw, unrecognized strftime pattern rather than a
     # friendly preset name -- escape '%' so ctx.send()'s %-token
     # substitution (tada_utilities.substitute_tokens) doesn't mistake a
@@ -1313,6 +1454,7 @@ async def _pick_date_format(ctx) -> None:
     for num, label, fmt in _DATE_FORMAT_PRESETS:
         if ans == num or ans.lower() == label.lower():
             cs.date_format = fmt
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Date format set to {label} ({sample.strftime(fmt)}).')
             return
     await ctx.send(f'Date format unchanged -- enter a number between 1 and {len(_DATE_FORMAT_PRESETS)}.')
@@ -1347,6 +1489,7 @@ async def _pick_time_format(ctx) -> None:
         plain = label.replace('[', '').replace(']', '')
         if ans == num or ans.lower() == plain.lower():
             cs.time_format = fmt
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Time format set to {plain} ({sample.strftime(fmt)}).')
             return
     await ctx.send(f'Time format unchanged -- enter a number between 1 and {len(_TIME_FORMAT_PRESETS)}.')
@@ -1512,6 +1655,7 @@ async def _pick_menu_colors(ctx) -> None:
         confirm = await ctx.prompt('Are these colors satisfactory? (y/n)')
         if confirm is not None and confirm.strip().lower().startswith('y'):
             cs.menu_colors = candidate
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Menu colors set to {label}.')
             return
         # 'n' (or anything else, or a blank) -- loop back to the picker
@@ -1647,6 +1791,7 @@ async def _pick_table_colors(ctx) -> None:
         confirm = await ctx.prompt('Are these colors satisfactory? (y/n)')
         if confirm is not None and confirm.strip().lower().startswith('y'):
             cs.table_colors = candidate
+            ctx.player.unsaved_changes = True
             await ctx.send(f'Table colors set to {label}.')
             return
         # 'n' (or anything else, or a blank) -- loop back to the picker

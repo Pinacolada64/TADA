@@ -148,6 +148,16 @@ class InventoryEntry:
         charges = getattr(self.item, 'charges', None)
         if charges is not None:
             d['charges'] = charges
+        # rations' price also doubles as survival.ration_restore()'s quality
+        # signal (a pricier drink/food restores more food/drink on EAT/
+        # DRINK) -- without persisting it, from_json() rebuilds a plain
+        # Item() with no .price at all, so ration_restore() silently falls
+        # back to its price=10 default (the lowest quality tier) for every
+        # carried ration after just one save/load round trip, regardless of
+        # what it actually was.
+        price = getattr(self.item, 'price', None)
+        if price is not None:
+            d['item_price'] = price
         if self.contents is not None:
             d['contents'] = self.contents.to_json()
         return d
@@ -407,10 +417,32 @@ class Inventory:
                 ration = _rations_by_number().get(d.get('item_id'))
                 if ration and str(ration.get('name', '')).lower() == item_name.lower():
                     item_kind = ration.get('kind')
-                    if item_kind == 'food':
-                        category = ItemCategory.FOOD
-                    elif item_kind == 'drink':
-                        category = ItemCategory.DRINK
+
+            # item_kind (food/drink) always wins over item_category here,
+            # not just when it was just backfilled above -- items.py's
+            # Rations class didn't set .category until 2026-08-25, so
+            # every ration saved before that fix has item_category=""
+            # and would otherwise permanently deserialize as generic
+            # ItemCategory.ITEM forever, even after the fix landed. That
+            # mismatched a freshly-bought ration's now-correct FOOD/DRINK
+            # category and broke Inventory.add()'s stacking match (found
+            # live: Railbender's pre-existing loaf of bread never stacked
+            # with a newly bought one). item_kind is reliably persisted
+            # already, so it's the authoritative source for rations.
+            if item_kind == 'food':
+                category = ItemCategory.FOOD
+            elif item_kind == 'drink':
+                category = ItemCategory.DRINK
+
+            item_price = d.get('item_price')
+            if item_price is None:
+                # Same idea as the item_kind backfill above, but for price
+                # (see to_json()'s comment -- price also drives
+                # survival.ration_restore()'s quality tier). Covers saves
+                # written before item_price started round-tripping.
+                ration = _rations_by_number().get(d.get('item_id'))
+                if ration and str(ration.get('name', '')).lower() == item_name.lower():
+                    item_price = ration.get('price')
 
             if category == ItemCategory.WEAPON:
                 from items import resolve_weapon
@@ -430,6 +462,7 @@ class Inventory:
                     kind=item_kind,
                     type=item_type,
                     condition=item_condition,
+                    price=item_price,
                 )
             entry = InventoryEntry(
                 item=item,

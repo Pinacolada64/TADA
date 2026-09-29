@@ -1,10 +1,8 @@
 """commands/drink.py — Drink a drink item from inventory."""
-import random
-
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from network_context import GameContext
-from survival import apply_poison, cure_poison, full_restore, ration_restore, restore_drink
+from survival import apply_poison, cure_poison, full_restore, restore_drink, serve_drink
 
 # Fountain of Youth (SPUR.SUB.S 'fountain' label): level 5, room 105 -- same
 # room commands/use.py's Galadriel's Vial fill logic already keys off (see
@@ -36,6 +34,10 @@ class DrinkCommand(Command):
             ('drink',         'List carried drinks and choose one'),
             ('drink <name>',  'Drink the item matching name'),
         ],
+        notes    = [
+            'Cheap drinks quench thirst less effectively -- a pricier '
+            'beverage restores more than a couple sips of tea.',
+        ],
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
@@ -58,7 +60,10 @@ class DrinkCommand(Command):
         if room is not None and getattr(room, 'food', 0) == _POOL_OF_WATER_ID:
             from config import config
             restore_drink(player, config.survival_max)
-            await ctx.send('You kneel and drink your fill..')
+            non_expert = " (Your thirst has been quenched.)" \
+                if player.drink is not None \
+                and not player.is_expert else ''
+            await ctx.send(f'You kneel and drink your fill.{non_expert}')
             return CommandResult.ok()
 
         entries = _drink_entries(player)
@@ -88,7 +93,8 @@ class DrinkCommand(Command):
                 lines.append(f'  {i:>2}. {getattr(e.item, "name", "?")}')
             lines.append('')
             await ctx.send(lines)
-            raw = await ctx.prompt(f'Drink which item (1-{len(entries)}, Enter to cancel)')
+            raw = await ctx.prompt(preamble_lines=f'(1-{len(entries)}, {ctx.player.return_key} to cancel)',
+                                   prompt_text="Drink which item")
             if not raw or not raw.strip():
                 return CommandResult.ok()
             try:
@@ -148,9 +154,7 @@ class DrinkCommand(Command):
             await try_charm_potion(ctx)
             return CommandResult.ok()
 
-        gs     = ration_restore(item)
-        amount = (random.randint(0, gs) % 6) + 1
-        restore_drink(player, amount)
+        serve_drink(player, item)
         new_drink = getattr(player, 'drink', drink_max)
 
         await ctx.send(f'You drink the {name}. You feel refreshed.')

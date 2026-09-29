@@ -11,8 +11,10 @@
 ; the Makefile's own preprocessing step for this file) -- c64list
 ; resolves labels across the include globally, so everything here can
 ; freely reference and be referenced by tada-client.asm's own labels
-; (CHROUT, QTSW, linelen, cursor_pos, linebuf, rx_head, rx_tail, sl_recv,
-; handle_recv_byte, sid_mode, status_build_from_table, status_push_buf).
+; (term_chrout, linelen, cursor_pos, linebuf, rx_head, rx_tail, sl_recv,
+; handle_recv_byte, sid_mode, status_build_from_table, status_push_buf),
+; and screen-output.asm's cursor routines (term_cursor_left/right,
+; so_set_cursor, so_poke, so_blank_row).
 ; This file is pure code motion: no behavior change from when these
 ; routines lived directly in tada-client.asm.
 
@@ -33,14 +35,13 @@
 ; redraw_status_row at DISPLAY time, not here at build time -- already
 ; tested and working that way, so this wrapper doesn't change it.
 ;
-; TODO (Ryan, 2026-08-20): once hourglass_mode display is wired up
-; (PlayerFlags.HOURGLASS, see the deferred phase-2 design in project
-; memory), the clock belongs on the RIGHT side of STATUS_ROW -- whatever
-; renders that will need to co-exist with this left-aligned message
-; content and redraw_status_row's own padding, not fight over the same
-; columns. Not designed yet; flagging so build_status_line's contract
-; (a left-aligned, null-terminated string) doesn't quietly become
-; something the clock rendering can't fit next to.
+; Hourglass clock (Ryan's 2026-08-20 TODO, done 2026-09-29): the clock
+; (PlayerFlags.HOURGLASS) lives on the RIGHT side of STATUS_ROW, in its
+; own clock_buf rather than the message queue -- redraw_status_row_to
+; truncates this left-aligned message content one column short of it
+; and pads only up to where it starts, so the two never fight over the
+; same columns and build_status_line's contract (a left-aligned, null-
+; terminated string) is unchanged. See clock_recv in tada-client.asm.
 build_status_line:
         jsr status_build_from_table
         jmp status_push_buf
@@ -62,15 +63,234 @@ sync_prompt_buf_done:
         sty prompt_len
         rts
 
+; --- relocate_prompt_to_row24 ---
+; Called right after sync_prompt_buf settles at wait_for_data's two
+; return points. The client has no protocol signal for "this is a
+; prompt label" distinct from ordinary dialogue text -- everything comes
+; through display_char identically. Ryan's call: treat "the settled
+; line ends in '>' (optionally followed by a trailing space)" as the
+; signal instead, since every real prompt in this codebase is generated
+; by ctx.prompt() and follows that convention ("main > ", "login > ",
+; etc -- see network_context.py). If it matches, it gets redrawn a
+; second time, pinned to PROMPT_ROW, so the player always types in the
+; same fixed place right under STATUS_ROW. Anything that doesn't match
+; this pattern (rare) is left exactly where it naturally landed.
+;
+; Deliberately does NOT erase the original inline copy first (confirmed
+; live 2026-08-20 this is the right call, not just a shortcut): doing so
+; means walking $9d (CRSR LEFT) back across however many rows the prompt
+; spans, and that walk is not reliable this deep into a session with
+; many custom (raw-memory, KERNAL-bypassing) scrolls behind it --
+; observed CRSR LEFT jump from row 22 stright to row 8 crossing a
+; boundary it should never cross in one step, almost certainly because
+; term_scroll_advance's raw SCREEN_RAM/COLOR_RAM copies (deliberately
+; bypassing KERNAL's own scroll -- that's this whole session's premise)
+; never update whatever internal screen-line bookkeeping stock CHROUT's
+; CRSR LEFT/RIGHT consult to decide where "the previous row" is, so that
+; bookkeeping silently drifts out of sync with what's actually on screen
+; the more custom scrolls accumulate. Left as a known open question for
+; the sliding-input follow-up, which will also lean on relative cursor
+; movement -- worth re-examining there rather than re-litigating here.
+; The accepted cost of skipping the erase: the prompt text briefly
+; appears twice (once inline where it naturally landed, once pinned at
+; PROMPT_ROW) until ordinary scrolling carries the inline copy away,
+; which happens within a line or two of normal play. (2026-09-28: the
+; CRSR LEFT drift above was CHROUT's own line bookkeeping going stale
+; under the raw scroll -- gone now that screen-output.asm owns the
+; cursor, so erasing the inline copy is feasible again if wanted.)
+;
+; 2026-09-28, with the input area (see screen-output.asm's header): the
+; inline copy IS erased now when it's the whole current dialogue row so
+; far (the normal case -- a prompt right after a CR), and the dialogue
+; cursor is parked at the start of that row (dlg_cursor_save) for
+; whatever arrives next. commit_input_line writes the prompt plus the
+; submitted command back into the dialogue at that spot on RETURN, so the
+; history shows "main > look" once instead of a bare "main > " and no
+; command. The input area is blanked before the redraw, so a shorter new
+; prompt can't leave the previous command visible past the cursor.
+relocate_prompt_to_row24:
+        lda prompt_relocate_enabled
+        beq relocate_prompt_rts    ; still mid SwiftLink negotiation --
+                                     ; see start:'s own comment
+        lda prompt_len
+        beq relocate_prompt_rts    ; empty -- nothing to relocate
+        ldx prompt_len
+        dex                         ; X = index of last char
+        lda prompt_buf,x
+        cmp #'>'
+        beq relocate_prompt_is_prompt
+        cmp #' '
+        bne relocate_prompt_rts    ; neither '>' nor a trailing space
+        cpx #0
+        beq relocate_prompt_rts    ; lone space, nothing before it
+        dex
+        lda prompt_buf,x
+        cmp #'>'
+        bne relocate_prompt_rts
+relocate_prompt_is_prompt:
+        lda crsr_col
+        cmp prompt_len
+        bne relocate_keep_inline   ; not a clean one-row copy at col 0
+        lda #0
+        sta crsr_col
+        lda prompt_len
+        sta async_count
+        jsr async_blank            ; blank the inline copy...
+        lda #0
+        sta crsr_col               ; ...and resume dialogue at its col 0
+        jmp relocate_save_dlg
+relocate_keep_inline:
+        jsr so_newline             ; leave it; dialogue resumes below it
+relocate_save_dlg:
+        jsr dlg_cursor_save
+        jsr input_area_collapse
+        jsr input_area_blank
+        ldx #PROMPT_ROW
+        ldy #0
+        jsr so_set_cursor
+        lda #1
+        sta input_in_area
+        lda #0
+        sta async_idx
+relocate_prompt_redraw_loop:
+        lda async_idx
+        cmp prompt_len
+        bcs relocate_prompt_rts
+        tax
+        lda prompt_buf,x
+        jsr term_chrout
+        inc async_idx
+        jmp relocate_prompt_redraw_loop
+relocate_prompt_rts:
+        rts
+
+; --- commit_input_line: RETURN pressed with the prompt in the input
+; area ---
+; Clears the input area back to one blank row and writes the prompt plus
+; the submitted line into the dialogue at the parked dialogue cursor,
+; CR-terminated -- the terminal-style history line relocate_prompt_to_
+; row24 erased the inline prompt copy in favor of. The server's response
+; then continues right below it. Called from read_line_done in place of
+; its plain CR echo when input_in_area is set.
+commit_input_line:
+        jsr input_area_collapse
+        jsr input_area_blank
+        lda #0
+        sta input_in_area
+        jsr dlg_cursor_restore
+        jsr print_prompt_buf
+        lda #0
+        sta async_idx
+commit_input_line_loop:
+        lda async_idx
+        cmp linelen
+        bcs commit_input_line_done
+        tax
+        lda linebuf,x
+        jsr term_chrout
+        inc async_idx
+        jmp commit_input_line_loop
+commit_input_line_done:
+        lda #$0d
+        jmp term_chrout
+
+; --- print_prompt_buf: term_chrout prompt_buf[0..prompt_len) at the
+; cursor ---
+print_prompt_buf:
+        lda #0
+        sta async_idx
+print_prompt_buf_loop:
+        lda async_idx
+        cmp prompt_len
+        bcs print_prompt_buf_done
+        tax
+        lda prompt_buf,x
+        jsr term_chrout
+        inc async_idx
+        jmp print_prompt_buf_loop
+print_prompt_buf_done:
+        rts
+
+; --- input_area_reset: redraw just the prompt in a fresh one-row input
+; area ---
+; For resume_local, after a local popup (F7's keymap editor) hands
+; control back mid-prompt: read_line restarts with an empty linebuf, so
+; whatever was typed before the popup is gone -- show the bare prompt to
+; match. A no-op unless the prompt lives in the input area.
+input_area_reset:
+        lda input_in_area
+        beq input_area_reset_rts
+        jsr input_area_collapse
+        jsr input_area_blank
+        ldx #PROMPT_ROW
+        ldy #0
+        jsr so_set_cursor
+        jmp print_prompt_buf
+input_area_reset_rts:
+        rts
+
+; --- service_async_area: show buffered server text while the prompt
+; sits in the input area ---
+; Shared by service_async_text and service_async_idle once input_in_area
+; is set. Blanks the input area, draws the incoming text at the parked
+; dialogue cursor (so it always lands in the dialogue history above the
+; status bar -- previously a page arriving while a short line sat on
+; PROMPT_ROW printed its first line onto row 24 itself, where the
+; reprint then overwrote it), then:
+;   - if nobody is typing and the text ended without a CR (a fresh
+;     prompt, e.g. the server's "main > " after a SID stream), pins that
+;     new prompt via relocate_prompt_to_row24;
+;   - otherwise re-parks the dialogue cursor and reprints the prompt and
+;     typed-so-far line in the input area, cursor back on cursor_pos.
+service_async_area:
+        jsr input_area_blank
+        jsr dlg_cursor_restore
+service_async_area_poll:
+        ldx #$08
+        ldy #$00
+service_async_area_wait:
+        jsr sl_recv
+        bcs service_async_area_got_byte
+        dey
+        bne service_async_area_wait
+        dex
+        bne service_async_area_wait
+        jmp service_async_area_settled
+service_async_area_got_byte:
+        jsr handle_recv_byte
+        jmp service_async_area_poll
+service_async_area_settled:
+        lda linelen
+        bne service_async_area_reprint
+        lda sid_mode
+        bne service_async_area_reprint
+        lda cur_line_len
+        beq service_async_area_reprint
+        jsr sync_prompt_buf
+        jsr relocate_prompt_to_row24
+        lda crsr_row
+        cmp sbar_row
+        bcs service_async_area_rts ; relocated -- done
+        ; not prompt-shaped: it stays in the dialogue as ordinary text,
+        ; and the old prompt goes back in the input area below
+service_async_area_reprint:
+        jsr dlg_cursor_save
+        ldx sbar_row
+        inx
+        ldy #0
+        jsr so_set_cursor
+        jmp reprint_input_line
+service_async_area_rts:
+        rts
+
 ; --- erase_input_line / reprint_input_line ---
 ; Bracket a service_async_text drain: erase blanks the input line
 ; (prompt_buf + linebuf's on-screen echo) back to column 0 so incoming
 ; async text prints on a clean row; reprint puts the same prompt and
 ; typed-so-far buffer back afterward, cursor restored to cursor_pos.
-; Uses async_idx/async_count (plain memory) as loop counters, not X/Y,
-; since CHROUT does not reliably preserve them here -- see
-; read_line_loop's own comment on this, and redraw_tail for the same
-; pattern already proven for the line-editor's own redraws.
+; Uses async_idx/async_count (plain memory) as loop counters, not X/Y --
+; same pattern as redraw_tail's own redraws (a holdover from when CHROUT
+; didn't reliably preserve them; harmless to keep).
 erase_input_line:
         lda prompt_len
         clc
@@ -104,10 +324,8 @@ reprint_input_line_prompt_loop:
                                      ; async_step_back/async_blank's own
                                      ; comment for why *those* deliberately
                                      ; don't use term_chrout, unlike this)
-        lda #0
-        sta QTSW                  ; guard against a literal '"' toggling
-        inc async_idx             ; the KERNAL's quote mode -- same reason
-        jmp reprint_input_line_prompt_loop ; as read_line_store's own reset
+        inc async_idx
+        jmp reprint_input_line_prompt_loop
 reprint_input_line_prompt_done:
         lda #0
         sta async_idx
@@ -118,8 +336,6 @@ reprint_input_line_line_loop:
         tax
         lda linebuf,x
         jsr term_chrout
-        lda #0
-        sta QTSW
         inc async_idx
         jmp reprint_input_line_line_loop
 reprint_input_line_line_done:
@@ -130,33 +346,28 @@ reprint_input_line_line_done:
         jsr async_step_back
         rts
 
-; Both loops below call plain CHROUT, not term_chrout -- deliberately:
-; term_chrout's own STATUS_ROW handling (term_scroll_advance) shifts the
-; whole dialogue window up a row, which is correct for genuinely NEW
-; content but wrong here. These two are pure navigation/erasure over
-; content that's already on screen (stepping back over an already-
-; displayed prompt+typed line, or blanking it back out) -- landing on
-; STATUS_ROW mid-walk doesn't mean new content needs a home, it just
-; means the walk needs to hop over the reserved row and keep going.
-; Confirmed live 2026-08-20: without this, a prompt+typed-line long
-; enough to wrap (e.g. the MORE-pagination prompt combined with
-; whatever was already on that logical line) walked erase_input_line's
-; blind CRSR-LEFT stepping straight onto STATUS_ROW and blanked it to
-; plain (non-reverse) spaces -- the status bar visibly disappeared.
+; Both loops below move the cursor directly rather than printing through
+; term_chrout -- deliberately: term_chrout's own STATUS_ROW handling
+; (term_scroll_advance) shifts the whole dialogue window up a row, which
+; is correct for genuinely NEW content but wrong here. These two are pure
+; navigation/erasure over content that's already on screen (stepping
+; back over an already-displayed prompt+typed line, or blanking it back
+; out) -- crossing STATUS_ROW mid-walk doesn't mean new content needs a
+; home, it just means the walk needs to hop over the reserved row and
+; keep going. Confirmed live 2026-08-20: without this, a prompt+typed-
+; line long enough to wrap (e.g. the MORE-pagination prompt combined
+; with whatever was already on that logical line) walked erase_input_
+; line's blind CRSR-LEFT stepping straight onto STATUS_ROW and blanked
+; it to plain (non-reverse) spaces -- the status bar visibly disappeared.
+; term_cursor_left/right (screen-output.asm) do that hop themselves now
+; -- row 24 col 0 <-> row 22 col 39 -- which is what the $d6 checks and
+; KERNAL_PLOT calls that used to live here did by hand.
 async_step_back:
 async_step_back_loop:
         lda async_count
         beq async_step_back_done
         dec async_count
-        lda #$9d                  ; CRSR LEFT
-        jsr CHROUT
-        ldx $d6                    ; TBLX -- landed on the reserved row?
-        cpx #STATUS_ROW
-        bne async_step_back_loop   ; no -- ordinary case, keep going
-        ldx #DIALOGUE_LAST_ROW     ; yes -- hop straight over it to the
-        ldy #39                     ; last column of the row above
-        clc                         ; (KERNAL_PLOT: X=row, Y=col)
-        jsr KERNAL_PLOT
+        jsr term_cursor_left
         jmp async_step_back_loop
 async_step_back_done:
         rts
@@ -167,14 +378,8 @@ async_blank_loop:
         beq async_blank_done
         dec async_count
         lda #$20
-        jsr CHROUT
-        ldx $d6
-        cpx #STATUS_ROW
-        bne async_blank_loop
-        ldx #24                    ; blanking forward hit the reserved
-        ldy #0                      ; row -- hop over it to the start of
-        clc                         ; the row below instead of scrolling
-        jsr KERNAL_PLOT
+        jsr so_poke
+        jsr term_cursor_right
         jmp async_blank_loop
 async_blank_done:
         rts
@@ -192,6 +397,14 @@ service_async_text:
         lda rx_tail
         cmp rx_head
         beq service_async_text_rts ; nothing buffered -- cheap return
+        jsr cursor_hide           ; the erase/redraw below overwrites the
+                                   ; cell under a visible cursor, which
+                                   ; would leave cursor_phase inverted
+                                   ; (a stuck reverse glyph once it moves)
+        lda input_in_area
+        beq service_async_text_inline
+        jmp service_async_area
+service_async_text_inline:
         jsr erase_input_line
 service_async_text_poll:
         ldx #$08
@@ -239,6 +452,10 @@ service_async_idle:
         lda rx_tail
         cmp rx_head
         beq service_async_idle_rts ; nothing buffered -- cheap return
+        jsr cursor_hide           ; same reason as service_async_text
+        lda input_in_area
+        beq service_async_idle_poll
+        jmp service_async_area
 service_async_idle_poll:
         ldx #$08
         ldy #$00
@@ -272,8 +489,6 @@ service_async_idle_prompt_loop:
         lda prompt_buf,x
         jsr term_chrout             ; real content -- see reprint_input_
                                       ; line's own comment on this
-        lda #0
-        sta QTSW
         inc async_idx
         jmp service_async_idle_prompt_loop
 service_async_idle_copyback:

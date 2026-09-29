@@ -9,7 +9,7 @@ wherever that monster is present in a room, alive or dead):
   - A room whose monster has the 'petrify' flag and has petrified at
     least one player before shows up as "a statue" in GET's listing and
     can be targeted by name ('get statue').
-  - GETting it always fails with "THE STATUE IS MUCH TOO HEAVY!" --
+  - GETting it always fails with "The statue is much too heavy!" --
     never added to inventory, never removed from the room (it's
     permanent, unlike every other GET special case in this file).
   - 'examine statue' / 'read statue' both show the same plaque flavor
@@ -142,7 +142,7 @@ class TestGetStatue(_IsolatedMemorialFileTest, unittest.IsolatedAsyncioTestCase)
 
         await GetCommand().execute(ctx, 'statue')
 
-        self.assertIn('THE STATUE IS MUCH TOO HEAVY!', ctx._flat())
+        self.assertIn('The statue is much too heavy!', ctx._flat())
 
     async def test_statue_never_added_to_inventory(self):
         _record_statue('MEDUSA', 'Alice')

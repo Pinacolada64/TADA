@@ -81,9 +81,13 @@ class TestPawnSellsReloadedItemsForRealPrice(unittest.IsolatedAsyncioTestCase):
         self.assertIn("I'll give ya 50 silver for the compass,", ctx._flat())
 
     async def test_reloaded_items_own_zeroed_price_is_not_used(self):
+        # 'compass' is an objects.json item, not a ration -- from_json()'s
+        # item_price backfill only has rations.json to draw from (see
+        # inventory.py), so a non-ration reloaded item still ends up with
+        # no real price of its own (explicitly None, not restored).
         player = _player_with_reloaded_item(1, 'compass')
-        self.assertEqual(getattr(player.inventory.entries(ItemCategory.ITEM)[0].item, 'price', 0), 0,
-                          'test setup sanity check: from_json() should not restore price')
+        self.assertIsNone(getattr(player.inventory.entries(ItemCategory.ITEM)[0].item, 'price', None),
+                           'test setup sanity check: from_json() should not restore price for a non-ration item')
 
     async def test_unknown_item_id_falls_back_to_entrys_own_price(self):
         # Item not found in ctx.server.items at all (e.g. removed from

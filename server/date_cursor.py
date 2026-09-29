@@ -124,7 +124,7 @@ async def prompt_date_cursor(
         f'New {label}',
         preamble_lines=['', f'Current: {cur_str}', '', OFFSET_HELP, '',
                         RELATIVE_DATE_HELP, '', DATE_HELP, '',
-                        "'clear' to unset, blank to cancel:"],
+                        f"'clear' to unset, {player.return_key} to cancel:"],
     )
     if raw is None or not raw.strip():
         await ctx.send('Unchanged.')

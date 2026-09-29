@@ -1,5 +1,6 @@
-"""tests/test_survival.py — survival.py's survival_tick() honoring
-config.survival_tick_interval instead of a hardcoded constant.
+"""tests/test_survival.py — survival.py's survival_tick() depleting 1
+point per call (called once per qualifying move/attack action -- see
+simple_server.py) unless config.survival_tick_interval is -1.
 """
 from __future__ import annotations
 
@@ -53,50 +54,28 @@ class TestSurvivalTickInterval(unittest.TestCase):
         ServerConfig._config_file = self._orig_file
         ServerConfig._instance = self._orig_instance
 
-    def test_no_depletion_before_interval_reached(self):
+    def test_depletes_one_point_per_call(self):
         from config import config
         config.survival_tick_interval = 5
 
         player = _FakePlayer()
-        for _ in range(4):
-            survival_tick(player)
-        self.assertEqual(player.food, 20)
-        self.assertEqual(player.drink, 20)
-
-    def test_depletes_exactly_on_interval(self):
-        from config import config
-        config.survival_tick_interval = 5
-
-        player = _FakePlayer()
-        for _ in range(5):
-            survival_tick(player)
+        survival_tick(player)
         self.assertEqual(player.food, 19)
         self.assertEqual(player.drink, 19)
 
-    def test_larger_interval_delays_depletion_further(self):
+    def test_depletes_one_point_per_call_regardless_of_interval_value(self):
+        """Since a redesign moved depletion from every-Nth-command to
+        every qualifying move/attack action (2026-08-25), the numeric
+        value of survival_tick_interval no longer paces depletion -- it's
+        now purely an enable (any value) / disable (-1) toggle."""
         from config import config
         config.survival_tick_interval = 30
 
         player = _FakePlayer()
         for _ in range(20):
             survival_tick(player)
-        self.assertEqual(player.food, 20)
-        self.assertEqual(player.drink, 20)
-
-    def test_counter_is_persisted_on_the_player(self):
-        """Regression: Ryan pointed out the counter used to be session-only
-        (reset to 0 on every login), so a player could dodge hunger/thirst
-        entirely by just logging out and back in. It's a plain attribute
-        on Player now (see player.py's __init__/simple_keys), so a fresh
-        object seeded with a prior count picks up where it left off."""
-        from config import config
-        config.survival_tick_interval = 5
-
-        player = _FakePlayer()
-        player._survival_counter = 4   # as if restored from a save file
-        survival_tick(player)
-        self.assertEqual(player.food, 19)
-        self.assertEqual(player.drink, 19)
+        self.assertEqual(player.food, 0)
+        self.assertEqual(player.drink, 0)
 
     def test_interval_of_minus_one_disables_depletion(self):
         """Ryan's ask: a sysop who doesn't want this feature at all can
@@ -187,7 +166,6 @@ class TestSurvivalTickAdminImmunity(unittest.TestCase):
         self.assertEqual(msgs, [])
         self.assertEqual(player.food, 20)
         self.assertEqual(player.drink, 20)
-        self.assertEqual(getattr(player, '_survival_counter', 0), 0)
 
     def test_dungeon_master_is_immune(self):
         player = _FakePlayer(dm=True)
@@ -208,8 +186,7 @@ class TestSurvivalTickAdminImmunity(unittest.TestCase):
         from config import config
         config.survival_tick_interval = 5
         player = _FakePlayer()
-        for _ in range(5):
-            survival_tick(player)
+        survival_tick(player)
         self.assertEqual(player.food, 19)
 
 

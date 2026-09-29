@@ -1105,9 +1105,9 @@ class CombatSession:
                         _ma  = int(self.monster.get('to_hit', 4) or 4)
                         _pd  = int((getattr(player, 'stats', None) or {}).get('Dexterity', 10))
                         _roll = random.randint(1, 10)
-                        await ctx.send('POLE WEAPON: ', end='')
+                        # await ctx.send('POLE WEAPON: ', end='')
                         if _roll + (_ma * 3) + 2 < _pd:
-                            await ctx.send('YOU MANAGE TO GET FIRST STRIKE!')
+                            await ctx.send('Pole weapon: you manage to get first strike!')
                             self._monster_attack_count += 1
                             continue
                         else:

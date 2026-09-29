@@ -135,7 +135,7 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
         lines += _ammo_table().render(width=width)
         lines += ['', '  [[ Ammo Carriers ]]', '']
         lines += _carrier_table().render(width=width)
-        lines += ['', f'Enter item number, ? to re-list{shop_menu_hint(player)}, or Q to leave.', '']
+        lines += ['', f'Enter item number, ? to re-list{shop_menu_hint(player)}, or [Q] Leave.', '']
         await ctx.send(lines)
 
         raw = await ctx.prompt('Your Choice')
@@ -160,7 +160,7 @@ async def _ammo_section(ctx: GameContext, player, inv, objects_by_num: dict) -> 
         except ValueError:
             if await try_global_command(ctx, raw):
                 continue
-            await ctx.send('Enter a number, ? to list, I)nventory, or Q to leave.')
+            await ctx.send('Enter a number, ? to list, [I]nventory, or [Q] Leave.')
             continue
 
         it = index_to_item.get(num)
@@ -283,7 +283,9 @@ async def _booby_section(ctx: GameContext, player, inv, objects_by_num: dict) ->
 
     while True:
         await ctx.send(f'Cost=1000.  Purchase Booby Trap.')
-        raw = await ctx.prompt(f'Disarm code [{_BOOBY_CODES}] or Q to leave{shop_menu_hint(player)}')
+        raw = await ctx.prompt(
+            'Code',
+            preamble_lines=[f'Disarm code [{_BOOBY_CODES}] or [Q] Leave{shop_menu_hint(player)}'])
         if raw is None:
             return
         stripped = raw.strip()
@@ -481,7 +483,9 @@ async def main(ctx: GameContext) -> None:
     from shoppe.inventory_tools import handle_shop_key, shop_menu_hint
 
     while True:
-        raw = await ctx.prompt(f'[A]mmo, [B]ooby traps, [H]elp, or Q to leave{shop_menu_hint(player)}')
+        raw = await ctx.prompt(
+            'Choice',
+            preamble_lines=[f'[A]mmo, [B]ooby traps, [H]elp, or [Q] Leave{shop_menu_hint(player)}'])
         if raw is None:
             return
         cmd = raw.strip().upper()[:1]
@@ -498,4 +502,4 @@ async def main(ctx: GameContext) -> None:
         elif await try_global_command(ctx, raw):
             pass
         else:
-            await ctx.send('A)mmo, B)ooby traps, H)elp, or Q to leave.')
+            await ctx.send('[A]mmo, [B]ooby traps, [H]elp, or [Q] Leave.')

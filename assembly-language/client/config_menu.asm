@@ -36,9 +36,31 @@ BOX_ROWS    = 12
 ; SCREEN_RAM/COLOR_RAM/CHROUT/GETIN are macro_preprocessor.py built-ins
 ; (C64_CONSTANTS) -- no {const:} needed for those here.
 
-        orig $2000
+; $3800 (was $3000 briefly, $2900 before that, until 2026-09-28) -- see tada-client.asm's OVERLAY_BUF comment for why (BACKUP_
+; COLORS drifts upward as the resident program grows and has now
+; overlapped this address twice -- help_menu.asm first exposed it,
+; keymap_menu.asm exposed the regression 2026-09-02).
+        orig $3800                ; must match OVERLAY_BUF -- see
+                                  ; tada-client.asm
 
 module_start:
+        tsx                          ; save the real stack depth we were
+        stx module_entry_sp           ; entered at -- config_loop's own
+                                       ; `jsr dispatch_config_key` leaves a
+                                       ; return address pushed for as long
+                                       ; as this popup stays open (dispatch
+                                       ; reaches key_save/key_cancel via a
+                                       ; tail JMP, never an RTS back
+                                       ; through it); key_save/key_cancel
+                                       ; restore this before jumping out
+                                       ; instead of leaking it -- same bug
+                                       ; class found+fixed in keymap_menu.
+                                       ; asm 2026-09-17 (every open/close
+                                       ; permanently leaked 2 bytes of
+                                       ; stack, eventually causing an
+                                       ; unrelated rts elsewhere to pop
+                                       ; the stale address instead of its
+                                       ; own)
         jsr JT_SAVE_SCREEN        ; back up whatever's on screen right now
                                     ; (the caller's own text -- PREFS, most
                                     ; likely) so it can be put back exactly
@@ -307,6 +329,9 @@ key_save:
         lda cur_blink
         jsr JT_SL_SEND
         jsr JT_RESTORE_SCREEN
+        ldx module_entry_sp        ; discard this visit's own config_loop/
+        txs                          ; dispatch call depth -- see module_
+                                       ; start's own comment
         jmp JT_RESUME
 
 ; --- Cancel: revert the live preview, send a cancel marker, hand back ---
@@ -328,6 +353,8 @@ key_cancel:
         lda #0                    ; len_hi
         jsr JT_SL_SEND
         jsr JT_RESTORE_SCREEN
+        ldx module_entry_sp        ; see key_save's own comment
+        txs
         jmp JT_RESUME
 
 ; --- Draw the static popup box (border/title/labels/help text) ---
@@ -589,7 +616,7 @@ digit_ones:
 ; some screen-reader/accessibility software, e.g. Gadget, doesn't get
 ; along with a blinking cursor). Must live after `orig $2000` like every
 ; other data table in this module -- a real byte-emitting label placed
-; before `orig $2000` assembles at c64list's own default origin instead,
+; before `orig $2100` assembles at c64list's own default origin instead,
 ; silently producing a .prg whose embedded load address doesn't match
 ; OVERLAY_BUF at all (this exact bug, live 2026-08-15: it built with 0
 ; errors -- just a "Large change in origin" warning -- but KERNAL LOAD
@@ -643,8 +670,14 @@ poke_line:
 poke_line_loop:
 poke_line_load:
         lda $ffff,x
+        beq poke_line_skip        ; 0 = transparent -- leave the dest
+                                    ; cell alone so whatever was behind
+                                    ; the window (the game text
+                                    ; JT_SAVE_SCREEN backed up, still on
+                                    ; screen at this point) keeps showing
 poke_line_store:
         sta $ffff,x
+poke_line_skip:
         inx
         cpx #40
         bne poke_line_loop
@@ -715,6 +748,13 @@ orig_border:
 orig_bg:
         byte 0
 orig_blink:
+        byte 0
+
+; Real stack depth at module_start's own entry -- see that routine's
+; own comment; key_save/key_cancel restore SP from this right before
+; exiting, discarding this visit's own config_loop/dispatch call depth
+; instead of leaking it.
+module_entry_sp:
         byte 0
 
 ; Single poke-able screen codes for '>' / ' ' -- built via the verified

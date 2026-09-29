@@ -66,3 +66,23 @@ def test_randomization_varies_across_instances():
 def test_missing_game_map_does_not_raise(server):
     server.game_map = None
     server._place_wild_horse()   # should return quietly, not raise
+
+
+def test_dwarf_saved_in_horse_room_does_not_overwrite_horse():
+    """Regression: _place_dwarf() used to restore the Dwarf's saved room by
+    writing his monster number over whatever was there -- when that room
+    was the one _place_wild_horse() had just picked, the horse vanished
+    (this test file failed intermittently depending on where the *live*
+    Dwarf happened to be standing). He now relocates instead."""
+    import encounters.dwarf as dwarf
+    horse_room = _WILD_HORSE_ROOMS[0]
+    dwarf.save_state({'room': horse_room, 'last_moved': None})
+    import random
+    real_choice = random.choice
+    picks = iter([horse_room])  # only the horse's own pick is forced; relocate() rolls for real
+    with patch('simple_server.random.choice', side_effect=lambda seq: next(picks, None) or real_choice(seq)):
+        s = Server('127.0.0.1', 0)
+    assert s.game_map.rooms[horse_room].monster == _WILD_HORSE_MONSTER_NUMBER
+    moved_to = dwarf.current_room()
+    assert moved_to not in (0, horse_room)
+    assert s.game_map.get_room(dwarf.DWARF_LEVEL, moved_to).monster == dwarf.MONSTER_NUMBER

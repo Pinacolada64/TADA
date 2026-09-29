@@ -1,7 +1,7 @@
 """commands/whereat.py — Show where all online players are located."""
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
-from network_context import GameContext, GuestPlayer
+from network_context import GameContext
 from flags import PlayerFlags
 from formatting import underline
 
@@ -116,7 +116,7 @@ class WhereatCommand(Command):
         for client in server.clients.values():
             peer_ctx    = getattr(client, 'ctx', None)
             peer_player = getattr(peer_ctx, 'player', None)
-            if peer_player is None or isinstance(peer_player, GuestPlayer):
+            if peer_player is None:
                 continue
 
             peer_cs     = getattr(peer_player, 'command_settings', None)

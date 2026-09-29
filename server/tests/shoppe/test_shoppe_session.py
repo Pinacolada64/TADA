@@ -50,7 +50,6 @@ def _sent(ctx) -> str:
 _PATCH_STUBS = patch.multiple(
     'shoppe.main',
     _armory        = AsyncMock(return_value=None),
-    _protection    = AsyncMock(return_value=None),
     _general_store = AsyncMock(return_value=None),
     _bank          = AsyncMock(return_value=None),
     _wizard        = AsyncMock(return_value=None),

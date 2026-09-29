@@ -194,7 +194,9 @@ async def ask_riddle_menu(ctx) -> None:
     lines += numbered_list([riddle['text'] for riddle in _RIDDLES], width)
     await ctx.send(lines)
 
-    raw = await ctx.prompt(f'Riddle # ({ctx.player.return_key} to cancel)')
+    raw = await ctx.prompt(
+        'Riddle #',
+        preamble_lines=[f'Riddle # ({ctx.player.return_key} to cancel)'])
     try:
         choice = int((raw or '').strip())
     except ValueError:

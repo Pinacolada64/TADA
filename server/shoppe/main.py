@@ -13,7 +13,7 @@ _AP = "'"
 # Shoppe is closed on level 7 (matches SPUR.SHOP.S main1 level-gate)
 _CLOSED_LEVELS = {7}
 
-from shoppe.armory import main as _armory, protection as _protection
+from shoppe.armory import main as _armory
 
 
 def _load_store_rations(numbers: object = None) -> list[dict]:
@@ -38,9 +38,12 @@ async def _general_store(ctx: GameContext, *, numbers: object = None) -> None:
     """Buy food and drink supplies. Mirrors SPUR.SHOP.S `general` subroutine.
 
     Shows only items 1-10 from rations.json by default (guaranteed safe).
-    Each item may be purchased at most once per player (SPUR: instr
-    duplicate check). *numbers*, if given, is forwarded to
-    _load_store_rations() to stock a different rack instead.
+    Rations may be bought in any quantity -- SPUR's original "instr
+    duplicate check" (one of each, ever) made it impossible to stock up
+    before a trip, which made the hunger/thirst meter (survival.py)
+    unforgivingly hard to keep ahead of; deliberately dropped, unlike most
+    of this port's SPUR fidelity (2026-08-25). *numbers*, if given, is
+    forwarded to _load_store_rations() to stock a different rack instead.
     """
     from base_classes import PlayerMoneyTypes
     from items import Rations
@@ -58,11 +61,13 @@ async def _general_store(ctx: GameContext, *, numbers: object = None) -> None:
     while True:
         silver = player.get_silver(PlayerMoneyTypes.IN_HAND)
 
-        # Build list of items player does not already own (SPUR duplicate check).
-        carried_ids = {
-            getattr(e.item, 'id_number', None)
-            for e in (inv.entries() if inv else [])
-        }
+        # How many of each the player already carries, just for display --
+        # no longer blocks a repurchase (see docstring above).
+        carried_qty: dict = {}
+        for e in (inv.entries() if inv else []):
+            num = getattr(e.item, 'id_number', None)
+            if num is not None:
+                carried_qty[num] = carried_qty.get(num, 0) + getattr(e, 'quantity', 1)
 
         lines = ['Shelves of supplies stretch from floor to ceiling.', '',
                  f'Silver in hand: {silver}', '',
@@ -73,19 +78,16 @@ async def _general_store(ctx: GameContext, *, numbers: object = None) -> None:
             name = r['name']
             kind = r['kind'].capitalize()
             price = r['price']
-            if num in carried_ids:
-                lines.append(f'  {"":>2}  {name:<20} {kind:<6}  {price:>4}s  (you have one)')
-            else:
-                available.append(r)
-                lines.append(f'  {len(available):>2}. {name:<20} {kind:<6}  {price:>4}s')
-        lines += ['', '[Enter] to leave', '']
+            available.append(r)
+            have = carried_qty.get(num, 0)
+            suffix = f'  (have {have})' if have else ''
+            lines.append(f'  {len(available):>2}. {name:<20} {kind:<6}  {price:>4}s{suffix}')
+        lines += ['', f'[{player.return_key}] to leave', '']
         await ctx.send(lines)
 
-        if not available:
-            await ctx.send('You already carry everything the store sells.')
-            return
-
-        raw = await ctx.prompt(f'Buy which item (1-{len(available)}, Enter to leave{shop_menu_hint(player)})')
+        raw = await ctx.prompt(
+            'Item #',
+            preamble_lines=[f'Buy which item (1-{len(available)}, {player.return_key} to leave{shop_menu_hint(player)})'])
         if not raw or not raw.strip():
             return
 
@@ -153,6 +155,12 @@ async def _locker(ctx: GameContext) -> None:
     await locker_main(ctx)
 
 
+async def _school(ctx: GameContext) -> None:
+    """Buy formal shield training (SPUR.MISC2.S's `SCHOOL` command)."""
+    from shoppe.school import main as school_main
+    await school_main(ctx)
+
+
 def _pawn_shop(ctx: GameContext):
     from shoppe.pawn import main as pawn_main
     return pawn_main(ctx)
@@ -173,7 +181,9 @@ async def _player_list(ctx: GameContext) -> None:
         'Examples:  *  (everyone),  r*  (names starting with R).',
         '',
     ])
-    raw = await ctx.prompt('Search pattern (or * for all)')
+    raw = await ctx.prompt(
+        'Pattern',
+        preamble_lines=['Search pattern (or * for all)'])
     if raw is None:
         return
     pattern = raw.strip() or '*'
@@ -204,7 +214,6 @@ def _transfer(ctx: GameContext):
 
 _MENU = (
     ('A', 'Armory',              _armory),
-    ('P', 'Protection',          _protection),
     ('G', 'General Store',       _general_store),
     ('O', "Olly's Ammo & Traps", _ollys),
     ('B', 'Bank of SPUR',        _bank),
@@ -244,7 +253,8 @@ async def _show_menu(ctx: GameContext) -> None:
         lines.append('')
     for key, label, _ in _menu_entries(ctx):
         lines.append(f'  [{key}] {label}')
-    lines += ['  [LOCKER] Private Locker', '  [X] Leave the Shoppe', '']
+    lines += ['  [LOCKER] Private Locker', '  [SCHOOL] Formal Shield Training',
+              '  [X] Leave the Shoppe', '']
     await ctx.send(lines)
 
 
@@ -302,6 +312,12 @@ async def _shoppe_session(ctx: GameContext, player) -> None:
             await _locker(ctx)
             continue
 
+        # SCHOOL is likewise a free-text command word (SPUR.MISC2.S's
+        # `if i$="SCHOOL"`), not a lettered menu option.
+        if full == 'school':
+            await _school(ctx)
+            continue
+
         cmd = full[:1]
 
         if cmd == 'x':
@@ -324,7 +340,7 @@ async def _shoppe_session(ctx: GameContext, player) -> None:
             pass
         else:
             keys = '/'.join(k for k, _, _ in menu)
-            await ctx.send(f'"{raw.strip()}"? ({keys}/X to choose)')
+            await ctx.send(f'"{raw.strip()}"? ({keys}/[X] Leave)')
 
 
 # ---------------------------------------------------------------------------

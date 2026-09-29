@@ -250,11 +250,13 @@ class PETSCIINetworkContext(GameContext):
         codec     = codec_for_settings(self.player.client_settings)
         formatted = format_lines(raw, self.player.client_settings, codec)
         reset_color = codec.reset_color if isinstance(codec, PETSCIICodec) else None
+        command_color = codec.command_color if isinstance(codec, PETSCIICodec) else None
         encoded   = petscii_encode_lines(
             formatted,
-            codec_name   = self.CODEC_NAME,
-            line_ending  = self.LINE_ENDING,
-            reset_color  = reset_color,
+            codec_name    = self.CODEC_NAME,
+            line_ending   = self.LINE_ENDING,
+            reset_color   = reset_color,
+            command_color = command_color,
         )
         try:
             self.writer.write(encoded)
@@ -278,7 +280,9 @@ class PETSCIINetworkContext(GameContext):
         if prompt_text:
             codec = codec_for_settings(self.player.client_settings)
             reset_color = codec.reset_color if isinstance(codec, PETSCIICodec) else None
-            encoded = petscii_encode(prompt_text, self.CODEC_NAME, reset_color=reset_color)
+            command_color = codec.command_color if isinstance(codec, PETSCIICodec) else None
+            encoded = petscii_encode(prompt_text, self.CODEC_NAME, reset_color=reset_color,
+                                     command_color=command_color)
             self.writer.write(encoded)
             await self.writer.drain()
 

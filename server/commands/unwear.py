@@ -94,7 +94,8 @@ class UnwearCommand(Command):
             await _remove_slot(ctx, player, worn[0])
             return CommandResult.ok()
 
-        raw = await ctx.prompt('Take off which (armor/shield, Enter to cancel)')
+        raw = await ctx.prompt(preamble_lines=f'(armor/shield, {ctx.player.return_key} to cancel)',
+                               prompt_text="Take off which")
         if not raw or not raw.strip():
             return CommandResult.ok()
         slot = next((s for s in ('armor', 'shield') if s.startswith(raw.strip().lower())), None)

@@ -89,6 +89,13 @@ class ANSICodec:
                                  # color) -- what |reset|/highlight_off() return to.
                                  # Falls back to colorama's own Fore.RESET (terminal
                                  # default) if the player has no preference set.
+    command_color:    str = ''  # set at runtime from player prefs (PREFS 'C' Colors
+                                 # -> Command color) -- what |command|...|reset| uses
+                                 # for game-command references (e.g. text_editor.py's
+                                 # '.h h'), kept distinct from highlight_color so
+                                 # command syntax reads apart from [bracket]-
+                                 # highlighted entities. Falls back to cyan if the
+                                 # player has no preference set.
 
     def __post_init__(self):
         try:
@@ -97,9 +104,12 @@ class ANSICodec:
                 self.highlight_color = Fore.RED
             if not self.reset_color:
                 self.reset_color = Fore.RESET
+            if not self.command_color:
+                self.command_color = Fore.CYAN
         except ImportError:
             self.highlight_color = ''
             self.reset_color = ''
+            self.command_color = ''
 
     def highlight_on(self) -> str:
         return self.highlight_color
@@ -139,6 +149,12 @@ class PETSCIICodec:
                             # the C64's color-RAM text color -- it only clears
                             # reverse video -- so without a real reset_color,
                             # text after |red|...|reset| stays red.
+    command_color: str = ''  # set at runtime from player prefs (PREFS 'C'
+                              # Colors -> Command color) -- the |token| name
+                              # that |command| resolves to. Falls back to
+                              # PETSCII_CONTROL_CODES['command'] (cyan) if the
+                              # player has no preference set -- see
+                              # ANSICodec.command_color for what this is for.
 
     def highlight_on(self) -> str: return '|reverse_on|'
 
@@ -182,6 +198,10 @@ PETSCII_CONTROL_CODES: dict[str, int] = {
     'clear': 147,  # clear screen + home
     'home': 19,  # cursor home (no clear)
     'reset': 146,  # alias for reverse_off
+    'command': 159,  # alias for cyan -- |command| markup's hardcoded
+                      # fallback when no PETSCIICodec.command_color override
+                      # is in play (e.g. a player pref -- see petscii_encode()'s
+                      # command_color param).
 
     # Cursor movement
     'cursor_up': 145,
@@ -316,17 +336,41 @@ def _petscii_token_strip_replace(match: re.Match) -> str:
 
 
 # Characters that cbmcodecs2's petscii_c64en_lc codec has no mapping for
-# (it maps 0x5E/0x5F to the UPWARDS/LEFTWARDS ARROW glyphs, not '^'/'_'),
-# so a plain .encode(codec_name) errors='replace's them to '?'. Each maps
+# (it maps 0x5E to the UPWARDS ARROW glyph, not '^', and has no slot at
+# all for '|' -- see the "guild territory sigils" comment below), so a
+# plain .encode(codec_name) errors='replace's them to '?'. Each maps
 # straight to the raw PETSCII byte a real Commodore screen needs instead.
 # '^' is the up-arrow key -- the same physical key/glyph HistoryCommand's
 # '^N' shortcut uses, so this is what makes it round-trip to the C64
 # screen instead of showing as '?'. See _petscii_input_to_ascii in
 # network_context.py for the matching keyboard-input (C64 -> server)
 # direction of this same 0x5E mapping.
+#
+# '_' maps to wire/CHROUT byte 0xE4, NOT screen code 0x64 -- screen codes
+# (what you POKE straight into SCREEN_RAM) and PETSCII/CHROUT transmission
+# codes are two different numbering spaces for the same glyph. Screen
+# code 0x64 is genuinely the underline-ish glyph ('▁', confirmed live via
+# POKE 1024,100 in VICE), but sending raw byte 0x64 over the wire (as an
+# earlier version of this mapping did) decodes as 'D' once CHROUT converts
+# it back to a screen code (0x64 -> screen code 0x44 -> 'D') -- that's
+# exactly what rendered as 'D' on Gadget's real hardware. 0xE4 (0x64 +
+# 0x80) is the wire byte that CHROUT itself converts to screen code 0x64.
+# See _petscii_input_to_ascii in network_context.py for the matching
+# keyboard-input (C64 -> server) direction: Shift+Space (0xA0), not this
+# byte or the back-arrow key.
 _PETSCII_RAW_BYTE_OVERRIDES: dict[str, int] = {
-    '_': 0x64,  # underline glyph
     '^': 0x5E,  # up-arrow glyph
+    '_': 0xE4,  # underline-ish glyph (-> screen code 0x64 via CHROUT)
+    '|': 0xDD,  # box-drawing vertical bar ('│', U+2502) -- the same glyph
+                # the C64 client's own popup-window borders use (screen
+                # code $5D there -- assembly-language/client/config_menu.asm's
+                # top_border comment). $5D is a SCREEN code, not the wire/
+                # CHROUT byte this dict needs: '│'.encode('petscii_c64en_lc')
+                # (cbmcodecs2, already handles this character fine on its
+                # own) gives 0xDD ($5D + 0x80), the same relationship as
+                # the '_' entry above -- confirmed live on real hardware
+                # 9/19/26 that raw screen-code $5D (sent via '{$5d}') is
+                # wrong, rendering as ']' instead.
 }
 
 
@@ -341,8 +385,9 @@ def _encode_petscii_segment(text: str, codec_name: str,
     function. Ryan caught the '_' gap live: without this, the fallback
     path (this environment doesn't have cbmcodecs2 installed) sent a raw
     ASCII 0x5F for '_', which isn't underscore on a real Commodore
-    screen -- it happened to render as an unrelated glyph. $64 is the
-    actual PETSCII underline-glyph code.
+    screen -- it happened to render as an unrelated glyph. 0xE4 is the
+    real wire/CHROUT byte for the underline-ish glyph (see
+    _PETSCII_RAW_BYTE_OVERRIDES's comment for why it isn't 0x64).
 
     :param apply_overrides: False for PETSCIINetworkContext's genuine
         Translation.ASCII output (network_context.py's _text_codec_name())
@@ -366,6 +411,7 @@ def _encode_petscii_segment(text: str, codec_name: str,
 def petscii_encode(text: str,
                    codec_name: str = 'petscii_c64en_lc',
                    reset_color: str | None = None,
+                   command_color: str | None = None,
                    apply_overrides: bool = True) -> bytes:
     """
     Encode a string for transmission to a Commodore client.
@@ -392,6 +438,12 @@ def petscii_encode(text: str,
         color RAM, so without this override text after |red|...|reset|
         stays red. None (the default) keeps that reverse-off behavior,
         e.g. for callers with no player/settings context.
+    :param command_color: overrides |command|'s own control code -- pass
+        codec.command_color (a PETSCIICodec built via codec_for_settings(),
+        a PETSCII_CONTROL_CODES token name like 'cyan') so |command| uses
+        this player's chosen command-markup color (PREFS 'C' Colors ->
+        Command). None (the default) falls back to PETSCII_CONTROL_CODES['command']
+        (cyan), e.g. for callers with no player/settings context.
     :return:           Raw bytes ready to send to the Commodore client.
 
     >>> petscii_encode('|red|Hi|reset|')[0]   # first byte = red color code
@@ -454,6 +506,8 @@ def petscii_encode(text: str,
         count = int(match.group('count')) if match.group('count') else 1
         if token == 'reset' and reset_color:
             code = PETSCII_CONTROL_CODES.get(reset_color)
+        elif token == 'command' and command_color:
+            code = PETSCII_CONTROL_CODES.get(command_color)
         else:
             code = PETSCII_CONTROL_CODES.get(token)
         if code is not None:
@@ -478,6 +532,7 @@ def petscii_encode_lines(lines: list[str],
                          line_ending: bytes = b'\r',
                          screen_columns: int = 0,
                          reset_color: str | None = None,
+                         command_color: str | None = None,
                          apply_overrides: bool = True) -> bytes:
     """
     Encode a list of formatted strings for a Commodore client.
@@ -493,6 +548,8 @@ def petscii_encode_lines(lines: list[str],
                            extra blank line.
     :param reset_color:    overrides |reset|'s own control code -- see
                            petscii_encode()'s reset_color param.
+    :param command_color:  overrides |command|'s own control code -- see
+                           petscii_encode()'s command_color param.
     :return:               Raw bytes for the full block of text.
 
     >>> result = petscii_encode_lines(['Hello', 'World'])
@@ -520,6 +577,7 @@ def petscii_encode_lines(lines: list[str],
     result = bytearray()
     for line in lines:
         result.extend(petscii_encode(line, codec_name, reset_color=reset_color,
+                                     command_color=command_color,
                                      apply_overrides=apply_overrides))
         # Always CR after each line so consecutive send() calls don't run
         # together — except when the line fills the full screen width, where
@@ -573,10 +631,13 @@ ANSI_COLOR_CODES: dict[str, str] = {
     'bold': Style.BRIGHT if _COLORAMA_AVAILABLE else '',
     'dim': Style.DIM if _COLORAMA_AVAILABLE else '',
     'reset': Fore.RESET if _COLORAMA_AVAILABLE else '',
+    # |command| markup's hardcoded fallback when no ANSICodec.command_color
+    # override is in play -- see ansi_encode()'s command_color param.
+    'command': Fore.CYAN if _COLORAMA_AVAILABLE else '',
 }
 
 
-def ansi_encode(text: str, reset_color: str | None = None) -> str:
+def ansi_encode(text: str, reset_color: str | None = None, command_color: str | None = None) -> str:
     """
     Replace |token| color sequences with ANSI escape codes.
     Text passes through unchanged except for recognised |token| sequences.
@@ -590,6 +651,12 @@ def ansi_encode(text: str, reset_color: str | None = None) -> str:
         the terminal's own uncontrolled default. None (the default)
         keeps the plain colorama Fore.RESET behavior, e.g. for callers
         with no player/settings context.
+    :param command_color: overrides |command|'s own ANSI code -- pass
+        codec.command_color (an ANSICodec built via codec_for_settings())
+        so |command| uses this player's chosen command-markup color
+        (PREFS 'C' Colors -> Command). None (the default) falls back to
+        ANSI_COLOR_CODES['command'] (cyan), e.g. for callers with no
+        player/settings context.
 
     >>> ansi_encode('Hello |reset|world')  # no color, just reset
     'Hello \\x1b[39mworld'
@@ -610,6 +677,8 @@ def ansi_encode(text: str, reset_color: str | None = None) -> str:
         count = int(match.group('count')) if match.group('count') else 1
         if token == 'reset' and reset_color is not None:
             return reset_color * count
+        if token == 'command' and command_color is not None:
+            return command_color * count
         code = ANSI_COLOR_CODES.get(token)
         if code is not None:
             return code * count
@@ -619,7 +688,8 @@ def ansi_encode(text: str, reset_color: str | None = None) -> str:
     return _TOKEN_RE.sub(_replace, text)
 
 
-def ansi_encode_lines(lines: list[str], reset_color: str | None = None) -> list[str]:
+def ansi_encode_lines(lines: list[str], reset_color: str | None = None,
+                      command_color: str | None = None) -> list[str]:
     """
     Apply ansi_encode() to each line in a list.
     Use this in GameContext.send() after format_lines() for ANSI clients.
@@ -627,7 +697,7 @@ def ansi_encode_lines(lines: list[str], reset_color: str | None = None) -> list[
     >>> ansi_encode_lines(['hello', '{red}world{reset}'])  # doctest: +ELLIPSIS
     ['hello', '...world...']
     """
-    return [ansi_encode(line, reset_color) for line in lines]
+    return [ansi_encode(line, reset_color, command_color) for line in lines]
 
 
 # Shares _TOKEN_RE's escaped/plain alternation (named 'etoken'/'ecount' vs
@@ -958,12 +1028,23 @@ def _expand_tab_tokens(text: str, settings, codec: 'ColorCodec | None' = None) -
     """
     Replace |tab| / |tab:N| (or, for PETSCII clients only, !tab! / !tab:N! --
     see _TAB_TOKEN_RE_PETSCII's comment) with the player's actual tab
-    output, repeated N times (once, by default) -- see PREFS 'K' (Tab Key),
-    which sets client_settings.tab_settings.tab_output to a real '\\t' if
-    the client has a working Tab key, or N spaces if simulating one. The
-    escaped form ||tab||/!!tab!! (see _TOKEN_RE's comment) is left untouched
-    here -- ansi_encode()/petscii_encode()/plain_encode() resolve it to a
-    literal |tab|/!tab! later.
+    output -- see PREFS 'K' (Tab Key), which sets
+    client_settings.tab_settings.has_tab_key/tab_width.
+
+    If the client has a real Tab key, each token becomes a literal '\\t'
+    (repeated N times) -- the terminal itself handles tab-stop spacing, so
+    no column math is needed here. Otherwise (tabs simulated with spaces)
+    each token advances to the *next actual tab stop* -- a real terminal's
+    Tab key doesn't emit a fixed number of spaces, it emits just enough to
+    reach the next multiple of tab_width from the current column, so a
+    |tab| at column 3 with tab_width 8 emits 5 spaces while one at column 9
+    emits 7 -- not tab_width spaces every time. That requires tracking the
+    running visible column across the line (via _visible_len(), which
+    already knows how to skip color |token|s/[bracket]s/etc.), so this
+    walks the token matches in order rather than using a single blind
+    pattern.sub(). The escaped form ||tab||/!!tab!! (see _TOKEN_RE's
+    comment) is left untouched here -- ansi_encode()/petscii_encode()/
+    plain_encode() resolve it to a literal |tab|/!tab! later.
 
     Unlike color |token|s (a static per-codec substitution table applied
     at ansi_encode()/petscii_encode() time), a tab's rendered width is
@@ -973,14 +1054,37 @@ def _expand_tab_tokens(text: str, settings, codec: 'ColorCodec | None' = None) -
     than staying an opaque token until the codec stage.
     """
     tab_settings = getattr(settings, 'tab_settings', None)
+    has_tab_key = getattr(tab_settings, 'has_tab_key', False) if tab_settings else False
     tab_output = getattr(tab_settings, 'tab_output', '\t') if tab_settings else '\t'
-
-    def _replace(match) -> str:
-        count = int(match.group('n')) if match.group('n') else 1
-        return tab_output * count
+    tab_width = getattr(tab_settings, 'tab_width', 0) if tab_settings else 0
 
     pattern = _TAB_TOKEN_RE_PETSCII if isinstance(codec, PETSCIICodec) else _TAB_TOKEN_RE
-    return pattern.sub(_replace, text)
+
+    if has_tab_key or tab_width <= 0:
+        # Real Tab key (or a degenerate 0-width simulated tab): no stop
+        # math to do, just emit the configured output N times.
+        def _replace(match) -> str:
+            count = int(match.group('n')) if match.group('n') else 1
+            return tab_output * count
+        return pattern.sub(_replace, text)
+
+    # Simulated tabs: advance to the next real tab stop from the running
+    # visible column, not a flat tab_width-space repeat every time.
+    out_parts: list[str] = []
+    last_end = 0
+    col = 0
+    for match in pattern.finditer(text):
+        segment = text[last_end:match.start()]
+        out_parts.append(segment)
+        col += _visible_len(segment)
+        count = int(match.group('n')) if match.group('n') else 1
+        for _ in range(count):
+            spaces = tab_width - (col % tab_width)
+            out_parts.append(' ' * spaces)
+            col += spaces
+        last_end = match.end()
+    out_parts.append(text[last_end:])
+    return ''.join(out_parts)
 
 
 def format_lines(lines: list[str],
@@ -1066,9 +1170,13 @@ def codec_for_settings(settings) -> ColorCodec:
         |reset|/highlight_off() return to, so text goes back to the
         player's own chosen default color instead of an uncontrolled
         terminal-default reset.
+      - command_color <- settings.colors.command_color ('C' Colors ->
+        Command row): the color |command|...|reset| markup uses for game
+        commands (see text_editor.py's ctx.prompt()/help text), kept
+        distinct from highlight_color.
 
-    PETSCII gets the same reset_color treatment -- see PETSCIICodec's
-    reset_color field.
+    PETSCII gets the same reset_color/command_color treatment -- see
+    PETSCIICodec's reset_color/command_color fields.
     """
     try:
         from terminal import Translation
@@ -1077,10 +1185,12 @@ def codec_for_settings(settings) -> ColorCodec:
             return ANSICodec(
                 highlight_color=_ansi_color_for(settings, 'highlight_color'),
                 reset_color=_ansi_color_for(settings, 'text_color'),
+                command_color=_ansi_color_for(settings, 'command_color'),
             )
         if t == Translation.PETSCII:
             return PETSCIICodec(
                 reset_color=_petscii_color_for(settings, 'text_color'),
+                command_color=_petscii_color_for(settings, 'command_color'),
             )
         if t == Translation.ASCII:
             return PlainCodec()
@@ -1149,17 +1259,22 @@ def _localize_for_player(dt, player):
 def format_player_datetime(dt, player) -> str:
     """Render *dt* using *player*'s PREFS timezone/date-format choice
     (commands/prefs.py's 'Z'/'D' rows, ClientSettings.timezone/
-    date_format -- New in TADA). See _localize_for_player() for how the
-    timezone conversion works."""
+    date_format -- New in TADA). Whether a weekday name appears at all,
+    and whether it's abbreviated, is entirely up to which preset the
+    player picked (commands/prefs.py's _DATE_FORMAT_PRESETS pairs a
+    plain and a "Weekday, ..." variant of each format, e.g. 'Month Day,
+    Year' vs. 'Weekday, Month Day, Year') -- there's no separate weekday
+    step here, unlike before 2026-08-27. See _localize_for_player() for
+    how the timezone conversion works."""
     cs          = getattr(player, 'client_settings', None)
-    date_format = getattr(cs, 'date_format', '') or '%B %d, %Y'
+    date_format = getattr(cs, 'date_format', '') or '%A, %B %d, %Y'
     dt          = _localize_for_player(dt, player)
 
     try:
         return dt.strftime(date_format)
     except (ValueError, TypeError):
         logging.warning("format_player_datetime: bad date_format %r", date_format)
-        return dt.strftime('%B %d, %Y')
+        return dt.strftime('%A, %B %d, %Y')
 
 
 def format_player_time(dt, player) -> str:
@@ -1553,9 +1668,11 @@ class Line:
         if self.border.role in (BorderRole.TOP, BorderRole.BOTTOM):
             return f'+{char * (width - 2)}+'
         inner_width = width - 4  # "| " + text + " |"
-        content = _justify_text(self.text, inner_width, self.justification)
-        content = content[:inner_width].ljust(inner_width)
-        return f'| {content} |'
+        rows = wrap_text(self.text, max(inner_width, 1)) or ['']
+        return '\n'.join(
+            f'| {_justify_text(r, inner_width, self.justification).ljust(inner_width)} |'
+            for r in rows
+        )
 
     def to_dict(self) -> dict:
         """JSON-safe representation for persisting saved content (see
@@ -1632,11 +1749,29 @@ def render_lines(lines: list[Line], ctx, width: int) -> list[str]:
                 j += 1
             has_bottom = j < n and lines[j].border is not None and lines[j].border.role == BorderRole.BOTTOM
             inner_width = max(width - 4, 1)
-            texts = [_justify_text(ln.text, inner_width, ln.justification) for ln in content]
+            # Word-wrap each content Line to the box's inner width first --
+            # make_box() only pads, never wraps, so an over-long line would
+            # otherwise shove the right border past the screen edge and the
+            # terminal would wrap it, breaking the frame. A Line that wraps
+            # to several physical rows still collapses back to ONE output
+            # string (newline-joined) so render_lines() keeps its one-string-
+            # per-input-Line contract (callers index the result by Line #).
+            texts: list[str] = []
+            row_counts: list[int] = []
+            for ln in content:
+                wrapped = wrap_text(ln.text, inner_width) or ['']
+                wrapped = [_justify_text(w, inner_width, ln.justification) for w in wrapped]
+                texts.extend(wrapped)
+                row_counts.append(len(wrapped))
             settings = ctx.player.client_settings
             boxed = make_box(texts, width=width, codec=codec_for_settings(settings),
                              border_style=border_style_for_ctx(ctx))
-            out.extend(boxed[:1 + len(content)])
+            out.append(boxed[0])
+            body = boxed[1:1 + len(texts)]
+            k = 0
+            for count in row_counts:
+                out.append('\n'.join(body[k:k + count]))
+                k += count
             if has_bottom:
                 out.append(boxed[-1])
                 i = j + 1

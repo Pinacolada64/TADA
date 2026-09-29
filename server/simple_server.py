@@ -64,6 +64,17 @@ _WILD_HORSE_MONSTER_NUMBER = 136
 # wild_horse_events.py's own copy of _WILD_HORSE_MONSTER_NUMBER).
 _DWARF_MONSTER_NUMBER = 137
 
+# How long an unauthenticated connection may go without answering a terminal-
+# negotiation prompt before it's dropped. A real client (C64/SwiftLink or any
+# ANSI terminal) auto-responds almost instantly, so this only ever fires on a
+# connection that's dead/stuck at the socket level -- one that accepted the
+# TCP handshake but never got (or sent) another byte. Without this, such a
+# connection sits in server.clients forever showing as a bare "Guest" (found
+# live 2026-08-25: a stalled connection sat at this exact prompt for 44
+# minutes before finally erroring out), visible via 'who' as a phantom guest
+# alongside whatever connection the same player used to actually log in.
+_NEGOTIATION_TIMEOUT_SECONDS = 90
+
 # Terminal-negotiation 'H<letter>' help text (Server._negotiate_terminal()) --
 # an alpha tester reported being unsure which option to pick, so 'HA'/'HP'/
 # 'HQ' explain each one, matching the h<key> convention used elsewhere
@@ -199,7 +210,11 @@ class Server:
             self.banner_petscii = []
         try:
             self.game_map = Map()
-            for lvl in range(1, 8):
+            # SPUR shipped 7 dungeon levels; level 8 (Forest of Canolbarth /
+            # Sulidam) is this port's addition, built from the 2014 source
+            # by tools/build_level_8_json.py. The loop just skips any
+            # level_<N>.json that isn't present.
+            for lvl in range(1, 9):
                 level_file = script_dir / f'level_{lvl}.json'
                 if level_file.exists():
                     self.game_map.read_map(str(level_file), level=lvl)
@@ -215,6 +230,12 @@ class Server:
 
         self._place_wild_horse()
         self._place_dwarf()
+
+        try:
+            from board.migration import migrate_if_needed
+            migrate_if_needed()
+        except Exception:
+            logging.exception('Failed to migrate board data')
 
         def _try_load(cls, filename, method='read'):
             try:
@@ -301,7 +322,12 @@ class Server:
             # in-memory room.monster mutation from a prior session is gone.
             from encounters.dwarf import DWARF_LEVEL, MONSTER_NUMBER
             room = self.game_map.get_room(DWARF_LEVEL, current_room())
-            if room is not None:
+            if room is not None and getattr(room, 'monster', 0) not in (0, MONSTER_NUMBER):
+                # Someone else got there first this boot (e.g. the wild
+                # horse, placed just before this) -- move him on rather
+                # than overwrite it.
+                relocate(self.game_map)
+            elif room is not None:
                 room.monster = MONSTER_NUMBER
 
     # -----------------------------------------------------------------------
@@ -388,6 +414,13 @@ class Server:
         finally:
             if addr in self.clients:
                 del self.clients[addr]
+            # Drain any output a turn buffered but never flushed because an
+            # exception unwound past the normal end-of-dispatch flush.
+            # paginate=False: never block for a keypress on a closing socket.
+            try:
+                await ctx.flush_turn(paginate=False)
+            except Exception:
+                pass
             # combat/duel.py's DuelSession.forfeit(): a duelist who
             # disconnects mid-fight (crash, abrupt close, or a graceful
             # quit) is treated as an automatic loss, mirroring
@@ -439,7 +472,13 @@ class Server:
         try:
             await self.send_message(ctx.writer, self.server_init)
 
-            data = await self.receive_message(ctx.reader)
+            try:
+                data = await asyncio.wait_for(
+                    self.receive_message(ctx.reader), timeout=_NEGOTIATION_TIMEOUT_SECONDS)
+            except asyncio.TimeoutError:
+                logging.info('%s: handshake timed out waiting for client Init',
+                             getattr(ctx.client, 'addr', '?'))
+                data = None
             if not data:
                 logging.warning('no Init received')
                 logging.debug('EXIT False (no Init received)')
@@ -505,6 +544,16 @@ class Server:
         logging.debug('ENTER')
         translation = ctx.player.client_settings.translation
 
+        async def _prompt(*args, **kwargs):
+            """ctx.prompt(), but drop the connection if nothing comes back
+            within _NEGOTIATION_TIMEOUT_SECONDS -- see that constant."""
+            try:
+                return await asyncio.wait_for(
+                    ctx.prompt(*args, **kwargs), timeout=_NEGOTIATION_TIMEOUT_SECONDS)
+            except asyncio.TimeoutError:
+                logging.info('%s: terminal negotiation timed out', getattr(ctx.client, 'addr', '?'))
+                return None
+
         if translation == Translation.PETSCII:
             while True:
                 await ctx.send(
@@ -522,7 +571,7 @@ class Server:
                     # TODO: in case client connected to wrong port or user's terminal in wrong mode,
                     #  offer option to switch to ASCII/ANSI
                 )
-                raw = await ctx.prompt('Screen width [4/8]')
+                raw = await _prompt('Screen width [4/8]')
                 if raw is None:
                     logging.debug('EXIT False (disconnect)')
                     return False
@@ -559,7 +608,7 @@ class Server:
                 '',
             )
             while True:
-                raw = await ctx.prompt('Terminal type [A/P/C/Q]')
+                raw = await _prompt('Terminal type [A/P/C/Q]')
                 if raw is None:
                     logging.debug('EXIT False (disconnect)')
                     return False
@@ -593,7 +642,7 @@ class Server:
                         '|blue|This line should be BLUE.|reset|',
                         '',
                     )
-                    color_raw = await ctx.prompt('Did you see color above? (Y/N)')
+                    color_raw = await _prompt('Did you see color above? (Y/N)')
                     if color_raw is None:
                         logging.debug('EXIT False (disconnect)')
                         return False
@@ -722,6 +771,11 @@ class Server:
     async def _game_loop(self, ctx: GameContext) -> None:
         """Main command loop for an authenticated (or guest) player."""
         logging.debug('ENTER')
+        # From here on, ctx.send() buffers a turn's output and defers the
+        # More-Prompt pagination decision to the combined total (see
+        # network_context.flush_turn). Login/negotiation output above stays
+        # on the old immediate-send path.
+        ctx._buffering_enabled = True
         if not getattr(ctx.client, 'room', None):
             ctx.client.room = int(getattr(ctx.player, 'map_room', 1) or 1)
 
@@ -752,6 +806,12 @@ class Server:
             from datetime import datetime
             ctx.client.last_input = datetime.now()
             result = await processor.process_input(raw, ctx=ctx)
+            # End of dispatch: flush this turn's buffered send() output as
+            # one screenful-aware block (see network_context.flush_turn).
+            # Covers command paths that return without a further prompt
+            # (e.g. 'quit'); the normal path re-flushes harmlessly at the
+            # next ctx.prompt('main').
+            await ctx.flush_turn()
 
             # QuitCommand sets data={'quit': True} to signal clean exit
             if result.data.get('quit'):
@@ -783,18 +843,21 @@ class Server:
                 # lifetime total spread across an otherwise normal session.
                 ctx.client.unknown_command_count = 0
 
-            # Hunger/thirst tick (SPUR.COMBAT.S:12-20).
-            from survival import survival_tick
-            warnings = survival_tick(ctx.player)
-            if warnings:
-                await ctx.send(warnings)
-            logging.debug('survival tick: hp=%r food=%r drink=%r',
-                          getattr(ctx.player, 'hit_points', '?'),
-                          getattr(ctx.player, 'food', '?'),
-                          getattr(ctx.player, 'drink', '?'))
-            if getattr(ctx.player, 'hit_points', 1) <= 0:
-                logging.debug('death triggered')
-                await self._player_dies(ctx)
+            # Hunger/thirst tick (SPUR.COMBAT.S:12-20) -- only on moves/
+            # attacks (counts_as_move), not every command, so reading help
+            # or chatting doesn't burn food/drink (see survival.py).
+            if result.data.get('counts_as_move'):
+                from survival import survival_tick
+                warnings = survival_tick(ctx.player)
+                if warnings:
+                    await ctx.send(warnings)
+                logging.debug('survival tick: hp=%r food=%r drink=%r',
+                              getattr(ctx.player, 'hit_points', '?'),
+                              getattr(ctx.player, 'food', '?'),
+                              getattr(ctx.player, 'drink', '?'))
+                if getattr(ctx.player, 'hit_points', 1) <= 0:
+                    logging.debug('death triggered')
+                    await self._player_dies(ctx)
 
     # -----------------------------------------------------------------------
     # Unknown-command help offer
@@ -1236,8 +1299,8 @@ class Server:
         await self._show_room_then_encounter(ctx, level=level, room_no=int(dest))
         from encounters.desert import try_desert_sweat
         await try_desert_sweat(ctx)
-        from ally_events import try_ally_find_gold
-        await try_ally_find_gold(ctx)
+        from ally_events import try_ally_find_silver
+        await try_ally_find_silver(ctx)
         from wild_horse_events import try_wandering_horse_encounter
         await try_wandering_horse_encounter(ctx)
         from encounters.dwarf import maybe_relocate, try_steal
@@ -1352,8 +1415,8 @@ class Server:
         await self._show_room_then_encounter(ctx, level=target_level, room_no=target_room)
         from encounters.desert import try_desert_sweat
         await try_desert_sweat(ctx)
-        from ally_events import try_ally_find_gold
-        await try_ally_find_gold(ctx)
+        from ally_events import try_ally_find_silver
+        await try_ally_find_silver(ctx)
         from wild_horse_events import try_wandering_horse_encounter
         await try_wandering_horse_encounter(ctx)
         from encounters.dwarf import maybe_relocate, try_steal
