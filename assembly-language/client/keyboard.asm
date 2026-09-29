@@ -1,3 +1,76 @@
+; keyboard.asm — keyboard-decode-table reference/findings, {include:}d by
+; tada-client.asm. Split out of tada-client.asm so keyboard-matrix/
+; decode-table research and the (not yet wired in) N-key-rollover driver
+; have a home separate from the client's own runtime code.
+
+; ---------------------------------------------------------------------------
+; Shift+Space -> underscore (server-side fix, no client code needed)
+; ---------------------------------------------------------------------------
+; The server previously guessed at which raw PETSCII byte should decode to
+; an underscore on input (first 0x64, which collided with plain lowercase
+; 'd'; then the back-arrow key, 0x5F, which is needed elsewhere for the
+; map/overview display's directional arrows). Verified via py65
+; disassembly of this project's actual kernal-901246-01.bin (SCNKEY,
+; $EA87) that the STOCK, UNMODIFIED KERNAL keyboard-decode tables already
+; distinguish Shift+Space from plain Space, so no keyboard-table patch is
+; needed at all -- GETIN already returns the right byte natively:
+;
+;   SCNKEY ($EA87) selects one of four decode tables via an 8-byte
+;   lo/hi address table at $EB79, indexed by SHFLAG*2 (capped at 6):
+;     X=0 (unshifted) -> $EB81      X=4 (Commodore) -> $EC03
+;     X=2 (shift)     -> $EBC2      X=6 (ctrl)       -> $EC78
+;
+;   The space bar's matrix position is 60 (row 7, column 4). Reading
+;   that offset directly out of the ROM:
+;     unshifted table + 60 = $20  (space)
+;     shift table     + 60 = $A0  (Shift+Space -- already a distinct byte!)
+;
+; See network_context.py's _petscii_input_to_ascii() for the matching
+; server-side decode (0xA0 -> '_') and formatting.py's
+; _PETSCII_RAW_BYTE_OVERRIDES for the output direction (0xE4 -> screen
+; code 0x64 via CHROUT, the underline-ish glyph '▁' -- confirmed live via
+; POKE 1024,100 in VICE. Screen codes and PETSCII/CHROUT transmission
+; codes are different numbering spaces for the same glyph; that mismatch
+; is what caused the original 0x64-renders-as-'D' bug).
+;
+KEYTAB_UNSHIFTED = $eb81
+KEYTAB_SHIFT     = $ebc2
+KEYTAB_COMMODORE = $ec03
+KEYTAB_CTRL      = $ec78
+SPACE_MATRIX_POS = 60
+
+
+; ---------------------------------------------------------------------------
+; N-key-rollover driver -- reference only, NOT wired in
+; ---------------------------------------------------------------------------
+; Raw disassembly (py65, real ROM/cartridge dump -- not this project's own
+; code) of a working 3-key-rollover keyboard driver, kept here for future
+; study/adaptation rather than lost in a scratch file. Guarded by an
+; {ifdef:} that's never defined, so none of this assembles or takes up
+; space in the real client build (confirmed: an {ifdef:}-disabled block's
+; contents, including its own `orig`, are fully suppressed by c64list's
+; preprocessor before the assembler ever sees them -- same mechanism this
+; file's `{ifdef: debug}` diagnostic blocks already rely on elsewhere).
+;
+; NOT SAFE TO ENABLE AS-IS:
+;   - `orig $cd00` collides with this project's own reserved $c000-$cfff
+;     block (see constants.asm's header comment -- JT_BASE/PROTO_TABLE
+;     live there specifically because nothing else in this codebase uses
+;     it). Relocate before ever defining keyboard_rollover_driver.
+;   - Labels (c509, c539, c5c9, ...) are disassembly artifacts named after
+;     their addresses, not meaningful names -- rename before adapting.
+;   - Installs its own CINV/NMINV handlers (`install`/`uninstall`) that
+;     would need reconciling with this client's own IRQ/NMI usage
+;     (SwiftLink NMI, SID-engine IRQ) rather than blindly overwriting them.
+;
+; {undef:} first, belt-and-suspenders: guarantees this block stays
+; disabled even if some other {include:}'d file already {def:}'d
+; keyboard_rollover_driver upstream (accidentally or otherwise) before
+; reaching this point -- the only way to enable this block on purpose is
+; to edit this line directly, not to rely on def/include ordering
+; elsewhere staying the way it happens to be today.
+{undef: keyboard_rollover_driver}
+{ifdef: keyboard_rollover_driver}
 orig $cd00 ; original was $c500
 
 CAS1	= $c0 ; Tape Motor Interlock (temp storage
@@ -404,3 +477,4 @@ c77b:
 	brk		; $c77b  00
 	brk		; $c77c  00
 	brk		; $c77d  00
+{endif}

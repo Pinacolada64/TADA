@@ -37,6 +37,7 @@ class _FakePlayer:
         # _FakePlayer for why (Party has no .append(), only add_member()).
         self.party = Party(allies)
         self.unsaved_changes = False
+        self.return_key = 'Enter'
 
 
 class _FakeClient:

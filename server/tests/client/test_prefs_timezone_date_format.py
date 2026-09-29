@@ -82,6 +82,17 @@ class TestPickTimezone(unittest.IsolatedAsyncioTestCase):
         await _pick_timezone(ctx)
         self.assertEqual(ctx.player.client_settings.timezone, 'America/Los_Angeles')
 
+    async def test_marks_unsaved_changes(self):
+        # Regression: a real pick that never flags unsaved_changes never
+        # gets past Player.save()'s early-return guard on an abrupt
+        # disconnect (only a clean quit/graceful-shutdown force-saves
+        # regardless of the flag) -- found live 2026-08-27, a player's
+        # date-format choice reverted to default after their session
+        # ended without a clean quit.
+        ctx = _FakeCtx(['3'], Player())
+        await _pick_timezone(ctx)
+        self.assertTrue(ctx.player.unsaved_changes)
+
 
 class TestPickDateFormat(unittest.IsolatedAsyncioTestCase):
     async def test_numbered_preset(self):
@@ -119,6 +130,18 @@ class TestPickDateFormat(unittest.IsolatedAsyncioTestCase):
         self.assertIn('DD/MM/YYYY', text)
         self.assertIn('YYYY-MM-DD', text)
         self.assertIn('Day Month Year', text)
+        self.assertIn('Weekday, Month Day, Year', text)
+
+    async def test_marks_unsaved_changes(self):
+        # See TestPickTimezone.test_marks_unsaved_changes for why this matters.
+        ctx = _FakeCtx(['4'], Player())
+        await _pick_date_format(ctx)
+        self.assertTrue(ctx.player.unsaved_changes)
+
+    async def test_weekday_preset_selectable_by_number(self):
+        ctx = _FakeCtx(['8'], Player())
+        await _pick_date_format(ctx)
+        self.assertEqual(ctx.player.client_settings.date_format, '%A, %B %d, %Y')
 
 
 class TestFormatPlayerDatetime(unittest.TestCase):
@@ -131,9 +154,13 @@ class TestFormatPlayerDatetime(unittest.TestCase):
         return p
 
     def test_default_format_and_no_timezone_conversion(self):
+        # Default is preset 8 ('Weekday, Month Day, Year') -- see
+        # terminal.py's ClientSettings.date_format -- so a never-touched
+        # PREFS player still gets a weekday, same as before 2026-08-27's
+        # split into separate with/without-weekday presets.
         dt = datetime.datetime(2026, 7, 16, 14, 30)
         result = format_player_datetime(dt, self._player())
-        self.assertEqual(result, 'July 16, 2026')
+        self.assertEqual(result, 'Thursday, July 16, 2026')
 
     def test_custom_date_format(self):
         dt = datetime.datetime(2026, 7, 16, 14, 30)
@@ -157,6 +184,40 @@ class TestFormatPlayerDatetime(unittest.TestCase):
         player = self._player(date_format='%Q')  # not a real strftime directive combo
         result = format_player_datetime(dt, player)
         self.assertIsInstance(result, str)  # must not raise
+
+
+class TestDateFormatWeekdayColumn(unittest.TestCase):
+    """Regression 2026-08-27: whether a weekday shows up at all used to
+    be a separate, unconditional step (always on) independent of the
+    PREFS date format choice. Now it's baked into which preset a player
+    picks -- _DATE_FORMAT_PRESETS pairs a plain preset (1-7) with a
+    "Weekday, ..." twin (8-14) of the same format, abbreviated to match
+    the twin's own month style."""
+
+    def _player(self, date_format):
+        p = Player()
+        p.client_settings.date_format = date_format
+        return p
+
+    def test_plain_preset_has_no_weekday(self):
+        dt = datetime.datetime(2026, 8, 27)  # a Thursday
+        player = self._player('%B %d, %Y')  # preset 1
+        self.assertEqual(format_player_datetime(dt, player), 'August 27, 2026')
+
+    def test_weekday_twin_has_full_weekday(self):
+        dt = datetime.datetime(2026, 8, 27)
+        player = self._player('%A, %B %d, %Y')  # preset 8, twin of 1
+        self.assertEqual(format_player_datetime(dt, player), 'Thursday, August 27, 2026')
+
+    def test_abbreviated_month_weekday_twin_is_also_abbreviated(self):
+        dt = datetime.datetime(2026, 8, 27)
+        player = self._player('%a, %b %d, %Y')  # preset 13, twin of 6
+        self.assertEqual(format_player_datetime(dt, player), 'Thu, Aug 27, 2026')
+
+    def test_numeric_preset_weekday_twin_uses_full_weekday(self):
+        dt = datetime.datetime(2026, 8, 27)
+        player = self._player('%A, %Y-%m-%d')  # preset 11, twin of 4
+        self.assertEqual(format_player_datetime(dt, player), 'Thursday, 2026-08-27')
 
 
 class TestClientSettingsPersistence(unittest.TestCase):
@@ -235,6 +296,12 @@ class TestPickTimeFormat(unittest.IsolatedAsyncioTestCase):
         ctx = _FakeCtx(['2'], Player())
         await _pick_time_format(ctx)
         self.assertEqual(ctx.player.client_settings.time_format, '%H:%M')
+
+    async def test_marks_unsaved_changes(self):
+        # See TestPickTimezone.test_marks_unsaved_changes for why this matters.
+        ctx = _FakeCtx(['1'], Player())
+        await _pick_time_format(ctx)
+        self.assertTrue(ctx.player.unsaved_changes)
 
     async def test_menu_shows_bracket_highlighted_digit_in_label(self):
         ctx = _FakeCtx([''], Player())

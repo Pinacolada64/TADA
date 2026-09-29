@@ -80,7 +80,7 @@ class TestAsciiTranslationSendsRealAscii(unittest.IsolatedAsyncioTestCase):
 
     async def test_ascii_translation_keeps_literal_underscore_and_caret(self):
         """_encode_petscii_segment substitutes '_'/'^' for PETSCII glyph
-        bytes (0x64/0x5E) by default -- genuine ASCII output must keep
+        bytes (0xE4/0x5E) by default -- genuine ASCII output must keep
         their real ASCII byte values (0x5F/0x5E-as-ascii) instead."""
         ctx, writer = _make_ctx(Translation.ASCII)
         await ctx._send_formatted(['under_score^caret'])

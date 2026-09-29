@@ -1,6 +1,6 @@
 """tests/test_ally_events.py
 
-Unit tests for ally_events.try_ally_find_gold.
+Unit tests for ally_events.try_ally_find_silver.
 
 Coverage:
   Guards (silent no-ops):
@@ -12,12 +12,12 @@ Coverage:
     - random roll misses → no output
 
   Happy path (random forced to hit):
-    - gold credited to player IN_HAND
-    - amount is in valid range (52-250 gp)
+    - silver credited to player IN_HAND
+    - amount is in valid range (52-250 silver)
     - 'AYF' appended to once_per_day after firing
     - player.unsaved_changes set True after firing
     - output mentions ally name
-    - output mentions gp amount
+    - output mentions silver amount
     - first ally in purchased_allies list is used (SPUR a1 priority)
     - fires exactly once even if called twice in same session (tag blocks second call)
 
@@ -31,7 +31,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 
 from bar.ally_data import Ally, AllyStatus
-from ally_events import try_ally_find_gold, _OPD_ALLY_GOLD
+from ally_events import try_ally_find_silver, _OPD_ALLY_SILVER
 from base_classes import PlayerMoneyTypes
 
 
@@ -94,13 +94,13 @@ class _FakeCtx:
         return '\n'.join(self._sent)
 
 
-def _make_player(allies=None, gold=0, once_per_day=None):
+def _make_player(allies=None, silver=0, once_per_day=None):
     p = MagicMock()
     p.name = 'Rulan'
     p.once_per_day = once_per_day if once_per_day is not None else []
     p.unsaved_changes = False
 
-    wallet = {PlayerMoneyTypes.IN_HAND: gold}
+    wallet = {PlayerMoneyTypes.IN_HAND: silver}
 
     def get_silver(kind):
         return wallet.get(kind, 0)
@@ -124,32 +124,32 @@ def _run(coro):
 
 
 # ---------------------------------------------------------------------------
-# Guards — no ally gold should fire
+# Guards — no ally silver should fire
 # ---------------------------------------------------------------------------
 
-class TestAllyFindGoldGuards(unittest.IsolatedAsyncioTestCase):
+class TestAllyFindSilverGuards(unittest.IsolatedAsyncioTestCase):
 
     async def _call_always_hits(self, ctx):
         """Call with random forced to always trigger."""
         with patch('ally_events.random.random', return_value=0.0), \
              patch('ally_events.random.randint', return_value=50):
-            await try_ally_find_gold(ctx)
+            await try_ally_find_silver(ctx)
 
     async def test_no_allies_silent(self):
-        """No allies in party → no gold, no output."""
+        """No allies in party → no silver, no output."""
         player = _make_player(allies=[])
         ctx    = _FakeCtx(player)
         await self._call_always_hits(ctx)
         self.assertEqual(ctx.sent(), '')
-        self.assertNotIn(_OPD_ALLY_GOLD, player.once_per_day)
+        self.assertNotIn(_OPD_ALLY_SILVER, player.once_per_day)
 
-    async def test_free_ally_can_find_gold(self):
-        """FREE-status allies are still in the party and can find gold."""
+    async def test_free_ally_can_find_silver(self):
+        """FREE-status allies are still in the party and can find silver."""
         ally   = _make_ally(name='LYSSA', status=AllyStatus.FREE)
-        player = _make_player(allies=[ally], gold=0)
+        player = _make_player(allies=[ally], silver=0)
         ctx    = _FakeCtx(player)
         await self._call_always_hits(ctx)
-        self.assertIn(_OPD_ALLY_GOLD, player.once_per_day)
+        self.assertIn(_OPD_ALLY_SILVER, player.once_per_day)
         self.assertIn('LYSSA', ctx.sent())
 
     async def test_water_room_flag_blocks(self):
@@ -173,7 +173,7 @@ class TestAllyFindGoldGuards(unittest.IsolatedAsyncioTestCase):
     async def test_already_fired_today_blocks(self):
         """'AYF' already in once_per_day → skip."""
         ally   = _make_ally()
-        player = _make_player(allies=[ally], once_per_day=[_OPD_ALLY_GOLD])
+        player = _make_player(allies=[ally], once_per_day=[_OPD_ALLY_SILVER])
         ctx    = _FakeCtx(player)
         await self._call_always_hits(ctx)
         self.assertEqual(ctx.sent(), '')
@@ -193,49 +193,49 @@ class TestAllyFindGoldGuards(unittest.IsolatedAsyncioTestCase):
         player = _make_player(allies=[ally])
         ctx    = _FakeCtx(player)
         with patch('ally_events.random.random', return_value=1.0):
-            await try_ally_find_gold(ctx)
+            await try_ally_find_silver(ctx)
         self.assertEqual(ctx.sent(), '')
-        self.assertNotIn(_OPD_ALLY_GOLD, player.once_per_day)
+        self.assertNotIn(_OPD_ALLY_SILVER, player.once_per_day)
 
 
 # ---------------------------------------------------------------------------
-# Happy path — gold fires
+# Happy path — silver fires
 # ---------------------------------------------------------------------------
 
-class TestAllyFindGoldFires(unittest.IsolatedAsyncioTestCase):
+class TestAllyFindSilverFires(unittest.IsolatedAsyncioTestCase):
 
-    def _setup(self, ally_name='BARDA', starting_gold=100):
+    def _setup(self, ally_name='BARDA', starting_silver=100):
         ally   = _make_ally(name=ally_name)
-        player = _make_player(allies=[ally], gold=starting_gold)
+        player = _make_player(allies=[ally], silver=starting_silver)
         ctx    = _FakeCtx(player)
         return ally, player, ctx
 
     async def _fire(self, ctx, roll=50):
         with patch('ally_events.random.random', return_value=0.0), \
              patch('ally_events.random.randint', return_value=roll):
-            await try_ally_find_gold(ctx)
+            await try_ally_find_silver(ctx)
 
-    async def test_gold_credited(self):
-        """Player receives gold."""
-        _, player, ctx = self._setup(starting_gold=100)
+    async def test_silver_credited(self):
+        """Player receives silver."""
+        _, player, ctx = self._setup(starting_silver=100)
         await self._fire(ctx, roll=50)
         self.assertGreater(player._wallet[PlayerMoneyTypes.IN_HAND], 100)
 
-    async def test_gold_amount_formula(self):
-        """Amount = (roll*2)+50; roll=50 → 150 gp."""
-        _, player, ctx = self._setup(starting_gold=0)
+    async def test_silver_amount_formula(self):
+        """Amount = (roll*2)+50; roll=50 → 150 silver."""
+        _, player, ctx = self._setup(starting_silver=0)
         await self._fire(ctx, roll=50)
         self.assertEqual(player._wallet[PlayerMoneyTypes.IN_HAND], 150)
 
-    async def test_gold_min_roll(self):
-        """roll=1 → 52 gp (minimum)."""
-        _, player, ctx = self._setup(starting_gold=0)
+    async def test_silver_min_roll(self):
+        """roll=1 → 52 silver (minimum)."""
+        _, player, ctx = self._setup(starting_silver=0)
         await self._fire(ctx, roll=1)
         self.assertEqual(player._wallet[PlayerMoneyTypes.IN_HAND], 52)
 
-    async def test_gold_max_roll(self):
-        """roll=100 → 250 gp (maximum)."""
-        _, player, ctx = self._setup(starting_gold=0)
+    async def test_silver_max_roll(self):
+        """roll=100 → 250 silver (maximum)."""
+        _, player, ctx = self._setup(starting_silver=0)
         await self._fire(ctx, roll=100)
         self.assertEqual(player._wallet[PlayerMoneyTypes.IN_HAND], 250)
 
@@ -243,10 +243,10 @@ class TestAllyFindGoldFires(unittest.IsolatedAsyncioTestCase):
         """'AYF' is added to once_per_day after firing."""
         _, player, ctx = self._setup()
         await self._fire(ctx)
-        self.assertIn(_OPD_ALLY_GOLD, player.once_per_day)
+        self.assertIn(_OPD_ALLY_SILVER, player.once_per_day)
 
     async def test_unsaved_changes_set(self):
-        """player.unsaved_changes is True after gold is credited."""
+        """player.unsaved_changes is True after silver is credited."""
         _, player, ctx = self._setup()
         await self._fire(ctx)
         self.assertTrue(player.unsaved_changes)
@@ -257,8 +257,8 @@ class TestAllyFindGoldFires(unittest.IsolatedAsyncioTestCase):
         await self._fire(ctx)
         self.assertIn('LYSSA', ctx.sent())
 
-    async def test_output_mentions_gp(self):
-        """GP amount appears in output."""
+    async def test_output_mentions_silver(self):
+        """Silver amount appears in output."""
         _, _, ctx = self._setup()
         await self._fire(ctx, roll=50)
         self.assertIn('150', ctx.sent())
@@ -267,34 +267,34 @@ class TestAllyFindGoldFires(unittest.IsolatedAsyncioTestCase):
         """First SERVANT ally in party order is chosen (SPUR a1 priority)."""
         ally_a = _make_ally(name='ALAN')
         ally_b = _make_ally(name='BARDA')
-        player = _make_player(allies=[ally_a, ally_b], gold=0)
+        player = _make_player(allies=[ally_a, ally_b], silver=0)
         ctx    = _FakeCtx(player)
         with patch('ally_events.random.random', return_value=0.0), \
              patch('ally_events.random.randint', return_value=50):
-            await try_ally_find_gold(ctx)
+            await try_ally_find_silver(ctx)
         self.assertIn('ALAN', ctx.sent())
         self.assertNotIn('BARDA', ctx.sent())
 
     async def test_does_not_fire_twice(self):
         """Second call on same player is a no-op (tag blocks it)."""
-        _, player, ctx = self._setup(starting_gold=0)
+        _, player, ctx = self._setup(starting_silver=0)
         await self._fire(ctx, roll=50)
-        gold_after_first = player._wallet[PlayerMoneyTypes.IN_HAND]
+        silver_after_first = player._wallet[PlayerMoneyTypes.IN_HAND]
         ctx._sent.clear()
         await self._fire(ctx, roll=50)
-        self.assertEqual(player._wallet[PlayerMoneyTypes.IN_HAND], gold_after_first)
+        self.assertEqual(player._wallet[PlayerMoneyTypes.IN_HAND], silver_after_first)
         self.assertEqual(ctx.sent(), '')
 
     async def test_dry_room_does_not_block(self):
         """Normal dry room does not suppress the event."""
         ally   = _make_ally()
-        player = _make_player(allies=[ally], gold=0)
+        player = _make_player(allies=[ally], silver=0)
         room   = _Room(name='EAST HALL')
         ctx    = _FakeCtx(player, room=room)
         with patch('ally_events.random.random', return_value=0.0), \
              patch('ally_events.random.randint', return_value=50):
-            await try_ally_find_gold(ctx)
-        self.assertIn(_OPD_ALLY_GOLD, player.once_per_day)
+            await try_ally_find_silver(ctx)
+        self.assertIn(_OPD_ALLY_SILVER, player.once_per_day)
 
 
 # ---------------------------------------------------------------------------

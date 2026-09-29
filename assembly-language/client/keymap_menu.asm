@@ -140,10 +140,10 @@ KEY_NUM_RUNSTOP = 63
 ; file's own loops), so there's no live rotation/clock to fight with.
 STATUS_ROW_SCREEN = SCREEN_RAM + 920
 
-; $3000 (was $2900 until 2026-09-28) -- see tada-client.asm's OVERLAY_BUF comment (moved here
+; $3800 (was $3000 briefly, $2900 before that, until 2026-09-28) -- see tada-client.asm's OVERLAY_BUF comment (moved here
 ; 2026-09-02 after this module's own first live test re-triggered the
 ; BACKUP_CHARS/BACKUP_COLORS collision that comment documents).
-        orig $3000                ; must match OVERLAY_BUF -- see
+        orig $3800                ; must match OVERLAY_BUF -- see
                                   ; tada-client.asm
 
 module_start:
@@ -748,9 +748,12 @@ kcc_rts:
 ; never knew about.
 key_edit_macro_text:
         lda header_focused
-        bne kemt_rts
+        bne kemt_early_rts
         lda active_page
-        beq kemt_rts
+        bne kemt_start
+kemt_early_rts:                      ; local rts -- kemt_rts itself is
+        rts                          ; 224+ bytes away, out of branch range
+kemt_start:
         jsr edit_slot
         jsr selected_slot_addr
 
@@ -792,7 +795,9 @@ kemt_wait:
         cmp #$0d
         beq kemt_accept
         cmp #$03                    ; RUN/STOP -- cancel, no change
-        beq kemt_done
+        bne kemt_not_stop           ; inverted + jmp: kemt_done is 131
+        jmp kemt_done               ; bytes away, out of branch range
+kemt_not_stop:
         cmp #$14                    ; DEL
         beq kemt_backspace
         cmp #$9d                    ; CRSR-LEFT -- move cursor left

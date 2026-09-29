@@ -12,8 +12,9 @@ class EditMonstersCommand(Command):
     help = Help(
         summary  = 'Open the monster editor (admin only).',
         category = HelpCategory.ADMINISTRATIVE,
-        usage    = [('editmonsters', 'Browse and edit monsters.json in-game.')],
+        usage    = [('editmonsters', 'Browse and edit monster data in-game.')],
         notes    = ['Requires the Administrator flag.'],
+        admin_notes = ['Edits monsters.json.'],
     )
 
     async def execute(self, ctx, *args) -> CommandResult:

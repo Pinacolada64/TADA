@@ -36,11 +36,11 @@ BOX_ROWS    = 12
 ; SCREEN_RAM/COLOR_RAM/CHROUT/GETIN are macro_preprocessor.py built-ins
 ; (C64_CONSTANTS) -- no {const:} needed for those here.
 
-; $3000 (was $2900 until 2026-09-28) -- see tada-client.asm's OVERLAY_BUF comment for why (BACKUP_
+; $3800 (was $3000 briefly, $2900 before that, until 2026-09-28) -- see tada-client.asm's OVERLAY_BUF comment for why (BACKUP_
 ; COLORS drifts upward as the resident program grows and has now
 ; overlapped this address twice -- help_menu.asm first exposed it,
 ; keymap_menu.asm exposed the regression 2026-09-02).
-        orig $3000                ; must match OVERLAY_BUF -- see
+        orig $3800                ; must match OVERLAY_BUF -- see
                                   ; tada-client.asm
 
 module_start:
@@ -670,8 +670,14 @@ poke_line:
 poke_line_loop:
 poke_line_load:
         lda $ffff,x
+        beq poke_line_skip        ; 0 = transparent -- leave the dest
+                                    ; cell alone so whatever was behind
+                                    ; the window (the game text
+                                    ; JT_SAVE_SCREEN backed up, still on
+                                    ; screen at this point) keeps showing
 poke_line_store:
         sta $ffff,x
+poke_line_skip:
         inx
         cpx #40
         bne poke_line_loop

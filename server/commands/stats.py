@@ -287,8 +287,7 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
     _active_shield_id = getattr(player, 'active_shield_id', None)
     _shield_prof      = getattr(player, 'shield_proficiency', {}) or {}
     shield_skill      = int(_shield_prof.get(str(_active_shield_id), 0)) if _active_shield_id is not None else 0
-    shield_flag       = getattr(PlayerFlags, 'SHIELD_TRAINED', None)
-    shield_trained    = ('Yes' if qf(shield_flag) else 'No') if shield_flag else 'No'
+    shield_trained    = 'Yes' if qf(PlayerFlags.SHIELD_TRAINED) else 'No'
     lines += [
         f"Shield skill: {shield_skill} {tier_label(shield_skill)}|reset|, Formal training: {shield_trained}",
         '',
@@ -357,8 +356,8 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
     # table.py Table (Ally/Str/HP/Hit%/Notes columns) per Ryan's request;
     # Notes carries every AllyFlags member (see _ally_flag_tags), any
     # non-default AllyStatus tag, a Wpn tag for the ally's readied weapon
-    # (see _ally_weapon_display -- commands/give.py auto-readies a Weapon
-    # on GIVE), and a Worn tag for readied_armor/readied_shield (see
+    # (see _ally_weapon_display -- set via READY, commands/ready.py's
+    # _toggle_ally_weapon), and a Worn tag for readied_armor/readied_shield (see
     # _ally_worn_display -- commands/give.py auto-wears an armor/shield
     # Item the same way, added 2026-08-09). Not its own fixed-width table
     # column -- that starved Notes' width on narrow/C64 screens when tried

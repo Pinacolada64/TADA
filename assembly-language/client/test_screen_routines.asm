@@ -233,8 +233,9 @@ print_line_number:
         lda test_line_num
         jsr print_decimal_byte
         lda #' '
-        jsr term_chrout
-        rts
+;       jsr term_chrout
+        jmp term_chrout
+;       rts
 
 ; .a = 0-99 -> two ASCII digits via term_chrout
 print_decimal_byte:
@@ -255,28 +256,31 @@ pdb_ones:
         pla
         clc
         adc #'0'
-        jsr term_chrout
-        rts
+;       jsr term_chrout
+        jmp term_chrout
+;       rts
 
 test_line_num:
         byte 0
 test_slow_last:
         byte 0
 
+{alpha:pokealt}
 burst_text:
-        ascii "short line"          ; "LINE NN short line" -- well under 40
+        ascii "Short Line"          ; "LINE NN short line" -- well under 40
         byte 0                       ; cols, never wraps -- isolates the
                                        ; CR-only path
 wrap_text:
-        ascii "the quick brown fox jumps over the lazy dog TAIL"
+        ascii "The quick brown fox jumps over the lazy dog's TAIL"
         byte 0                       ; "WRAP NN " + this is >40 cols --
                                        ; always wraps, ending in the
                                        ; visibly-distinct "TAIL" marker so
                                        ; the wrapped remainder is easy to
                                        ; spot on its own row
 slow_text:
-        ascii "rotation/scroll interaction check"
+        ascii "Rotation/scroll interaction check"
         byte 0
+{alpha:}
 
 ; ============================================================
 ; --- Routines under test (candidates for tada-client.asm) ---
@@ -335,13 +339,6 @@ copy_block_dec_lo:
         bne copy_block_loop
         rts
 
-copy_dialogue_block:
-        lda #<DIALOGUE_SHIFT_BYTES
-        sta copy_remaining_lo
-        lda #>DIALOGUE_SHIFT_BYTES
-        sta copy_remaining_hi
-        jmp copy_block
-
 copy_src_lo:
         byte 0
 copy_src_hi:
@@ -353,6 +350,98 @@ copy_dst_hi:
 copy_remaining_lo:
         byte 0
 copy_remaining_hi:
+        byte 0
+
+; --- copy_dialogue_block_chunked ---
+; Same 880-byte-each SCREEN_RAM + COLOR_RAM dialogue-window shift as two
+; back-to-back copy_dialogue_block calls, but split into DIALOGUE_CHUNK_
+; BYTES-sized pieces, each preceded by its own wait_vblank -- the complete
+; fix wait_vblank's own comment flagged but didn't implement: a single
+; 880-byte copy (~3.5ms) runs longer than one vblank window and can spill
+; into active drawing time. Screen and color bytes are copied together,
+; one chunk at a time, rather than shifting all of SCREEN_RAM first and
+; all of COLOR_RAM after -- doing the two ranges fully sequentially would
+; leave several frames where already-shifted text shows its OLD color, a
+; lasting visible mismatch, not just the single-frame tear this replaces.
+; Self-contained (not built from copy_block) since it needs its own
+; chunk-countdown interleaved with two parallel byte copies, not
+; copy_block's single running countdown over one range.
+; Caller sets copy_src_lo/hi + copy_dst_lo/hi (screen range) and
+; cdbc_color_src_lo/hi + cdbc_color_dst_lo/hi (color range) before calling.
+DIALOGUE_CHUNK_BYTES = 220        ; 880 / 4
+copy_dialogue_block_chunked:
+        lda copy_src_lo
+        sta cdbc_screen_load+1
+        lda copy_src_hi
+        sta cdbc_screen_load+2
+        lda copy_dst_lo
+        sta cdbc_screen_store+1
+        lda copy_dst_hi
+        sta cdbc_screen_store+2
+        lda cdbc_color_src_lo
+        sta cdbc_color_load+1
+        lda cdbc_color_src_hi
+        sta cdbc_color_load+2
+        lda cdbc_color_dst_lo
+        sta cdbc_color_store+1
+        lda cdbc_color_dst_hi
+        sta cdbc_color_store+2
+        lda #<DIALOGUE_SHIFT_BYTES
+        sta copy_remaining_lo
+        lda #>DIALOGUE_SHIFT_BYTES
+        sta copy_remaining_hi
+cdbc_next_chunk:
+        jsr wait_vblank
+        lda #DIALOGUE_CHUNK_BYTES
+        sta cdbc_chunk_remaining
+cdbc_loop:
+cdbc_screen_load:
+        lda $ffff
+cdbc_screen_store:
+        sta $ffff
+        inc cdbc_screen_load+1
+        bne cdbc_screen_src_ok
+        inc cdbc_screen_load+2
+cdbc_screen_src_ok:
+        inc cdbc_screen_store+1
+        bne cdbc_screen_dst_ok
+        inc cdbc_screen_store+2
+cdbc_screen_dst_ok:
+cdbc_color_load:
+        lda $ffff
+cdbc_color_store:
+        sta $ffff
+        inc cdbc_color_load+1
+        bne cdbc_color_src_ok
+        inc cdbc_color_load+2
+cdbc_color_src_ok:
+        inc cdbc_color_store+1
+        bne cdbc_color_dst_ok
+        inc cdbc_color_store+2
+cdbc_color_dst_ok:
+        lda copy_remaining_lo
+        bne cdbc_dec_lo
+        dec copy_remaining_hi
+cdbc_dec_lo:
+        dec copy_remaining_lo
+        lda copy_remaining_lo
+        ora copy_remaining_hi
+        beq cdbc_done              ; whole 880-byte copy finished
+        dec cdbc_chunk_remaining
+        bne cdbc_loop              ; more bytes left in this chunk
+        jmp cdbc_next_chunk        ; chunk done -- wait for the next vblank
+cdbc_done:
+        rts
+
+cdbc_chunk_remaining:
+        byte 0
+cdbc_color_src_lo:
+        byte 0
+cdbc_color_src_hi:
+        byte 0
+cdbc_color_dst_lo:
+        byte 0
+cdbc_color_dst_hi:
         byte 0
 
 ; --- term_chrout / term_scroll_advance ---
@@ -417,17 +506,14 @@ term_saved_y:
 
 ; --- wait_vblank: busy-wait until the raster beam reaches line 250 ---
 ; Comfortably past the visible area on both PAL (312 lines/frame) and
-; NTSC (262 lines/frame) -- moves the START of the scroll's screen-
-; memory writes to an off-screen moment, rather than however mid-frame
-; the triggering character happened to land. Does NOT fully eliminate
-; tearing on its own: the shift itself (two 880-byte copies, screen +
-; color, ~3.5ms of CPU time) runs longer than a single vblank window
-; (well under 1ms) and spills back into active drawing time regardless.
-; A complete fix would chunk the copy across several frames instead of
-; doing it atomically -- deferred; this cheap version is worth trying
-; first and reevaluating visually before adding that complexity. $d012
-; alone (without checking $d011 bit 7) is sufficient for line 250 since
-; that's well under 256.
+; NTSC (262 lines/frame) -- moves the START of each copied chunk's
+; screen-memory writes to an off-screen moment, rather than however
+; mid-frame the triggering character happened to land.
+; copy_dialogue_block_chunked (2026-08-22) calls this once per
+; DIALOGUE_CHUNK_BYTES chunk rather than once before an atomic 880-byte-
+; times-two copy, so every actual write burst stays comfortably inside
+; its own blanking window. $d012 alone (without checking $d011 bit 7) is
+; sufficient for line 250 since that's well under 256.
 wait_vblank:
         lda $d012
         cmp #250
@@ -440,7 +526,6 @@ wait_vblank:
 ; triggers (CR, column wrap) reduce to exactly this with nothing further
 ; to preserve from STATUS_ROW.
 term_scroll_advance:
-        jsr wait_vblank
         lda #<(SCREEN_RAM+ROW_BYTES)
         sta copy_src_lo
         lda #>(SCREEN_RAM+ROW_BYTES)
@@ -449,17 +534,15 @@ term_scroll_advance:
         sta copy_dst_lo
         lda #>SCREEN_RAM
         sta copy_dst_hi
-        jsr copy_dialogue_block
-
         lda #<(COLOR_RAM+ROW_BYTES)
-        sta copy_src_lo
+        sta cdbc_color_src_lo
         lda #>(COLOR_RAM+ROW_BYTES)
-        sta copy_src_hi
+        sta cdbc_color_src_hi
         lda #<COLOR_RAM
-        sta copy_dst_lo
+        sta cdbc_color_dst_lo
         lda #>COLOR_RAM
-        sta copy_dst_hi
-        jsr copy_dialogue_block
+        sta cdbc_color_dst_hi
+        jsr copy_dialogue_block_chunked
 
         lda #DIALOGUE_LAST_ROW
         jsr set_screen_line         ; scr_ptr_lo/hi = row 22 base
@@ -708,21 +791,21 @@ redraw_status_row_blank_loop:
 ; which still go through term_chrout -> CHROUT and need ordinary PETSCII).
 {alpha:pokealt}
 build_msg:
-        ascii "build "
+        ascii "Build "
         ascii {usedef:__BuildDate}
         ascii " "
         ascii {usedef:__BuildTime}
         byte 0
 msg1:
-        ascii "PLAYED $0100 FRAMES"
+        ascii "Played $0100 frames"
         byte 0
 msg2:
-        ascii "ELAPSED $000200 JIFFIES"
+        ascii "Elapsed $000200 jiffies"
         byte 0
 msg3:
-        ascii "RD=$40 WR=$80"
+        ascii "rd=$40 wr=$80"
         byte 0
 msg4:
-        ascii "STARTS=$03"
+        ascii "Starts=$03"
         byte 0
 {alpha:normal}

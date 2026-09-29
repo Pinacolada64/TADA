@@ -452,7 +452,7 @@ class ConnectCommand(Command):
         # New in TADA: was the raw str(datetime) repr ("2026-07-11
         # 14:32:01.123456"); now uses the player's own PREFS timezone/
         # date-format choice (commands/prefs.py 'Z'/'D'), defaulting to
-        # the server's own local time and '%B %d, %Y' -- matches this
+        # the server's own local time and '%A, %B %d, %Y' -- matches this
         # codebase's other player-facing date formatting (editplayer.py
         # birthday, ban.py suspension date) until those get the same
         # per-player treatment (see TODO.md).

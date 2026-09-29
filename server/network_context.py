@@ -102,6 +102,13 @@ class BaseContext:
                      preamble_lines: list[str] | None = None) -> str:
         raise NotImplementedError
 
+    async def flush_turn(self, *, paginate: bool = True) -> None:
+        """Emit any output buffered during the current turn. No-op by
+        default; GameContext overrides it to make the combined-output
+        "-- More --" pagination decision. Safe to call on any context so
+        the server loop needn't special-case the transport."""
+        return None
+
     def _pop_pending_pages(self) -> list[str]:
         """Pop and format any pages queued while this player was busy (in
         combat -- see commands/messaging.py's is_in_combat() and
@@ -142,16 +149,43 @@ class GameContext(BaseContext):
 
     _prompt: str = field(default='> ', repr=False)
 
+    # --- Per-turn output buffering (see flush_turn) -----------------------
+    # send() accumulates a turn's output here instead of sending each call
+    # immediately, so the "-- More --" pagination decision is made once
+    # against the cumulative total rather than per send() call. See
+    # ALPHA_TESTERS.md, "More Prompt doesn't trigger when output is split
+    # across separate send() calls".
+    #
+    # Plain class attributes rather than dataclass fields on purpose: a few
+    # tests build a context via GameContext.__new__() without running
+    # __init__, and prompt()/send() must still work then (buffer just stays
+    # inert). _turn_buffer is lazily replaced with a per-instance list on
+    # first use, so the None default is never mutated.
+    _turn_buffer = None
+    _in_turn     = False   # armed by prompt() while a command runs
+    _paginating  = False   # guard: _paginate()'s own prompts don't re-buffer
+    _buffering_enabled = False   # set True once in the game loop; login/negotiation
+                                 # output keeps its old immediate-send behavior
+                                 # (it has its own e2e pagination-drain helpers)
+
     # -----------------------------------------------------------------------
     # Core I/O
     # -----------------------------------------------------------------------
 
-    async def send(self, *lines) -> None:
+    async def send(self, *lines, flush: bool = False) -> None:
         """
         Format and send text to this player over the JSON wire.
         Lines are word-wrapped and bracket-highlighted for this player's
         terminal settings before being packed into a Message.
         Automatically paginates when output exceeds the player's screen height.
+
+        While a command is running (self._in_turn, armed by prompt()) the
+        formatted lines are appended to a per-turn buffer instead of being
+        sent right away; the buffer is flushed -- and the pagination
+        decision made against its cumulative length -- at the next prompt()
+        or an explicit flush_turn(). Pass flush=True to force this call
+        (and anything already buffered) out immediately, e.g. for a
+        long-running command that wants incremental output while it runs.
         """
         from formatting import (
             format_lines, codec_for_settings, flatten_send_args,
@@ -162,15 +196,50 @@ class GameContext(BaseContext):
         codec = codec_for_settings(self.player.client_settings)
         formatted = format_lines(raw, self.player.client_settings, codec)
         if isinstance(codec, ANSICodec):
-            formatted = ansi_encode_lines(formatted, reset_color=codec.reset())
+            formatted = ansi_encode_lines(formatted, reset_color=codec.reset(),
+                                          command_color=codec.command_color)
         elif isinstance(codec, PlainCodec):
             formatted = plain_encode_lines(formatted)
 
+        if self._in_turn and not self._paginating:
+            if self._turn_buffer is None:
+                self._turn_buffer = []
+            self._turn_buffer.extend(formatted)
+            if flush:
+                await self.flush_turn()
+            return
+        await self._emit(formatted)
+
+    async def _emit(self, formatted: list[str]) -> None:
+        """Send formatted lines now, paginating if they exceed a screenful
+        and More Prompt is on. The single choke point both send() (when not
+        buffering) and flush_turn() funnel through."""
         page_size = max(1, self.player.client_settings.screen_rows - 1)
         if self._wants_pagination(formatted, page_size):
             await self._paginate(formatted, page_size)
         else:
             await self._send_formatted(formatted)
+
+    async def flush_turn(self, *, paginate: bool = True) -> None:
+        """Emit everything send() buffered during this turn as one combined
+        block, so the "-- More --" pagination decision is made against the
+        cumulative total instead of per send() call (ALPHA_TESTERS.md:
+        "More Prompt doesn't trigger when output is split across separate
+        send() calls").
+
+        Called at the natural end-of-turn points: the top of prompt(), and
+        explicitly after each command dispatch in simple_server's login /
+        game loops. paginate=False drains the buffer without ever showing a
+        More prompt -- used on the disconnect path, where blocking for a
+        keypress on a closing socket makes no sense.
+        """
+        if not self._turn_buffer:
+            return
+        buf, self._turn_buffer = self._turn_buffer, []
+        if paginate:
+            await self._emit(buf)
+        else:
+            await self._send_formatted(buf)
 
     def _wants_pagination(self, formatted: list[str], page_size: int) -> bool:
         """Whether output should pause between screenfuls (PlayerFlags.MORE_PROMPT)
@@ -204,6 +273,13 @@ class GameContext(BaseContext):
         B or -        — previous page
         Q             — stop reading early
         """
+        self._paginating = True   # our own prompt() calls below must not re-buffer or re-flush
+        try:
+            await self._paginate_loop(formatted, page_size)
+        finally:
+            self._paginating = False
+
+    async def _paginate_loop(self, formatted: list[str], page_size: int) -> None:
         total      = len(formatted)
         total_pgs  = max(1, (total + page_size - 1) // page_size)
         idx        = 0
@@ -267,7 +343,7 @@ class GameContext(BaseContext):
 
     async def prompt(self,
                      prompt_text:    str            = '',
-                     preamble_lines: list[str] | None = None) -> str:
+                     preamble_lines: str| list[str] | None = None) -> str:
         """
         Send optional preamble + a prompt, then await a single-line
         JSON response. Returns the stripped response string.
@@ -282,6 +358,15 @@ class GameContext(BaseContext):
 
         if preamble_lines:
             await self.send(preamble_lines)
+
+        # End of the previous turn: flush its buffered output (deciding
+        # pagination against the cumulative total) and disarm buffering
+        # while we block for input, so out-of-band sends from other players
+        # (say/page/wall) still reach this client immediately. _paginate()'s
+        # own prompt() calls set self._paginating and skip all of this.
+        if not self._paginating:
+            await self.flush_turn()
+            self._in_turn = False
 
         from tada_utilities import substitute_tokens
         prompt_text = substitute_tokens(prompt_text, self.player)
@@ -300,14 +385,23 @@ class GameContext(BaseContext):
             if isinstance(obj, dict):
                 lines = obj.get('lines')
                 if isinstance(lines, list) and lines:
-                    return str(lines[0]).strip()
-                return str(obj.get('text', '')).strip()
-            return ''
+                    text = str(lines[0]).strip()
+                else:
+                    text = str(obj.get('text', '')).strip()
+            else:
+                text = ''
         except asyncio.IncompleteReadError:
             return None         # EOF mid-stream — client dropped
         except Exception:
             logging.exception('GameContext.prompt: error reading response')
             return None         # treat unrecoverable errors as disconnect
+
+        # Got real input: arm buffering so the resulting command's send()
+        # calls accumulate into one screenful-aware block. Only in the game
+        # loop -- login/negotiation output streams immediately as before.
+        if not self._paginating and self._buffering_enabled:
+            self._in_turn = True
+        return text
 
     # -----------------------------------------------------------------------
     # Helpers
@@ -342,21 +436,54 @@ def _petscii_input_to_ascii(data: bytes) -> str:
     cbmcodecs2 maps 0x41-0x5A to lowercase letters in petscii_c64en_lc,
     which is correct for display but wrong for keyboard input (the C64
     unshifted keys always send 0x41-0x5A regardless of charset mode).
-    This function handles the five relevant ranges:
+    This function handles the six relevant ranges:
       0x20-0x5A  space, punctuation, digits, and unshifted A-Z
       0x5E       up-arrow key (the '^' printed on that keycap) -> '^'
       0x61-0x7A  a-z (shifted in uppercase charset / unshifted in some modes)
-      0x64       Commodore+@ (underline glyph key combo) -> '_', checked
-                 before the 0x61-0x7A range below since it would otherwise
-                 shadow this byte as lowercase 'd' -- real C64 hardware
-                 already sends unshifted 'd' as 0x44 (the 0x41-0x5A
-                 branch), so this byte is free to mean underline instead.
+      0xA0       Shift+Space -> '_' (underscore). This is the real,
+                 unmodified KERNAL keyboard-decode table's own value for
+                 that key combo -- verified via py65 disassembly of this
+                 project's actual kernal-901246-01.bin: matrix position
+                 60 (the space bar) is $20 in the unshifted table
+                 ($EB81+60) and $A0 in the shift table ($EBC2+60), no
+                 client-side keyboard-table patch needed. See
+                 assembly-language/client/keyboard.asm for the verified
+                 table addresses/offsets. The back-arrow key ($5F, '←')
+                 deliberately does NOT mean underscore -- that glyph is
+                 reserved for the map/overview display's directional
+                 arrows (Ryan's call), so it's left unhandled/discarded
+                 here like any other unmapped control/graphics byte.
       0xC1-0xDA  A-Z shifted in lowercase charset (0xC1 = 'A', 0xDA = 'Z')
+      0xDD       Shift+'-' -> '|'. Verified the same way as 0xA0 above --
+                 py65 disassembly of kernal-901246-01.bin: matrix position
+                 43 (the '-' key) is $2D in the unshifted table ($EB81+43)
+                 and $DD in the shift table ($EBC2+43). Conveniently the
+                 exact same byte formatting.py's _PETSCII_RAW_BYTE_OVERRIDES
+                 sends back out for '|' (the box-drawing vertical bar,
+                 '│') -- input and output round-trip through the identical
+                 wire byte. Before this branch existed, 0xDD fell through
+                 every case here undetected: 'say "|"'/'say "||"' silently
+                 became 'say ""' server-side (empty message, "Say what?"),
+                 and mid-message pipes vanished outright, well before
+                 petscii_encode() or say.py's escape handling ever saw
+                 them -- confirmed live 9/19/26.
     Everything else (control codes, graphics) is discarded. 0x5E is
     outside 0x20-0x40 because cbmcodecs2 decodes it to the UPWARDS ARROW
     glyph (U+2191), not '^' -- see formatting.py's
     _PETSCII_RAW_BYTE_OVERRIDES for the matching server -> C64 direction
-    of both this and the '^' mapping.
+    of the '^' mapping (the '_' output direction uses raw wire byte
+    0xE4, which round-trips through CHROUT to screen code 0x64 -- the
+    real underline-ish glyph -- not 0x64 itself; screen codes and
+    PETSCII/CHROUT transmission codes are different numbering spaces for
+    the same glyph).
+
+    NOTE: two earlier versions of this function got the input byte for
+    underscore wrong in two different ways: first raw byte 0x64
+    (mistakenly labeled "Commodore+@"), which collided with plain
+    lowercase 'd' and broke typing 'd' on the Gadget client; then the
+    back-arrow key (0x5F), which works but claims a glyph/key needed
+    elsewhere for map-overview arrows. Shift+Space (0xA0) has neither
+    problem and needs no client-side change at all.
     """
     chars = []
     for b in data:
@@ -366,8 +493,10 @@ def _petscii_input_to_ascii(data: bytes) -> str:
             chars.append(chr(b + 0x20))
         elif b == 0x5E:                # up-arrow key
             chars.append('^')
-        elif b == 0x64:                # Commodore+@ underline glyph combo
+        elif b == 0xA0:                # Shift+Space
             chars.append('_')
+        elif b == 0xDD:                # Shift+'-'
+            chars.append('|')
         elif 0x61 <= b <= 0x7A:        # a-z (some terminal modes)
             chars.append(chr(b))
         elif 0xC1 <= b <= 0xDA:        # shifted A-Z in lowercase charset → uppercase
@@ -391,20 +520,26 @@ class PETSCIINetworkContext(GameContext):
     LINE_ENDING: bytes = b'\r'          # Commodore CR
     CODEC_NAME:  str   = 'petscii_c64en_lc'
 
-    async def send(self, *lines) -> None:
+    async def send(self, *lines, flush: bool = False) -> None:
         """Encode and send as raw PETSCII bytes — no JSON envelope.
-        Automatically paginates when output exceeds the player's screen height."""
+        Automatically paginates when output exceeds the player's screen height.
+
+        Like GameContext.send(): buffers into the per-turn buffer while a
+        command runs (see flush_turn); flush=True forces it out now."""
         from formatting import codec_for_settings
         from tada_utilities import substitute_tokens
         raw       = [substitute_tokens(line, self.player) for line in flatten_send_args(*lines)]
         codec     = codec_for_settings(self.player.client_settings)
         formatted = format_lines(raw, self.player.client_settings, codec)
 
-        page_size = max(1, self.player.client_settings.screen_rows - 1)
-        if self._wants_pagination(formatted, page_size):
-            await self._paginate(formatted, page_size)
-        else:
-            await self._send_formatted(formatted)
+        if self._in_turn and not self._paginating:
+            if self._turn_buffer is None:
+                self._turn_buffer = []
+            self._turn_buffer.extend(formatted)
+            if flush:
+                await self.flush_turn()
+            return
+        await self._emit(formatted)
 
     def _text_codec_name(self) -> str:
         """Codec name for encoding this player's outgoing text.
@@ -440,6 +575,7 @@ class PETSCIINetworkContext(GameContext):
         from formatting import codec_for_settings, PETSCIICodec, plain_encode_lines
         codec = codec_for_settings(self.player.client_settings)
         reset_color = codec.reset_color if isinstance(codec, PETSCIICodec) else None
+        command_color = codec.command_color if isinstance(codec, PETSCIICodec) else None
         codec_name = self._text_codec_name()
         if codec_name == 'ascii':
             # petscii_encode() always interprets surviving |token| color
@@ -454,6 +590,7 @@ class PETSCIINetworkContext(GameContext):
                                        line_ending     = self._line_ending_bytes(),
                                        screen_columns  = self.player.client_settings.screen_columns,
                                        reset_color     = reset_color,
+                                       command_color   = command_color,
                                        apply_overrides = codec_name != 'ascii')
         try:
             self.writer.write(encoded)
@@ -483,6 +620,12 @@ class PETSCIINetworkContext(GameContext):
             preamble_lines = pending + list(preamble_lines or [])
         if preamble_lines:
             await self.send(preamble_lines)
+        # End of the previous turn -- see GameContext.prompt() for the full
+        # rationale: flush its buffered output as one screenful-aware block,
+        # then disarm buffering while we block for input.
+        if not self._paginating:
+            await self.flush_turn()
+            self._in_turn = False
         from tada_utilities import substitute_tokens
         prompt_text = substitute_tokens(prompt_text, self.player)
         if self.player.query_flag(PlayerFlags.HOURGLASS):
@@ -491,6 +634,7 @@ class PETSCIINetworkContext(GameContext):
         if prompt_text:
             codec = codec_for_settings(self.player.client_settings)
             reset_color = codec.reset_color if isinstance(codec, PETSCIICodec) else None
+            command_color = codec.command_color if isinstance(codec, PETSCIICodec) else None
             codec_name = self._text_codec_name()
             out_text = prompt_text + ' > '
             if codec_name == 'ascii':
@@ -503,6 +647,7 @@ class PETSCIINetworkContext(GameContext):
             # terminates each send() with CR, so the cursor is already
             # on a fresh line.
             self.writer.write(petscii_encode(out_text, codec_name, reset_color=reset_color,
+                                             command_color=command_color,
                                              apply_overrides=codec_name != 'ascii'))
             await self.writer.drain()
         try:
@@ -517,6 +662,8 @@ class PETSCIINetworkContext(GameContext):
             # from formatting import petscii_encode
             # self.writer.write(petscii_encode(text, self.CODEC_NAME) + self.LINE_ENDING)
             # await self.writer.drain()
+            if not self._paginating and self._buffering_enabled:
+                self._in_turn = True   # arm buffering for the resulting command (game loop only)
             return text
         except asyncio.IncompleteReadError:
             return None         # EOF — Commodore client disconnected

@@ -369,7 +369,7 @@ async def enter_bar(ctx: GameContext) -> None:
                 else:
                     move_into_obstacle = True
             else:
-                await ctx.send('Hm? (N/S/E/W to move, H for help, Q to leave)')
+                await ctx.send('Hm? (N/S/E/W to move, [H] Help, [Q] Leave)')
 
             if moved_direction:
                 await broadcast_area(ctx, 'bar',

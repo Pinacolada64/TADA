@@ -12,8 +12,8 @@ Usage:
 """
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
-from commands.messaging import player_exists
 from network_context import GameContext
+from tada_utilities import player_exists
 
 
 class GroupsCommand(Command):

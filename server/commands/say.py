@@ -8,6 +8,27 @@ Verb is chosen by terminal punctuation:
 
 The command is also triggered by the bare " shortcut:
   "Hello there!   →  Rulan exclaims, "Hello there!"
+
+With command_settings.say.split enabled (PREFS 'Y'), a ',,' in the text
+splits it into a mid-sentence attribution instead of one leading quote:
+  say This is something,,up with which I will not put!
+    →  "This is something," Rulan exclaims, "up with which I will not put!"
+
+A ',,,' instead attaches a one-off verb straight after the quote, in
+"<verb> <name>." order, overriding punctuation-based selection for just
+that line (doesn't touch command_settings.say.verb):
+  say Argh!,,,moan
+    →  "Argh!" moans Rulan.
+
+'say #verb=<word>' overrides the punctuation-based verb entirely
+(command_settings.say.verb), e.g. 'say #verb=grumble' then 'say Hello'
+  →  Rulan grumbles, "Hello"
+'say #verb=off' (or '#verb='/'#verb=none') clears it. Bare 'say #verb'
+previews the current verb without broadcasting anything.
+
+'say #split' is the inline equivalent of PREFS 'Y': bare 'say #split'
+reports the current on/off state, 'say #split on'/'say #split off' sets
+it explicitly, and 'say #unsplit' is shorthand for 'say #split off'.
 """
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
@@ -26,6 +47,9 @@ _VERB_MAP = [
 ]
 _DEFAULT_VERB = ('says', 'say')
 
+_TRUTHY = {'on', 'true', '1', 'yes'}
+_FALSY  = {'off', 'false', '0', 'no'}
+
 
 def _choose_verb(text: str):
     """Return (third_person, first_person) verb for the given message."""
@@ -34,6 +58,26 @@ def _choose_verb(text: str):
         if stripped.endswith(suffix):
             return verbs
     return _DEFAULT_VERB
+
+
+def _third_person(verb: str) -> str:
+    """Naive English 3rd-person-singular conjugation for a custom verb,
+    e.g. 'grumble' -> 'grumbles', 'hiss' -> 'hisses', 'cry' -> 'cries'."""
+    if verb.endswith(('s', 'sh', 'ch', 'x', 'z')):
+        return verb + 'es'
+    if verb.endswith('y') and not verb.endswith(('ay', 'ey', 'iy', 'oy', 'uy')):
+        return verb[:-1] + 'ies'
+    return verb + 's'
+
+
+def _resolve_verb(ctx: GameContext, text: str):
+    """Return (third_person, first_person) verb, preferring a custom
+    command_settings.say.verb override ('say #verb=<word>') over the
+    default punctuation-based selection."""
+    custom = getattr(ctx.player.command_settings.say, 'verb', None)
+    if custom:
+        return _third_person(custom), custom
+    return _choose_verb(text)
 
 
 # ---------------------------------------------------------------------------
@@ -71,8 +115,15 @@ class SayCommand(Command):
         ),
         category = HelpCategory.COMMUNICATION,
         usage    = [
-            ('say <message>', 'Speak aloud to everyone in the room'),
-            ('"<message>',    'Shorthand for say'),
+            ('say <message>',        'Speak aloud to everyone in the room'),
+            ('"<message>',           'Shorthand for say'),
+            ('say <msg>,,<msg2>',    "Split into a mid-sentence attribution (Say Split, PREFS 'Y')"),
+            ('say <msg>,,,<verb>',   'One-off verb straight after the quote (Say Split, PREFS \'Y\')'),
+            ('say #verb=<word>',     'Always use <word> as your say verb'),
+            ('say #verb',            'Preview your current say verb'),
+            ('say #verb=off',        'Clear the custom verb'),
+            ('say #split [on|off]',  "Report, or set, Say Split (same as PREFS 'Y')"),
+            ('say #unsplit',         "Shorthand for 'say #split off'"),
         ],
         examples = [
             ('say Hello there!',   'SAY broadcasts a message to everyone in your room, '
@@ -84,11 +135,48 @@ class SayCommand(Command):
             ('"See you around.',   'The \'"\' shortcut works without typing \'say\' first '
                                     "-- with no special punctuation at the end, it's just "
                                     'Rulan says, "See you around."'),
+            ('say This is something,,up with which I will not put!',
+             "If you've turned on Say Split in PREFS ('Y'), a ',,' splits your "
+             'message into a mid-sentence attribution instead of one leading '
+             'quote -- shows as "This is something," Rulan exclaims, "up with '
+             'which I will not put!"'),
+            ('say Argh!,,,moan',   "With Say Split on, a ',,,' attaches a one-off verb "
+                                    'right after the quote instead of a mid-sentence split '
+                                    '-- shows as "Argh!" moans Rulan., overriding the '
+                                    "punctuation-based verb for just this line without "
+                                    "touching your saved #verb."),
+            ('say #verb=grumble',   "Sets your say verb permanently -- afterward, "
+                                    '"say Hello" shows as Rulan grumbles, "Hello", '
+                                    'overriding the punctuation-based verb entirely.'),
+            ('say #verb',           "Bare 'say #verb' previews your current custom "
+                                    'verb without saying anything (or tells you none '
+                                    "is set). 'say #verb=off' clears it, back to "
+                                    'punctuation-based selection.'),
+            ('say #split',          "Inline equivalent of PREFS 'Y' -- bare "
+                                    "'say #split' reports Say split is On. or "
+                                    "Say split is Off. without saying anything; "
+                                    "'say #split on'/'say #split off' sets it "
+                                    "directly, and 'say #unsplit' is shorthand "
+                                    "for 'say #split off'."),
+        ],
+        notes = [
+            "Say Split (PREFS 'Y') must be on for ',,' and ',,,' to do "
+            "anything special -- otherwise they're just literal commas.",
+            "'say #verb=off' also accepts 'say #verb=' and 'say #verb=none'.",
         ],
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
-        args, _switches = self.parse_args(*args)
+        args, switches = self.parse_args(*args)
+
+        verb_switch = next((s for s in switches if s == '#verb' or s.startswith('#verb=')), None)
+        if verb_switch is not None:
+            return await self._handle_verb_switch(ctx, verb_switch)
+
+        if '#split' in switches:
+            return await self._handle_split_switch(ctx, args)
+        if '#unsplit' in switches:
+            return await self._handle_split_switch(ctx, ['off'])
 
         # Reconstruct the message; strip a leading " if the shortcut was used
         text = ' '.join(args).lstrip('"').strip()
@@ -97,10 +185,75 @@ class SayCommand(Command):
             await ctx.send('Say what?')
             return CommandResult(False, 'No message.')
 
-        third, first = _choose_verb(text)
         name = ctx.player.name
+        split_enabled = getattr(ctx.player.command_settings.say, 'split', False)
 
-        await ctx.send(f'You {first}, "{text}"')
-        await ctx.send_room(f'{name} {third}, "{text}"', exclude_self=True)
+        if split_enabled and ',,,' in text:
+            quote, _, inline_verb = text.partition(',,,')
+            quote, inline_verb = quote.strip(), inline_verb.strip()
+            if inline_verb:
+                third = _third_person(inline_verb)
+                await ctx.send(f'"{quote}" you {inline_verb}.')
+                await ctx.send_room(f'"{quote}" {third} {name}.', exclude_self=True)
+                await _gollum_riddle_check(ctx, quote)
+                return CommandResult.ok()
+            text = quote  # trailing ',,,' with no verb -- fall through as plain text
+
+        third, first = _resolve_verb(ctx, text)
+
+        if split_enabled and ',,' in text:
+            part1, part2 = (p.strip() for p in text.split(',,', 1))
+            await ctx.send(f'"{part1}," you {first}, "{part2}"')
+            await ctx.send_room(f'"{part1}," {name} {third}, "{part2}"', exclude_self=True)
+        else:
+            await ctx.send(f'You {first}, "{text}"')
+            await ctx.send_room(f'{name} {third}, "{text}"', exclude_self=True)
         await _gollum_riddle_check(ctx, text)
+        return CommandResult.ok()
+
+    async def _handle_verb_switch(self, ctx: GameContext, switch: str) -> CommandResult:
+        """'say #verb' (preview), 'say #verb=<word>' (set), or
+        'say #verb=off'/'#verb='/'#verb=none' (clear)."""
+        say_settings = ctx.player.command_settings.say
+
+        if switch == '#verb':
+            if say_settings.verb:
+                third = _third_person(say_settings.verb)
+                await ctx.send(f'Your say verb is "{say_settings.verb}" -- '
+                                f'{ctx.player.name} {third}, "..."')
+            else:
+                await ctx.send('No custom say verb set -- the verb follows your '
+                                "trailing punctuation (says/asks/exclaims/mutters). "
+                                "Set one with 'say #verb=<word>'.")
+            return CommandResult.ok()
+
+        value = switch[len('#verb='):].strip()
+        if value in ('', 'off', 'none'):
+            say_settings.verb = None
+            await ctx.send('Say verb cleared -- back to punctuation-based '
+                            '(says/asks/exclaims/mutters).')
+            return CommandResult.ok()
+
+        say_settings.verb = value
+        third = _third_person(value)
+        await ctx.send(f'Say verb set to "{value}" -- '
+                        f'{ctx.player.name} {third}, "..."')
+        return CommandResult.ok()
+
+    async def _handle_split_switch(self, ctx: GameContext, args: list) -> CommandResult:
+        """'say #split' (bare: preview; with on/off: set) and
+        'say #unsplit' (routed here with a synthetic 'off' arg)."""
+        say_settings = ctx.player.command_settings.say
+
+        if args:
+            value = args[0].lower()
+            if value in _TRUTHY:
+                say_settings.split = True
+            elif value in _FALSY:
+                say_settings.split = False
+            else:
+                await ctx.send(f"Say split unchanged -- \"{args[0]}\" isn't on/off.")
+                return CommandResult.ok()
+
+        await ctx.send(f"Say split is {'On' if say_settings.split else 'Off'}.")
         return CommandResult.ok()

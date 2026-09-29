@@ -62,6 +62,78 @@ sync_prompt_buf_done:
         sty prompt_len
         rts
 
+; --- relocate_prompt_to_row24 ---
+; Called right after sync_prompt_buf settles at wait_for_data's two
+; return points. The client has no protocol signal for "this is a
+; prompt label" distinct from ordinary dialogue text -- everything comes
+; through display_char identically. Ryan's call: treat "the settled
+; line ends in '>' (optionally followed by a trailing space)" as the
+; signal instead, since every real prompt in this codebase is generated
+; by ctx.prompt() and follows that convention ("main > ", "login > ",
+; etc -- see network_context.py). If it matches, it gets redrawn a
+; second time, pinned to PROMPT_ROW, so the player always types in the
+; same fixed place right under STATUS_ROW. Anything that doesn't match
+; this pattern (rare) is left exactly where it naturally landed.
+;
+; Deliberately does NOT erase the original inline copy first (confirmed
+; live 2026-08-20 this is the right call, not just a shortcut): doing so
+; means walking $9d (CRSR LEFT) back across however many rows the prompt
+; spans, and that walk is not reliable this deep into a session with
+; many custom (raw-memory, KERNAL-bypassing) scrolls behind it --
+; observed CRSR LEFT jump from row 22 stright to row 8 crossing a
+; boundary it should never cross in one step, almost certainly because
+; term_scroll_advance's raw SCREEN_RAM/COLOR_RAM copies (deliberately
+; bypassing KERNAL's own scroll -- that's this whole session's premise)
+; never update whatever internal screen-line bookkeeping stock CHROUT's
+; CRSR LEFT/RIGHT consult to decide where "the previous row" is, so that
+; bookkeeping silently drifts out of sync with what's actually on screen
+; the more custom scrolls accumulate. Left as a known open question for
+; the sliding-input follow-up, which will also lean on relative cursor
+; movement -- worth re-examining there rather than re-litigating here.
+; The accepted cost of skipping the erase: the prompt text briefly
+; appears twice (once inline where it naturally landed, once pinned at
+; PROMPT_ROW) until ordinary scrolling carries the inline copy away,
+; which happens within a line or two of normal play.
+relocate_prompt_to_row24:
+        lda prompt_relocate_enabled
+        beq relocate_prompt_rts    ; still mid SwiftLink negotiation --
+                                     ; see start:'s own comment
+        lda prompt_len
+        beq relocate_prompt_rts    ; empty -- nothing to relocate
+        ldx prompt_len
+        dex                         ; X = index of last char
+        lda prompt_buf,x
+        cmp #'>'
+        beq relocate_prompt_is_prompt
+        cmp #' '
+        bne relocate_prompt_rts    ; neither '>' nor a trailing space
+        cpx #0
+        beq relocate_prompt_rts    ; lone space, nothing before it
+        dex
+        lda prompt_buf,x
+        cmp #'>'
+        bne relocate_prompt_rts
+relocate_prompt_is_prompt:
+        ldx #PROMPT_ROW              ; KERNAL_PLOT: X=row, Y=col
+        ldy #0
+        clc
+        jsr KERNAL_PLOT
+        lda #0
+        sta async_idx
+relocate_prompt_redraw_loop:
+        lda async_idx
+        cmp prompt_len
+        bcs relocate_prompt_rts
+        tax
+        lda prompt_buf,x
+        jsr term_chrout
+        lda #0
+        sta QTSW
+        inc async_idx
+        jmp relocate_prompt_redraw_loop
+relocate_prompt_rts:
+        rts
+
 ; --- erase_input_line / reprint_input_line ---
 ; Bracket a service_async_text drain: erase blanks the input line
 ; (prompt_buf + linebuf's on-screen echo) back to column 0 so incoming
@@ -171,30 +243,20 @@ async_blank_loop:
         ldx $d6
         cpx #STATUS_ROW
         bne async_blank_loop
-        ldx #DIALOGUE_LAST_ROW     ; blanking forward hit the reserved
+        ldx #24                    ; blanking forward hit the reserved
         ldy #0                      ; row -- hop over it to the start of
-        clc                         ; the row below instead of scrolling.
-        jsr KERNAL_PLOT             ; Was #24 (one row lower than async_
-                                     ; step_back's own #DIALOGUE_LAST_ROW
-                                     ; landing for the identical backward
-                                     ; case) -- confirmed live 2026-09-02
-                                     ; via a temporary row-log ring buffer
-                                     ; that this mismatch was silently
-                                     ; desyncing $d6 from what term_chrout
-                                     ; expects: a real repro's logged row
-                                     ; sequence went 20,21,23,20,21,23...
-                                     ; -- DIALOGUE_LAST_ROW (22) never
-                                     ; appearing at all -- leaving one of
-                                     ; every three "free" post-shift rows
-                                     ; permanently unwritten, surfacing
-                                     ; later as a blank line once that row
-                                     ; got shifted into view. Only fires
-                                     ; while erase_input_line's forward
-                                     ; blank-walk (service_async_text,
-                                     ; mid-typing incoming text) happens
-                                     ; to cross STATUS_ROW -- unrelated to
-                                     ; SCROLL_AHEAD, reproduces at
-                                     ; SCROLL_AHEAD=1 too.
+        clc                         ; the row below instead of scrolling
+        jsr KERNAL_PLOT             ; (#24 = PROMPT_ROW, deliberately NOT
+                                     ; DIALOGUE_LAST_ROW: feature/keymap-
+                                     ; editor's pre-PROMPT_ROW layout had
+                                     ; nothing on row 24, and changed this
+                                     ; to #DIALOGUE_LAST_ROW after a live
+                                     ; 2026-09-02 repro showed $d6 desync
+                                     ; there -- under the fixed prompt row
+                                     ; design, a forward walk from row 22
+                                     ; that skips STATUS_ROW really does
+                                     ; belong on row 24, mirroring async_
+                                     ; step_back's backward landing on 22.)
         jmp async_blank_loop
 async_blank_done:
         rts

@@ -18,14 +18,13 @@ from __future__ import annotations
 
 import logging
 import re
-import textwrap
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from commands.base_command import Command, Mode
-from formatting import hrule_char, _visible_len
+from formatting import hrule_char, _visible_len, wrap_text
 
 if TYPE_CHECKING:
     from network_context import GameContext
@@ -488,8 +487,7 @@ register_topic(
         summary="What \"Base damage\" on READY means",
         description=(
             "Base damage is the ceiling on the random damage roll a hit "
-            "draws from -- shown on READY as a score of 3-9 (weapons.json "
-            "stores it as that digit x10, e.g. 60 for a score of 6). "
+            "draws from -- shown on READY as a score of 3-9. "
             "Higher Base damage means a wider range of possible damage per "
             "hit, not a bigger guaranteed number: a hit always rolls "
             "somewhere between a small floor and (Base damage + 2), then "
@@ -521,9 +519,8 @@ register_topic(
         description=(
             "Ease of use is a multiplier applied on top of a hit's random "
             "damage roll ('help basedamage') -- shown on READY as a score "
-            "of 5-9 (weapons.json stores it as that digit x10, e.g. 90 for "
-            "a score of 9). A higher score means more of that roll's raw "
-            "damage actually lands.\n\n"
+            "of 5-9. A higher score means more of that roll's raw damage "
+            "actually lands.\n\n"
             "There's also a hidden perk: on a strong enough attack roll, "
             "\"ease of use helps!\" kicks in and applies this same damage "
             "formula through a faster, slightly more forgiving path -- a "
@@ -677,6 +674,13 @@ register_topic(
             "code always renders as its exact named color regardless of "
             "your personal color preferences, while [brackets] pick up "
             "whatever colors you've chosen.\n\n"
+            "||command|| is a third kind, alongside ||reset|| -- rather "
+            "than a fixed color, it resolves to *your own* PREFS 'C' "
+            "Colors -> Command choice (cyan by default), the same way "
+            "||reset|| resolves to your Text color. Game commands "
+            "referenced in help text and messages (e.g. |command|.h h"
+            "|reset|) use it, so you can tell command syntax apart from "
+            "[bracketed] entities at a glance.\n\n"
             "Some codes can also repeat with a count -- ||tab:5|| means "
             "five tabs in a row instead of one.\n\n"
             "Doubled pipes like the examples above (||red||...||reset||) "
@@ -689,6 +693,7 @@ register_topic(
         category=HelpCategory.CONCEPT,
         usage=[
             ("||color||some text||reset||", "Colors 'some text'; 'reset' returns to normal after it."),
+            ("||command||some text||reset||", "Colors 'some text' in *your* command color (PREFS 'C')."),
             ("||tab||",                     "A tab -- a real Tab character or simulated spaces, per PREFS 'K'."),
             ("||tab:5||",                   "A count after the code repeats it -- five tabs in a row here."),
             ("||code||...||code||",         "Doubled pipes: show raw ||code|| syntax literally instead of applying it."),
@@ -696,6 +701,8 @@ register_topic(
         examples=[
             ("You find |red|a ruby|reset| on the floor.",
              "'a ruby' renders in red; the rest is normal text."),
+            ("Type |command|.h h|reset| for help on the Help command.",
+             "'.h h' renders in your PREFS command color; the rest is normal text."),
             ("Name:|tab|Alice", "Lines up 'Alice' at the next tab stop."),
         ],
         notes=[
@@ -704,6 +711,8 @@ register_topic(
             "light_green, light_blue, light_gray, dark_gray, mid_gray. "
             "ANSI terminals also get magenta, light_cyan, light_yellow, "
             "light_white, bold, and dim.",
+            "'reset' and 'command' aren't fixed colors -- they resolve to "
+            "your own PREFS 'C' Colors choices (Text and Command).",
             "A misspelled or unsupported code (e.g. ||glorp||) is left "
             "as plain text rather than breaking the rest of the line.",
         ],
@@ -1579,7 +1588,7 @@ def format_two_column(items: List[Tuple[str, str]], width: int) -> List[str]:
     for left, right in items:
         pad = " " * max(0, left_col - _visible_len(left))
         if right:
-            wrapped = textwrap.wrap(right, width=right_col) or [""]
+            wrapped = wrap_text(right, width=right_col)
             out.append(f"  {left}{pad}  {wrapped[0]}")
             for cont in wrapped[1:]:
                 out.append(f"  {'':{left_col}}  {cont}")
@@ -1608,7 +1617,7 @@ def format_summary_table(items: List[Tuple[str, str]], width: int) -> List[str]:
 
     for i, (name, summary) in enumerate(items):
         stripe  = 'dark_gray' if i % 2 else 'mid_gray'
-        wrapped = textwrap.wrap(summary, width=right_col) or [""]
+        wrapped = wrap_text(summary, width=right_col)
         name_col = _vis_ljust(_cmd(name), left_col)
         out.append(f"  {name_col}  |{stripe}|{wrapped[0]}|reset|")
         for cont in wrapped[1:]:
@@ -1678,7 +1687,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
     if help_obj is None:
         return None
     if isinstance(help_obj, str):
-        return textwrap.fill(help_obj.strip(), width=width)
+        return '\n'.join(wrap_text(help_obj.strip(), width=width))
 
     wrap_width = width - 4
     lines: List[str] = []
@@ -1699,7 +1708,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
                 lines.append(_cmd(command_name))
                 if cat_str:
                     lines.append(_heading(cat_str.rjust(width)))
-        lines.extend(textwrap.wrap(str(summary).strip(), width=width))
+        lines.extend(wrap_text(str(summary).strip(), width=width))
         lines.append(_rule(rule_char * width))
 
     # Aliases -- other names this same command answers to
@@ -1716,7 +1725,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
         for i, para in enumerate(paragraphs):
             if i:
                 lines.append("")
-            lines.extend(textwrap.wrap(" ".join(para.split()), width=wrap_width))
+            lines.extend(wrap_text(" ".join(para.split()), width=wrap_width))
 
     # Usage
     usage = getattr(help_obj, "usage", None)
@@ -1736,7 +1745,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
         for item in examples:
             lines.append(f"  {_auto_escape(item[0])}")
             if len(item) > 1 and item[1]:
-                lines.extend(textwrap.wrap(
+                lines.extend(wrap_text(
                     _auto_escape(str(item[1])),
                     width=wrap_width,
                     initial_indent=" " * 6,
@@ -1764,7 +1773,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
             if note == '':
                 lines.append('')
             else:
-                lines.extend(textwrap.wrap(
+                lines.extend(wrap_text(
                     _auto_escape(str(note)),
                     width=wrap_width,
                     initial_indent=" " * 4,
@@ -1795,10 +1804,12 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
         lines.append("")
         lines.append(_heading("See Also:"))
         joined = ", ".join(_cmd(name) for name in see_also)
-        lines.extend(textwrap.wrap(
+        # wrap_text() never breaks mid-word or on hyphens (it only splits on
+        # spaces), so it already matches the old textwrap.wrap(
+        # break_long_words=False, break_on_hyphens=False) behavior here.
+        lines.extend(wrap_text(
             joined, width=wrap_width,
             initial_indent=" " * 4, subsequent_indent=" " * 4,
-            break_long_words=False, break_on_hyphens=False,
         ))
 
     return lines if lines else None
@@ -1868,6 +1879,19 @@ class HelpCommand(Command):
         token = args[0].lower()
         rest  = args[1:]
 
+        # Multi-word topic phrase (e.g. "help weapon affinity") -- some
+        # topics are registered under a spaced alias (see register_topic()'s
+        # "weapon affinity"/"best weapon"/"class weapon" call below) as well
+        # as a squashed one ("weaponaffinity"), but every other branch here
+        # only ever looks at args[0], so a spaced phrase never reached
+        # _TOPICS without this. Exact full-phrase match only -- no substring
+        # fuzzing, that's _find_topic_by_substring()'s job for the
+        # single-word case in _show_command_help()'s fallback.
+        if rest:
+            full = " ".join(args).lower()
+            if full in _TOPICS:
+                return await self._show_topic_help(ctx, full)
+
         # Category listing
         if token in ("categories", "category", "cat", "#cat", "#c"):
             if rest:
@@ -1918,9 +1942,11 @@ class HelpCommand(Command):
         rchar = hrule_char(ctx)
         title = f"{'Available Commands by Category':^{width}}"
         lines = [f"\n{_heading(title)}",
-                 "  help <command>: detailed help   |   help #cat: list categories\n"]
+                 "  help <command>: detailed help   |   help #cat: list categories",
+                 "  (command aliases are in parentheses)\n"]
 
         current_mode = getattr(processor, "current_mode", None)
+        privileged   = _is_privileged_viewer(ctx)
         all_cmds = [
             cmd for cmd in (processor.get_all_commands().values() if processor else [])
     if current_mode is None or _is_available(cmd, current_mode)
@@ -1929,6 +1955,8 @@ class HelpCommand(Command):
         for cmd in all_cmds:
             help_obj = getattr(cmd, "help", None)
             cat      = getattr(help_obj, "category", HelpCategory.GENERAL)
+            if cat == HelpCategory.ADMINISTRATIVE and not privileged:
+                continue
             by_cat[cat].append(cmd)
 
         for cat in sorted(by_cat, key=lambda c: c.value):
@@ -1961,6 +1989,7 @@ class HelpCommand(Command):
         lines = [f"\n{_heading(title)}"]
 
         current_mode = getattr(processor, "current_mode", None)
+        privileged   = _is_privileged_viewer(ctx)
         all_cmds = [
             cmd for cmd in (processor.get_all_commands().values() if processor else [])
             if current_mode is None or _is_available(cmd, current_mode)
@@ -1969,6 +1998,8 @@ class HelpCommand(Command):
         for cmd in all_cmds:
             help_obj = getattr(cmd, "help", None)
             cat      = getattr(help_obj, "category", HelpCategory.GENERAL)
+            if cat == HelpCategory.ADMINISTRATIVE and not privileged:
+                continue
             by_cat[cat].append(cmd)
 
         for cat in sorted(by_cat, key=lambda c: c.value):
@@ -1995,7 +2026,12 @@ class HelpCommand(Command):
         # which would otherwise mangle manual alignment and treat embedded
         # '\n' characters as just more text instead of line breaks.
         width = self._screen_width(ctx)
-        items = [(cat.value, _CATEGORY_DESCRIPTIONS.get(cat, "")) for cat in HelpCategory]
+        privileged = _is_privileged_viewer(ctx)
+        items = [
+            (cat.value, _CATEGORY_DESCRIPTIONS.get(cat, ""))
+            for cat in HelpCategory
+            if cat != HelpCategory.ADMINISTRATIVE or privileged
+        ]
 
         lines = [_heading("Available categories:"), ""]
         lines.extend(format_two_column(items, width))
@@ -2018,6 +2054,12 @@ class HelpCommand(Command):
             return CommandResult.fail(error="ambiguous_category")
 
         if not matched:
+            await ctx.send(
+                f"Unknown category '{category_name}'. Type 'help #cat' for a list."
+            )
+            return CommandResult.fail(error="unknown_category")
+
+        if matched == HelpCategory.ADMINISTRATIVE and not _is_privileged_viewer(ctx):
             await ctx.send(
                 f"Unknown category '{category_name}'. Type 'help #cat' for a list."
             )
@@ -2065,6 +2107,12 @@ class HelpCommand(Command):
         from commands.base_command import CommandResult
 
         matches = processor.search_commands(term) if processor else []
+        if not _is_privileged_viewer(ctx):
+            matches = [
+                cmd for cmd in matches
+                if getattr(getattr(cmd, "help", None), "category", HelpCategory.GENERAL)
+                != HelpCategory.ADMINISTRATIVE
+            ]
         if not matches:
             await ctx.send(f"No commands found matching '{term}'.")
             return CommandResult.ok()

@@ -16,7 +16,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from net_common import hash_password, verify_password
+from net_common import hash_password, petscii_unsafe_password_chars, verify_password
 from commands.password import PasswordCommand
 
 
@@ -31,6 +31,34 @@ class TestHashPassword(unittest.TestCase):
     def test_same_password_hashes_differently_each_time(self):
         # bcrypt salts randomly -- two hashes of the same password must differ.
         self.assertNotEqual(hash_password('fescue'), hash_password('fescue'))
+
+
+class TestPetsciiUnsafePasswordChars(unittest.TestCase):
+    """A real C64 keyboard on the PETSCII port can't send brackets, backslash,
+    backtick, braces, pipe, or tilde as themselves (network_context.py's
+    _petscii_input_to_ascii() silently drops them), while a JSON/ANSI client
+    passes them through verbatim -- so a password containing one hashes
+    differently depending on which client type set it. This checks the
+    character-set gate meant to catch that before it's ever hashed."""
+
+    def test_plain_letters_and_digits_are_safe(self):
+        self.assertEqual(petscii_unsafe_password_chars('Fescue123'), '')
+
+    def test_basic_punctuation_in_safe_range_is_safe(self):
+        # 0x20-0x40: space and !"#$%&'()*+,-./0-9:;<=>?@
+        self.assertEqual(petscii_unsafe_password_chars('pw!#$%&*+-.'), '')
+
+    def test_caret_and_underscore_are_safe(self):
+        self.assertEqual(petscii_unsafe_password_chars('up^down_here'), '')
+
+    def test_brackets_are_unsafe(self):
+        self.assertEqual(petscii_unsafe_password_chars('se[cr]et'), '[]')
+
+    def test_braces_pipe_tilde_backtick_backslash_are_unsafe(self):
+        self.assertEqual(petscii_unsafe_password_chars('a{b}c|d~e`f\\g'), '{}|~`\\')
+
+    def test_duplicate_unsafe_chars_reported_once_in_first_seen_order(self):
+        self.assertEqual(petscii_unsafe_password_chars('][]['), '][')
 
 
 class TestVerifyPassword(unittest.TestCase):
@@ -75,15 +103,19 @@ class TestVerifyPassword(unittest.TestCase):
 
 
 class _FakePlayer:
-    def __init__(self, player_id):
+    def __init__(self, player_id, is_admin=False):
         self.id = player_id
+        self._is_admin = is_admin
+
+    def query_flag(self, flag):
+        return self._is_admin
 
 
 class _FakeCtx:
-    def __init__(self, responses, player_id='rulan'):
+    def __init__(self, responses, player_id='rulan', is_admin=False):
         self._q = list(responses)
         self.sent: list = []
-        self.player = _FakePlayer(player_id)
+        self.player = _FakePlayer(player_id, is_admin=is_admin)
 
     async def send(self, *args):
         for a in args:
@@ -164,6 +196,16 @@ class TestPasswordCommand(unittest.IsolatedAsyncioTestCase):
         matched, _ = verify_password('longenough', creds['password'])
         self.assertTrue(matched)
 
+    async def test_unsafe_char_new_password_reprompts(self):
+        self._write_creds('rulan', hash_password('oldpw'))
+        ctx = _FakeCtx(['oldpw', 'se[cr]et', 'safepw123', 'safepw123'])
+        result = await PasswordCommand().execute(ctx)
+        self.assertTrue(result.success)
+        self.assertTrue(any("can't contain: []" in s for s in ctx.sent))
+        creds = self._read_creds('rulan')
+        matched, _ = verify_password('safepw123', creds['password'])
+        self.assertTrue(matched)
+
     async def test_blank_new_password_keeps_current_password(self):
         self._write_creds('rulan', hash_password('oldpw'))
         ctx = _FakeCtx(['oldpw', ''])
@@ -192,6 +234,41 @@ class TestPasswordCommand(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result.success)
         creds = self._read_creds('rulan')
         self.assertTrue(creds['password'].startswith('$2b$'))
+
+    async def test_admin_reset_other_account_skips_current_password_prompt(self):
+        self._write_creds('victim', hash_password('oldpw'))
+        ctx = _FakeCtx(['newpw123', 'newpw123'], player_id='admin1', is_admin=True)
+        result = await PasswordCommand().execute(ctx, 'victim')
+        self.assertTrue(result.success)
+        creds = self._read_creds('victim')
+        matched, _ = verify_password('newpw123', creds['password'])
+        self.assertTrue(matched)
+
+    async def test_admin_reset_unknown_account_fails(self):
+        ctx = _FakeCtx([], player_id='admin1', is_admin=True)
+        result = await PasswordCommand().execute(ctx, 'ghost')
+        self.assertFalse(result.success)
+        self.assertEqual(result.error, 'no_such_account')
+
+    async def test_non_admin_target_argument_ignored_changes_own_password(self):
+        # A regular user passing an argument isn't an admin target -- it's
+        # ignored, and their own current-password prompt still runs.
+        self._write_creds('rulan', hash_password('oldpw'))
+        ctx = _FakeCtx(['oldpw', 'newpw123', 'newpw123'], player_id='rulan', is_admin=False)
+        result = await PasswordCommand().execute(ctx, 'someoneelse')
+        self.assertTrue(result.success)
+        creds = self._read_creds('rulan')
+        matched, _ = verify_password('newpw123', creds['password'])
+        self.assertTrue(matched)
+
+    async def test_admin_changing_own_password_still_prompts_current_password(self):
+        self._write_creds('admin1', hash_password('oldpw'))
+        ctx = _FakeCtx(['oldpw', 'newpw123', 'newpw123'], player_id='admin1', is_admin=True)
+        result = await PasswordCommand().execute(ctx)
+        self.assertTrue(result.success)
+        creds = self._read_creds('admin1')
+        matched, _ = verify_password('newpw123', creds['password'])
+        self.assertTrue(matched)
 
 
 if __name__ == '__main__':

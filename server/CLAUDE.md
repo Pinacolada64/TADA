@@ -18,6 +18,17 @@
   untouched existing all-caps strings elsewhere just to convert them —
   but converting one *is* fine when it's actually asked for; just ask
   Ryan first rather than doing a drive-by sweep.
+- **Keep `ctx.prompt()` prompt strings short — aim for well under 40
+  characters.** The prompt text becomes a client's single-line input
+  prefix (see tada_client.py's input_window) with nowhere to wrap on an
+  80-column terminal, and a real C64's input line is narrower still. If
+  the prompt needs to explain bracketed options (`[R]eply`, `[Y]es/[N]o`,
+  etc.) or anything else that won't fit, put that explanation in
+  `preamble_lines` instead of the prompt string itself — see
+  commands/board/reply.py's `_menu_options_lines()` for the pattern.
+  Reference the actual bind by name via `ctx.player.return_key` (e.g.
+  f"...or {ctx.player.return_key} to cancel") rather than hardcoding
+  'Enter' or 'Return'.
 
 ## Monetary standard
 
@@ -108,6 +119,10 @@
   Connect as admin (bot_client.py, same pattern as tools/bot_config_check.py)
   and run `who`, then report those results, before stopping/restarting the
   `tada` screen session's `run_server.py` process.
+- **The server's default bind host is `0.0.0.0`, not `localhost`/`127.0.0.1`.**
+  Alpha testers outside the local network need to reach it, so `config.py`'s
+  `'host'` default and `run_server.py`'s `--host` default should stay
+  `0.0.0.0`. Don't revert this to a loopback-only default.
 
 ## Bot scripts
 

@@ -306,7 +306,9 @@ async def ready_weapon(ctx, player, weapons_data: list['Weapon']) -> Optional['W
     await list_weapons(ctx, carried)
 
     while True:
-        raw = await ctx.prompt(f"Ready which weapon number? (or {ctx.player.client_settings.return_key} to cancel) ")
+        raw = await ctx.prompt(
+            'Weapon #',
+            preamble_lines=[f"Ready which weapon number? (or {ctx.player.client_settings.return_key} to cancel)"])
         if not raw or raw.strip() == "":
             return None
 
@@ -386,6 +388,18 @@ class Rations(BaseItem):
         self.name = name
         self.kind = kind  # food, drink, cursed
         self.price = price
+        # Without this, category stays BaseItem's default of None, which
+        # made a freshly-bought ration (category=None) fail to stack onto
+        # an already-carried one reloaded from a save file (category=
+        # ItemCategory.ITEM, backfilled by inventory.py's from_json() --
+        # see its comment on why item_kind takes priority there too)
+        # since Inventory.add()'s stacking match requires both id_number
+        # AND category to agree (found live: Railbender buying a second
+        # loaf of bread never stacked onto the one from a prior session).
+        if kind == 'food':
+            self.category = ItemCategory.FOOD
+        elif kind == 'drink':
+            self.category = ItemCategory.DRINK
         # this field is optional:
         if flags is not None:
             self.flags = flags

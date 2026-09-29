@@ -8,7 +8,9 @@ Menu layout mirrors the original C64 TADA Player Editor (tep v2.07):
   ├─  1. Alignment         natural + current alignment
   ├─  2. Armor/Shield      armor / shield protection values, shield skill
   ├─  3. Attributes        stats (CHR, CON, DEX, INT, STR, WIS, Energy)
-  ├─  4. Character Names   player name; rename allies and horse
+  ├─  4. Character / NPC Stats  player name; rename allies & horse, and
+  │                        edit their strength / to-hit / HP (clamped to
+  │                        the SPUR ceilings in bar/ally_data.py)
   ├─  5. Combinations      locker, elevator, castle, booby traps
   ├─  6. Command Settings  player.command_settings toggles (e.g. whereat hiding)
   ├─  7. Flags/Counters    all PlayerFlags grouped by category
@@ -118,15 +120,22 @@ class EditPlayerCommand(Command):
         # edit -- ctx.send()/ctx.prompt() format against ctx.player.
         # client_settings, and a freshly-loaded target only has default
         # settings, not the admin's actual screen width/translation/return
-        # key.
+        # key. Must be restored below before any save, or the admin's
+        # settings get persisted into the target's save file (found live:
+        # editing Gadget's inventory clobbered her terminal settings with
+        # the admin's).
+        target_client_settings = target.client_settings
         target.client_settings = admin.client_settings
         try:
             await run_menu(ctx, _build_main_menu(ctx))
         finally:
             ctx.player = admin
+            target.client_settings = target_client_settings
 
         if getattr(target, 'unsaved_changes', False):
-            raw = await ctx.prompt(f'Save changes to {target.name}? (Y/N)')
+            raw = await ctx.prompt(
+                'Confirm',
+                preamble_lines=[f'Save changes to {target.name}? (Y/N)'])
             if raw and raw.strip().lower().startswith('y'):
                 target.save(force=True)
                 await ctx.send(f'Saved {target.name}.')
@@ -234,7 +243,7 @@ async def _prompt_int(ctx, label: str, current: int,
     while True:
         raw = await ctx.prompt(
             f'{label} [{lo}-{hi}]',
-            preamble_lines=[f'Current: {current}  —  blank to cancel'],
+            preamble_lines=[f'Current: {current}  —  {ctx.player.return_key} to cancel'],
         )
         if raw is None or not raw.strip():
             return None
@@ -261,7 +270,7 @@ async def _prompt_battle_exp_value(ctx, label: str, current: int,
             f'{label} battle experience',
             preamble_lines=[
                 f'Current: {current}  (enter {lo}-{hi}, or +N/-N to adjust)  '
-                '—  blank to cancel'
+                f'—  {ctx.player.return_key} to cancel'
             ],
         )
         if raw is None or not raw.strip():
@@ -455,7 +464,7 @@ def _build_main_menu(ctx) -> Menu:
     menu.add_item(MenuItem('Alignment',        shortcuts='al', submenu=_alignment_menu(ctx)))
     menu.add_item(MenuItem('Armor/Shield',     shortcuts='as', submenu=_armor_shield_menu(ctx)))
     menu.add_item(MenuItem('Attributes',       shortcuts='at', submenu=_attributes_menu(ctx)))
-    menu.add_item(MenuItem('Character Names',  shortcuts='cn', submenu=_names_menu(ctx)))
+    menu.add_item(MenuItem('Character / NPC Stats', shortcuts='cn', submenu=_names_menu(ctx)))
     menu.add_item(MenuItem('Combinations',     shortcuts='co', submenu=_combinations_menu(ctx)))
     menu.add_item(MenuItem('Command Settings', shortcuts='cs', submenu=_command_settings_menu(ctx)))
     menu.add_item(MenuItem('Flags/Counters',   shortcuts='fl', submenu=_flags_menu(ctx)))
@@ -604,7 +613,7 @@ def _map_info_menu(ctx) -> Menu:
                 'Room Number',
                 preamble_lines=[
                     f'Current: {_room_label(ctx, level, cur)}  —  '
-                    "blank to cancel, '?' to list rooms on this level"
+                    f"{ctx.player.return_key} to cancel, '?' to list rooms on this level"
                 ],
             )
             if raw is None or not raw.strip():
@@ -668,7 +677,9 @@ def _map_info_menu(ctx) -> Menu:
         if not getattr(p, 'visited_rooms', None):
             await ctx.send(f'{p.name} has no visited-rooms data to reset.')
             return
-        confirm = await ctx.prompt(f"Clear {p.name}'s visited-rooms history on all levels? (y/N)")
+        confirm = await ctx.prompt(
+            'Confirm',
+            preamble_lines=[f"Clear {p.name}'s visited-rooms history on all levels? (y/N)"])
         if not confirm or confirm.strip().lower() != 'y':
             await ctx.send('Cancelled.')
             return
@@ -749,6 +760,100 @@ def _command_settings_menu(ctx) -> Menu:
         dot_leader_handler=lambda ctx: (p.command_settings.news.last_read or '(never)')[:10],
         action=edit_news_last_read,
     ))
+
+    # command_settings.page.* / command_settings.whisper.*: the '#reply'
+    # target and the '#last' history/limit, normally maintained by
+    # commands/page.py and commands/whisper.py themselves. Exposed here so
+    # an admin can repoint or clear a stale reply target, wipe a history,
+    # or tune the show limit.
+    async def _edit_reply_target(ctx, ns, field: str, label: str) -> None:
+        from tada_utilities import find_players, player_exists
+
+        current = getattr(ns, field)
+        raw = await ctx.prompt(
+            label,
+            preamble_lines=[
+                f'Current: {current or "(none)"}  '
+                f'(name, - to clear, {ctx.player.return_key} to cancel)'
+            ],
+        )
+        if raw is None or not raw.strip():
+            return
+        text = raw.strip()
+        if text == '-':
+            setattr(ns, field, None)
+            p.unsaved_changes = True
+            await ctx.send(f'{label}: (none)')
+            return
+        if not player_exists(ctx.server, text):
+            await ctx.send(f'No such player "{text}".')
+            return
+        # Prefer the canonical stored casing if we can find it.
+        matches = find_players(ctx.server, text)
+        name    = next((m for m in matches if m.lower() == text.lower()), text)
+        setattr(ns, field, name)
+        p.unsaved_changes = True
+        await ctx.send(f'{label}: {name}')
+
+    async def _edit_last_limit(ctx, ns, label: str) -> None:
+        val = await _prompt_int(ctx, label, ns.last_limit, 1, 10)
+        if val is None:
+            return
+        ns.last_limit = val
+        p.unsaved_changes = True
+        await ctx.send(f'{label}: {val}')
+
+    async def _view_clear_history(ctx, ns, label: str, verb: str) -> None:
+        from commands.messaging import render_last_history
+
+        if not ns.history:
+            await ctx.send(f'{label}: (empty)')
+            return
+        await ctx.send(render_last_history(ns.history, len(ns.history), verb=verb))
+        raw = await ctx.prompt(
+            'Clear it?',
+            preamble_lines=[f'y to clear, {ctx.player.return_key} to keep'])
+        if raw and raw.strip().lower().startswith('y'):
+            ns.history.clear()
+            p.unsaved_changes = True
+            await ctx.send(f'{label}: cleared.')
+
+    menu.add_item(MenuItem(
+        'Last Paged', shortcuts='lp',
+        dot_leader_handler=lambda ctx: p.command_settings.page.last_paged or '(none)',
+        action=lambda ctx: _edit_reply_target(
+            ctx, p.command_settings.page, 'last_paged', 'Last Paged'),
+    ))
+    menu.add_item(MenuItem(
+        'Last Whispered', shortcuts='lw',
+        dot_leader_handler=lambda ctx: p.command_settings.whisper.last_whispered or '(none)',
+        action=lambda ctx: _edit_reply_target(
+            ctx, p.command_settings.whisper, 'last_whispered', 'Last Whispered'),
+    ))
+    menu.add_item(MenuItem(
+        'Page #last Limit', shortcuts='pl',
+        dot_leader_handler=lambda ctx: str(p.command_settings.page.last_limit),
+        action=lambda ctx: _edit_last_limit(
+            ctx, p.command_settings.page, 'Page #last Limit'),
+    ))
+    menu.add_item(MenuItem(
+        'Whisper #last Limit', shortcuts='wl',
+        dot_leader_handler=lambda ctx: str(p.command_settings.whisper.last_limit),
+        action=lambda ctx: _edit_last_limit(
+            ctx, p.command_settings.whisper, 'Whisper #last Limit'),
+    ))
+    menu.add_item(MenuItem(
+        'Page History', shortcuts='ph',
+        dot_leader_handler=lambda ctx: f'{len(p.command_settings.page.history)} entries',
+        action=lambda ctx: _view_clear_history(
+            ctx, p.command_settings.page, 'Page History', 'paged'),
+    ))
+    menu.add_item(MenuItem(
+        'Whisper History', shortcuts='wht',
+        dot_leader_handler=lambda ctx: f'{len(p.command_settings.whisper.history)} entries',
+        action=lambda ctx: _view_clear_history(
+            ctx, p.command_settings.whisper, 'Whisper History', 'whispered'),
+    ))
     return menu
 
 
@@ -780,8 +885,8 @@ def _weapons_menu(ctx) -> Menu:
         current = getattr(p, 'readied_weapon', None)
         if current is not None:
             raw = await ctx.prompt(
-                f"Currently readied: {getattr(current, 'name', '?')}. "
-                "[C]hange, [U]nready, or Enter to cancel"
+                preamble_lines=f"Currently readied: {getattr(current, 'name', '?')}.",
+                prompt_text=f"[C]hange, [U]nready, or {ctx.player.return_key} to cancel"
             )
             if not raw or not raw.strip():
                 return
@@ -1055,12 +1160,59 @@ async def _rename_ally(ctx, ally) -> None:
     await ctx.send(f'{old} renamed to {ally.name}.')
 
 
+async def _edit_ally_stats(ctx, ally) -> None:
+    """Edit an ally's (or the horse's) strength / to-hit / HP, each clamped
+    to the canonical SPUR ceilings in bar/ally_data.py (ALLY_STRENGTH_MAX 25,
+    to-hit 0-9, ALLY_HP_MAX 50). Loops so several stats can be set in one
+    visit; blank input finishes."""
+    from bar.ally_data import (
+        ALLY_HP_MAX, ALLY_STRENGTH_MAX, ALLY_TO_HIT_MAX, ALLY_TO_HIT_MIN,
+    )
+
+    while True:
+        raw = await ctx.prompt(
+            f'{ally.name} stats',
+            preamble_lines=[
+                f'Current:  Str {ally.strength}   '
+                f'To-hit {ally.to_hit} ({ally.to_hit * 10}%)   '
+                f'HP {ally.hit_points}',
+                f"[S]trength, [T]o-hit, [H]P, or {ctx.player.return_key} to finish:",
+            ],
+        )
+        choice = (raw or '').strip().lower()
+        if not choice:
+            return
+        if choice == 's':
+            val = await _prompt_int(ctx, f'{ally.name} strength',
+                                    ally.strength, 1, ALLY_STRENGTH_MAX)
+            if val is not None:
+                ally.strength = val
+                ctx.player.unsaved_changes = True
+                await ctx.send(f'{ally.name} strength set to {val}.')
+        elif choice == 't':
+            val = await _prompt_int(ctx, f'{ally.name} to-hit (x10 = %)',
+                                    ally.to_hit, ALLY_TO_HIT_MIN, ALLY_TO_HIT_MAX)
+            if val is not None:
+                ally.to_hit = val
+                ctx.player.unsaved_changes = True
+                await ctx.send(f'{ally.name} to-hit set to {val} ({val * 10}%).')
+        elif choice == 'h':
+            val = await _prompt_int(ctx, f'{ally.name} hit points',
+                                    ally.hit_points or 0, 0, ALLY_HP_MAX)
+            if val is not None:
+                ally.hit_points = val
+                ctx.player.unsaved_changes = True
+                await ctx.send(f'{ally.name} hit points set to {val}.')
+        else:
+            await ctx.send("Please choose 'S', 'T', or 'H'.")
+
+
 def _names_menu(ctx) -> Menu:
     from bar.allies import owned_allies
     from bar.ally_data import AllyFlags, AllyStatus
 
     p    = ctx.player
-    menu = _titled_menu(ctx, 'Character Names')
+    menu = _titled_menu(ctx, 'Character / NPC Stats')
 
     async def edit_name(ctx) -> None:
         raw = await ctx.prompt(
@@ -1102,7 +1254,8 @@ def _names_menu(ctx) -> Menu:
         below via player.party.add().
         """
         raw = await ctx.prompt(
-            'No ally in that slot. Add one? (Y/N, or ? to list available allies)'
+            'Add ally',
+            preamble_lines=['No ally in that slot. Add one? (Y/N, or ? to list available allies)'],
         )
         if raw and raw.strip() == '?':
             pass  # fall through into pick_ally(), which lists then prompts
@@ -1220,8 +1373,9 @@ def _names_menu(ctx) -> Menu:
         raw = await ctx.prompt(
             ally.name,
             preamble_lines=[
-                f'Current: {ally.name}  Str {ally.strength}  {ally.to_hit * 10}%',
-                f"[N]ew name, [S]wap for a different ally, or "
+                f'Current: {ally.name}  Str {ally.strength}  {ally.to_hit * 10}%'
+                f'  HP {ally.hit_points}',
+                f"[N]ew name, [S]wap for a different ally, [E]dit stats, or "
                 f"{ctx.player.return_key} to cancel:",
             ],
         )
@@ -1232,8 +1386,10 @@ def _names_menu(ctx) -> Menu:
             await _rename_ally(ctx, ally)
         elif choice == 's':
             await _swap_ally(ctx, slot)
+        elif choice == 'e':
+            await _edit_ally_stats(ctx, ally)
         else:
-            await ctx.send("Please choose 'N' or 'S'.")
+            await ctx.send("Please choose 'N', 'S', or 'E'.")
 
     def _horse() -> Optional[object]:
         return next((a for a in owned_allies(p) if AllyFlags.MOUNT in (a.flags or [])), None)
@@ -1256,7 +1412,7 @@ def _names_menu(ctx) -> Menu:
         gender/breed/colour and prompts for a name exactly like a real
         LASSO capture (ally_events/capture_horse.py's capture_mount()):
         same "Your horse seems to be..." announcement and the same
-        prompt_horse_name() (typed name, 'R' for random, blank to cancel).
+        prompt_horse_name() (typed name, 'R' for random, Enter to cancel).
         """
         import random
         from ally_events.capture_horse import prompt_horse_name
@@ -1345,8 +1501,10 @@ def _names_menu(ctx) -> Menu:
             return
 
         bolted = mount.status == AllyStatus.BOLTED
-        options = "[N]ew name, [R]emove horse" + (", [C] recall bolted horse" if bolted else "")
-        current_line = f'Current: {mount.name}  Str {mount.strength}'
+        options = ("[N]ew name, [R]emove horse, [E]dit stats"
+                   + (", [C] recall bolted horse" if bolted else ""))
+        current_line = (f'Current: {mount.name}  Str {mount.strength}  '
+                        f'{mount.to_hit * 10}%  HP {mount.hit_points}')
         if bolted:
             current_line += f'  [BOLTED -- Level {mount.bolt_map_level} Room {mount.bolt_room_no}]'
         raw = await ctx.prompt(
@@ -1363,10 +1521,12 @@ def _names_menu(ctx) -> Menu:
             await _rename_ally(ctx, mount)
         elif choice == 'r':
             await _remove_horse(ctx)
+        elif choice == 'e':
+            await _edit_ally_stats(ctx, mount)
         elif choice == 'c' and bolted:
             await _recall_horse(ctx)
         else:
-            expected = 'N, R, or C' if bolted else "'N' or 'R'"
+            expected = 'N, R, E, or C' if bolted else "'N', 'R', or 'E'"
             await ctx.send(f"Please choose {expected}.")
 
     def _roster_label(a) -> str:
@@ -1416,7 +1576,8 @@ def _names_menu(ctx) -> Menu:
 
         while True:
             raw = await ctx.prompt(
-                "Ally name to add (or part of name, '?' to list all, blank to cancel)"
+                'Ally name',
+                preamble_lines=[f"Ally name to add (or part of name, '?' to list all, {ctx.player.return_key} to cancel)"],
             )
             if raw and raw.strip() == '?':
                 await _send_labeled_list(ctx, 'Available allies', available, _roster_label)
@@ -1556,8 +1717,8 @@ def _combinations_menu(ctx) -> Menu:
             f'{combo_type.value} (xx-xx-xx)',
             preamble_lines=[
                 f'Current: {_fmt(combo_type)}',
-                'Enter three numbers like 04-05-09, R to randomize, X to '
-                'clear, or blank to cancel:',
+                'Enter three numbers like 04-05-09, [R]andomize, [X] Clear, '
+                f'or {ctx.player.return_key} to cancel:',
             ],
         )
         if not raw or not raw.strip():
@@ -1924,7 +2085,7 @@ def _statistics_menu(ctx) -> Menu:
             'Defeated by',
             preamble_lines=[
                 f'Current: {cur or "(not set)"}',
-                "Type 'clear' to unset, blank to cancel:",
+                f"Type 'clear' to unset, {ctx.player.return_key} to cancel:",
             ],
         )
         if not raw or not raw.strip():
@@ -1959,7 +2120,7 @@ def _statistics_menu(ctx) -> Menu:
                 lines = ['Monsters killed: (none)']
             await ctx.send(lines)
 
-            raw = await ctx.prompt('[A]dd  [R]emove  [Q]uit')
+            raw = await ctx.prompt('Command', preamble_lines=['[A]dd  [R]emove  [Q]uit'])
             if not raw or not raw.strip():
                 break
             cmd = raw.strip().lower()[:1]
@@ -1967,7 +2128,7 @@ def _statistics_menu(ctx) -> Menu:
             if cmd == 'q':
                 break
             elif cmd == 'a':
-                term_raw = await ctx.prompt('Monster name (or part of name)')
+                term_raw = await ctx.prompt('Monster name', preamble_lines=['Monster name (or part of name)'])
                 if not term_raw or not term_raw.strip():
                     continue
                 term    = term_raw.strip().lower()
@@ -1988,7 +2149,7 @@ def _statistics_menu(ctx) -> Menu:
                 if not killed:
                     await ctx.send('Nothing to remove.')
                     continue
-                idx_raw = await ctx.prompt(f'Remove which (1-{len(killed)})')
+                idx_raw = await ctx.prompt('#', preamble_lines=[f'Remove which (1-{len(killed)})'])
                 try:
                     idx = int((idx_raw or '').strip()) - 1
                     if not (0 <= idx < len(killed)):
@@ -2105,7 +2266,7 @@ async def _pick_from_matches(ctx, matches: list, label_fn) -> Optional[object]:
         lines.append(f'  {i:>2}. {label_fn(item)}')
     await ctx.send(lines)
 
-    raw = await ctx.prompt(f'Choose 1-{len(matches)}, or blank to cancel')
+    raw = await ctx.prompt('Choice', preamble_lines=[f'Choose 1-{len(matches)}, or {ctx.player.return_key} to cancel'])
     if not raw or not raw.strip():
         return None
     try:
@@ -2277,7 +2438,7 @@ async def _transfer_item(ctx) -> None:
         return
 
     await _show_inventory(ctx)
-    raw = await ctx.prompt('Transfer which item # (blank to cancel)')
+    raw = await ctx.prompt('Item #', preamble_lines=[f'Transfer which item # ({ctx.player.return_key} to cancel)'])
     if not raw or not raw.strip():
         return
     try:
@@ -2297,7 +2458,9 @@ async def _transfer_item(ctx) -> None:
         return
     recipient_name = recipient[1].name
 
-    confirm = await ctx.prompt(f'Transfer {item_name} to {recipient_name}? (y/N)')
+    confirm = await ctx.prompt(
+        'Confirm',
+        preamble_lines=[f'Transfer {item_name} to {recipient_name}? (y/N)'])
     if not confirm or confirm.strip().lower() != 'y':
         await ctx.send('Cancelled.')
         return
@@ -2345,7 +2508,7 @@ async def _drop_item(ctx) -> None:
         return
 
     await _show_inventory(ctx)
-    raw = await ctx.prompt('Drop which item # (blank to cancel)')
+    raw = await ctx.prompt('Item #', preamble_lines=[f'Drop which item # ({ctx.player.return_key} to cancel)'])
     if not raw or not raw.strip():
         return
     try:
@@ -2359,7 +2522,9 @@ async def _drop_item(ctx) -> None:
     item = entry.item
     item_name = getattr(item, 'name', '?')
 
-    confirm = await ctx.prompt(f'Delete {item_name} from {ctx.player.name}? (y/N)')
+    confirm = await ctx.prompt(
+        'Confirm',
+        preamble_lines=[f'Delete {item_name} from {ctx.player.name}? (y/N)'])
     if not confirm or confirm.strip().lower() != 'y':
         await ctx.send('Cancelled.')
         return
@@ -2429,7 +2594,8 @@ async def _pick_recipient(ctx):
     lines.append('')
     await ctx.send(lines)
 
-    raw = await ctx.prompt(f'Give to (0-{len(allies)}, N, Enter for yourself)')
+    raw = await ctx.prompt(preamble_lines=f'(0-{len(allies)}, N, {ctx.player.return_key} for yourself)',
+                           prompt_text="Give to")
     if not raw or not raw.strip():
         return ('player', ctx.player)
     stripped = raw.strip()
@@ -2583,7 +2749,9 @@ async def _give_weapon(ctx) -> None:
         return
 
     while True:
-        raw = await ctx.prompt("Weapon name (or part of name, '?' to list all)")
+        raw = await ctx.prompt(
+            'Weapon name',
+            preamble_lines=["Weapon name (or part of name, '?' to list all)"])
         if raw and raw.strip() == '?':
             await _send_weapon_list(ctx, weapons)
             continue
@@ -2618,7 +2786,9 @@ async def _give_ration(ctx) -> None:
         return f'{r.get("name","?"):<24}  [{r.get("kind","?")}]'
 
     while True:
-        raw = await ctx.prompt("Ration name (or part of name, blank = show all, '?' to list all)")
+        raw = await ctx.prompt(
+            'Ration name',
+            preamble_lines=["Ration name (or part of name, blank = show all, '?' to list all)"])
         if raw and raw.strip() == '?':
             await _send_labeled_list(ctx, 'Rations', rations, _label)
             continue
@@ -2664,7 +2834,9 @@ async def _give_object(ctx, type_filter: set, label: str) -> None:
         return f'{o.get("name","?"):<28}  [{o.get("type","?")}]'
 
     while True:
-        raw = await ctx.prompt(f"{label.capitalize()} name (or part of name, '?' to list all)")
+        raw = await ctx.prompt(
+            f'{label.capitalize()} name',
+            preamble_lines=[f"{label.capitalize()} name (or part of name, '?' to list all)"])
         if raw and raw.strip() == '?':
             await _send_labeled_list(ctx, label.capitalize(), pool, _label)
             continue

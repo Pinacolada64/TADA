@@ -145,16 +145,19 @@ async def _read_scrap_of_paper(ctx: GameContext, player) -> None:
 
     existing = combos.get(CombinationTypes.ELEVATOR)
     if existing is None:
-        raw = await ctx.prompt("A voice whispers, 'Art thou true of heart?' [Y/N]")
+        raw = await ctx.prompt(
+            'Y/N',
+            preamble_lines=["A voice whispers, 'Art thou true of heart?' [Y/N]"])
         # SPUR doesn't branch on the answer -- it's flavor only.
         _ = raw
 
-        raw = await ctx.prompt("'Wilt thou use this information for Good or Evil?' [G/E]")
+        raw = await ctx.prompt(
+            'G/E',
+            preamble_lines=["'Wilt thou use this information for Good or Evil?' [G/E]"])
         if (raw or '').strip().upper().startswith('E'):
             honor = int(getattr(player, 'honor', 0) or 0)
             if honor > 2:
-                player.honor = honor - 2
-                player.unsaved_changes = True
+                player.adjust_honor(-2)
 
         combo = Combination(CombinationTypes.ELEVATOR)
         combos[CombinationTypes.ELEVATOR] = combo
@@ -340,7 +343,8 @@ class ReadCommand(Command):
                 lines.append(f'  {i:>2}. {getattr(e.item, "name", "?")}')
             lines.append('')
             await ctx.send(lines)
-            raw = await ctx.prompt(f'Read which Book (1-{len(entries)}, Enter to cancel)')
+            raw = await ctx.prompt(preamble_lines=f'(1-{len(entries)}, {ctx.player.return_key} to cancel)',
+                                   prompt_text="Read which Book")
             if not raw or not raw.strip():
                 return CommandResult.ok()
             try:

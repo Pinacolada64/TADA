@@ -446,7 +446,6 @@ the named quests above:
 | — | Monster #103 ("guardian") | Repeat-encounter monster that "remembers" a previous player loss and returns stronger (`ms=ms+xp*6`) | `SPUR.MISC4.S:198–199` |
 | — | Monsters #125/#126 (OZ, Wicked Witch) | Tied to the Ruby Slippers chain (quest #7) but the broomstick's first-acquisition trigger wasn't fully traced (witch-kill drop vs. static item) | `level_6.json` room 582 (OZ) / room 556 (Wicked Witch) — cited as rooms 115/118 in an earlier version of this doc, before the room-numbering fix |
 | — | School / re-training | Pay gold + lose 1 level to re-pick character class; flavor recovered as messages #8 (camp intro) and #6 (result) | `SPUR.MISC2.S:418,434` |
-| — | Shield training (Odin the Shield Master) | Pay gold for permanent shield bonus (20% less chance of a monster getting past your shield, +1 protection); flavor recovered as message #13 | `SPUR.MISC2.S:460` |
 | — | Duel help text | Full `H`elp screen for the duel (PvP) system recovered as message #16 — not yet ported into `commands/` duel help | `SPUR.DUEL.S:26,43` |
 
 ---

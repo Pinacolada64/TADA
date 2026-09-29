@@ -3,16 +3,19 @@
 parse_targets()       — split a comma/space/quoted target string into a name list
 expand_groups()       — replace #groupname tokens with stored member lists
 find_online()         — map name list to live GameContext objects
-online_player_names()   — list all currently connected player names
-known_player_names()    — list names from save files (online or not)
-is_online()             — check whether a specific name is currently connected
-find_players()          — return sorted names matching a pattern (? and * wildcards)
-player_exists()         — check online clients and save files; supports ? and * wildcards
 prompt_player_choice()  — display a numbered player list and return the user's pick
 is_in_combat()          — whether a ctx's player is an active combat participant
+
+online_player_names()/known_player_names()/is_online()/find_players()/
+player_exists() moved to tada_utilities.py (2026-09-01) -- general
+"does this player exist/who's online" lookups with callers well outside
+messaging (bar/, commands/board/edit.py). Re-imported here just for
+prompt_player_choice()'s own use below.
 """
-import fnmatch
 import shlex
+from datetime import datetime
+
+from tada_utilities import find_players, online_player_names
 
 
 def parse_targets(targets_str: str) -> list[str]:
@@ -32,6 +35,104 @@ def parse_targets(targets_str: str) -> list[str]:
         # Unmatched quote — fall back to plain split
         tokens = normalized.split()
     return [t for t in tokens if t]
+
+
+# '#reply' / '#r' target tokens (commands/page.py, commands/whisper.py):
+# stand in for "whoever I last exchanged this kind of message with" so you
+# don't retype the name. Resolved by substitute_reply() *before*
+# expand_groups(), so they always win over a same-named saved group (same
+# as page.py's #ignore/#haven control words shadowing group names).
+REPLY_TOKENS = {'#reply', '#r'}
+
+
+def substitute_reply(targets: list[str],
+                     last_name: 'str | None') -> tuple[list[str], bool]:
+    """Replace any '#reply' / '#r' token in *targets* with *last_name*.
+
+    Returns (new_targets, unresolved).  *unresolved* is True when a reply
+    token was present but *last_name* is None -- the caller should report
+    "no one to reply to" and stop rather than send anything.
+    """
+    if not any(t.lower() in REPLY_TOKENS for t in targets):
+        return targets, False
+    if not last_name:
+        return targets, True
+    return [last_name if t.lower() in REPLY_TOKENS else t for t in targets], False
+
+
+# --- 'page #last' / 'whisper #last' recent-recipient history ---------------
+# Each command keeps a per-channel ring buffer of who you last messaged in
+# command_settings.page.history / command_settings.whisper.history: a list
+# of {'name': str, 'at': isoformat-str} dicts, most-recent-first,
+# de-duplicated by name (case-insensitively), capped at LAST_HISTORY_CAP.
+# 'page #last' / 'whisper #last' render it; 'page #last N' sets how many
+# lines to show (command_settings.page.last_limit / whisper.last_limit,
+# 1..LAST_LIMIT_MAX).
+LAST_HISTORY_CAP   = 10
+LAST_LIMIT_MAX     = 10
+LAST_LIMIT_DEFAULT = 5
+
+
+def record_message_target(history: list, name: str) -> None:
+    """Push *name* onto a '#last' history ring buffer, mutating it in place.
+
+    Newest first; an earlier entry for the same name (case-insensitive) is
+    dropped so the list stays one-per-person; trimmed to LAST_HISTORY_CAP.
+    """
+    key = name.lower()
+    history[:] = [e for e in history
+                  if str(e.get('name', '')).lower() != key]
+    history.insert(0, {'name': name, 'at': datetime.now().isoformat()})
+    del history[LAST_HISTORY_CAP:]
+
+
+def _relative_age(iso: str) -> str:
+    """'just now' / '5m ago' / '3h ago' / '2d ago' for an isoformat string."""
+    try:
+        then = datetime.fromisoformat(str(iso))
+    except (TypeError, ValueError):
+        return '?'
+    if then.tzinfo is not None:
+        then = then.replace(tzinfo=None)
+    secs = (datetime.now() - then).total_seconds()
+    if secs < 45:
+        return 'just now'
+    if secs < 2700:        # 45 minutes
+        return f'{round(secs / 60)}m ago'
+    if secs < 79200:       # 22 hours
+        return f'{round(secs / 3600)}h ago'
+    return f'{round(secs / 86400)}d ago'
+
+
+def render_last_history(history: list, limit: int, *, verb: str) -> list[str]:
+    """Lines for 'page #last' / 'whisper #last'.  *verb* is 'paged'/'whispered'."""
+    if not history:
+        return [f'You have not {verb} anyone yet.']
+    shown = history[:max(1, limit)]
+    head  = (f'Last person you {verb}' if len(shown) == 1
+             else f'Last {len(shown)} people you {verb}')
+    return [head + ':'] + [
+        f'  {e.get("name", "?")}  ({_relative_age(e.get("at"))})' for e in shown
+    ]
+
+
+def parse_last_limit(rest) -> 'tuple[int | None, str | None]':
+    """Interpret the tokens after '#last'.
+
+    Returns (new_limit, error):
+      (None, None) -- no number given, caller should just display
+      (N,    None) -- caller should set the show-limit to N
+      (None, msg)  -- invalid input, caller should report msg
+    """
+    if not rest:
+        return None, None
+    tok = str(rest[0]).strip()
+    if not tok.isdigit():
+        return None, f'Usage: #last [1-{LAST_LIMIT_MAX}]'
+    n = int(tok)
+    if not 1 <= n <= LAST_LIMIT_MAX:
+        return None, f'Pick a number from 1 to {LAST_LIMIT_MAX}.'
+    return n, None
 
 
 def expand_groups(player, targets: list[str]) -> tuple[list[str], list[str]]:
@@ -98,75 +199,6 @@ def find_online(ctx, target_names: list[str], *,
     return found, not_found
 
 
-def online_player_names(server) -> list[str]:
-    """Return display names of all currently connected players."""
-    names = []
-    for client in server.clients.values():
-        ctx  = getattr(client, 'ctx', None)
-        name = getattr(getattr(ctx, 'player', None), 'name', '')
-        if name:
-            names.append(name)
-    return names
-
-
-def known_player_names() -> list[str]:
-    """Return ids of all players that have a save file, online or not.
-
-    Names are derived from the filename: run/server/player-<name>.json.
-    """
-    import glob
-    import os
-    try:
-        import net_common
-        base = getattr(net_common, 'run_server_dir', None) or './run/server'
-    except Exception:
-        base = './run/server'
-    names = []
-    for path in glob.glob(os.path.join(str(base), 'player-*.json')):
-        stem = os.path.basename(path)[len('player-'):-len('.json')]
-        if stem:
-            names.append(stem)
-    return names
-
-
-def is_online(server, name: str) -> bool:
-    """Return True if a player with this name is currently connected."""
-    needle = name.lower()
-    return any(n.lower() == needle for n in online_player_names(server))
-
-
-def find_players(server, pattern: str) -> list[str]:
-    """Return sorted names matching pattern, checking online clients then save files.
-
-    Supports shell-style wildcards: * matches any string, ? matches one character.
-    Matching is case-insensitive.  Each name appears at most once.
-
-    Examples:
-        find_players(server, '*')       → all known players
-        find_players(server, 'ral*')    → ['railbender'] (if that save file exists)
-        find_players(server, 'r?lan')   → ['Rulan'] (if online or saved)
-    """
-    pat  = pattern.lower()
-    seen: set[str] = set()
-    results: list[str] = []
-
-    for name in online_player_names(server):
-        if fnmatch.fnmatch(name.lower(), pat):
-            key = name.lower()
-            if key not in seen:
-                seen.add(key)
-                results.append(name)
-
-    for name in known_player_names():
-        if fnmatch.fnmatch(name.lower(), pat):
-            key = name.lower()
-            if key not in seen:
-                seen.add(key)
-                results.append(name)
-
-    return sorted(results, key=str.lower)
-
-
 async def prompt_player_choice(ctx, pattern: str = '*', *,
                                prompt_text: str = 'Choose a player') -> 'str | None':
     """Show a numbered, wildcard-filtered player list and prompt for a choice.
@@ -194,7 +226,9 @@ async def prompt_player_choice(ctx, pattern: str = '*', *,
     lines.append('')
     await ctx.send(lines)
 
-    raw = await ctx.prompt(f'{prompt_text} (number or name, {ctx.player.client_settings.return_key} to cancel)')
+    raw = await ctx.prompt(
+        prompt_text,
+        preamble_lines=[f'(number or name, {ctx.player.client_settings.return_key} to cancel)'])
     if not raw:
         return None
     raw = raw.strip()
@@ -236,16 +270,3 @@ def is_in_combat(ctx) -> bool:
     if session is None:
         return False
     return ctx in getattr(session, 'attackers', [])
-
-
-def player_exists(server, name: str) -> bool:
-    """Return True if the name belongs to an online player or has a save file.
-
-    Supports ? and * wildcards — returns True if any player matches.
-    """
-    if '*' in name or '?' in name:
-        return bool(find_players(server, name))
-    if is_online(server, name):
-        return True
-    needle = name.lower()
-    return any(n.lower() == needle for n in known_player_names())
