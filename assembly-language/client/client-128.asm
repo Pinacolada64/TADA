@@ -90,16 +90,25 @@
         byte $0d,$1c,$0a,$00,$9e,$37,$31,$38,$31,$00,$00,$00
 
 start:
-        ; C128 BASIC 7.0 boots with the lowercase charset active by
-        ; default (unlike the C64, which defaults to uppercase/
-        ; graphics) -- confirmed live in VICE 2026-08-24: without this,
-        ; status_msg/demo_msg/echo_prefix (all encoded assuming the
-        ; uppercase/graphics charset, same convention tada-client.asm
-        ; uses) rendered as garbled lowercase-charset glyphs instead of
-        ; the intended text. CHR$(142) forces charset 1 (uppercase/
-        ; graphics) the same way BASIC's own boot banner would if this
-        ; program hadn't SYS'd straight past it.
-        lda #142
+        ; Select the lowercase/uppercase charset (CHR$(14)), same as
+        ; tada-client.asm -- the server encodes Commodore text with
+        ; petscii_c64en_lc, so e.g. the Hourglass clock's "PM" arrives
+        ; as shifted $d0/$cd and only reads as letters in this charset.
+        ; This used to force uppercase/graphics (CHR$(142), 2026-08-24,
+        ; on the belief that status_msg/demo_msg/echo_prefix were
+        ; encoded for it). Rendering x128's screen RAM through the real
+        ; chargen ROM on 2026-09-29 showed otherwise: status_msg's
+        ; {alpha:pokealt} codes ("C" = $43, "o" = $0f) are lowercase-
+        ; charset codes, so under CHR$(142) "TADA" and "Commodore"'s "C"
+        ; were drawing as graphics glyphs.
+        lda #14
+        jsr KERNAL_CHROUT
+        ; ...and keep it: CHR$(11) disables SHIFT+C= charset switching
+        ; (sets LOCKS $f7 = 128), the same lock tada-client.asm sets on
+        ; the C64. 128 mode's own codes per Compute's 128 Programmer's
+        ; Guide CHR$ table -- 11 disable / 12 enable; the C64's 8/9 are
+        ; 64-mode only (9 is TAB here).
+        lda #11
         jsr KERNAL_CHROUT
 
         lda MMU_MODE_CONFIG
@@ -160,6 +169,8 @@ main_loop:
         jsr set_window_full
         jsr call_sliding_input
         jsr set_window_narrow
+        jsr clock_test_command    ; "clock <text>" sets the status-row
+        bcs main_loop             ; clock locally -- see its own comment
         ldx #0
 echo_prefix_loop:
         lda echo_prefix,x
@@ -297,7 +308,11 @@ set_window_full:
 ; convention as tada-client.asm's redraw_status_row (bit 7 set on a
 ; screen code displays reverse video on this charset). Static
 ; placeholder message for now -- no status queue/rotation yet, that's
-; tada-client.asm's status_queue machinery, not ported here yet. ---
+; tada-client.asm's status_queue machinery, not ported here yet.
+; The Hourglass clock (clock_len bytes of clock_buf, 0 = none) owns the
+; row's right end, same as tada-client.asm's redraw_status_row_to: the
+; message stops one column short of it (a gap), so with no clock the
+; message is capped at 39 columns. ---
 draw_status_row:
         ldx #0
 draw_status_blank_loop:
@@ -307,16 +322,158 @@ draw_status_blank_loop:
         cpx #ROW_BYTES
         bne draw_status_blank_loop
 
+        lda #ROW_BYTES-1
+        sec
+        sbc clock_len
+        sta draw_status_limit
         ldx #0
 draw_status_msg_loop:
+        cpx draw_status_limit
+        bcs draw_status_clock
         lda status_msg,x
-        beq draw_status_done
+        beq draw_status_clock
         ora #REVERSE_BIT
         sta SCREEN_RAM+STATUS_ROW_OFFSET,x
         inx
         jmp draw_status_msg_loop
+draw_status_clock:
+        lda #ROW_BYTES
+        sec
+        sbc clock_len
+        tax                       ; first clock column
+        ldy #0
+draw_status_clock_loop:
+        cpx #ROW_BYTES
+        bcs draw_status_done
+        lda clock_buf,y
+        ora #REVERSE_BIT
+        sta SCREEN_RAM+STATUS_ROW_OFFSET,x
+        inx
+        iny
+        jmp draw_status_clock_loop
 draw_status_done:
         rts
+
+draw_status_limit:
+        byte 0
+
+; --- Hourglass clock (PlayerFlags.HOURGLASS) -- the display half of
+; tada-client.asm's CLOCK_STREAM_CONFIRM ($0b) stream, ported ahead of
+; SwiftLink: nothing here receives it from the server yet. Once a
+; receive dispatcher exists, its clock-stream handler reads the 16-bit
+; length (high byte ignored), calls clock_reset, clock_putc once per
+; body byte, then clock_commit -- the same steps as tada-client.asm's
+; clock_recv, split up so they don't assume a receive routine that
+; doesn't exist here yet. An empty body (clock_reset + clock_commit
+; with no putc) hides the clock.
+;
+; Body bytes are PETSCII, converted to screen codes with the standard
+; mapping -- matches the server's petscii_c64en_lc codec now that this
+; client runs the lowercase charset (see start's CHR$(14) comment), so
+; "PM" (shifted $d0/$cd) shows as capital letters.
+CLOCK_MAX = 12                    ; tada-client.asm's CLOCK_MAX / commands/
+                                  ; c64_display.py's CLOCK_MAX
+clock_reset:
+        lda #0
+        sta clock_recv_idx
+        rts
+
+; .A = one PETSCII body byte. Anything past CLOCK_MAX is dropped, so a
+; caller can keep feeding a longer body without losing stream sync.
+; Preserves X/Y.
+clock_putc:
+        stx clock_saved_x
+        ldx clock_recv_idx
+        cpx #CLOCK_MAX
+        bcs clock_putc_rts
+        jsr clock_petscii_to_screen
+        sta clock_buf,x
+        inc clock_recv_idx
+clock_putc_rts:
+        ldx clock_saved_x
+        rts
+
+clock_commit:
+        lda clock_recv_idx
+        sta clock_len
+        jmp draw_status_row       ; tail call
+
+; .A (a printable PETSCII code, $20-$7f or $a0-$ff) -> screen code --
+; same mapping as tada-client.asm's so_petscii_to_screen (this client's
+; own old petscii_to_screencode went away with input_editor.asm).
+clock_petscii_to_screen:
+        cmp #$40
+        bcc clock_p2s_rts         ; $20-$3f: unchanged
+        cmp #$60
+        bcc clock_p2s_sub40       ; $40-$5f -> $00-$1f
+        cmp #$80
+        bcc clock_p2s_sub20       ; $60-$7f -> $40-$5f
+        cmp #$c0
+        bcc clock_p2s_sub40       ; $a0-$bf -> $60-$7f
+        cmp #$ff
+        beq clock_p2s_pi
+        and #$7f                  ; $c0-$fe -> $40-$7e
+clock_p2s_rts:
+        rts
+clock_p2s_sub40:
+        sec
+        sbc #$40
+        rts
+clock_p2s_sub20:
+        sec
+        sbc #$20
+        rts
+clock_p2s_pi:
+        lda #$5e                  ; $ff is pi, same glyph as $de
+        rts
+
+; --- clock_test_command: local stand-in for the server's clock stream
+; until SwiftLink is wired in. If inputbuf starts with "clock", feeds
+; everything after it (one separating space skipped) through clock_
+; reset/putc/commit and returns carry set (main_loop skips the echo);
+; a bare "clock" hides the clock. Anything else: carry clear, untouched.
+; Delete once a real receive path calls clock_reset/putc/commit. ---
+clock_test_command:
+        ldx #0
+clock_test_match:
+        lda clock_test_word,x
+        beq clock_test_matched
+        cmp inputbuf,x
+        bne clock_test_no
+        inx
+        jmp clock_test_match
+clock_test_matched:
+        jsr clock_reset
+        lda inputbuf,x
+        cmp #' '
+        bne clock_test_feed
+        inx
+clock_test_feed:
+        lda inputbuf,x
+        beq clock_test_done
+        jsr clock_putc
+        inx
+        jmp clock_test_feed
+clock_test_done:
+        jsr clock_commit
+        sec
+        rts
+clock_test_no:
+        clc
+        rts
+
+clock_test_word:
+        ascii "clock"
+        byte 0
+
+clock_buf:
+        area CLOCK_MAX, 0
+clock_len:
+        byte 0                    ; 0 = no clock shown (hourglass off)
+clock_recv_idx:
+        byte 0
+clock_saved_x:
+        byte 0
 
 ; read_input_row/petscii_to_screencode used to live here -- superseded
 ; 2026-08-24 by input_editor.asm's ported sliding-input.asm core
