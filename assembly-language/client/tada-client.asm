@@ -1482,6 +1482,34 @@ tsa_blank:
         jsr wait_vblank
         lda back_hi
         jsr flip_screen_buffer
+
+        ; --- 7. Unlink every row in KERNAL's line-link table ---
+        ; LDTB1 ($d9-$f1, one byte per row): bit 7 set = this row starts
+        ; its own logical line, clear = it continues the row above (an
+        ; 80-column wrapped line). CHROUT links the next row whenever a
+        ; line wraps past column 39, and the raw shift above never moves
+        ; or clears those bits -- they stay pinned to physical rows while
+        ; the text scrolls away. The damaging case: a line wraps from
+        ; row 22, row 23 gets marked as its continuation, and after this
+        ; routine PLOTs back to row 22 the KERNAL still treats rows 22-23
+        ; as one logical line, so the next CR skips row 23 entirely and
+        ; lands on PROMPT_ROW (24). term_chrout's exact-row-23 check never
+        ; fires, the following line prints onto PROMPT_ROW (which is only
+        ; mirrored, never shifted up), and the prompt redraw overwrites it
+        ; -- the "lost lines" bug (2026-09-28, traced via the stock ROM's
+        ; $E56C/$E87C/$E6B6 routines). Every physical row is its own line
+        ; in this client's model anyway, so resetting them all is always
+        ; correct here. Must run before KERNAL_PLOT, which reads LDTB1 to
+        ; compute PNT and LNMX ($d5, the 39-vs-79 logical line length).
+        ; Bits 0-1 (the row's screen page) are preserved by the ORA.
+        ldx #24
+tsa_unlink_rows:
+        lda $d9,x
+        ora #$80
+        sta $d9,x
+        dex
+        bpl tsa_unlink_rows
+
         ldx #DIALOGUE_LAST_ROW      ; KERNAL_PLOT: X=row, Y=col
         ldy #0
         clc
