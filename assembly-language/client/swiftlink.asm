@@ -109,13 +109,29 @@ init_nmi:
 ; received byte (RDRF clear), it's not ours -- chain to whatever handler
 ; was previously installed (KERNAL's, which also covers the RESTORE key)
 ; rather than swallowing it.
+;
+; client-128.asm ({def: c128}) builds a different prologue/epilogue
+; around the same body. The 128 KERNAL's NMI entry ($FF05, read out of
+; kernal-318020-05.bin 2026-09-29) is not the C64's bare `jmp ($0318)`:
+; it pushes A, X, Y and the MMU configuration ($FF00), sets $FF00 = $00,
+; and only then jumps through $0318 -- and every handler leaves through
+; $FF33 (pla/sta $ff00/pla/tay/pla/tax/pla/rti). So on the 128 A/X/Y are
+; already saved, the exit is `jmp $ff33` (an rti of our own would leave
+; four bytes on the stack and the MMU in ROM configuration), and
+; nmi_orig gets the same stack frame we were handed. $FF00 = $00 also
+; means this handler and rx_buf must sit below $4000 -- see client-
+; 128.asm's MMU_CLIENT_CONFIG comment and check_128_layout.py.
 nmi_handler:
+{ifndef: c128}
         pha
+{endif}
         lda SL_STATUS
         and #SL_RDRF
         beq nmi_not_ours
+{ifndef: c128}
         txa
         pha
+{endif}
         lda SL_DATA               ; read the byte -- also clears RDRF/NMI
         ldx rx_head
         sta rx_buf,x
@@ -143,12 +159,18 @@ nmi_handler:
         sta rts_state
 nmi_rts_done:
 
+{ifdef: c128}
+        jmp $ff33                 ; the 128 KERNAL's NMI/IRQ exit, see above
+{else}
         pla
         tax
         pla
         rti
+{endif}
 nmi_not_ours:
+{ifndef: c128}
         pla
+{endif}
         jmp (nmi_orig)
 
 ; --- SwiftLink send byte ---

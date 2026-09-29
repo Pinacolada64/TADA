@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """x128 scenario for client-128.asm's Hourglass clock on the status row.
 
-No server involved -- client-128.asm has no SwiftLink yet, so this drives
+No server involved -- this runs client-128.asm offline (RUN/STOP at "Connecting...") and drives
 its local "clock <text>" test command (clock_test_command) from the
 input row and checks STATUS_ROW (23) straight out of SCREEN_RAM through
 the remote monitor (a direct dump, not a screenshot -- see the VICE
@@ -98,6 +98,10 @@ vice = subprocess.Popen(
     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 try:
     time.sleep(15)
+    # RUN/STOP at "Connecting...": no SwiftLink here, so go offline into
+    # the local demo this test drives (client-128.asm's go_offline).
+    mon([f'> ${KEYD:04x} $03', f'> ${NDX:02x} $01'])
+    time.sleep(3)
 
     row = status_row()
     msg = decode(row)

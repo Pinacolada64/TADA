@@ -34,6 +34,21 @@
 ; section, and MMU_CLIENT_CONFIG below for why the program may now
 ; extend past $4000.
 ;
+; SwiftLink (also 2026-09-29): the C64 client's own swiftlink.asm, built
+; with {def: c128} for the 128 KERNAL's different NMI entry/exit (see
+; its nmi_handler comment). At boot the client waits for the server's
+; first byte -- or RUN/STOP, which goes offline into the local demo
+; (the old echo loop, "fill" and "clock" test commands, the Keymap
+; Editor) -- answers the 40/80-column negotiation menu with whichever
+; screen it's on, then runs the line editor with an idle hook
+; (editor_idle_hook) that shows server text as it arrives, even mid-
+; line. recv_byte parses the server's framed streams (STREAM_START +
+; confirm + 16-bit length + body): the Hourglass clock and the login-
+; time color/blink apply are handled, the popup streams (Video
+; Settings, Help, the canvas editor) and SID music are skipped, with a
+; cancel reply where the server waits for one. So the "Still no
+; SwiftLink" below is history now.
+;
 ; Verified against Compute's 128 Programmer's Guide (pdftotext -layout;
 ; see 128_CLIENT_MECHANICS.md's own citation note about why a naive
 ; extract of this book's tables can't be trusted) rather than guessed:
@@ -117,6 +132,50 @@
 ; same as the C64's).
 {const: REVERSE_BIT $80}
 
+; swiftlink.asm's 128 variant of nmi_handler (and anything else that
+; ever needs to tell the two clients apart). Defined here in the source,
+; not only by the Makefile's -def:c128, so the NMI handler can't quietly
+; come out as the C64 one if that command-line flag ever goes away
+; (c64list rejects a second definition, hence the ifndef).
+{ifndef: c128}
+{def: c128}
+{endif}
+
+; KERNAL editor zero page (native 128 mode -- Compute's 128 Programmer's
+; Guide's zero-page map, not the C64's addresses): COLOR is the current
+; character color CHROUT uses, QTSW the quote-mode flag (input_editor.
+; asm's quomod sets/clears the same byte).
+{const: KERNAL_COLOR $f1}
+{const: KERNAL_QTSW  $f4}
+
+; Framed server streams -- see tada-client.asm's SID_STREAM_START/
+; *_STREAM_CONFIRM block for the protocol and why the confirm bytes sit
+; in $02-$0f; commands/c64_display.py and sid_engine/frames.py are the
+; server side. Plain `=` because recv_byte's tables need them as data.
+STREAM_START           = $01
+SID_STREAM_CONFIRM     = $02
+SID_STOP               = $03      ; one byte, not a stream
+CANVAS_STREAM_CONFIRM  = $04
+DISPLAY_STREAM_CONFIRM = $06
+APPLY_STREAM_CONFIRM   = $07
+HELP_STREAM_CONFIRM    = $08
+CLOCK_STREAM_CONFIRM   = $0b
+CANVAS_STREAM_CANCEL   = $43      ; client -> server replies, see
+DISPLAY_STREAM_CANCEL  = $58      ; frame_finish
+
+; swiftlink.asm's flow-control thresholds (rx_buf bytes buffered): RTS
+; off at RX_HIGH_WATER, back on below RX_LOW_WATER -- tada-client.asm's
+; values.
+RX_HIGH_WATER = 200
+RX_LOW_WATER  = 32
+
+; drain_rx's settle countdown, high byte (~30 cycles a poll at 1 MHz):
+; $20 is tada-client.asm's wait_for_data margin (~0.25 s), for the
+; negotiation menu, which arrives in several writes; $04 (~30 ms) is
+; enough to batch a burst from inside the line editor.
+DRAIN_SETTLE_MENU = $20
+DRAIN_SETTLE_IDLE = $04
+
         orig $1c01
 
 ; BASIC stub: 10 SYS7181 (native-128-mode load address is $1c01, not the
@@ -149,7 +208,10 @@ start:
         lda #MMU_CLIENT_CONFIG
         sta MMU_CONFIG_REG
         jsr km_init_keyboard      ; F-keys -> single codes, CTRL+CRSR fix
-        jsr init_keymap           ; KEYMAP.CFG, or the defaults
+        jsr init_keymap           ; KEYMAP.CFG, or the defaults -- disk I/O,
+                                  ; so before SwiftLink starts raising NMIs
+        jsr init_nmi              ; install our receive handler before the
+        jsr init_swiftlink        ; ACIA is told to start raising NMIs on it
 
         ; Which screen is the editor actually driving? $D7 bit 7 (set =
         ; 80 columns) rather than the $D505 switch bit: the switch is only
@@ -170,16 +232,7 @@ eighty_col_mode:
         sta scr_cols
         jsr init_irq
         jsr vdc_screen_init
-        jsr draw_status_row
-        ldx #0
-eighty_msg_loop:
-        lda eighty_msg,x
-        beq eighty_msg_done
-        jsr out_char
-        inx
-        jmp eighty_msg_loop
-eighty_msg_done:
-        jmp main_loop
+        jmp connect
 
 forty_col_mode:
         lda #1
@@ -189,8 +242,51 @@ forty_col_mode:
                                    ; blink-cursor task so far) before
                                    ; anything else touches the screen
         jsr init_window
-        jsr draw_status_row
+        ; ...and fall into connect. The narrow window init_window leaves
+        ; behind is out_begin's state (see out_begin), so connect and
+        ; go_offline print dialogue straight away.
 
+; --- connect: "Connecting..." on the status row until the server's
+; first byte arrives (answer the negotiation menu, then the line editor
+; takes over) or RUN/STOP gives up (go_offline). Nothing goes into the
+; dialogue window while waiting, so the offline demo starts on a clean
+; screen. ---
+connect:
+        lda #<status_msg_connecting
+        ldy #>status_msg_connecting
+        jsr set_status_msg
+        jsr wait_for_connect
+        bcs go_offline
+        lda #<status_msg
+        ldy #>status_msg
+        jsr set_status_msg
+        lda screen_mode           ; 80 columns: say which keys scroll back,
+        bne connect_negotiate     ; ahead of the server's first text
+        jsr out_scroll_hint
+connect_negotiate:
+        jsr negotiate
+        jsr out_end
+        jmp main_loop
+
+; --- go_offline: RUN/STOP at connect. The offline flag keeps main_loop
+; on the local demo (echo, "fill", "clock") and send_line off the ACIA;
+; the Keymap Editor works the same either way. ---
+go_offline:
+        lda #1
+        sta offline
+        lda #<status_msg_offline
+        ldy #>status_msg_offline
+        jsr set_status_msg
+        lda screen_mode
+        bne go_offline_40
+        lda #<eighty_msg
+        ldy #>eighty_msg
+        jsr out_string
+        jsr out_scroll_hint
+        lda #<eighty_msg_tail
+        ldy #>eighty_msg_tail
+        jmp go_offline_banner
+go_offline_40:
         ; Demo: a few lines of filler dialogue text, printed via ordinary
         ; CHROUT -- confirms the window actually confines/scrolls this
         ; text to rows 0-22 rather than running over the status/input
@@ -199,13 +295,137 @@ forty_col_mode:
         ; window-scrolling *behavior* itself hasn't been visually
         ; verified yet (no automated test harness reaches real hardware/
         ; emulator behavior for this).
-        ldx #0
-demo_msg_loop:
-        lda demo_msg,x
-        beq main_loop
-        jsr KERNAL_CHROUT
+        lda #<demo_msg
+        ldy #>demo_msg
+go_offline_banner:
+        jsr out_string
+        jsr out_end
+        jmp main_loop
+
+; --- out_scroll_hint: the 80-column scrollback keys into the dialogue
+; -- "CRSR up/down: scroll back a line. Alt+Grey Up/Alt+Grey Down: a
+; page." with the defaults. ---
+out_scroll_hint:
+        lda #<scroll_hint_msg
+        ldy #>scroll_hint_msg
+        jsr out_string
+        jsr out_page_keys
+        lda #<scroll_hint_end
+        ldy #>scroll_hint_end
+        jmp out_string
+
+; --- out_page_keys: "<Page Up combo>/<Page Down combo>" into the
+; dialogue, named by the Keymap Editor's own describe_combo, so the
+; names match its list. The page slots (keymap_128.asm's
+; KM_PAGE_SLOT_OFFSET) hold a matrix key number, turned into a name
+; code by key_num_unshifted -- the same steps as the popup's
+; describe_binding_row macro path, through its list_trigger_mod/_key
+; scratch record. An unbound slot shows as "none". Borrows scr_ptr_lo/
+; hi ($fb/$fc, the editor's strptr -- call_sliding_input resets that
+; before every line). ---
+out_page_keys:
+        lda keymap_table+KM_PAGE_SLOT_OFFSET
+        ldx keymap_table+KM_PAGE_SLOT_OFFSET+1
+        jsr out_page_key
+        lda #'/'
+        jsr out_char
+        lda keymap_table+KM_PAGE_SLOT_OFFSET+BINDING_SIZE
+        ldx keymap_table+KM_PAGE_SLOT_OFFSET+BINDING_SIZE+1
+; .A = modifier bits, .X = matrix key number.
+out_page_key:
+        sta list_trigger_mod
+        cpx #KM_KEY_NONE
+        bcs out_page_key_none
+        txa
+        ora list_trigger_mod
+        beq out_page_key_none     ; mod = key = 0: nothing captured
+        lda key_num_unshifted,x
+        sta list_trigger_key
+        lda #<list_trigger_mod
+        sta scr_ptr_lo
+        lda #>list_trigger_mod
+        sta scr_ptr_hi
+        jsr describe_combo        ; screen codes at row_scratch+15, length
+        ldx #0                    ; describe_combo_col
+out_page_key_loop:
+        cpx describe_combo_col
+        beq out_page_key_rts
+        lda row_scratch+15,x
+        jsr screen_to_petscii
+        jsr out_char
         inx
-        jmp demo_msg_loop
+        jmp out_page_key_loop
+out_page_key_none:
+        lda #<page_key_none_msg
+        ldy #>page_key_none_msg
+        jmp out_string
+out_page_key_rts:
+        rts
+
+; .A = a screen code (lowercase charset) -> the PETSCII that prints it;
+; the reverse bit is dropped. Inverse of petscii_to_screen. ---
+screen_to_petscii:
+        and #$7f
+        cmp #$20
+        bcc s2p_add40             ; $00-$1f -> $40-$5f
+        cmp #$40
+        bcc s2p_rts               ; $20-$3f unchanged
+        cmp #$60
+        bcc s2p_add80             ; $40-$5f -> $c0-$df
+        clc                       ; $60-$7f -> $a0-$bf
+s2p_add40:
+        adc #$40                  ; carry clear on every path here
+s2p_rts:
+        rts
+s2p_add80:
+        ora #$80
+        rts
+
+{alpha:alt}
+page_key_none_msg:
+        ascii "none"
+        byte 0
+{alpha:normal}
+
+; --- wait_for_connect: carry clear = the server's first byte is in
+; rx_buf (left there for negotiate), carry set = RUN/STOP. Keys other
+; than RUN/STOP are thrown away -- nothing typed before the server is
+; there means anything. ---
+wait_for_connect:
+        lda rx_tail
+        cmp rx_head
+        bne wait_for_connect_data
+        jsr KERNAL_GETIN
+        cmp #$03                  ; RUN/STOP
+        bne wait_for_connect
+        sec
+        rts
+wait_for_connect_data:
+        clc
+        rts
+
+; --- negotiate: show the server's 40/80-column menu until it goes
+; quiet, then answer it with the screen we're on -- "4" for the VIC-II,
+; "8" for the VDC (simple_server.py's _negotiate_terminal). Same
+; settle-then-answer approach as tada-client.asm's start_connected. ---
+negotiate:
+        lda #DRAIN_SETTLE_MENU
+        jsr drain_rx
+        bcs negotiate             ; hit the byte cap, not quiet yet
+        lda #'8'
+        ldx screen_mode
+        beq negotiate_send
+        lda #'4'
+negotiate_send:
+        pha
+        jsr sl_send
+        lda #13
+        jsr sl_send
+        pla                       ; ...and show it after the menu's prompt,
+        jsr out_char              ; so the history reads "[4/8] > 8"
+        lda #13
+        jsr out_char
+        jmp line_cap_reset
 
 ; --- Main loop: read a line from the input row, echo it into the
 ; scrolling dialogue window. No server connection yet -- this just
@@ -223,51 +443,692 @@ demo_msg_loop:
 ;
 ; In 80 columns there's no window to widen: the editor's window is the
 ; whole screen and dialogue output bypasses CHROUT (vdc_screen.asm).
+;
+; With SwiftLink the widen/narrow pair became out_end/out_begin, which
+; also keep the dialogue's own cursor and color apart from the input
+; row's (see out_begin) -- server text now arrives in the middle of
+; editing too (editor_idle_hook), not just between lines. The editor
+; runs in out_end's state; each finished line is handled in out_begin's.
+; Online, the line is echoed after whatever the dialogue cursor follows
+; (normally the server's prompt, so the history reads "login > name")
+; and sent; offline, it goes to the local demo commands.
 main_loop:
         tsx                       ; JT_RESUME_LOCAL (the Keymap Editor
         stx main_loop_sp          ; closing) comes back to this depth
         lda screen_mode
-        beq main_loop_vdc
-        jsr set_window_full
+        beq main_loop_edit
+        jsr set_window_full       ; already full except straight after the
+                                  ; Keymap Editor -- kept for that path
+main_loop_edit:
         jsr call_sliding_input
-        jsr set_window_narrow
-        jmp main_loop_line
-main_loop_vdc:
-        jsr call_sliding_input
-main_loop_line:
+        jsr out_begin
+        lda offline
+        bne main_loop_offline
+        jsr echo_prompt           ; the relocated prompt, if any (see
+        jsr echo_input            ; relocate_prompt), then the line
+        jsr send_line
+        lda #0
+        sta prompt_len            ; the next line starts without one --
+        sta prompt_cols           ; the server sends a fresh prompt
+        jsr line_cap_reset        ; the echo ended the dialogue line
+        jmp main_loop_next
+main_loop_offline:
         jsr clock_test_command    ; "clock <text>" sets the status-row
-        bcs main_loop             ; clock locally -- see its own comment
+        bcs main_loop_next        ; clock locally -- see its own comment
         jsr fill_test_command     ; "fill" prints FILL_TEST_LINES lines
-        bcs main_loop             ; to scroll back through
-        ldx #0
-echo_prefix_loop:
-        lda echo_prefix,x
-        beq echo_body
-        jsr out_char
-        inx
-        jmp echo_prefix_loop
-echo_body:
-        ldx #0
-echo_body_loop:
-        lda inputbuf,x
-        beq echo_done
-        jsr out_char
-        inx
-        jmp echo_body_loop
-echo_done:
-        lda #13
-        jsr out_char
+        bcs main_loop_next        ; to scroll back through
+        lda #<echo_prefix
+        ldy #>echo_prefix
+        jsr out_string
+        jsr echo_input
+main_loop_next:
+        jsr out_end
         jmp main_loop
+
+; --- echo_input: inputbuf, then CR, into the dialogue. ---
+echo_input:
+        ldx #0
+echo_input_loop:
+        lda inputbuf,x
+        beq echo_input_done
+        jsr out_char
+        inx
+        jmp echo_input_loop
+echo_input_done:
+        lda #13
+        jmp out_char
+
+; --- send_line: inputbuf over SwiftLink, CR-terminated (the server
+; reads up to a bare CR -- see tada-client.asm's send_line). Bytes go as
+; typed, Shift+Space's $a0 included, same as the C64 client. ---
+send_line:
+        ldx #0
+send_line_loop:
+        lda inputbuf,x
+        beq send_line_term
+        jsr sl_send
+        inx
+        jmp send_line_loop
+send_line_term:
+        lda #13
+        jmp sl_send
+
+; --- out_string: .A/.Y = a null-terminated string (any length) for the
+; dialogue, through out_char. ---
+out_string:
+        sta out_string_read+1
+        sty out_string_read+2
+out_string_read:
+        lda $ffff                 ; self-modified
+        beq out_string_rts
+        jsr out_char
+        inc out_string_read+1
+        bne out_string_read
+        inc out_string_read+2
+        jmp out_string_read
+out_string_rts:
+        rts
+
+; --- out_begin / out_end: bracket dialogue output in 40 columns. The
+; line editor runs with the ESC-T/ESC-B window widened to the whole
+; screen (set_window_full) and its cursor on INPUT_ROW; dialogue text
+; needs the narrow window back, the cursor where the last dialogue
+; output left it, and the dialogue's own text color (the server's color
+; codes change KERNAL_COLOR, which would otherwise carry over to the
+; input row, and the input row's color would carry over to the text).
+; out_end saves the dialogue cursor/color and widens the window again.
+; 80 columns: both are no-ops -- dlg_putc keeps its own cursor and
+; attribute and never goes near the editor's.
+;
+; State at boot: init_window leaves the narrow window with the cursor
+; home, i.e. out_begin's state, so startup output goes straight out and
+; the first out_end records where it stopped. ---
+out_begin:
+        lda screen_mode
+        beq out_begin_rts
+        jsr set_window_narrow
+        lda KERNAL_COLOR
+        sta input_color
+        lda dlg40_color
+        sta KERNAL_COLOR
+        clc
+        ldx dlg40_row
+        ldy dlg40_col
+        jsr KERNAL_PLOT
+out_begin_rts:
+        rts
+
+out_end:
+        lda screen_mode
+        beq out_end_rts
+        sec
+        jsr KERNAL_PLOT           ; read the dialogue cursor (window-
+        stx dlg40_row             ; relative, but the window starts at
+        sty dlg40_col             ; row 0, column 0)
+        lda KERNAL_COLOR
+        sta dlg40_color
+        lda input_color
+        sta KERNAL_COLOR
+        jsr set_window_full
+out_end_rts:
+        rts
+
+; --- editor_idle_hook: called by input_editor.asm's key-poll loops
+; while no key is waiting. Carry clear = nothing happened; carry set =
+; dialogue output happened, so the editor redraws the input line and
+; cursor (in 40 columns the output moved the KERNAL cursor off it).
+; While the 80-column view is scrolled back, received bytes stay in
+; rx_buf -- dlg_putc would snap the view back to live mid-read -- and
+; swiftlink.asm's RTS flow control holds the server off once it fills;
+; they show as soon as the player leaves scrollback. ---
+editor_idle_hook:
+        lda rx_tail
+        cmp rx_head
+        beq editor_idle_none
+        lda screen_mode
+        bne editor_idle_drain
+        lda sb_offset
+        bne editor_idle_none
+editor_idle_drain:
+        jsr out_begin
+        lda #DRAIN_SETTLE_IDLE
+        jsr drain_rx
+        bcs editor_idle_end       ; capped mid-burst: more is coming
+        jsr relocate_prompt
+        bcc editor_idle_end
+        inc prompt_moved
+editor_idle_end:
+        jsr out_end
+        lda prompt_moved          ; drawn after out_end: the input row is
+        beq editor_idle_drew      ; outside the narrow 40-column window
+        lda #0
+        sta prompt_moved
+        jsr show_prompt
+editor_idle_drew:
+        sec
+        rts
+editor_idle_none:
+        clc
+        rts
+
+; --- drain_rx: hand received bytes to recv_byte until none arrives for
+; a settle countdown (.A = its high byte, see DRAIN_SETTLE_MENU), or 256
+; bytes have gone by. Carry clear = went quiet, carry set = hit the byte
+; cap (callers that need quiet, like negotiate, call again). The cap
+; keeps a long burst from starving the keyboard. Same X:Y countdown as
+; tada-client.asm's wait_for_data -- sl_recv only touches X when it
+; returns a byte, and the countdown restarts then anyway. ---
+drain_rx:
+        sta drain_settle_hi
+        lda #0
+        sta drain_count
+drain_rx_restart:
+        ldx drain_settle_hi
+        ldy #0
+drain_rx_poll:
+        jsr sl_recv
+        bcs drain_rx_got
+        dey
+        bne drain_rx_poll
+        dex
+        bne drain_rx_poll
+        clc
+        rts
+drain_rx_got:
+        jsr recv_byte
+        inc drain_count
+        bne drain_rx_restart
+        sec
+        rts
+
+drain_settle_hi:
+        byte 0
+drain_count:
+        byte 0
+
+; --- recv_byte: .A = one byte from the server. rx_state:
+;   0  text -- STREAM_START starts a possible frame, SID_STOP and $8e
+;      (uppercase/graphics charset, which would undo start's CHR$(14))
+;      are dropped, anything else goes to out_char
+;   1  saw STREAM_START: a known confirm byte starts a frame, anything
+;      else was ordinary text after all (tada-client.asm's SID_STREAM_
+;      CONFIRM comment: a lone $01 is never trusted)
+;   2  frame length, low byte
+;   3  frame length, high byte -- frame_begin, or frame_finish if 0
+;   4  body bytes to frame_byte, counting frame_len down to frame_finish
+; Every frame has the same header (commands/c64_display.py, sid_engine/
+; frames.py), so the ones this client can't use yet are skipped by
+; length rather than needing a parser each. ---
+recv_byte:
+        ldx rx_state
+        bne recv_framed
+recv_text:
+        cmp #STREAM_START
+        beq recv_start
+        cmp #SID_STOP
+        beq recv_rts
+        cmp #$8e
+        beq recv_rts
+        jsr line_capture
+        jmp out_char
+recv_start:
+        lda #1
+        sta rx_state
+recv_rts:
+        rts
+
+recv_framed:
+        cpx #1
+        bne recv_not_confirm
+        ldx #FRAME_CONFIRMS_LEN-1
+recv_confirm_scan:
+        cmp frame_confirms,x
+        beq recv_confirmed
+        dex
+        bpl recv_confirm_scan
+        ldx #0                    ; not a frame: back to text, and this
+        stx rx_state              ; byte is text too (it may itself be
+        jmp recv_text             ; another STREAM_START)
+recv_confirmed:
+        sta frame_type
+        lda #2
+        sta rx_state
+        rts
+recv_not_confirm:
+        cpx #2
+        bne recv_not_len_lo
+        sta frame_len
+        lda #3
+        sta rx_state
+        rts
+recv_not_len_lo:
+        cpx #3
+        bne recv_body
+        sta frame_len+1
+        lda #4
+        sta rx_state
+        jsr frame_begin
+        lda frame_len
+        ora frame_len+1
+        bne recv_rts
+        jmp frame_finish          ; empty body (e.g. a clock hide)
+recv_body:
+        jsr frame_byte
+        lda frame_len             ; 16-bit decrement
+        bne recv_body_lo
+        dec frame_len+1
+recv_body_lo:
+        dec frame_len
+        lda frame_len
+        ora frame_len+1
+        bne recv_rts
+        jmp frame_finish
+
+frame_begin:
+        lda #0
+        sta apply_idx
+        lda frame_type
+        cmp #CLOCK_STREAM_CONFIRM
+        bne frame_begin_rts
+        jmp clock_reset
+frame_begin_rts:
+        rts
+
+; .A = one body byte. Clock: to clock_putc. Apply: the first three bytes
+; (border, background, blink speed) into apply_buf. Anything else:
+; dropped.
+frame_byte:
+        ldx frame_type
+        cpx #CLOCK_STREAM_CONFIRM
+        bne frame_byte_not_clock
+        jmp clock_putc
+frame_byte_not_clock:
+        cpx #APPLY_STREAM_CONFIRM
+        bne frame_byte_rts
+        ldx apply_idx
+        cpx #3
+        bcs frame_byte_rts
+        sta apply_buf,x
+        inc apply_idx
+frame_byte_rts:
+        rts
+
+; The whole frame is in. Video Settings and the canvas editor leave the
+; server waiting for the popup's reply (commands/c64_display.py's
+; pick_c64_display reads a 4-byte header; petscii_editor/canvas.py's
+; cancel is STREAM_START+STREAM_CANCEL+00+00), so they get a cancel --
+; and, with Help, a note in the dialogue, since this client has none of
+; those popups yet. SID music is skipped silently: the server's own
+; status text already says what's playing.
+frame_finish:
+        lda #0
+        sta rx_state
+        lda frame_type
+        cmp #CLOCK_STREAM_CONFIRM
+        bne frame_finish_not_clock
+        jmp clock_commit
+frame_finish_not_clock:
+        cmp #APPLY_STREAM_CONFIRM
+        bne frame_finish_not_apply
+        jmp apply_settings
+frame_finish_not_apply:
+        cmp #DISPLAY_STREAM_CONFIRM
+        bne frame_finish_not_display
+        lda #DISPLAY_STREAM_CANCEL
+        jsr send_stream_cancel
+        jmp frame_finish_note
+frame_finish_not_display:
+        cmp #CANVAS_STREAM_CONFIRM
+        bne frame_finish_not_canvas
+        lda #CANVAS_STREAM_CANCEL
+        jsr send_stream_cancel
+        jmp frame_finish_note
+frame_finish_not_canvas:
+        cmp #HELP_STREAM_CONFIRM
+        bne frame_finish_rts
+frame_finish_note:
+        lda #<no_popup_msg
+        ldy #>no_popup_msg
+        jmp out_string
+frame_finish_rts:
+        rts
+
+; .A = the cancel byte: STREAM_START, .A, a zero 16-bit length.
+send_stream_cancel:
+        pha
+        lda #STREAM_START
+        jsr sl_send
+        pla
+        jsr sl_send
+        lda #0
+        jsr sl_send
+        jmp sl_send
+
+; --- apply_settings: the player's saved Video Settings, sent at login
+; (commands/connect.py's encode_apply_for_player): border and background
+; as VIC-II color numbers, blink speed 1-5. 40 columns: straight into
+; the VIC-II. 80 columns: the VDC has no border, and its background
+; (R26's low nibble -- the high nibble is the monochrome-mode foreground,
+; kept) takes the RGBI color the editor itself shows for that VIC-II
+; color (vdc_screen.asm's dlg_vdc_colors). Blink speed indexes the same
+; mask table as tada-client.asm's apply_recv_blink; out of range = left
+; alone. ---
+VDC_R_BACKGROUND = $1a
+apply_settings:
+        lda apply_idx
+        cmp #3
+        bcc apply_settings_rts    ; short body -- leave everything alone
+        lda screen_mode
+        beq apply_settings_vdc
+        lda apply_buf
+        sta $d020
+        lda apply_buf+1
+        sta $d021
+        jmp apply_settings_blink
+apply_settings_vdc:
+        ldx #VDC_R_BACKGROUND
+        jsr vdc_read_reg
+        and #$f0
+        sta apply_tmp
+        lda apply_buf+1
+        and #$0f
+        tay
+        lda dlg_vdc_colors,y
+        ora apply_tmp
+        jsr vdc_write_reg
+apply_settings_blink:
+        ldx apply_buf+2
+        dex
+        cpx #5
+        bcs apply_settings_rts
+        lda apply_blink_masks,x
+        sta cursor_blink_mask
+apply_settings_rts:
+        rts
+
+; Must match tada-client.asm's apply_blink_masks / commands/
+; c64_display.py's BLINK_SPEED_MASKS.
+apply_blink_masks:
+        byte $08, $10, $20, $40, $00
+
+frame_confirms:
+        byte SID_STREAM_CONFIRM, CANVAS_STREAM_CONFIRM, DISPLAY_STREAM_CONFIRM
+        byte APPLY_STREAM_CONFIRM, HELP_STREAM_CONFIRM, CLOCK_STREAM_CONFIRM
+FRAME_CONFIRMS_LEN = 6
+
+rx_state:
+        byte 0
+frame_type:
+        byte 0
+frame_len:
+        word 0
+apply_idx:
+        byte 0
+apply_buf:
+        byte 0, 0, 0
+apply_tmp:
+        byte 0
+
+;
+; --- Prompt on the input row -- tada-client.asm's relocate_prompt_to_
+; row24/commit_input_line, for this client's editor. The server's prompt
+; ("main > ") ends a write with no CR, so it's the partial line the
+; dialogue cursor sits after; left there, anything else the server sends
+; while the player types would continue on the prompt's line. So once a
+; drain from inside the editor settles, a partial line ending in "> "
+; (after any trailing color code -- the server appends the command
+; color) moves down: relocate_prompt erases it from the dialogue and
+; keeps its bytes in prompt_buf, and show_prompt draws it at the start
+; of the input row, with the editor's input area (strcol/strwin) starting
+; right after it -- the prompt's own color codes leave KERNAL_COLOR at
+; the command color for the typed text, as on the C64. On RETURN,
+; main_loop echoes prompt + line into the dialogue, so the history still
+; reads "main > look". Not during negotiate (the menu's prompt isn't a
+; game prompt, same as the C64's prompt_relocate_enabled). The pager's
+; "-- More 1/2 ?=help -- > " ends in "> " too, so it moves the same way --
+; tada-client.asm's heuristic does the same, and the history still reads
+; right ("-- More 1/2 ?=help -- > " followed by whatever was typed).
+;
+; line_capture keeps the bytes of the dialogue line in progress (since
+; the last CR/CLR), for relocate_prompt to test and copy: anything that
+; moves the cursor, or a line longer than LINE_CAP_MAX bytes, marks it
+; unusable, and a prompt must leave 10 columns to type in. ---
+LINE_CAP_MAX = 40
+
+; .A = a text byte about to go to out_char. Preserves .A.
+line_capture:
+        sta line_cap_byte
+        cmp #13
+        beq line_capture_reset
+        cmp #$93
+        beq line_capture_reset
+        ldx line_cap_len
+        cpx #LINE_CAP_MAX
+        bcs line_capture_bad
+        sta line_cap_buf,x
+        inc line_cap_len
+        cmp #$20
+        bcc line_capture_ctrl
+        cmp #$80
+        bcc line_capture_printable
+        cmp #$a0
+        bcs line_capture_printable
+line_capture_ctrl:
+        cmp #$12                  ; RVS on/off and the charset code don't
+        beq line_capture_rts      ; move the cursor; the 16 color codes
+        cmp #$92                  ; neither
+        beq line_capture_rts
+        cmp #$0e
+        beq line_capture_rts
+        ldx #15
+line_capture_color:
+        cmp dlg_color_codes,x
+        beq line_capture_rts
+        dex
+        bpl line_capture_color
+line_capture_bad:
+        lda #1
+        sta line_cap_bad
+        bne line_capture_rts      ; always
+line_capture_printable:
+        inc line_cap_cols
+        lda line_cap_last
+        sta line_cap_prev
+        lda line_cap_byte
+        sta line_cap_last
+line_capture_rts:
+        lda line_cap_byte
+        rts
+line_capture_reset:
+        jsr line_cap_reset
+        lda line_cap_byte
+        rts
+
+line_cap_reset:
+        lda #0
+        sta line_cap_len
+        sta line_cap_cols
+        sta line_cap_bad
+        sta line_cap_last
+        sta line_cap_prev
+        rts
+
+; In out_begin's state. Carry set = the partial line was a prompt: now
+; in prompt_buf, and gone from the dialogue (the dialogue cursor back at
+; the start of its row).
+relocate_prompt:
+        lda line_cap_len
+        beq relocate_no
+        lda line_cap_bad
+        bne relocate_no
+        lda line_cap_last
+        cmp #' '
+        bne relocate_no
+        lda line_cap_prev
+        cmp #'>'
+        bne relocate_no
+        lda line_cap_cols
+        clc
+        adc #10
+        cmp scr_cols
+        bcs relocate_no           ; leave at least 10 columns to type in
+        ldx #0
+relocate_copy:
+        lda line_cap_buf,x
+        sta prompt_buf,x
+        inx
+        cpx line_cap_len
+        bne relocate_copy
+        stx prompt_len
+        lda line_cap_cols
+        sta prompt_cols
+        jsr line_cap_reset
+        lda screen_mode
+        beq relocate_erase_vdc
+        sec                       ; 40 columns: blank the prompt's columns
+        jsr KERNAL_PLOT           ; and put the cursor back at the start
+        stx relocate_row          ; of its row (one physical row -- the
+        clc                       ; prompt is under 30 columns)
+        ldy #0
+        jsr KERNAL_PLOT
+        ldx prompt_cols
+relocate_blank:
+        lda #' '
+        jsr KERNAL_CHROUT
+        dex
+        bne relocate_blank
+        clc
+        ldx relocate_row
+        ldy #0
+        jsr KERNAL_PLOT
+        sec
+        rts
+relocate_erase_vdc:
+        ldx dlg_row
+        jsr dlg_blank_row
+        lda #0
+        sta dlg_col
+        sec
+        rts
+relocate_no:
+        clc
+        rts
+
+; In out_end's state (the line editor's). Points the editor's input area
+; past the prompt and draws the prompt at the start of the input row;
+; with no prompt, the input area is the whole row again. Called by
+; call_sliding_input before every line too, so a prompt survives the
+; Keymap Editor's JT_RESUME. The view slides if the cursor would now be
+; past the narrower area.
+show_prompt:
+        lda prompt_cols
+        sta strcol
+        lda scr_cols
+        sec
+        sbc #1
+        sec
+        sbc prompt_cols
+        sta strwin
+        lda cpos
+        sec
+        sbc lcol
+        cmp strwin
+        bcc show_prompt_draw
+        lda cpos
+        sec
+        sbc strwin
+        clc
+        adc #1
+        sta lcol
+show_prompt_draw:
+        lda prompt_len
+        beq show_prompt_rts
+        clc
+        ldx #INPUT_ROW
+        ldy #0
+        jsr KERNAL_PLOT
+        lda #0
+        sta show_prompt_idx
+show_prompt_loop:
+        ldx show_prompt_idx
+        lda prompt_buf,x
+        jsr KERNAL_CHROUT
+        lda #0
+        sta KERNAL_QTSW
+        inc show_prompt_idx
+        lda show_prompt_idx
+        cmp prompt_len
+        bne show_prompt_loop
+show_prompt_rts:
+        rts
+
+; The relocated prompt's bytes into the dialogue, ahead of the echoed
+; line (out_begin's state).
+echo_prompt:
+        ldx #0
+echo_prompt_loop:
+        cpx prompt_len
+        beq echo_prompt_rts
+        lda prompt_buf,x
+        jsr out_char
+        inx
+        jmp echo_prompt_loop
+echo_prompt_rts:
+        rts
+
+line_cap_buf:
+        area LINE_CAP_MAX, 0
+line_cap_len:
+        byte 0
+line_cap_cols:
+        byte 0                    ; printable characters in line_cap_buf
+line_cap_bad:
+        byte 0                    ; 1 = moved the cursor or overflowed
+line_cap_last:
+        byte 0                    ; last printable character
+line_cap_prev:
+        byte 0                    ; ...and the one before it
+line_cap_byte:
+        byte 0
+prompt_buf:
+        area LINE_CAP_MAX, 0
+prompt_len:
+        byte 0                    ; bytes in prompt_buf, 0 = no prompt
+prompt_cols:
+        byte 0                    ; columns it takes on the input row
+prompt_moved:
+        byte 0
+relocate_row:
+        byte 0
+show_prompt_idx:
+        byte 0
+
+; --- set_status_msg: .A/.Y = the status row's message (screen codes,
+; null-terminated), redrawn now. ---
+set_status_msg:
+        sta status_msg_ptr
+        sty status_msg_ptr+1
+        jmp draw_status_row
 
 ; --- out_char: .A = PETSCII for the dialogue area, whichever screen.
 ; 40 columns: CHROUT into the ESC-T/ESC-B window. 80 columns: dlg_putc.
 ; Preserves X (and Y) either way -- callers index strings with X. ---
+;
+; The 40-column path clears quote mode after every character: server text
+; can hold a lone '"', and in quote mode CHROUT prints the color/cursor
+; codes that follow as reverse glyphs instead of obeying them (the same
+; reset tada-client.asm did around CHROUT before its screen-output.asm).
 out_char:
         pha
         lda screen_mode
         beq out_char_vdc
         pla
-        jmp KERNAL_CHROUT
+        jsr KERNAL_CHROUT
+        pha
+        lda #0
+        sta KERNAL_QTSW
+        pla
+        rts
 out_char_vdc:
         pla
         jmp dlg_putc
@@ -277,12 +1138,14 @@ out_char_vdc:
 ; clear = .A is what the editor should handle (normally the key itself).
 ;
 ; Order: any key first clears a status-row override ("Saved keymap."
-; etc.). In 80 columns, plain CRSR UP/DOWN (any modifier but CTRL, so C=
-; still pages) belong to scrollback (vdc_key_hook); every other key
-; leaves scrollback. Then the keymap (keymap_128.asm's km_dispatch) gets
-; the key -- word jumps, home/end, macros, F7 for the editor. So in 80
-; columns a keymap binding on plain CRSR UP/DOWN (the defaults' Home/
-; End) is shadowed by scrollback; in 40 columns it works as on the C64. ---
+; etc.). In 80 columns, plain (or SHIFTed) CRSR UP/DOWN scroll the
+; dialogue a line (vdc_key_hook); every other key leaves scrollback. Then
+; the keymap (keymap_128.asm's km_dispatch) gets the key -- word jumps,
+; home/end, macros, F7 for the editor, and Page Up/Page Down (ALT + the
+; grey arrows by default), which is why CRSR with C=, CTRL or ALT held
+; skips the line scroll. So in 80 columns a keymap binding on plain
+; CRSR UP/DOWN (the defaults' Home/End) is shadowed by scrollback; in 40
+; columns it works as on the C64. ---
 editor_key_hook:
         sta editor_hook_key
         lda status_override+1
@@ -297,18 +1160,28 @@ editor_hook_no_msg:
         cmp #$91
         beq editor_hook_crsr
         cmp #$11
-        bne editor_hook_leave_sb
+        bne editor_hook_keymap
 editor_hook_crsr:
         lda $d3
-        and #4                    ; CTRL + CRSR: keymap territory
-        bne editor_hook_leave_sb
+        and #$0e                  ; C=, CTRL or ALT + CRSR: keymap
+        bne editor_hook_keymap    ; territory (SHIFT is CRSR UP itself)
         lda editor_hook_key
         jmp vdc_key_hook
-editor_hook_leave_sb:
-        jsr sb_exit
 editor_hook_keymap:
         lda editor_hook_key
-        jmp km_dispatch
+        jsr km_dispatch
+        ; Any key but Page Up/Down leaves scrollback -- after the keymap,
+        ; not before, or every Page Up would snap to the live view first
+        ; and could never page more than once. Keeps .A and carry.
+        php
+        pha
+        lda km_paged
+        bne editor_hook_rts
+        jsr sb_exit
+editor_hook_rts:
+        pla
+        plp
+        rts
 
 editor_hook_key:
         byte 0
@@ -457,8 +1330,8 @@ draw_status_not_sb:
         lda status_override       ; a one-off message (the Keymap Editor's
         ldy status_override+1     ; "Saved keymap.") until the next key
         bne draw_status_have_msg
-        lda #<status_msg
-        ldy #>status_msg
+        lda status_msg_ptr        ; connecting / connected / offline --
+        ldy status_msg_ptr+1      ; see set_status_msg
 draw_status_have_msg:
         sta draw_status_read+1
         sty draw_status_read+2
@@ -587,7 +1460,9 @@ p2s_pi:
 ; everything after it (one separating space skipped) through clock_
 ; reset/putc/commit and returns carry set (main_loop skips the echo);
 ; a bare "clock" hides the clock. Anything else: carry clear, untouched.
-; Delete once a real receive path calls clock_reset/putc/commit. ---
+; Delete once a real receive path calls clock_reset/putc/commit.
+; (It does now -- frame_begin/frame_byte/frame_finish -- but this stays
+; as part of the offline demo, where vice128_clock_test.py drives it.) ---
 clock_test_command:
         ldx #0
 clock_test_match:
@@ -626,7 +1501,8 @@ clock_test_word:
 ; enough to scroll the 80-column history well past one screen. Each line
 ; switches color twice (yellow text, white number) so scrollback can be
 ; checked for keeping attributes, not just characters. Carry set =
-; handled. Delete along with clock_test_command. ---
+; handled. Delete along with clock_test_command. (Offline demo only
+; now, same as clock_test_command.) ---
 FILL_TEST_LINES = 60
 fill_test_command:
         ldx #0
@@ -791,9 +1667,26 @@ irq_dispatch_jmp:
 {include:vdc.asm}
 {include:vdc_screen.asm}
 {include:keymap_host_128.asm}
+{include:swiftlink.asm}
 
 irq_orig:
         byte 0,0                 ; saved KERNAL IRQ vector, set by init_irq
+
+; swiftlink.asm's state (tada-client.asm declares the same names; see
+; swiftlink.asm's header). The NMI handler reaches all of it, so it stays
+; up here, below $4000. rx_head/rx_tail are ordinary memory, not
+; tada-client.asm's zero page $f9/$fa -- nothing indexes through them,
+; and zero page is the 128 KERNAL's to check first.
+nmi_orig:
+        byte 0,0                 ; saved KERNAL NMI vector, set by init_nmi
+rts_state:
+        byte 1                   ; 1 = RTS currently asserted (ready), 0 = deasserted
+rx_head:
+        byte 0                   ; NMI receive ring buffer: next write index
+rx_tail:
+        byte 0                   ; NMI receive ring buffer: next read index
+rx_buf:
+        area 256, 0              ; wraps at 256 with rx_head/rx_tail
 
 irq_task_ptr:
         byte 0                   ; byte offset into irq_task_table, self-modified
@@ -825,11 +1718,22 @@ eighty_msg:
         ascii "80-column mode (VDC) detected."
         byte 13
         ascii "Dialogue rows 0-22 scroll by VDC block copy; status row 23, input row 24."
-        byte 13
-        ascii "CRSR up/down scrolls back through history a line, C= + CRSR a page."
-        byte 13
+        byte 13, 0
+; ...then scroll_hint_msg + out_page_keys + scroll_hint_end (go_offline),
+; then:
+eighty_msg_tail:
         ascii "Type fill for 60 test lines."
         byte 13, 13, 0
+
+; The scrollback keys, also shown on connecting in 80 columns (connect).
+; out_page_keys fills in the page keys from the keymap, so a rebinding
+; shows up here -- under 80 columns even with two 15-character combos.
+scroll_hint_msg:
+        ascii "CRSR up/down: scroll back a line. "
+        byte 0
+scroll_hint_end:
+        ascii ": a page."
+        byte 13, 0
 {alpha:normal}
 
 ; Sent through CHROUT into the scrolling window -- plain PETSCII/ASCII
@@ -857,9 +1761,43 @@ echo_prefix:
 ; plain PETSCII/ASCII).
 {alpha:pokealt}
 status_msg:
-        ascii "TADA -- Commodore 128 client (early stub)"
+        ascii "TADA -- Commodore 128 client"
+        byte 0
+status_msg_offline:
+        ascii "TADA -- Commodore 128 client (offline)"
+        byte 0
+status_msg_connecting:
+        ascii "Connecting... RUN/STOP to go offline"
         byte 0
 {alpha:normal}
+
+; Dialogue note for a server popup this client doesn't have yet (see
+; frame_finish). PETSCII for out_string, {alpha:alt} for real capitals.
+{alpha:alt}
+no_popup_msg:
+        ascii "(Popup not on the 128 client yet.)"      ; < 40 columns
+        byte 13, 0
+{alpha:normal}
+
+; status_msg_ptr: the message draw_status_row shows when nothing
+; overrides it -- set_status_msg picks one of the three above.
+status_msg_ptr:
+        word status_msg_connecting
+
+; offline: 1 once RUN/STOP gave up on connecting (go_offline).
+offline:
+        byte 0
+
+; out_begin/out_end's saved 40-column dialogue cursor and color, and the
+; input row's color while dialogue output runs.
+dlg40_row:
+        byte 0
+dlg40_col:
+        byte 0
+dlg40_color:
+        byte 0
+input_color:
+        byte 0
 
 ; inputbuf: input_editor.asm's line buffer, one byte per input-row
 ; column (scr_cols, up to MAX_COLS=80) plus a null terminator --

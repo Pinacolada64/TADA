@@ -1,4 +1,17 @@
-; keymap_menu.asm — loadable "Keymap Editor (C64)" popup overlay.
+; keymap_menu_128.asm -- the Commodore 128 client's Keymap Editor popup.
+;
+; Forked 2026-09-29 from the C64 client's keymap_menu.asm (Ryan's call:
+; separate editors for the two machines, and separate files --
+; KEYMAP128.CFG here, KEYMAP.CFG on the C64). Until then client-128.asm
+; built the C64 source itself through a Makefile sed; this copy now
+; goes its own way: the ALT modifier, Page Up/Page Down rows for the
+; 80-column scrollback, the 128's 24 extra key numbers. Built into
+; client-128.asm (hosted by keymap_host_128.asm, which supplies the JT_*
+; entry points below as labels), not loaded as an overlay -- the rest
+; of this header is the C64 original's and still describes the shared
+; design.
+;
+; ---- (from keymap_menu.asm) ----
 ;
 ; Not resident: LOADed on demand by tada-client.asm's load_keymap_menu
 ; (KERNAL LOAD "KEYMAP.ED",8,1), reached via a local F7 keypress in
@@ -24,7 +37,7 @@
 ; keymap_table back to KEYMAP.CFG) or Cancel. A macro-text sub-editor
 ; (RETURN on a macro slot), clearing a slot (DEL), and preset loading
 ; (P) are follow-up work, not yet in this file.
-{include:constants.asm}
+{include:constants_128.asm}
 
 ; Popup box position -- must be defined before draw_popup/etc use them
 ; in address arithmetic below, same forward-reference caveat config_
@@ -43,12 +56,13 @@ BOX_ROWS    = 21               ; rows 2-22 -- clear of STATUS_ROW(23)/
 ; keymap.asm's own file-header comment). Must be kept in sync by hand
 ; if either changes; confirmed no simpler option exists the same way
 ; OVERLAY_BUF's own comment documents for that constant.
-MAX_BINDINGS   = 15        ; keymap.asm's own MAX_BINDINGS comment
+MAX_BINDINGS   = 17        ; keymap.asm's own MAX_BINDINGS comment
                              ; explains the 5 nav functions (word-left,
                              ; word-right, home via CRSR-UP, home via
                              ; the real CLR/HOME key, end) + the
                              ; built-in "open the editor" binding + up
-                             ; to 9 macros
+                             ; to 9 macros + (2026-09-29) the 128's
+                             ; Page Up/Page Down in slots 15-16
 MACRO_TEXT_LEN = 24
 BINDING_SIZE   = 3 + MACRO_TEXT_LEN
 
@@ -85,10 +99,26 @@ HOME_MERGE_ROW = 2
 ; shorter page still blanks whatever the longer page left on screen
 ; (see draw_list's own comment).
 NAV_SLOT_COUNT = 6
-NAV_ROWS       = HOME_MERGE_ROW + 3   ; word-left, word-right, home
-                                         ; (merged), end, open-editor = 5
-MACRO_ROWS     = MAX_BINDINGS - NAV_SLOT_COUNT   ; 9
+NAV_ROWS       = HOME_MERGE_ROW + 5
+                                       ; word-left, word-right, home
+                                       ; (merged), end, open-editor,
+                                       ; Page Up, Page Down = 7
+MACRO_ROWS     = 9                     ; slots 6-14 (by hand: no longer
+                                       ; MAX_BINDINGS - NAV_SLOT_COUNT
+                                       ; since the page slots joined)
 PAGE_ROWS_MAX  = MACRO_ROWS
+
+; Page Up/Page Down (the 80-column scrollback; client-128.asm) live after
+; the macros, in slots 15-16, so slots 0-14 keep the C64 editor's layout
+; (whose code this still is, row for row). They show as Keymap Editor
+; rows 5-6. Like macro triggers they
+; store a MATRIX key number, not a GETIN byte (capture_macro_combo), so
+; the 128's grey top-row arrows (key numbers 83/84) are told apart from
+; the main CRSR key, which GETIN reports identically.
+PAGE_SLOT_FIRST = 15
+LIST_BLANK_ROWS = 15      ; list rows draw_popup blanks -- was MAX_BINDINGS,
+                          ; which grew past the box's list area at 17
+NAV_PAGE_ROW_FIRST = HOME_MERGE_ROW + 3   ; row 5
 
 ; Column/length of each heading within row_title_base's 30-char field
 ; (draw_title) -- "Keymap Editor" (13 chars) at column 2, "Macro
@@ -104,6 +134,7 @@ MACRO_LABEL_LEN  = 12
 MOD_SHIFT = 1
 MOD_CMDRE = 2
 MOD_CTRL  = 4
+MOD_ALT   = 8                  ; the 128 only (KM_MOD_MASK)
 
 ACTION_EMPTY       = 0
 ACTION_WORD_LEFT   = 1
@@ -111,6 +142,8 @@ ACTION_WORD_RIGHT  = 2
 ACTION_HOME        = 3
 ACTION_END         = 4
 ACTION_OPEN_EDITOR = 5
+ACTION_PAGE_UP     = 6         ; 6 and up (and MACRO) store matrix key
+ACTION_PAGE_DOWN   = 7         ; numbers -- see PAGE_SLOT_FIRST
 ACTION_MACRO       = 255
 
 ; SFDX ($cb, keyboard_rollover.asm) "key-number" values for RETURN and
@@ -144,8 +177,7 @@ KM_STATUS_ROW     = 23          ; STATUS_ROW_SCREEN's row, for JT_SET_CURSOR
 ; $3800 (was $3000 briefly, $2900 before that, until 2026-09-28) -- see tada-client.asm's OVERLAY_BUF comment (moved here
 ; 2026-09-02 after this module's own first live test re-triggered the
 ; BACKUP_CHARS/BACKUP_COLORS collision that comment documents).
-        orig $3800                ; must match OVERLAY_BUF -- see
-                                  ; tada-client.asm
+        ; (no `orig`: built into client-128.asm, not an overlay)
 
 module_start:
         tsx                          ; save the real stack depth we were
@@ -478,7 +510,15 @@ row_to_slot:
 rts_nav_page:
         cpx #HOME_MERGE_ROW+1
         bcc rts_row_to_slot        ; row <= HOME_MERGE_ROW: slot == row
+        cpx #NAV_PAGE_ROW_FIRST
+        bcs rts_page_row
         inx                         ; row > HOME_MERGE_ROW: slot = row+1
+        rts
+rts_page_row:
+        txa                         ; Page Up/Down rows 5-6 -> slots 15-16
+        clc
+        adc #PAGE_SLOT_FIRST-NAV_PAGE_ROW_FIRST
+        tax
 rts_row_to_slot:
         rts
 
@@ -644,6 +684,10 @@ kcc_nav_page:
         lda (scr_ptr_lo),y
         cmp #ACTION_EMPTY
         beq kcc_rts
+        cmp #ACTION_PAGE_UP        ; Page Up/Down bind a physical key
+        bcc kcc_getin_capture      ; (matrix number), like a macro
+        jmp capture_macro_combo    ; trigger -- see PAGE_SLOT_FIRST
+kcc_getin_capture:
 
         jsr kcc_setup
 kcc_wait:
@@ -660,8 +704,8 @@ kcc_got_key:
         cmp #$03                   ; RUN/STOP -- cancel, no change
         beq kcc_done
         sta capture_key
-        lda $028d
-        and #(MOD_SHIFT|MOD_CMDRE|MOD_CTRL)
+        lda KM_SHFLAG
+        and #KM_MOD_MASK
         sta capture_mod
         jsr capture_check_duplicate
         bcs kcc_wait                ; duplicate -- message shown, retry
@@ -1261,8 +1305,8 @@ capture_macro_combo:
         jsr kcc_setup
 cmc_wait_release:
         jsr update_capture_display
-        lda $cb                     ; SFDX -- wait for whatever's
-        cmp #$40                     ; currently held (almost always
+        lda KM_SFDX                     ; SFDX -- wait for whatever's
+        cmp #KM_KEY_NONE             ; currently held (almost always
         bne cmc_wait_release          ; 'T' itself, still physically
                                         ; down) to be released before
                                         ; watching for a NEW keypress --
@@ -1270,9 +1314,9 @@ cmc_wait_release:
                                         ; comment on why this exists
 cmc_wait:
         jsr update_capture_display
-        lda $cb                     ; SFDX -- the only thing this loop
+        lda KM_SFDX                     ; SFDX -- the only thing this loop
                                        ; ever reads to decide capture
-        cmp #$40
+        cmp #KM_KEY_NONE
         beq cmc_wait                 ; no key currently held -- keep
                                        ; waiting/blinking
         cmp #KEY_NUM_RUNSTOP
@@ -1287,8 +1331,8 @@ cmc_have_key:
         sta capture_key              ; a MATRIX position here, NOT a
                                         ; decoded byte -- see this
                                         ; routine's own header comment
-        lda $028d
-        and #(MOD_SHIFT|MOD_CMDRE|MOD_CTRL)
+        lda KM_SHFLAG
+        and #KM_MOD_MASK
         sta capture_mod
         jsr capture_check_macro_duplicate
         bcs cmc_wait                  ; duplicate -- message shown, retry
@@ -1303,8 +1347,9 @@ cmc_have_key:
         sta (scr_ptr_lo),y
         ldy #2
         lda (scr_ptr_lo),y
-        cmp #ACTION_MACRO
-        beq cmc_done                  ; already a macro -- action stays
+        cmp #ACTION_EMPTY
+        bne cmc_done                  ; a macro or a Page Up/Down slot --
+                                      ; its action stays
         lda #ACTION_MACRO             ; brand new -- was ACTION_EMPTY
         sta (scr_ptr_lo),y
 cmc_done:
@@ -1340,8 +1385,10 @@ ccmd_loop:
         beq ccmd_next                 ; skip the slot being edited
         ldy #2
         lda (scr_ptr_lo),y
-        cmp #ACTION_MACRO
-        bne ccmd_next                 ; not a macro slot (still empty)
+        cmp #ACTION_PAGE_UP
+        bcc ccmd_next                 ; empty or a GETIN-byte nav slot --
+                                      ; only macros and Page Up/Down store
+                                      ; matrix numbers to compare against
         ldy #0
         lda (scr_ptr_lo),y
         cmp capture_mod
@@ -1462,12 +1509,13 @@ dbr_macro_key_raw:
 ; complaint the ORIGINAL nav-capture display fix was for); the matrix-
 ; derived byte always renders as the physical letter/symbol.
 update_capture_display:
-        lda $028d                  ; SHFLAG -- live modifier state
-        and #(MOD_SHIFT|MOD_CMDRE|MOD_CTRL)
+        lda KM_SHFLAG                  ; SHFLAG -- live modifier state
+        and #KM_MOD_MASK
         sta capture_live_mod
-        lda $cb                    ; SFDX -- live matrix coordinate of
-                                     ; the key currently held, $40 = none
-        cmp #$40
+        lda KM_SFDX                    ; SFDX -- live matrix coordinate of
+                                     ; the key currently held, KM_KEY_NONE
+                                     ; ($40 on the C64) = none
+        cmp #KM_KEY_NONE
         bne ucd_have_key
         lda #0                     ; no key held -- key_names' $00
         sta capture_live_key        ; sentinel blanks the field for us
@@ -1686,7 +1734,7 @@ dhf_macro_footer:
         ldy #>row_help2
         jmp dhf_row2
 
-; --- Save: write keymap_table back to KEYMAP.CFG, restore, hand back ---
+; --- Save: write keymap_table back to KEYMAP128.CFG, restore, hand back ---
 ; SCRATCH the old file first, then a plain (no "@0:") SAVE -- Ryan's
 ; call, 2026-09-02: the "@0:" replace-file convention is known to
 ; trigger a real Commodore DOS bug on some drive/ROM combinations
@@ -1770,7 +1818,7 @@ push_keymap_status_msg:
         jmp JT_BUILD_STATUS_LINE  ; tail call -- its own rts returns
                                     ; straight to key_save/key_cancel
 
-; --- scratch_keymap_file: SCRATCH any existing KEYMAP.CFG before the
+; --- scratch_keymap_file: SCRATCH any existing KEYMAP128.CFG before the
 ; SAVE in key_save above. Sent as a DOS command string ("S0:...") on
 ; the command channel (secondary address 15), same channel
 ; read_error_channel drains -- so this deliberately does NOT call
@@ -1971,7 +2019,7 @@ draw_popup_blank_list:
         jsr poke_line
         inc blank_list_row
         lda blank_list_row
-        cmp #MAX_BINDINGS
+        cmp #LIST_BLANK_ROWS
         bne draw_popup_blank_list
 
         lda #<row_help1
@@ -2518,12 +2566,27 @@ dbr_try_end:
         jsr copy_name12
         jmp dbr_combo
 dbr_try_open_editor:
-        ; whatever's left over is ACTION_OPEN_EDITOR -- nothing else is
-        ; valid (ACTION_EMPTY/ACTION_MACRO both took an earlier exit,
-        ; above)
+        cmp #ACTION_OPEN_EDITOR
+        bne dbr_try_page_up
         ldx #<name_open_editor
         ldy #>name_open_editor
         jsr copy_name12
+        jmp dbr_combo
+dbr_try_page_up:
+        ; whatever's left over is Page Up/Down (ACTION_EMPTY/ACTION_MACRO
+        ; both took an earlier exit, above). Their key is a matrix number,
+        ; shown the way a macro trigger's is (dbr_macro_done).
+        cmp #ACTION_PAGE_UP
+        bne dbr_try_page_down
+        ldx #<name_page_up
+        ldy #>name_page_up
+        jsr copy_name12
+        jmp dbr_macro_done
+dbr_try_page_down:
+        ldx #<name_page_down
+        ldy #>name_page_down
+        jsr copy_name12
+        jmp dbr_macro_done
 dbr_combo:
         jsr describe_combo
         rts
@@ -2831,6 +2894,8 @@ dc_name_lo:
 ; in this order -- see describe_combo's own comment on why only the
 ; first match shows for modifiers.
 mod_names:
+        byte MOD_ALT
+        word mod_alt_name
         byte MOD_CTRL
         word mod_ctrl_name
         byte MOD_CMDRE
@@ -2863,6 +2928,14 @@ key_names:
                                      ; $83/131: $13 (19 decimal, HOME)
                                      ; with bit 7 set for SHIFT is
                                      ; $13+$80=$93, not $83
+        byte $f0                  ; the grey top-row arrows -- pseudo-
+        word key_grey_up_name      ; codes from key_num_unshifted (see
+        byte $f1                  ; its comment), matrix-number
+        word key_grey_down_name    ; triggers only
+        byte $f2
+        word key_grey_left_name
+        byte $f3
+        word key_grey_right_name
         byte $00                  ; sentinel: "no key held" -- GETIN
         word key_none_name         ; never returns 0 for a real press,
                                      ; so this is safe to reuse as
@@ -2896,6 +2969,25 @@ key_num_unshifted:
         byte $2b,$50,$4c,$2d,$2e,$3a,$40,$2c
         byte $5c,$2a,$3b,$13,$01,$3d,$5e,$2f
         byte $31,$5f,$04,$32,$20,$02,$51,$03
+; The 128's extra keys, key numbers 64-87 (its SFDX is $d4, 88 = none),
+; from the 128 KERNAL's own unshifted decode table ($FA80+64 in
+; kernal-318020-05.bin): HELP, keypad 8 5, TAB, keypad 2 4 7 1, ESC,
+; keypad + -, LINE FEED, ENTER, keypad 6 9 3, ALT, keypad 0 ., the four
+; top-row arrows, NO SCROLL ($ff = no character). Keypad digits show as
+; their plain digit.
+;
+; The four grey top-row arrows decode to the same $91/$11/$9d/$1d as the
+; main keyboard's CRSR keys, so they'd be named "Crsr Up" etc. too --
+; but a matrix-number trigger (Page Up/Down, macros) only fires on the
+; key it captured, and ALT + the main CRSR key doesn't page. So they get
+; pseudo-codes $f0-$f3 here instead, named "Grey Up/Down/Left/Right" in
+; key_names -- this table only feeds names (describe_combo), never a
+; comparison with a real GETIN byte, and $f0-$f3 sit outside everything
+; dk_hex renders by value (A-Z, $20-$3f, cmdre_key_codes' $a1-$bf).
+; client-128.asm's out_page_keys names the scrollback page keys with it.
+        byte $84,$38,$35,$09,$32,$34,$37,$31
+        byte $1b,$2b,$2d,$0a,$0d,$36,$39,$33
+        byte $08,$30,$2e,$f0,$f1,$f2,$f3,$ff
 
 ; .a = one character -> row_scratch+15+describe_combo_col, advances
 ; the column. Bounds-checked against the 15-byte combo field so a
@@ -3111,7 +3203,7 @@ keymap_table_end_hi:
 ; depth instead of leaking it.
 module_entry_sp:
         byte 0
-KEYMAP_TABLE_SIZE = 405           ; MAX_BINDINGS(15) * BINDING_SIZE(27)
+KEYMAP_TABLE_SIZE = 459           ; MAX_BINDINGS(17) * BINDING_SIZE(27)
 
 ; --- backup_keymap_table / restore_keymap_table: bulk-copy
 ; KEYMAP_TABLE_SIZE (405) bytes between the resident keymap_table (via
@@ -3188,7 +3280,7 @@ kt_copy_remaining_hi:
 
 ; This module's own copy of keymap_table, taken/restored around a
 ; popup visit -- NOT persisted anywhere itself (only the resident
-; keymap_table, via key_save, ever gets written to KEYMAP.CFG).
+; keymap_table, via key_save, ever gets written to KEYMAP128.CFG).
 keymap_table_backup:
         area KEYMAP_TABLE_SIZE, $00
 
@@ -3217,6 +3309,10 @@ name_end:
         ascii "Line End    "
 name_open_editor:
         ascii "Open Editor "
+name_page_up:
+        ascii "Page Up     "
+name_page_down:
+        ascii "Page Down   "
 {alpha:normal}
 
 ; NUL-terminated modifier-prefix/key-name fragments -- describe_combo
@@ -3225,6 +3321,9 @@ name_open_editor:
 {alpha:pokealt}
 mod_ctrl_name:
         ascii "Ctrl+"
+        byte 0
+mod_alt_name:
+        ascii "Alt+"
         byte 0
 mod_cmdre_name:
         ascii "C=+"
@@ -3243,6 +3342,18 @@ key_up_name:
         byte 0
 key_down_name:
         ascii "Crsr Down"
+        byte 0
+key_grey_up_name:
+        ascii "Grey Up"
+        byte 0
+key_grey_down_name:
+        ascii "Grey Down"
+        byte 0
+key_grey_left_name:
+        ascii "Grey Left"
+        byte 0
+key_grey_right_name:
+        ascii "Grey Right"
         byte 0
 key_f1_name:
         ascii "F1"
@@ -3408,11 +3519,11 @@ bottom_border:
         area 30, $40
         byte $7d, $20,$20,$20,$20
 
-; "S0:KEYMAP.CFG" and "KEYMAP.CFG" share one copy of the filename text
+; "S0:KEYMAP128.CFG" and "KEYMAP128.CFG" share one copy of the filename text
 ; -- keymap_filename points partway into keymap_scratch_command's own
-; bytes ("S0:" + "KEYMAP.CFG" back to back), so key_save's plain SAVE
+; bytes ("S0:" + "KEYMAP128.CFG" back to back), so key_save's plain SAVE
 ; and scratch_keymap_file's SCRATCH command both read out of the same
-; "KEYMAP.CFG" bytes rather than duplicating them (Ryan's idea,
+; "KEYMAP128.CFG" bytes rather than duplicating them (Ryan's idea,
 ; 2026-09-02). Lengths are assemble-time label-difference constants,
 ; not hand-counted -- hand-counting is exactly what produced the
 ; off-by-one this replaced (the old "@0:KEYMAP.CFG" code had `lda #14`
@@ -3425,11 +3536,11 @@ bottom_border:
 keymap_scratch_command:
         ascii "S0:"
 keymap_filename:
-        ascii "KEYMAP.CFG"
-keymap_filename_end:
+        ascii "KEYMAP128.CFG"         ; the 128's own file (KEYMAP.CFG is
+keymap_filename_end:                  ; the C64 client's)
 {alpha:normal}
-KEYMAP_SCRATCH_LEN = keymap_filename_end - keymap_scratch_command  ; 13
-KEYMAP_FILENAME_LEN = keymap_filename_end - keymap_filename        ; 10
+KEYMAP_SCRATCH_LEN = keymap_filename_end - keymap_scratch_command  ; 16
+KEYMAP_FILENAME_LEN = keymap_filename_end - keymap_filename        ; 13
 
 ; Save/Cancel status-row messages -- pushed via push_keymap_status_msg
 ; (JT_STATUS_PUSH_RESET/JT_BUILD_STATUS_LINE). {alpha:pokealt} for the

@@ -294,26 +294,18 @@ status:
 TARGET128       = client-128
 LAUNCH_VICE128  = x128
 
-# The Keymap Editor popup is the C64 client's own keymap_menu.asm, built
-# into the 128 client rather than loaded as an overlay: this rule swaps
-# in constants_128.asm (the 128 host's keyboard addresses; the JT_*
-# entry points are labels in keymap_host_128.asm) and comments out the
-# overlay's `orig`, then it gets its own preprocessing pass like any
-# split module. -def:c128 turns on its {ifdef:c128} parts (the 128's
-# extra key numbers).
-keymap_menu_128.asm: keymap_menu.asm
-	sed -e 's/{include:constants.asm}/{include:constants_128.asm}/' \
-	    -e 's/^\([[:space:]]*\)orig \$$3800/\1; orig $$3800 -- KEYMAP.ED overlay address, unused when built into client-128/' \
-	    keymap_menu.asm > keymap_menu_128.asm
-
+# The Keymap Editor popup (keymap_menu_128.asm, forked from the C64
+# client's keymap_menu.asm) is built into the 128 client rather than
+# loaded as an overlay; like any split module it gets its own
+# preprocessing pass first.
 keymap_menu_128_pp.asm: keymap_menu_128.asm constants_128.asm
 	$(PREPROCESSOR) keymap_menu_128.asm
 
-$(TARGET128)_pp.asm: $(TARGET128).asm input_editor.asm vdc.asm vdc_screen.asm keymap_host_128.asm keymap_128.asm keymap_menu_128_pp.asm
+$(TARGET128)_pp.asm: $(TARGET128).asm input_editor.asm vdc.asm vdc_screen.asm keymap_host_128.asm keymap_128.asm keymap_menu_128_pp.asm swiftlink.asm
 	$(PREPROCESSOR) $(TARGET128).asm
 
 $(TARGET128).prg: $(TARGET128)_pp.asm
-	$(C64LIST) $(TARGET128)_pp.asm -prg:$(TARGET128) -sym -ovr -def:c128
+	$(C64LIST) $(TARGET128)_pp.asm -prg:$(TARGET128) -sym -ovr
 	python3 ./check_128_layout.py $(TARGET128).prg $(TARGET128)_pp.sym
 
 $(TARGET128)-vice-labels: $(TARGET128).prg
@@ -329,8 +321,17 @@ all128: $(TARGET128).prg $(TARGET128)-vice-labels monitor-commands-128
 # since there's no overlay module or disk image to bundle yet. Own
 # remote-monitor port (6511) so this can run alongside `make vice`
 # (port 6510) without colliding.
+#
+# SwiftLink: an ACIA at $DE00 in SwiftLink mode raising NMI, bridged to
+# the server's PETSCII port over IP232 -- the same emulated cartridge as
+# `make vice`, spelled out in full since x128's ACIA can also sit at
+# $D700 (-acia1base). RUN/STOP at "Connecting..." runs it offline.
 vice128: all128
 	$(LAUNCH_VICE128) \
+	-acia1 -acia1base 0xDE00 -acia1mode 1 -acia1irq 1 \
+	-myaciadev 0 \
+	-rsdev1 "$(SL_HOST):$(SL_PORT)" -rsdev1ip232 \
+	-rsdev1baud "$(SL_BAUD)" \
 	-moncommands "monitor-commands-128" \
 	-remotemonitor \
 	-remotemonitoraddress "127.0.0.1:6511" \
@@ -342,7 +343,7 @@ build128: all128
 
 clean128:
 	rm -f $(TARGET128)_pp.asm \
-	      keymap_menu_128.asm keymap_menu_128_pp.asm \
+	      keymap_menu_128_pp.asm \
 	      $(TARGET128)_pp.prg \
 	      $(TARGET128)_pp.sym \
 	      $(TARGET128).prg \

@@ -225,9 +225,9 @@ reaches `$6000`.
   reload. The main-RAM ring works on every 128, so it came first.
 - VDC hardware scrolling (R12/R13 display start) can't split the
   screen, so it can't keep rows 23/24 still -- not usable here.
-- No SwiftLink yet: `fill` and `clock` are local stand-ins for server
-  output. Server CLR (`$93`) handling is written but only reachable
-  once real server text arrives.
+- ~~No SwiftLink yet~~ -- see "SwiftLink" below; `fill` and `clock`
+  stay as offline-demo commands. Server CLR (`$93`) handling is now
+  reachable from real server text but not yet exercised by a test.
 - The 128 has no Page Up/Down keys. If C= + main-keyboard CRSR paging
   (back only) proves awkward, F1-F8 are now plain keys (the Keymap
   Editor work reprograms them, below) and could take paging instead.
@@ -333,13 +333,76 @@ gone -- the keymap does it.
 
 ### Not done yet
 
-- Output arriving while the popup is open (once SwiftLink lands) must be
-  held back: dialogue output would touch the VDC while the IRQ copy owns
-  it.
+- ~~Output arriving while the popup is open must be held back~~ --
+  it is, by construction: the popup is modal and only the line
+  editor's idle hook drains `rx_buf`, so server bytes wait there
+  (swiftlink.asm's RTS flow control holds the server off once it fills)
+  until the popup closes. Not yet exercised live with a server talking
+  while the popup is open.
 - `read_error_channel` (shared) loops until EOI, which never comes if no
   drive answers at all -- a real 128 or C64 with the drive switched off
   would hang on Save. Exiting on ST bit 7 too would fix it for both.
 - The popup's F-key/CTRL fixes stay in place after the client exits.
+
+## SwiftLink -- built 2026-09-29
+
+Tested by `vice128_swiftlink_test.py` (8/8, 80 and 40 columns) against
+its own `simple_server.py` on spare ports, with a JSON guest bot for the
+mid-line case. `make vice128` now attaches the same emulated cartridge
+(ACIA at `$DE00`, SwiftLink mode, NMI, IP232 to `SL_HOST:SL_PORT`).
+
+- **Transport**: the C64 client's own `swiftlink.asm`, built with
+  `{def: c128}`. The 128 KERNAL's NMI entry (`$FF05`, read out of
+  kernal-318020-05.bin) already pushes A/X/Y and `$FF00` and sets
+  `$FF00 = $00` before `jmp ($0318)`, and handlers leave through
+  `$FF33` -- so the 128 variant skips the C64's own register saves and
+  ends in `jmp $ff33`. `$FF00 = $00` puts BASIC ROM over `$4000+`, so
+  the handler, `rx_buf` and its indexes sit below `$4000`
+  (check_128_layout.py). The C64 build is byte-identical apart from its
+  build timestamp.
+- **Connect**: status row "Connecting... RUN/STOP to go offline" until
+  the server's first byte or RUN/STOP. Offline = the old local demo
+  (banner, echo, `fill`, `clock`, Keymap Editor) -- what the three older
+  `vice128_*` tests now drive, after poking RUN/STOP.
+- **Negotiation**: the 40/80 menu is shown until quiet (~0.25 s), then
+  answered `8` on the VDC or `4` on the VIC-II, echoed after the menu's
+  prompt. The server then records the Client Type as Commodore 128.
+- **Receive while typing**: `input_editor.asm`'s key-poll loops call
+  `editor_idle_hook`, which drains `rx_buf` to the dialogue (settles
+  ~30 ms, max 256 bytes a go so typing never starves), then the editor
+  redraws its line. 40 columns: `out_begin`/`out_end` swap the ESC-T/
+  ESC-B window, cursor and text color between dialogue and input row.
+  80 columns: nothing to swap; while scrolled back the bytes stay
+  buffered instead of snapping the view to live.
+- **Prompt on the input row**: once a drain settles, a partial dialogue
+  line ending in `> ` (the server's prompts, pager prompts too) moves to
+  the start of the input row and the editor's input area starts after
+  it (`strcol`); RETURN echoes prompt + line into the dialogue. Port of
+  tada-client.asm's relocate_prompt_to_row24/commit_input_line.
+- **Framed streams** (`$01`, confirm, 16-bit length, body): Hourglass
+  clock -> `clock_reset/putc/commit`; the login-time apply -> VIC-II
+  border/background in 40 columns, VDC R26 background (via the editor's
+  own VIC->RGBI table) in 80, blink speed either way; Video Settings and
+  the canvas editor -> skipped with a cancel reply (`$01 $58/$43 $00
+  $00`) so the server doesn't sit in `readexactly` until its timeout,
+  plus a "(Popup not on the 128 client yet.)" note (Help gets the note
+  only); SID music and `SID_STOP` -> skipped silently. `$8e` (uppercase
+  charset) is dropped so CHR$(14) sticks.
+
+### Not done yet
+
+- A 128 Video Settings popup (and Help, canvas editor, SID playback).
+- The login-time apply is untested live: guests don't get one, and the
+  test has no saved account. Needs a real login.
+- No disconnect/carrier detection, same as the C64 client.
+- Disk I/O while online (Keymap Editor Save) with SwiftLink NMIs live
+  hasn't been tried -- the C64 client needed the server quiet during
+  KERNAL LOAD; the 128's fast serial may be pickier still. Pausing the
+  ACIA (RTS off, RX IRQ off) around the KERNAL call would be the fix.
+- Server text is displayed as-is in 40 columns (KERNAL CHROUT, quote
+  mode cleared per byte) -- a server ESC-T/ESC-B would redefine the
+  window. Only the Commodore 128 Client Type preset's ESC-Y/ESC-Z are
+  expected today.
 
 ## Open questions
 

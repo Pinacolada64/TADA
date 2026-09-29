@@ -1,21 +1,20 @@
 ; keymap_128.asm -- client-128.asm's resident keymap: the table, its
-; defaults, KEYMAP.CFG loading, and the per-key dispatch into
-; input_editor.asm. The 128 counterpart of the C64 client's keymap.asm
-; (which is tied to tada-client.asm's read_line, so it isn't shared);
-; the popup that edits the table, keymap_menu.asm, IS shared -- see
-; keymap_host_128.asm.
+; defaults, KEYMAP128.CFG loading, and the per-key dispatch into
+; input_editor.asm. The 128 counterpart of the C64 client's keymap.asm;
+; the popup that edits the table is keymap_menu_128.asm (see
+; keymap_host_128.asm). Its own file since 2026-09-29 -- the C64 client
+; keeps KEYMAP.CFG.
 ;
-; Same table format as keymap.asm, byte for byte (15 slots of modifier,
-; key, action, 24 bytes of macro text), and the same file: a KEYMAP.CFG
-; saved by either client loads in the other. Modifier bits are the same
-; on both machines (SHIFT 1, C= 2, CTRL 4 -- the 128's ALT, bit 3, is
-; masked off); nav keys are GETIN bytes and macro triggers are matrix key
-; numbers, and both line up across the two keyboards for every key the
-; C64 has.
+; Table format: keymap.asm's 27-byte slots (modifier, key, action, 24
+; bytes of macro text), 17 of them: 0-5 the nav functions, 6-14 macros,
+; 15-16 Page Up/Page Down for the 80-column scrollback. Modifier bits:
+; SHIFT 1, C= 2, CTRL 4, ALT 8 ($d3). Nav keys are GETIN bytes; macro
+; triggers and the page keys are matrix key numbers ($d4), which is what
+; tells the grey top-row arrows (83/84) from the main CRSR key.
 ;
 ; The format constants (MAX_BINDINGS, BINDING_SIZE, MOD_*, ACTION_*,
-; KEYMAP_TABLE_SIZE) come from keymap_menu.asm, which client-128.asm
-; includes ahead of this file.
+; KEYMAP_TABLE_SIZE, PAGE_SLOT_FIRST) come from keymap_menu_128.asm,
+; which client-128.asm includes ahead of this file.
 
 KM_SETNAM          = $ffbd       ; KERNAL (keymap_menu.asm's own {const:}s
 KM_SETLFS          = $ffba       ; for these don't reach this file)
@@ -35,10 +34,11 @@ keymap_table:
 KEYMAP_TABLE_PTR:
         word keymap_table
 
-; Copied from keymap.asm's keymap_default -- see its comments for each
-; entry's history. On the 128, plain CRSR UP/DOWN (Home/End) only reach
-; the keymap in 40 columns; in 80 they scroll back through the dialogue
-; (editor_key_hook). CLR/HOME still gives Home there.
+; Slots 0-5: copied from keymap.asm's keymap_default -- see its comments
+; for each entry's history. On the 128, plain CRSR UP/DOWN (Home/End)
+; only reach the keymap in 40 columns; in 80 they scroll back through
+; the dialogue a line at a time (editor_key_hook). CLR/HOME still gives
+; Home there.
 KEYMAP_DEFAULT_BINDINGS = 6
 KEYMAP_DEFAULT_SIZE     = 162    ; BINDING_SIZE(27) * 6, by hand (see
                                  ; keymap.asm on c64list truncating
@@ -57,11 +57,21 @@ keymap_default:
         byte 0, $88, ACTION_OPEN_EDITOR   ; F7 (km_init_keyboard makes
         area MACRO_TEXT_LEN, $20           ; the 128's F7 send $88)
 
-; --- init_keymap: LOAD "KEYMAP.CFG" from the drive the client came from
+; Slots 15-16: ALT + the grey top-row CRSR UP/DOWN keys (key numbers
+; 83/84 -- the 128 KERNAL's decode tables, $FA80+83) page the scrollback.
+KEYMAP_PAGE_DEFAULT_SIZE = 54    ; 2 * BINDING_SIZE, by hand
+keymap_page_default:
+        byte MOD_ALT, 83, ACTION_PAGE_UP
+        area MACRO_TEXT_LEN, $20
+        byte MOD_ALT, 84, ACTION_PAGE_DOWN
+        area MACRO_TEXT_LEN, $20
+KM_PAGE_SLOT_OFFSET = 405        ; PAGE_SLOT_FIRST(15) * BINDING_SIZE(27)
+
+; --- init_keymap: LOAD "KEYMAP128.CFG" from the drive the client came from
 ; (secondary address 0: into keymap_table, whatever the file's header
 ; says -- see keymap.asm's init_keymap), or copy the defaults in. ---
 init_keymap:
-        lda #10
+        lda #13
         ldx #<km_cfg_filename
         ldy #>km_cfg_filename
         jsr KM_SETNAM
@@ -85,6 +95,13 @@ init_keymap_default:
         inx
         cpx #KEYMAP_DEFAULT_SIZE
         bne init_keymap_default
+        ldx #0
+init_keymap_page_default:
+        lda keymap_page_default,x
+        sta keymap_table+KM_PAGE_SLOT_OFFSET,x
+        inx
+        cpx #KEYMAP_PAGE_DEFAULT_SIZE
+        bne init_keymap_page_default
         lda km_load_error
         cmp #5                      ; DEVICE NOT PRESENT: no error channel
         beq init_keymap_rts         ; to read either
@@ -105,7 +122,7 @@ km_drive_ok:
 
 {alpha:alt}
 km_cfg_filename:
-        ascii "KEYMAP.CFG"
+        ascii "KEYMAP128.CFG"
 {alpha:normal}
 
 ; --- km_dispatch: .A = a key from input_editor.asm (via editor_key_hook).
@@ -113,13 +130,16 @@ km_cfg_filename:
 ; the key the editor should handle itself -- the key unchanged, or $0d
 ; when a macro ends in the back-arrow submit marker. Same matching rules
 ; as keymap.asm's keymap_dispatch: nav slots match the GETIN byte (SHIFT
-; ignored for $91/$9d, which are SHIFT+CRSR already), macro slots match
-; the matrix key number (SFDX); the modifier must match exactly. ---
+; ignored for $91/$9d, which are SHIFT+CRSR already), macro and page
+; slots match the matrix key number (SFDX); the modifier (ALT included)
+; must match exactly. ---
 km_dispatch:
         sta km_key
+        lda #0
+        sta km_paged                ; set by the Page Up/Down actions
         lda KM_SHFLAG
-        and #(MOD_SHIFT|MOD_CMDRE|MOD_CTRL)
-        sta km_mods                 ; for macro triggers
+        and #KM_MOD_MASK
+        sta km_mods                 ; for macro/page triggers
         sta km_nav_mods             ; for nav keys, SHIFT-masked below
         lda km_key
         cmp #$91
@@ -128,7 +148,7 @@ km_dispatch:
         bne km_scan
 km_mask_shift:
         lda km_nav_mods
-        and #(MOD_CMDRE|MOD_CTRL)
+        and #(MOD_CMDRE|MOD_CTRL|MOD_ALT)
         sta km_nav_mods
 km_scan:
         lda #<keymap_table
@@ -142,8 +162,8 @@ km_scan_loop:
         ldy #2
         jsr km_rd
         beq km_scan_next            ; ACTION_EMPTY
-        cmp #ACTION_MACRO
-        beq km_scan_macro
+        cmp #ACTION_PAGE_UP
+        bcs km_scan_macro           ; page keys and macros: matrix number
         ldy #1
         jsr km_rd
         cmp km_key
@@ -223,6 +243,24 @@ km_run_5:
         jmp module_start            ; keymap_menu.asm; leaves through
                                     ; JT_RESUME_LOCAL, never returns here
 km_run_6:
+        cmp #ACTION_PAGE_UP
+        bne km_run_7
+        lda screen_mode             ; scrollback exists in 80 columns only;
+        bne km_run_done             ; in 40 the key is just swallowed
+        jsr sb_page_back
+        inc km_paged
+        sec
+        rts
+km_run_7:
+        cmp #ACTION_PAGE_DOWN
+        bne km_run_8
+        lda screen_mode
+        bne km_run_done
+        jsr sb_page_fwd
+        inc km_paged
+        sec
+        rts
+km_run_8:
         cmp #ACTION_MACRO
         bne km_run_done             ; unknown action: swallow the key,
         jsr km_insert_macro         ; same as keymap.asm
@@ -290,3 +328,4 @@ km_submit:      byte 0
 km_macro_i:     byte 0
 km_macro_ch:    byte 0
 km_load_error:  byte 0
+km_paged:       byte 0        ; this key paged the scrollback

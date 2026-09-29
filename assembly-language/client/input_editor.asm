@@ -93,15 +93,19 @@ call_sliding_input:
                                 ; terminator (2026-09-29)
         lda scr_cols             ; 40 or 80 -- client-128.asm's live
         sta maxlen               ; screen width (EDITOR_MAXLEN above is
-        sec                      ; the 40-column value it started as)
-        sbc #1
-        sta strwin                ; one column short of the full screen
-                                   ; width, deliberately -- see comment above
+                                 ; the 40-column value it started as)
         lda #EDITOR_ROW
         sta strrow
         lda #0
-        sta strcol
         sta lftlim
+        sta cpos                 ; for show_prompt's slide check; instr
+        sta lcol                 ; resets both anyway
+        jsr show_prompt          ; strcol/strwin: after the server's prompt
+                                 ; if one is on the input row (client-
+                                 ; 128.asm's relocate_prompt), else the
+                                 ; whole row -- strwin one column short of
+                                 ; the screen width either way,
+                                 ; deliberately, see comment above
         lda #$80
         sta mode                 ; $80 = c128 mode (quomod's quote flag)
         jsr instr
@@ -164,6 +168,10 @@ gets10:
 gekey:
         jsr getin       ; get keypress
         bne gk1         ; if a key pressed
+        jsr editor_idle_hook ; client-128.asm: show any server text that
+        bcs gekey_redraw ; arrived -- carry set = it drew, so redraw the
+                        ; line and cursor from scratch (in 40 columns the
+                        ; output also moved the KERNAL cursor off it)
         lda blinkctr    ; irq_task_cursor_blink ticks this down
         bne gekey       ; not done - loop again
         lda rvsflg      ; time to switch cursor
@@ -177,7 +185,10 @@ gekey:
 gekey_solid:
         jsr getin
         bne gk1
-        jmp gekey_solid
+        jsr editor_idle_hook ; same as gekey's
+        bcc gekey_solid
+gekey_redraw:
+        jmp getstr
 gk1:
         pha             ; save key pressed
         jsr rvsoff      ; turn off cursor

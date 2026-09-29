@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """x128 (80-column) scenario for client-128.asm's VDC screen and scrollback.
 
-No server involved -- client-128.asm has no SwiftLink yet, so this drives
+No server involved -- this runs client-128.asm offline (RUN/STOP at "Connecting...") and drives
 the local "fill" test command (60 numbered lines, yellow text + white
 number) and CRSR keys, and checks VDC RAM directly through the remote
 monitor's "bank vdc" (x128 screenshots don't capture the VDC window
@@ -15,9 +15,11 @@ reliably -- see the VICE testing notes):
   C  CRSR UP: one line back -- history row on top, live rows shifted
      down by block copy, status row shows the position
   D  three more CRSR UP: offset 4
-  E  C= + CRSR UP / DOWN: a page (20) back and forth -- C= is faked by
-     patching vdc_key_mods' "lda $d3" to "lda #2" in memory, since a
-     held modifier can't be poked into the keyboard buffer
+  E  Page Up / Page Down (the keymap's defaults, ALT + the grey arrows):
+     a page (20) back and forth. ALT and the grey key's matrix number
+     are faked by patching editor_key_hook's and km_dispatch's "lda $d3"
+     to "lda #8" and km_scan_macro's "cmp $d4" to "cmp #83/84" in
+     memory, since a held key can't be poked into the keyboard buffer
   F  CRSR DOWN back to offset 0: live window restored exactly
   G  scrolled back, typing leaves scrollback and the echo lands live
   H  paging to the top reaches the oldest history row (banner line 1)
@@ -67,7 +69,17 @@ def mon(cmds):
     return buf.decode('latin-1')
 
 
+def _bank(bank: str, addr: int) -> str:
+    """The client's own variables above $4000 (the built-in Keymap
+    Editor moved there once SwiftLink grew the program) live in bank 0
+    RAM, but "bank default" follows whatever MMU state the CPU stopped
+    in -- often the KERNAL IRQ's $FF00 = $00, BASIC ROM over $4000-$BFFF
+    -- so read and write those through "bank ram" instead."""
+    return 'ram' if bank == 'default' and 0x4000 <= addr < 0xc000 else bank
+
+
 def dump(bank: str, start: int, length: int) -> bytes:
+    bank = _bank(bank, start)
     out = mon([f'bank {bank}', f'm ${start:04x} ${start + length - 1:04x}',
                'bank default'])
     data = []
@@ -117,10 +129,20 @@ def type_line(text: str) -> None:
                for ch in text) + b'\r')
 
 
-def fake_cbm(held: bool) -> None:
-    """lda $d3 (a5 d3) <-> lda #2 (a9 02) at vdc_key_mods."""
-    addr = SYMS['vdc_key_mods']
-    mon([f'> ${addr:04x} ' + ('$a9 $02' if held else '$a5 $d3')])
+def fake_alt_key(key_num):
+    """ALT held + matrix key key_num (83 grey up, 84 grey down), or None to
+    undo: editor_key_hook's and km_dispatch's "lda $d3" -> "lda #8",
+    km_scan_macro's "cmp $d4" -> "cmp #key_num"."""
+    hook = SYMS['editor_hook_crsr']
+    mods = SYMS['km_dispatch'] + 8          # after sta km_key / lda #0 /
+                                            # sta km_paged
+    sfdx = SYMS['km_scan_macro'] + 5
+    if key_num is None:
+        mon([f'> ${hook:04x} $a5 $d3', f'> ${mods:04x} $a5 $d3',
+             f'> ${sfdx:04x} $c5 $d4'])
+    else:
+        mon([f'> ${hook:04x} $a9 $08', f'> ${mods:04x} $a9 $08',
+             f'> ${sfdx:04x} $c9 ${key_num:02x}'])
 
 
 def line_text(n: int) -> str:
@@ -148,6 +170,10 @@ vice = subprocess.Popen(
     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 try:
     time.sleep(16)
+    # RUN/STOP at "Connecting...": no SwiftLink here, so go offline into
+    # the local demo this test drives (client-128.asm's go_offline).
+    mon([f'> ${KEYD:04x} $03', f'> ${NDX:02x} $01'])
+    time.sleep(3)
 
     # A -- boot
     row0, status = vdc_row(0), vdc_row(23)
@@ -210,14 +236,15 @@ try:
           and decode(vdc_row(4)) == line_text(39)
           and byte_at(SYMS['sb_offset']) == 4)
 
-    # E -- pages with a faked C=
-    fake_cbm(True)
+    # E -- Page Up / Page Down through the keymap
+    fake_alt_key(83)
     keys(bytes([CRSR_UP]))
     top_back = decode(vdc_row(0))
     off_back = byte_at(SYMS['sb_offset'])
+    fake_alt_key(84)
     keys(bytes([CRSR_DOWN]))
-    fake_cbm(False)
-    check('E C= + CRSR: page back to offset 24 (line 15 on top), '
+    fake_alt_key(None)
+    check('E Alt + grey CRSR: page back to offset 24 (line 15 on top), '
           'page forward to 4',
           off_back == 24 and top_back == line_text(15)
           and byte_at(SYMS['sb_offset']) == 4
@@ -245,9 +272,9 @@ try:
           f'row21 |{decode(vdc_row(21))}|')
 
     # H -- page to the very top: oldest history row = banner line 1
-    fake_cbm(True)
+    fake_alt_key(83)
     keys(bytes([CRSR_UP] * 3))
-    fake_cbm(False)
+    fake_alt_key(None)
     check('H paging to the top: offset 44, banner line 1 on top',
           byte_at(SYMS['sb_offset']) == 44
           and decode(vdc_row(0)) == '80-column mode (VDC) detected.',
