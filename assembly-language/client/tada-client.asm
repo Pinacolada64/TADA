@@ -169,6 +169,9 @@ KERNAL_LOAD   = $ffd5
 ; ($0277, 10 bytes) = the keys themselves, oldest first. Read directly by
 ; wait_for_connect to spot RUN/STOP without consuming other keys.
 {const: KBD_NDX $c6}
+; KERNAL's current text color (COLOR) -- what CHROUT colors new
+; characters with; the $05/$9f etc. color codes just change this byte.
+{const: KERNAL_COLOR $0286}
 {const: KBD_BUF $0277}
 
 ; KERNAL_PLOT is X=row, Y=column (carry set = read current position into
@@ -360,6 +363,18 @@ start:
         jsr init_sid             ; silence the SID chip, clear playback state
         jsr init_irq             ; install the IRQ dispatcher (sid_play +
                                   ; round-robin task table)
+
+        ; tell the player RUN/STOP can give up on connecting (see
+        ; wait_for_connect). The message sets its own colors, so save
+        ; the KERNAL's current text color and put it back afterward --
+        ; otherwise the server's first output would come out white.
+        lda KERNAL_COLOR
+        pha
+        lda #<stop_hint_msg
+        ldy #>stop_hint_msg
+        jsr print_msg
+        pla
+        sta KERNAL_COLOR
 
         ; delay to let ACIA settle
         ldx #$ff
@@ -3253,6 +3268,16 @@ status_msg_offline:
 ; {alpha:alt} for real mixed-case PETSCII (uppercase letters in $C1-$DA,
 ; lowercase in $41-$5A) under the upper/lowercase charset.
 {alpha:alt}
+stop_hint_msg:
+        byte $0d                 ; off row 0 first -- the cursor starts on
+                                  ; the status line after init_screen
+        byte $9f                 ; cyan
+        ascii "Hit "
+        byte $05                 ; white
+        ascii "Stop"
+        byte $9f                 ; cyan
+        ascii " to cancel connecting."
+        byte $0d, 0
 offline_msg:
         byte $0d
         ascii "Connect aborted -- working offline."
