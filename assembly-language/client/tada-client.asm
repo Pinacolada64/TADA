@@ -317,7 +317,6 @@ OVERLAY_BUF = $3800
         rx_head     = $f9       ; NMI receive ring buffer: next write index
         rx_tail     = $fa       ; NMI receive ring buffer: next read index
 
-        QTSW        = $d4       ; KERNAL quote-mode switch (212 decimal)
 
 ; sid_wr/sid_rd/sid_mode/sid_active/sid_remaining_lo/sid_remaining_hi are
 ; deliberately NOT zero page (see their `byte 0` definitions in the Data
@@ -467,6 +466,8 @@ prompt_loop:
 ; (harmless dead stack space, not a leak that grows -- module_entry_sp
 ; is recaptured fresh on every popup visit, never compounding).
 resume_local:
+        jsr input_area_reset     ; bare prompt back in the input area --
+                                  ; read_line starts from an empty line
         jsr read_line
         jsr send_line
         jmp prompt_loop
@@ -621,8 +622,15 @@ init_screen:
         lda #VIC_BLACK
         sta VIC_BORDER
         sta VIC_BACKGROUND
-        lda #$93                ; PETSCII clear screen
-        jsr CHROUT
+        lda #1
+        sta $cc                   ; BLNSW: keep the stock IRQ's KERNAL
+                                   ; cursor blink off -- it toggles the
+                                   ; cell at PNT/PNTR, which nothing
+                                   ; keeps current now that
+                                   ; screen-output.asm draws the screen
+        lda KERNAL_COLOR
+        sta status_color          ; before so_ctl_clear paints the bar
+        jsr so_ctl_clear          ; CLR: blank the screen, home the cursor
         jsr update_status_line
         jsr redraw_status_row     ; blank reverse bar, queue empty so far
         jsr status_push_reset     ; build-date/time message, its own
@@ -710,10 +718,12 @@ usl_pad:
 ; $0351 and $0352-$0358) precisely so one copy loop populates both; see
 ; PROTO_TABLE's own comment.
 init_jump_table:
-        ldx #40                  ; 41 bytes: 11 jmp entries (33) + 8
+        ldx #49                  ; 50 bytes: 14 jmp entries (42) + 8
                                     ; proto bytes -- bumped from 34/35
                                     ; when JT_CURSOR_HIDE/JT_UPDATE_
-                                    ; CURSOR were added
+                                    ; CURSOR were added, and from 40/41
+                                    ; for JT_GET_CURSOR/JT_SET_CURSOR/
+                                    ; JT_CLEAR_SCREEN
 init_jump_table_loop:
         lda jump_table_template,x
         sta JT_BASE,x
@@ -914,7 +924,9 @@ copy_remaining_hi:
 ; double buffering) had it do. Self-contained (own inline loop, own
 ; ccc_chunk_remaining countdown) rather than built from copy_block, same
 ; reasoning as that routine's own single-range design.
-; Caller sets copy_src_lo/hi + copy_dst_lo/hi before calling.
+; Caller sets copy_src_lo/hi + copy_dst_lo/hi + copy_remaining_lo/hi
+; before calling (the length used to be fixed at DIALOGUE_SHIFT_BYTES;
+; it's the current dialogue area's size now -- see term_scroll_advance).
 COLOR_CHUNK_BYTES = 220           ; 880 / 4
 copy_color_chunked:
         lda copy_src_lo
@@ -925,10 +937,6 @@ copy_color_chunked:
         sta ccc_store+1
         lda copy_dst_hi
         sta ccc_store+2
-        lda #<DIALOGUE_SHIFT_BYTES
-        sta copy_remaining_lo
-        lda #>DIALOGUE_SHIFT_BYTES
-        sta copy_remaining_hi
 ccc_next_chunk:
         jsr wait_vblank
         lda #COLOR_CHUNK_BYTES
@@ -953,7 +961,7 @@ ccc_dec_lo:
         dec copy_remaining_lo
         lda copy_remaining_lo
         ora copy_remaining_hi
-        beq ccc_done               ; whole 880-byte copy finished
+        beq ccc_done               ; whole copy finished
         dec ccc_chunk_remaining
         bne ccc_loop                ; more bytes left in this chunk
         jmp ccc_next_chunk          ; chunk done -- wait for the next vblank
@@ -1205,152 +1213,10 @@ ensure_buffer_a_front:
 ensure_buffer_a_front_rts:
         rts
 
-; --- term_chrout: drop-in CHROUT replacement for dialogue text ---
-; Use instead of a bare `jsr CHROUT` for anything that can legitimately
-; advance the cursor a row at a time -- display_char (incoming server
-; text) and read_line_store's typed-char echo. Preserves the caller's
-; X/Y across the entire call, restored right before every exit --
-; confirmed live this matters, not just defensive box-checking:
-; term_scroll_advance uses Y freely as its own loop counter, and CHROUT
-; itself is already documented elsewhere in this file as not reliably
-; preserving X (see read_line's own comment). A caller that uses X/Y as
-; its own loop index across a run of term_chrout calls (e.g. printing a
-; string char-by-char) would otherwise get that index silently
-; clobbered by whichever branch fires here.
-; PROMPT_ROW (24) is the TRUE last physical row -- unlike STATUS_ROW
-; (23), a character that needs a new row while sitting there triggers
-; KERNAL's OWN real whole-screen scroll DURING the CHROUT call itself,
-; not after. That can't be caught post-hoc the way STATUS_ROW is: by
-; the time term_chrout reads $d6 back, KERNAL's scroll already ran and
-; already reset the cursor to a perfectly normal-looking row 24 (same
-; as it always leaves it after any scroll) -- nothing about that read
-; distinguishes "a real KERNAL scroll just corrupted STATUS_ROW" from
-; "ordinary printing, still on row 24, nothing happened". Confirmed live
-; 2026-08-20: ordinary text continuing to print after relocate_prompt_
-; to_row24 parked the cursor there (an unanswered/still-arriving
-; response following what looked like, but wasn't reliably, a genuine
-; prompt) corrupted STATUS_ROW exactly this way, and the post-hoc check
-; alone never caught it.
-;
-; So this checks BEFORE calling CHROUT: if already on PROMPT_ROW and
-; this character would need a new row (a CR, or filling the last
-; column), redirect through term_scroll_advance FIRST -- landing safely
-; at DIALOGUE_LAST_ROW instead of letting KERNAL scroll from row 24 at
-; all. Ordinary text that overflows PROMPT_ROW genuinely belongs back
-; in the normal scrolling dialogue area above STATUS_ROW anyway; only
-; the player's own current input belongs pinned at PROMPT_ROW itself.
-term_chrout:
-        stx term_saved_x
-        sty term_saved_y
-        ; Swallow the KERNAL case-switch codes ($0e lowercase, $8e
-        ; uppercase) instead of printing them. CHROUT handles them by
-        ; ORing/ANDing $d018 bit 1 -- on a stock C64 that picks between
-        ; the ROM's two character sets, but here it moves the char
-        ; pointer off gothic_charset ($d000) onto $d800 (COLOR_RAM's
-        ; address, not glyph data) or $c000, and every character turns
-        ; to stripes. Confirmed live 2026-09-28: the server's own
-        ; terminal-negotiation menu starts with $0e (correct for real
-        ; terminal programs like CCGMS, which need it for lowercase), so
-        ; every connect was leaving $d018 at $17 instead of VIC_D018_
-        ; INIT's $14. This client is always in "lowercase" already.
-        cmp #$0e
-        beq term_chrout_rts
-        cmp #$8e
-        beq term_chrout_rts
-        pha
-        ldx $d6
-        cpx #PROMPT_ROW
-        bne term_chrout_plain
-        cmp #$0d
-        beq term_chrout_prevent_cr
-        ldx $d3
-        cpx #39                     ; about to fill the last column?
-        bne term_chrout_plain
-        ; wrap case: this character would fill PROMPT_ROW's last column,
-        ; and KERNAL's own advance-in-preparation-for-the-next-character
-        ; would need row 25 -- shift first, THEN print this character at
-        ; the now-current (DIALOGUE_LAST_ROW) position, which has a
-        ; full fresh 40 columns to receive it safely.
-        jsr term_scroll_advance
-        jmp term_chrout_plain
-term_chrout_prevent_cr:
-        ; CR has no glyph of its own -- term_scroll_advance's shift +
-        ; reposition-to-DIALOGUE_LAST_ROW-col0 already IS everything a
-        ; CR should do; nothing left to hand to CHROUT.
-        jsr term_scroll_advance
-        pla
-        jmp term_chrout_rts
-term_chrout_plain:
-        pla
-        jsr CHROUT
-        ldx $d6                    ; TBLX -- physical cursor row
-        cpx #STATUS_ROW
-        bne term_chrout_rts        ; exact match only -- NOT bcc/"< 23".
-                                     ; Safe to be this precise now that
-                                     ; PROMPT_ROW (24) is a real,
-                                     ; deliberately-PLOTted-to position
-                                     ; text can legitimately sit at and
-                                     ; keep printing from (relocate_
-                                     ; prompt_to_row24) -- bcc would
-                                     ; wrongly fire term_scroll_advance
-                                     ; on every character printed there.
-                                     ; Behaviorally identical to the old
-                                     ; bcc for rows 0-22 (X was never >23
-                                     ; under the old model, so "< 23" and
-                                     ; "== 23" only ever differed for a
-                                     ; row that couldn't occur yet).
-        jsr term_scroll_advance
-term_chrout_rts:
-        ldx term_saved_x
-        ldy term_saved_y
-        rts
-
-term_saved_x:
-        byte 0
-term_saved_y:
-        byte 0
-
-; --- term_cursor_left / term_cursor_right: single-step relative cursor
-; move ($9d/$1d) that skips over STATUS_ROW instead of landing on it,
-; without triggering a scroll -- there's no new content here, just
-; navigation within already-displayed text (arrow-key movement, the
-; single step-back after a DEL, redraw_tail's own step-back). Same
-; principle as screen-handler.asm's async_step_back/async_blank (see
-; their own comment for the full reasoning); those two loop internally
-; and stay as their own inline copies since they were already verified
-; working, but any OTHER single-step $9d/$1d call site should use these
-; instead of a bare CHROUT -- confirmed live 2026-08-20 that missing
-; this class of call site is exactly what let a single stray character
-; land in STATUS_ROW with no correction at all.
-term_cursor_left:
-        lda #$9d
-        jsr CHROUT
-        ldx $d6
-        cpx #STATUS_ROW
-        bne term_cursor_left_rts
-        ldx #DIALOGUE_LAST_ROW
-        ldy #39
-        clc
-        jsr KERNAL_PLOT
-term_cursor_left_rts:
-        rts
-
-term_cursor_right:
-        lda #$1d
-        jsr CHROUT
-        ldx $d6
-        cpx #STATUS_ROW
-        bne term_cursor_right_rts
-        ldx #DIALOGUE_LAST_ROW     ; was #24 -- same mismatch as async_
-                                     ; blank's fixed one, term_cursor_
-                                     ; left's own #DIALOGUE_LAST_ROW
-                                     ; landing is the correct sibling to
-                                     ; match
-        ldy #0
-        clc
-        jsr KERNAL_PLOT
-term_cursor_right_rts:
-        rts
+; --- term_chrout / term_cursor_left / term_cursor_right ---
+; Moved to screen-output.asm (2026-09-28), which now owns the cursor and
+; draws every character itself instead of going through KERNAL CHROUT/
+; PLOT -- see that file's header comment for why.
 
 ; --- wait_vblank: busy-wait until the raster beam reaches line 250 ---
 ; Comfortably past the visible area on both PAL (312 lines/frame) and
@@ -1410,7 +1276,19 @@ tsa_back_is_b:
 tsa_back_known:
         sta back_hi
 
-        ; --- 1. Shift glyphs: front rows 1-22 -> back rows 0-21 ---
+        ; tsa_shift = dlg_last_row * 40 -- the dialogue area's size less
+        ; one row, i.e. how many bytes move up (880 normally, less while
+        ; the input area has grown -- see screen-output.asm)
+        lda dlg_last_row
+        asl
+        tax
+        lda row_offsets,x
+        sta tsa_shift_lo
+        lda row_offsets+1,x
+        sta tsa_shift_hi
+
+        ; --- 1. Shift glyphs: front rows 1..dlg_last_row -> back rows
+        ; 0..dlg_last_row-1 ---
         lda #<ROW_BYTES
         sta copy_src_lo
         lda front_hi
@@ -1419,20 +1297,19 @@ tsa_back_known:
         sta copy_dst_lo
         lda back_hi
         sta copy_dst_hi
-        lda #<DIALOGUE_SHIFT_BYTES
+        lda tsa_shift_lo
         sta copy_remaining_lo
-        lda #>DIALOGUE_SHIFT_BYTES
+        lda tsa_shift_hi
         sta copy_remaining_hi
         jsr copy_block
 
-        ; --- 2. Blank back buffer's fresh row 22 ---
-        ; scr_ptr = back_hi:00 + 880 ($0370) -- direct arithmetic since
-        ; DIALOGUE_LAST_ROW is a fixed compile-time row here.
-        lda #<880
+        ; --- 2. Blank back buffer's fresh last dialogue row ---
+        ; scr_ptr = back_hi:00 + dlg_last_row*40 (== tsa_shift)
+        lda tsa_shift_lo
         sta scr_ptr_lo
         lda back_hi
         clc
-        adc #>880
+        adc tsa_shift_hi
         sta scr_ptr_hi
         ldy #0
         lda #$20
@@ -1442,28 +1319,40 @@ tsa_blank:
         cpy #40
         bne tsa_blank
 
-        ; --- 3. Mirror PROMPT_ROW, front -> back (via copy_block -- reads
-        ; and writes two DIFFERENT buffers at once, so a single scr_ptr_
-        ; lo/hi indirect pointer can't do this, unlike step 2's blank) ---
-        lda #<PROMPT_ROW_OFFSET
+        ; --- 3. Mirror the input area (sbar_row+1..24), front -> back
+        ; (via copy_block -- reads and writes two DIFFERENT buffers at
+        ; once, so a single scr_ptr_lo/hi indirect pointer can't do this,
+        ; unlike step 2's blank) ---
+        lda sbar_row
+        clc
+        adc #1
+        asl
+        tax
+        lda row_offsets,x
         sta copy_src_lo
-        lda front_hi
-        clc
-        adc #>PROMPT_ROW_OFFSET
-        sta copy_src_hi
-        lda #<PROMPT_ROW_OFFSET
         sta copy_dst_lo
-        lda back_hi
+        lda row_offsets+1,x
+        pha
         clc
-        adc #>PROMPT_ROW_OFFSET
+        adc front_hi
+        sta copy_src_hi
+        pla
+        pha
+        clc
+        adc back_hi
         sta copy_dst_hi
-        lda #<ROW_BYTES
+        sec
+        lda #<1000
+        sbc copy_src_lo
         sta copy_remaining_lo
-        lda #>ROW_BYTES
+        pla
+        sta tsa_tmp
+        lda #>1000
+        sbc tsa_tmp
         sta copy_remaining_hi
         jsr copy_block
 
-        ; --- 4. Stamp back buffer's STATUS_ROW before it's ever shown ---
+        ; --- 4. Stamp back buffer's status bar before it's ever shown ---
         lda back_hi
         jsr redraw_status_row_to
 
@@ -1476,6 +1365,10 @@ tsa_blank:
         sta copy_dst_lo
         lda #>COLOR_RAM
         sta copy_dst_hi
+        lda tsa_shift_lo
+        sta copy_remaining_lo
+        lda tsa_shift_hi
+        sta copy_remaining_hi
         jsr copy_color_chunked
 
         ; --- 6. Flip: back becomes front, atomically ---
@@ -1483,38 +1376,16 @@ tsa_blank:
         lda back_hi
         jsr flip_screen_buffer
 
-        ; --- 7. Unlink every row in KERNAL's line-link table ---
-        ; LDTB1 ($d9-$f1, one byte per row): bit 7 set = this row starts
-        ; its own logical line, clear = it continues the row above (an
-        ; 80-column wrapped line). CHROUT links the next row whenever a
-        ; line wraps past column 39, and the raw shift above never moves
-        ; or clears those bits -- they stay pinned to physical rows while
-        ; the text scrolls away. The damaging case: a line wraps from
-        ; row 22, row 23 gets marked as its continuation, and after this
-        ; routine PLOTs back to row 22 the KERNAL still treats rows 22-23
-        ; as one logical line, so the next CR skips row 23 entirely and
-        ; lands on PROMPT_ROW (24). term_chrout's exact-row-23 check never
-        ; fires, the following line prints onto PROMPT_ROW (which is only
-        ; mirrored, never shifted up), and the prompt redraw overwrites it
-        ; -- the "lost lines" bug (2026-09-28, traced via the stock ROM's
-        ; $E56C/$E87C/$E6B6 routines). Every physical row is its own line
-        ; in this client's model anyway, so resetting them all is always
-        ; correct here. Must run before KERNAL_PLOT, which reads LDTB1 to
-        ; compute PNT and LNMX ($d5, the 39-vs-79 logical line length).
-        ; Bits 0-1 (the row's screen page) are preserved by the ORA.
-        ldx #24
-tsa_unlink_rows:
-        lda $d9,x
-        ora #$80
-        sta $d9,x
-        dex
-        bpl tsa_unlink_rows
-
-        ldx #DIALOGUE_LAST_ROW      ; KERNAL_PLOT: X=row, Y=col
+        ldx dlg_last_row            ; fresh last dialogue row, col 0
         ldy #0
-        clc
-        jsr KERNAL_PLOT
-        rts
+        jmp so_set_cursor
+
+tsa_shift_lo:
+        byte 0
+tsa_shift_hi:
+        byte 0
+tsa_tmp:
+        byte 0
 
 
 ; ============================================================
@@ -1739,10 +1610,13 @@ redraw_status_row:
 ; Needed because term_scroll_advance must paint the BACK buffer's status
 ; row (the one about to become front) BEFORE flipping, not whichever
 ; buffer happens to be front at the moment it's called. Self-modifies
-; only the high byte of each STA operand's absolute address
-; (STATUS_ROW_OFFSET's low byte, $98, is identical in both buffers since
-; both are 1K-aligned; only the page differs) -- target_hi = buffer_hi +
-; 3, since STATUS_ROW_OFFSET (920, $0398) contributes high byte $03.
+; each STA operand's full address: buffer_hi:00 + sbar_row*40 -- the
+; status bar's row moves while the input area has grown (see screen-
+; output.asm), so it's no longer a fixed STATUS_ROW_OFFSET. Also paints
+; the row's COLOR_RAM with status_color: rows 21-22 can hold dialogue
+; colors when the bar moves onto them, whereas row 23's color RAM used to
+; just keep whatever init left there (COLOR_RAM is shared by both
+; buffers, so painting it for the back buffer is harmless).
 ; Otherwise unchanged from the single-buffer version: reverse video,
 ; padded to 40 columns, pure raw pokes (queue content is pre-encoded
 ; real screen codes already, same convention update_status_line uses for
@@ -1752,11 +1626,33 @@ redraw_status_row:
 ; convention is one shared transient pointer, not a second dedicated
 ; zero-page pair for something this narrow.
 redraw_status_row_to:
+        sta rsrt_buf_hi
+        lda sbar_row
+        asl
+        tax
+        lda row_offsets,x
+        sta rsrt_store+1
+        sta rsrt_pad_store+1
+        sta rsrt_blank_store+1
+        sta rsrt_color_store+1
+        lda row_offsets+1,x
+        pha
         clc
-        adc #>STATUS_ROW_OFFSET
+        adc rsrt_buf_hi
         sta rsrt_store+2
         sta rsrt_pad_store+2
         sta rsrt_blank_store+2
+        pla
+        clc
+        adc #>COLOR_RAM
+        sta rsrt_color_store+2
+        ldy #39
+        lda status_color
+rsrt_color_loop:
+rsrt_color_store:
+        sta $ffff,y
+        dey
+        bpl rsrt_color_loop
         lda status_queue_count
         beq rsrt_blank
         lda status_queue_read
@@ -1793,6 +1689,14 @@ rsrt_blank_store:
         cpy #40
         bne rsrt_blank_loop
         rts
+
+rsrt_buf_hi:
+        byte 0
+; The status bar's color -- the text color in effect at boot (init_
+; screen), which is what row 23's color RAM always held before the bar
+; could move.
+status_color:
+        byte 0
 
 status_build_buf:
         area STATUS_SLOT_LEN, 0
@@ -1875,6 +1779,11 @@ jump_table_template:
                                      ; capture-wait; see constants.asm's
                                      ; own comment
         jmp update_cursor         ; JT_UPDATE_CURSOR -- same reasoning
+        jmp so_get_cursor         ; JT_GET_CURSOR -- screen-output.asm's
+                                     ; own cursor, for overlays; see
+                                     ; constants.asm's own comment
+        jmp so_set_cursor         ; JT_SET_CURSOR -- same reasoning
+        jmp so_ctl_clear          ; JT_CLEAR_SCREEN -- same reasoning
 
 ; --- Load the petscii_editor overlay module and hand control to it ---
 ; Called from handle_recv_byte_canvas_confirm once a real canvas stream
@@ -2061,6 +1970,7 @@ help_menu_filename:
 {include:sid_streaming.asm}
 
 {include:screen-handler_pp.asm}
+{include:screen-output_pp.asm}
 
 ; gothic_charset -- no macro-preprocessor directives, so (like
 ; constants.asm) included directly, not via a _pp.asm preprocessed copy.
@@ -2081,13 +1991,10 @@ help_menu_filename:
 ; overwrote whatever real character was already sitting there -- the
 ; cursor was destroying buffer contents just by blinking over them.
 ; Instead, cursor_toggle flips the reverse-video bit (bit 7) of
-; whatever screen code is actually under the cursor right now, read via
-; the KERNAL's own PNT/PNTR zero-page vars ($d1/$d2 = pointer to the
-; start of the current screen line, $d3 = cursor column within it) --
-; the same pair the KERNAL's own cursor blink IRQ routine uses. These
-; stay in sync via CHROUT's normal screen-editor bookkeeping regardless
-; of this client's custom IRQ handler, since IRQ only affects blink
-; timing/STOP-key scanning here, not CHROUT's own screen writes. EOR
+; whatever screen code is actually under the cursor right now, at
+; screen-output.asm's own crsr_row/crsr_col (2026-09-28 -- this used to
+; read the KERNAL's PNT/PNTR, $d1/$d2 + $d3, back when CHROUT drew the
+; screen and kept those in sync). EOR
 ; #$80 (not a plain ORA) so a show/hide pair is always a clean round
 ; trip no matter what the underlying character was, including if it
 ; already happened to be a reverse-video glyph.
@@ -2154,16 +2061,8 @@ cursor_want_off:
 update_cursor_done:
         rts
 
-; Flip the reverse-video bit of the screen code currently under the
-; cursor, in place. Doesn't move the screen cursor or call CHROUT at
-; all, so the real character underneath survives regardless of how many
-; times this fires.
-cursor_toggle:
-        ldy $d3                  ; PNTR -- cursor column within current line
-        lda ($d1),y               ; PNT -- on-screen char code under cursor
-        eor #$80
-        sta ($d1),y
-        rts
+; cursor_toggle lives in screen-output.asm now (it reads that file's
+; own crsr_row/crsr_col instead of the KERNAL's PNT/PNTR).
 
 ; Force the cursor to the "erased" state right before a real keystroke
 ; is handled, whatever phase update_cursor last left it in. Safe to
@@ -2535,16 +2434,6 @@ read_line_store_shift_done:
                                    ; long line wrapping near the bottom of
                                    ; the screen can't scroll past STATUS_ROW
 
-        ; Echoing a literal '"' through CHROUT toggles the KERNAL's quote
-        ; mode (same as typing one in a normal BASIC line) -- once on, it
-        ; makes subsequent CHROUT control codes (our cursor blink's
-        ; reverse-on/off/cursor-left) display as literal reverse-video
-        ; glyphs instead of being interpreted, showing up as garbage
-        ; around the blinking cursor. Force it back off unconditionally
-        ; after every echoed character rather than only after a '"'.
-        lda #0
-        sta QTSW
-
         lda linelen               ; was this an insert (tail follows the
         cmp cursor_pos            ; cursor) rather than a plain append?
         beq read_line_store_done
@@ -2602,8 +2491,16 @@ read_line_done:
         ldx linelen
         lda #0
         sta linebuf,x            ; null-terminate right at the real length
+        lda input_in_area
+        beq read_line_done_echo
+        jsr commit_input_line    ; prompt pinned in the input area: write
+                                  ; "prompt + line" into the dialogue
+                                  ; history instead (see its comment)
+        jmp read_line_done_echoed
+read_line_done_echo:
         lda #$0d
         jsr term_chrout          ; echo the newline locally
+read_line_done_echoed:
         ; TEMP diagnostic: show how many characters read_line actually
         ; captured. Remove once the character-loss bug is confirmed fixed.
 {ifdef: debug}
@@ -2669,40 +2566,15 @@ send_line_term:
 
 ; --- Display character on screen ---
 ; Input: .A = byte received from server
-; Writes directly to screen RAM via pointer, handles CR
-; Routes through term_chrout, not a bare CHROUT, so incoming server text
-; can't scroll past STATUS_ROW -- see that section's own header comment.
-;
-; Resets QTSW (KERNAL quote-mode switch) after every character, same
-; reasoning as read_line_store/reprint_input_line/service_async_idle's
-; own QTSW resets (a literal '"' toggles quote mode, which makes
-; subsequent CHROUT control codes print as literal reverse-video glyphs
-; instead of being interpreted) -- but this is the one call site that
-; was missing it: those three all reset QTSW when RE-displaying already-
-; buffered content, but nothing reset it for incoming server text's
-; *original* display pass. Confirmed live 2026-08-20 this was a real,
-; not just theoretical, gap: ordinary server text (chat messages
-; routinely contain literal quotes) could leave quote mode stuck on
-; indefinitely, silently breaking every control code sent afterward --
-; including async_step_back's own $9d CRSR-LEFT stepping, which stopped
-; actually moving the cursor and instead printed $9d's literal glyph
-; forward, corrupting STATUS_ROW with garbage in a way that looked like
-; a completely different bug (a stray character landing there) until
-; traced back to this.
+; Routes through term_chrout (screen-output.asm), which handles CR,
+; wrapping, colors and scrolling below STATUS_ROW itself.
+; The KERNAL quote-mode (QTSW) resets that used to live here, and in
+; read_line_store/reprint_input_line/relocate_prompt_to_row24/
+; service_async_idle/keymap_insert_macro, went away with CHROUT
+; (2026-09-28): term_chrout has no quote mode, so a literal '"' in
+; server text can no longer turn later control codes into glyphs.
 display_char:
-        cmp #$0d                ; carriage return?
-        bne >@
-        lda #$0d
-        jsr term_chrout
-        jmp display_char_qtsw_reset
-@:      jsr term_chrout          ; let KERNAL handle PETSCII->screen code
-                                  ; conversion (term_chrout wraps CHROUT)
-display_char_qtsw_reset:
-        pha
-        lda #0
-        sta QTSW
-        pla
-        rts
+        jmp term_chrout
 
 ; --- Dispatch a byte received from the server: text or SID stream ---
 ; Called from wait_for_data for every byte sl_recv hands back, in place of

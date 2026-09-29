@@ -103,13 +103,28 @@ JT_BUILD_STATUS_LINE         = $c020
 ; this needs a trampoline at all (cursor_hide/update_cursor are plain
 ; labels in tada-client.asm, unreachable from a separate .prg). Unlike
 ; that pair, the caller doesn't pass anything in X/Y -- both routines
-; act on the KERNAL's own PNT/PNTR ($d1-$d3, zero page, so directly
-; readable/writable by keymap_menu.asm without a trampoline of their
-; own) and the resident cursor_phase byte; key_capture_combo's own
-; comment explains how it keeps those two trampolines and $d1-$d3
+; act on the resident cursor position (set via JT_SET_CURSOR below;
+; the KERNAL's own PNT/PNTR, $d1-$d3, until 2026-09-28) and the
+; resident cursor_phase byte; key_capture_combo's own comment explains
+; how it keeps those trampolines and the saved cursor position
 ; correctly scoped to just its own capture-wait sub-state.
 JT_CURSOR_HIDE               = $c023
 JT_UPDATE_CURSOR             = $c026
+
+; JT_GET_CURSOR/JT_SET_CURSOR/JT_CLEAR_SCREEN -- added 2026-09-28 when
+; screen-output.asm took the screen over from KERNAL CHROUT/PLOT. The
+; resident cursor (the one term_chrout prints at and cursor_toggle
+; blinks) is now screen-output.asm's own crsr_row/crsr_col, not the
+; KERNAL's PNT/PNTR ($d1-$d3), so overlays can't just poke those any
+; more. GET returns .X = row, .Y = column; SET takes the same (the
+; KERNAL_PLOT register order). keymap_menu.asm uses GET/SET to park the
+; blink cursor on its own popup rows and put it back afterward;
+; petscii_editor.asm uses CLEAR_SCREEN (blank every row but STATUS_ROW,
+; repaint STATUS_ROW, home the resident cursor) where it used to CHROUT
+; a $93.
+JT_GET_CURSOR                = $c029
+JT_SET_CURSOR                = $c02c
+JT_CLEAR_SCREEN              = $c02f
 
 ; Not a jump-table entry or protocol byte -- a 2-byte pointer (lo, hi)
 ; to keymap_table's real runtime address, written once by init_keymap
@@ -121,6 +136,7 @@ JT_UPDATE_CURSOR             = $c026
 ; keymap.asm and so can't see its `keymap_table = ...` symbol at
 ; assembly time even if that address WERE fixed) reads this pointer at
 ; runtime instead of needing to know or guess the address in advance.
-; $c029, not $c023 -- JT_CURSOR_HIDE/JT_UPDATE_CURSOR (above) took the
-; 6 bytes this used to start at.
-KEYMAP_TABLE_PTR             = $c029
+; $c032, not $c023 -- JT_CURSOR_HIDE/JT_UPDATE_CURSOR (above) took the
+; 6 bytes this used to start at, then JT_GET_CURSOR/JT_SET_CURSOR/
+; JT_CLEAR_SCREEN the 9 after that ($c029 until 2026-09-28).
+KEYMAP_TABLE_PTR             = $c032

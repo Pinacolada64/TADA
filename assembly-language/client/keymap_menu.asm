@@ -139,6 +139,7 @@ KEY_NUM_RUNSTOP = 63
 ; keymap-editor visit (status_service isn't polled from any of this
 ; file's own loops), so there's no live rotation/clock to fight with.
 STATUS_ROW_SCREEN = SCREEN_RAM + 920
+KM_STATUS_ROW     = 23          ; STATUS_ROW_SCREEN's row, for JT_SET_CURSOR
 
 ; $3800 (was $3000 briefly, $2900 before that, until 2026-09-28) -- see tada-client.asm's OVERLAY_BUF comment (moved here
 ; 2026-09-02 after this module's own first live test re-triggered the
@@ -533,24 +534,22 @@ ssa_done:
 ; capture needed the exact same snapshot/prompt/restore/redraw shape
 ; but a genuinely different wait-loop identity mechanism in between.
 ;
-; kcc_setup: snapshot the KERNAL's own PNT/PNTR ($d1/$d2/$d3 -- cursor_
-; toggle's own screen-position pointer, read_line_loop's own update_
-; cursor uses the same pair) before update_capture_display starts
-; repositioning them at the live readout -- restored by kcc_teardown so
+; kcc_setup: snapshot the resident cursor (JT_GET_CURSOR -- cursor_
+; toggle's own screen position, the one read_line_loop's own update_
+; cursor blinks; the KERNAL's PNT/PNTR, $d1-$d3, until screen-output.asm
+; took the screen over 2026-09-28) before update_capture_display starts
+; repositioning it at the live readout -- restored by kcc_teardown so
 ; this wait's own cursor blinking can't leak a stale position into
 ; read_line once this popup closes. cursor_phase itself needs no
 ; snapshot/restore: read_line_loop's own cursor_hide call (right before
 ; dispatching ANY keystroke, including the F7 that opened this popup)
 ; already guarantees it's 0 (erased) on entry here, and kcc_teardown's
 ; own JT_CURSOR_HIDE call puts it back to exactly that same state
-; before restoring $d1-$d3, so the two states always match up.
+; before restoring the cursor, so the two states always match up.
 kcc_setup:
-        lda $d1
-        sta capture_saved_pnt_lo
-        lda $d2
-        sta capture_saved_pnt_hi
-        lda $d3
-        sta capture_saved_pntr
+        jsr JT_GET_CURSOR
+        stx capture_saved_row
+        sty capture_saved_col
 
         ldx #<capture_prompt_msg
         ldy #>capture_prompt_msg
@@ -596,17 +595,14 @@ kcc_drain_getin:
 kcc_teardown:
         jsr kcc_drain_getin
         jsr JT_CURSOR_HIDE          ; erase the live-readout cursor at
-                                     ; its CURRENT ($d1-$d3) position --
+                                     ; its CURRENT position --
                                      ; must happen before restoring
                                      ; those below, while they still
                                      ; point at the real on-screen spot
                                      ; the cursor was last drawn at
-        lda capture_saved_pnt_lo
-        sta $d1
-        lda capture_saved_pnt_hi
-        sta $d2
-        lda capture_saved_pntr
-        sta $d3
+        ldx capture_saved_row
+        ldy capture_saved_col
+        jsr JT_SET_CURSOR
         jsr draw_help_footer        ; restore rows 18/19 -- row 19 was
                                      ; overwritten by the live combo
                                      ; readout; picks the plain or
@@ -780,12 +776,9 @@ kemt_copy_done:
                                        ; text -- see this routine's own
                                        ; header comment on macro_edit_pos
 
-        lda $d1
-        sta capture_saved_pnt_lo
-        lda $d2
-        sta capture_saved_pnt_hi
-        lda $d3
-        sta capture_saved_pntr
+        jsr JT_GET_CURSOR
+        stx capture_saved_row
+        sty capture_saved_col
 
         jsr kemt_redraw              ; draw the initial text + cursor
 kemt_wait:
@@ -871,12 +864,9 @@ kemt_write_action:
         sta (scr_ptr_lo),y
 kemt_done:
         jsr JT_CURSOR_HIDE
-        lda capture_saved_pnt_lo
-        sta $d1
-        lda capture_saved_pnt_hi
-        sta $d2
-        lda capture_saved_pntr
-        sta $d3
+        ldx capture_saved_row
+        ldy capture_saved_col
+        jsr JT_SET_CURSOR
         ldx #<keymap_status_clear_msg
         ldy #>keymap_status_clear_msg
         jsr push_keymap_status_msg   ; restore the status row via the
@@ -917,12 +907,9 @@ kemt_redraw_pad_loop:
         iny
         jmp kemt_redraw_pad_loop
 kemt_redraw_position:
-        lda #<STATUS_ROW_SCREEN
-        sta $d1
-        lda #>STATUS_ROW_SCREEN
-        sta $d2
-        lda macro_edit_pos           ; the cursor's own position, NOT
-        sta $d3                       ; macro_edit_len -- see key_edit_
+        ldx #KM_STATUS_ROW
+        ldy macro_edit_pos           ; the cursor's own position, NOT
+        jsr JT_SET_CURSOR             ; macro_edit_len -- see key_edit_
                                         ; macro_text's own header comment
                                         ; on macro_edit_pos vs macro_
                                         ; edit_len (2026-09-22)
@@ -1133,7 +1120,7 @@ kt_rts:
 ;
 ; No live readout/cursor here (unlike kcc_setup/kemt_redraw) -- this
 ; is a static Y/N prompt, not something the player types text or a
-; combo into, so there's no $d1-$d3 cursor state to save/restore.
+; combo into, so there's no cursor state to save/restore.
 key_clear_macro:
         lda header_focused
         bne kcm_rts
@@ -1392,11 +1379,9 @@ capture_key:
         byte 0
 capture_mod:
         byte 0
-capture_saved_pnt_lo:
+capture_saved_row:
         byte 0
-capture_saved_pnt_hi:
-        byte 0
-capture_saved_pntr:
+capture_saved_col:
         byte 0
 
 ; --- Live modifier/key readout during the capture wait (Ryan's idea,
@@ -1501,7 +1486,8 @@ ucd_check_change:
                                        ; cheap blink-check, no hide/redraw
 ucd_redraw:
         jsr JT_CURSOR_HIDE          ; erase the cursor at its OLD position
-                                     ; (still in $d1-$d3 from last tick)
+                                     ; (still the resident cursor's from
+                                     ; last tick)
                                      ; before this redraw overwrites the
                                      ; row underneath it -- a harmless
                                      ; no-op on the very first call
@@ -1539,8 +1525,8 @@ ucd_copy_loop:
         sta poke_dst_hi
         jsr poke_line
 ucd_position:
-        ; Point PNT/PNTR ($d1/$d2/$d3) at the cell right after the live
-        ; text just printed (capture_live_row+11 is column 11 of this
+        ; Park the resident cursor (JT_SET_CURSOR) on the cell right
+        ; after the live text just printed (capture_live_row+11 is column 11 of this
         ; physical row -- see ucd_copy_loop above) -- JT_UPDATE_CURSOR
         ; toggles reverse-video on THAT cell if the blink timer calls
         ; for it this tick, giving a real cursor that visibly sits right
@@ -1548,14 +1534,12 @@ ucd_position:
         ; Uses ucd_text_len's own cached value even on a skip-redraw
         ; tick -- unchanged since the last real redraw, so the cursor's
         ; column doesn't move just because the text didn't.
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
-        sta $d1
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
-        sta $d2
         lda #11
         clc
         adc ucd_text_len
-        sta $d3
+        tay
+        ldx #BOX_TOP_ROW+19
+        jsr JT_SET_CURSOR
         jmp JT_UPDATE_CURSOR        ; tail call -- its own rts returns
                                      ; straight to our caller
 

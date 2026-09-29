@@ -129,8 +129,7 @@ module_start:
         jsr recv_chars
         jsr recv_colors
 
-        lda #$93                 ; PETSCII clear screen
-        jsr CHROUT
+        jsr JT_CLEAR_SCREEN      ; clear screen (resident cursor homed too)
 
         jsr paint_chars
         jsr paint_colors
@@ -414,7 +413,9 @@ key_type_done:
 ; anywhere sensible. Fix: clear the screen (PETSCII $93 also homes the
 ; KERNAL cursor) right before handing control back, on both the save and
 ; cancel paths, so the prompt loop always resumes on a clean, correctly-
-; tracked screen.
+; tracked screen. (2026-09-28: via JT_CLEAR_SCREEN now, which homes the
+; resident client's own cursor -- screen-output.asm draws the screen
+; itself and no longer reads the KERNAL's.)
 edit_save:
         lda #<SAVE_LABEL
         sta scr_ptr_lo
@@ -426,8 +427,7 @@ edit_save:
                                     ; and the screen gets cleared below the
                                     ; moment the upload finishes regardless
         jsr upload_canvas
-        lda #$93                  ; clear screen + home KERNAL cursor
-        jsr CHROUT
+        jsr JT_CLEAR_SCREEN       ; clear screen + home the resident cursor
         ldx module_entry_sp        ; discard this visit's own edit_loop/
         txs                          ; dispatch call depth -- see module_
                                        ; start's own comment
@@ -514,8 +514,8 @@ edit_cancel:
         lda #0
         jsr JT_SL_SEND
         jsr JT_SL_SEND
-        lda #$93                  ; same cursor-desync fix as edit_save --
-        jsr CHROUT                 ; see that routine's comment
+        jsr JT_CLEAR_SCREEN       ; same cursor-desync fix as edit_save --
+                                     ; see that routine's comment
         ldx module_entry_sp        ; see edit_save's own comment
         txs
         jmp JT_RESUME

@@ -91,7 +91,7 @@ SL_BAUD         = 38400
 # needs its own preprocessing pass first, same as $(TARGET) itself --
 # {include:screen-handler_pp.asm} in tada-client.asm names the
 # preprocessed file, not the raw source.
-SPLIT_MODULES   = screen-handler keymap keyboard_rollover
+SPLIT_MODULES   = screen-handler screen-output keymap keyboard_rollover
 
 # Step 1: preprocess macros and constants
 $(TARGET)_pp.asm: $(TARGET).asm $(addsuffix _pp.asm,$(SPLIT_MODULES))
@@ -99,6 +99,9 @@ $(TARGET)_pp.asm: $(TARGET).asm $(addsuffix _pp.asm,$(SPLIT_MODULES))
 
 screen-handler_pp.asm: screen-handler.asm
 	$(PREPROCESSOR) screen-handler.asm
+
+screen-output_pp.asm: screen-output.asm
+	$(PREPROCESSOR) screen-output.asm
 
 keymap_pp.asm: keymap.asm
 	$(PREPROCESSOR) keymap.asm

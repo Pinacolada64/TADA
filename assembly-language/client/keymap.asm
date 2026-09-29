@@ -373,6 +373,14 @@ load_keymap_menu:
         ; printing the ?LO error.
         jmp load_overlay_error
 load_keymap_menu_ok:
+        jsr input_area_collapse   ; the popup is laid out for the default
+                                   ; rows (status bar on row 23) --
+                                   ; resume_local redraws the prompt after
+        jsr ensure_buffer_a_front ; keymap_menu.asm hardcodes SCREEN_RAM
+                                   ; as buffer A like every other overlay;
+                                   ; this loader was the one that never
+                                   ; made sure A was front (see
+                                   ; load_petscii_editor's own comment)
         jmp OVERLAY_BUF
 
 ; {alpha:pokealt} makes the `ascii` line below emit real screen codes
@@ -741,12 +749,6 @@ keymap_insert_macro_shift_done:
         jsr term_chrout             ; echo it -- preserves X/Y itself,
                                       ; so our Y (macro_text scan index)
                                       ; survives this call untouched
-        lda #0
-        sta QTSW                    ; same defensive reset read_line_
-                                      ; store/reprint_input_line already
-                                      ; do after every echoed char, in
-                                      ; case this macro's text contains
-                                      ; a literal '"'
         iny
         jmp keymap_insert_macro_scan
 keymap_insert_macro_done:
