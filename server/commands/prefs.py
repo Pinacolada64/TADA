@@ -290,7 +290,8 @@ _DATE_TIME_HELP: dict[str, list[str]] = {
     'h': [
         '',
         '|cyan|Hourglass Display|reset|',
-        "Shows the current time in front of your command prompt. Purely "
+        "Shows the current time in front of your command prompt (on the "
+        "right side of the status line, on the C64 client). Purely "
         "a visual clock -- it doesn't yet affect in-game time limits or "
         "control 12-hour (AM/PM) vs 24-hour formatting or timezone.",
         '',
@@ -647,7 +648,7 @@ async def _colors_graphics_menu(ctx) -> None:
             ['', '|yellow|Colors & Graphics|reset|', '']
             + t.render(width=cs.screen_columns)
             + ['', f"{' '.join(valid_keys)} to change, h<key> for details "
-                   f"(e.g.: h{valid_keys[0].lower()}), {return_key} to return to previous menu"
+                   f"(e.g. h{valid_keys[0].lower()}), {return_key} to go up a menu level"
                 if not ctx.player.is_expert else '', '']
         )
 
@@ -671,7 +672,7 @@ async def _colors_graphics_menu(ctx) -> None:
         elif ans == 'g':
             await _show_graphics_test(ctx)
         else:
-            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to return.')
+            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to go up a menu level.')
 
 
 async def _terminal_menu(ctx) -> None:
@@ -716,7 +717,7 @@ async def _terminal_menu(ctx) -> None:
             ['', '|yellow|Terminal Settings|reset|', '']
             + t.render(width=cs.screen_columns)
             + ['', f"{' '.join(valid_keys)} to change, h<key> for details "
-                   f"(e.g. h{valid_keys[0].lower()}), {return_key} to return", '']
+                   f"(e.g. h{valid_keys[0].lower()}), {return_key} to go up a menu level", '']
         )
 
         raw = await ctx.prompt('terminal settings', preamble_lines=menu)
@@ -738,7 +739,7 @@ async def _terminal_menu(ctx) -> None:
             from commands.c64_display import pick_c64_display
             await pick_c64_display(ctx)
         else:
-            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to return.')
+            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to go up a menu level.')
 
 
 async def _date_time_menu(ctx) -> None:
@@ -775,7 +776,7 @@ async def _date_time_menu(ctx) -> None:
             ['', '|yellow|Date & Time|reset|', '']
             + t.render(width=cs.screen_columns)
             + ['', f"{' '.join(valid_keys)} to change, h<key> for details "
-                   f"(e.g. h{valid_keys[0].lower()}), {return_key} to return", '']
+                   f"(e.g. h{valid_keys[0].lower()}), {return_key} to go up a menu level", '']
         )
 
         raw = await ctx.prompt('date & time', preamble_lines=menu)
@@ -802,7 +803,7 @@ async def _date_time_menu(ctx) -> None:
                 ctx.player.set_flag(PlayerFlags.HOURGLASS)
                 await ctx.send(f'{option}|green|On|reset|')
         else:
-            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to return.')
+            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to go up a menu level.')
 
 
 # ---------------------------------------------------------------------------

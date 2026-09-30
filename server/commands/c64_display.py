@@ -67,6 +67,14 @@ APPLY_STREAM_CONFIRM   = 0x07  # unused C64 control code -- silently
                                  # reconnect so a real Commodore client's
                                  # saved settings take effect immediately
                                  # without the player reopening PREFS.
+CLOCK_STREAM_CONFIRM   = 0x0b  # unused C64 control code -- the
+                                 # Hourglass clock (PlayerFlags.HOURGLASS),
+                                 # painted right-aligned on the client's
+                                 # status row (tada-client.asm's
+                                 # clock_recv) instead of prefixed onto
+                                 # the prompt text. Empty body = hide it.
+CLOCK_MAX  = 12  # tada-client.asm's CLOCK_MAX -- longer bodies get
+                 # truncated here rather than dropped client-side
 HEADER_LEN = 4  # STREAM_START, CONFIRM/CANCEL, len_lo, len_hi
 BODY_LEN   = 3  # border_color, bg_color, blink_speed
 
@@ -95,6 +103,15 @@ def encode_apply(border_color: int, bg_color: int, blink_speed: int) -> bytes:
     overlay."""
     body = bytes([border_color, bg_color, blink_speed])
     return bytes([STREAM_START, APPLY_STREAM_CONFIRM, len(body), 0]) + body
+
+
+def encode_clock(clock: bytes) -> bytes:
+    """Same framing as encode_apply, with CLOCK_STREAM_CONFIRM: *clock* is
+    the already PETSCII-encoded time-of-day text (b'' hides the clock),
+    truncated to CLOCK_MAX bytes -- the client reserves exactly that many
+    columns at the right end of its status row."""
+    body = clock[:CLOCK_MAX]
+    return bytes([STREAM_START, CLOCK_STREAM_CONFIRM, len(body), 0]) + body
 
 
 def encode_apply_for_player(player) -> bytes:

@@ -525,6 +525,8 @@ class PETSCIINetworkContext(GameContext):
 
     LINE_ENDING: bytes = b'\r'          # Commodore CR
     CODEC_NAME:  str   = 'petscii_c64en_lc'
+    _status_clock_shown = False     # prompt() sent a non-empty Hourglass
+                                    # clock stream that hasn't been cleared
 
     async def send(self, *lines, flush: bool = False) -> None:
         """Encode and send as raw PETSCII bytes — no JSON envelope.
@@ -634,9 +636,27 @@ class PETSCIINetworkContext(GameContext):
             self._in_turn = False
         from tada_utilities import substitute_tokens
         prompt_text = substitute_tokens(prompt_text, self.player)
-        if self.player.query_flag(PlayerFlags.HOURGLASS):
+        # Hourglass clock: a PETSCII-translation connection gets it on the
+        # right side of the C64 client's status row (a framed stream, see
+        # commands/c64_display.py's encode_clock()) rather than prefixed
+        # onto the prompt. ASCII translation keeps the old inline prefix --
+        # that player has asked for plain text, not framed binary.
+        hourglass    = self.player.query_flag(PlayerFlags.HOURGLASS)
+        status_clock = self._text_codec_name() != 'ascii'
+        if hourglass:
             clock = format_player_time(datetime.datetime.now(), self.player)
-            prompt_text = f"[{clock}] {prompt_text}"
+            if status_clock:
+                from commands.c64_display import encode_clock
+                self.writer.write(encode_clock(
+                    petscii_encode(clock, self._text_codec_name(), apply_overrides=False)))
+                self._status_clock_shown = True
+            else:
+                prompt_text = f"[{clock}] {prompt_text}"
+        if status_clock and not hourglass and self._status_clock_shown:
+            # Hourglass just turned off -- clear the clock once.
+            from commands.c64_display import encode_clock
+            self.writer.write(encode_clock(b''))
+            self._status_clock_shown = False
         if prompt_text:
             codec = codec_for_settings(self.player.client_settings)
             reset_color = codec.reset_color if isinstance(codec, PETSCIICodec) else None
