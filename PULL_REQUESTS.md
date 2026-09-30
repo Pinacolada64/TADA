@@ -31,6 +31,9 @@ Sections: Open PRs → Merged PRs (newest first).
 
 #### [#60](https://github.com/Pinacolada64/TADA/pull/60) `feature/room-notify-movement` → `master` — Room notices: movement, level-aware rooms, and other visible actions
 - **Tip:** `cd22500` (2 commits), up to date with `master`.
+- **Conflicts with #54 (merged 2026-09-30)** in one hunk of `server/simple_server.py`:
+  both insert code just before the player moves -- FOLLOW ME's `bring_followers()` and
+  the departure notice. Needs `master` merged in and the order of the two decided.
 - Movement tells the room left "Ryan moves north." / "Ryan and his party move north."
   and the room reached "Ryan enters from the south." (new `room_notices.py`, called
   from `_move()`; covers walked level changes and fleeing). Also announced now:
@@ -62,26 +65,6 @@ Sections: Open PRs → Merged PRs (newest first).
   for the server's `$0b` clock stream; lowercase charset at boot (CHR$(14)), locked
   with CHR$(11). `vice128_clock_test.py` 4/4. Also inside #59.
 
-#### [#57](https://github.com/Pinacolada64/TADA/pull/57) `fix/tips` → `master` — Tips: name/pronoun %-substitution, Spur wording, typo fixes
-- **Tip:** `0548b02` (1 commit), up to date with `master`.
-- `format_tip_box()` runs tip text through `substitute_tokens()`, so five tips in
-  `tips.json` now use `%n`/`%o`/`%p`/`%r` (name, him/her, his/her, himself/herself)
-  instead of hardcoded "your character"/"his"/"himself". BHR tip reworded ("not
-  even the almighty Spur knows") with two typo fixes; Dwarf tip "gold" → "silver".
-- 3 new tests; its full-suite run had 1 failure in `test_editplayer.py` that
-  already failed without the change.
-
-#### [#54](https://github.com/Pinacolada64/TADA/pull/54) `feature/follow-me` → `master` — Port SPUR's FOLLOW ME and STAY guild-follower commands
-- **Tip:** `9c99f63` (2 commits), up to date with `master`.
-- `follow me` (SPUR.MISC5.S `come`) recruits same-guild characters in the room with
-  Guild Follow on; `stay` (SPUR.MISC4.S) drops them off. Hybrid model: online
-  guildmates follow live on every map exit; logged-off ones are carried and dropped
-  off by STAY or on logoff (LOGON.STAY), then see "You followed <name>..." at next
-  login. Carried followers add to duel guild support. New `guild_follow.py`,
-  `commands/stay.py`; CLAUDE.md gains the `|command|...|reset|` convention.
-- Deferred (TODO.md): unconscious-carry case, guild-leader verification gate,
-  `#!`/`<<` room markers, editplayer entry for `followed_leader_name`.
-
 #### [#53](https://github.com/Pinacolada64/TADA/pull/53) `feature/keymap-editor` → `feature/help-popup` — Keymap editor: rebindable nav functions, macros, combo capture
 - **Tip:** `5112cff` (46 commits on top of `feature/help-popup`). **Stacked** — base is
   `feature/help-popup`, which has no PR of its own yet (see Feature branches below).
@@ -90,30 +73,14 @@ Sections: Open PRs → Merged PRs (newest first).
   combo capture, F7 as a rebindable entry, and `keyboard_rollover.asm` (3-key
   rollover scan replacing the stock KERNAL scan).
 
-#### [#52](https://github.com/Pinacolada64/TADA/pull/52) `feature/command-token-sweep-2` → `master` — Sweep `|command|` color tokens into remaining command mentions
-- **Tip:** `be45969` (4 commits, incl. merge of `master` `e40ae2a`), up to date with `master`.
-- Three passes of the `|command|...|reset|` markup sweep begun in #51: Help text across
-  19 command files (`8cf7e0b`), `simple_server.py`'s pre-login menu and hints
-  (`6c69f03`), and an AST-scan-driven pass over 61 more player-facing strings in 26
-  files (`be45969`): "Type/Use/Try X" instructions, quoted invocations, alias lists.
-
 #### [#50](https://github.com/Pinacolada64/TADA/pull/50) `fix/switch-consistency` → `master` — Fix `#<switch>` consistency
-- **Tip:** `50d58cf` (3 commits), **9 commits behind `master`** (needs a merge before landing).
+- **Tip:** `50d58cf` (3 commits), **behind `master` and conflicting** (2026-09-30: 4 hunks in
+  `server/commands/board/board.py` and `server/commands/news.py`, from the board rework
+  that landed after it) -- needs `master` merged in and those spots redone.
 - `board edit` accepted alongside `board #edit`; `map.py`/`teleport.py` moved onto
   `parse_args()`'s switch/positional split; `news.py`/`banner_edit.py` gain `#`-switch
   forms (`news #post`, etc.). `ban.py` deliberately left as-is. Two bot scripts
   updated to `news #post`.
-
-#### [#47](https://github.com/Pinacolada64/TADA/pull/47) `fix/dwarf-hoard-floor` → `master` — Dwarf hoard resets to a 500-silver floor, not zero
-- **Tip:** `296a0c5` (2 commits), **14 commits behind `master`** (needs a merge before landing).
-- Ports SPUR.MISC.S's original `dh=0:dl=500` payout: killing the Dwarf right
-  after someone else drained his hoard used to net **nothing**; now it's a
-  guaranteed 500-silver minimum. `encounters/dwarf.py` (`config.dwarf_silver = 500`
-  in `on_killed()`), `config.py` (setting description), `test_dwarf.py` (18 pass).
-- `96b93cd` is the original `05ddbbe` — it had been a shared base commit under
-  `feature/ooc` / `feature/say-verb-switch` / `feature/pose` (all merged without
-  it during the 2026-09-09 cleanup); `296a0c5` fixes two "gold" → "silver"
-  comments to match the port's convention.
 
 ---
 
@@ -130,6 +97,10 @@ Sections: Open PRs → Merged PRs (newest first).
 
 | PR | Merge commit | Branch | Title |
 |----|--------------|--------|-------|
+| [#54](https://github.com/Pinacolada64/TADA/pull/54) | `c859099` | `feature/follow-me` | SPUR's FOLLOW ME / STAY guild followers (`guild_follow.py`, `commands/stay.py`): online guildmates follow live on every exit, logged-off ones are carried and dropped off by STAY or at logoff; carried followers add to duel guild support. Deferred (TODO.md): unconscious-carry, guild-leader gate, `#!`/`<<` markers, editplayer entry for `followed_leader_name`. |
+| [#52](https://github.com/Pinacolada64/TADA/pull/52) | `5847aa2` | `feature/command-token-sweep-2` | `\|command\|...\|reset\|` markup swept into the remaining player-facing command mentions: help text in 19 command files, the pre-login menu and hints, and 61 more strings in 26 files. |
+| [#57](https://github.com/Pinacolada64/TADA/pull/57) | `1c7aae7` | `fix/tips` | Tips run through `substitute_tokens()` (`%n`/`%o`/`%p`/`%r` name and pronouns instead of "your character"/"his"); Spur wording and typo fixes, Dwarf tip "gold" -> "silver". |
+| [#47](https://github.com/Pinacolada64/TADA/pull/47) | `535fe60` | `fix/dwarf-hoard-floor` | Dwarf hoard resets to a 500-silver floor on kill (SPUR.MISC.S `dh=0:dl=500`), not zero. |
 | [#56](https://github.com/Pinacolada64/TADA/pull/56) | `ba85c8d` | `fix/client-load-current-drive` | C64 client: `load_petscii_editor` / `load_config_menu` LOAD overlays from the drive the client was loaded from (KERNAL FA, `$ba`, via `setlfs_current_drive`; falls back to 8 if below 8) instead of hard-coded device 8. Same fix + help/keymap sites on `feature/keymap-editor` (#53: `df5d47a`, `cd777d4`). **Not yet live-tested in VICE from drive 9.** |
 | [#55](https://github.com/Pinacolada64/TADA/pull/55) | `1e8a675` | `fix/dwarf-horse-collision` | Stop the Dwarf overwriting other monsters (`_place_dwarf()` no longer writes over an occupied room, e.g. the wild horse in rooms 30/52/68); session autouse `_isolate_dwarf_state` fixture keeps tests off the live `dwarf_state.json`. Follow-up: `room_alignment.py`, `winners.py`, `simple_server.py:737` share the hard-coded-path pattern. |
 | [#49](https://github.com/Pinacolada64/TADA/pull/49) | `1bdc83a` | `feat/text-editor-split-join` | Line editor `.e s`plit / `.e j`oin subcommands (undo/redo-checkpointed); `.e` "show buffers" moved to `.e b`. Merged alongside #51, which carried the same commits. |
