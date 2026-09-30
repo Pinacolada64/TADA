@@ -12,6 +12,23 @@ Sections: Open PRs → Merged PRs (newest first).
 
 ## Open PRs
 
+#### [#61](https://github.com/Pinacolada64/TADA/pull/61) `128-client-swiftlink` → `128-client-keymap` — Commodore 128 client: SwiftLink connection, live server text, and keymap follow-ups
+- **Tip:** `80dc99e` (3 commits on top of `128-client-keymap`). **Stacked** on #59.
+- The C128 client over SwiftLink: `swiftlink.asm` shared with the C64 via `{def: c128}`
+  (the 128 KERNAL's NMI entry saves the registers and `$FF00` itself, so the handler
+  exits via `jmp $ff33`; handler + `rx_buf` below `$4000`). "Connecting..." or
+  RUN/STOP for the offline demo; answers the 40/80 menu; server text shown while
+  typing; prompts move to the input row; clock and login color/blink streams
+  handled, popup streams skipped with a cancel reply.
+- Keymap follow-ups: banner names the scrollback page keys from the live keymap,
+  grey arrows named "Grey Up/Down/Left/Right", "Home"/"End" → "Line Start"/"Line End"
+  (C64 and 128 popups). Also `make vice128` with an emulated SwiftLink and
+  `server/tools/bot_crowd.py`.
+- `80dc99e` is a content-neutral merge of `128-client-keymap` (the branch first carried
+  #59's keymap work as copies) so the PR stacks cleanly.
+- Tests: `vice128_swiftlink_test.py` 8/8, keymap 9/9, VDC 8/8, clock 4/4. Not yet tried:
+  login color apply with a real account, Keymap Editor Save while online, real hardware.
+
 #### [#60](https://github.com/Pinacolada64/TADA/pull/60) `feature/room-notify-movement` → `master` — Room notices: movement, level-aware rooms, and other visible actions
 - **Tip:** `cd22500` (2 commits), up to date with `master`.
 - Movement tells the room left "Ryan moves north." / "Ryan and his party move north."
@@ -37,8 +54,7 @@ Sections: Open PRs → Merged PRs (newest first).
   popup into its own `keymap_menu_128.asm` and makes scrollback paging a rebindable
   Page Up/Page Down on Alt + the grey arrows, replacing the C= + CRSR paging and the
   Makefile `sed` build the description still mentions.
-- Superseded in practice by `128-client-swiftlink` (see Feature branches), which
-  carries all of this plus SwiftLink.
+- #61 (`128-client-swiftlink`, SwiftLink) is stacked on this PR.
 
 #### [#58](https://github.com/Pinacolada64/TADA/pull/58) `128-client-hourglass` → `128-client` — client-128: Hourglass clock on the status row; lowercase charset, locked
 - **Tip:** `8ef87c8` (1 commit), up to date with `128-client`.
@@ -106,7 +122,6 @@ Sections: Open PRs → Merged PRs (newest first).
 | Branch | Tip | Status |
 |--------|-----|--------|
 | `feat/helpstaff` | `52b49ca` | WIP snapshot — `helpstaff` command (ask an available staffer for help: request → relay to `PlayerFlags.HELPSTAFF_AVAILABLE` players → first to `helpstaff accept <name>` is teleported in). 182-line command + 237-line test, recovered verbatim from tag `pre-30-cleanup` after the #30 mishap. **Not wired**: still needs the `HELPSTAFF_AVAILABLE` flag added to `flags.py`, `Server.pending_help_requests` init, command registration, and an editplayer toggle. Isolated test run: 5 pass / 9 fail (all on the missing flag). |
-| `128-client-swiftlink` | `8b698b4` | The C128 client over SwiftLink (`910c711`): `swiftlink.asm` shared with the C64 via `{def: c128}` (128 NMI entry/exit via `$FF33`); "Connecting..." or RUN/STOP for the offline demo; answers the 40/80 menu; server text shown mid-typing; prompts moved to the input row; clock/apply streams handled, popup streams skipped with a cancel reply. Also carries #59's keymap work (as copies in `910c711`, not shared history — built on `142a97e`), "Line Start"/"Line End" labels, and `tools/bot_crowd.py` (`8b698b4`). Tests: `vice128_swiftlink_test.py` 8/8, keymap 9/9, VDC 8/8, clock 4/4. No PR yet — would go on top of `feature/kernal-free-screen` like #59. |
 | `feature/help-popup` | `e5ce52f` | Native C64 help / keyboard-shortcuts / credits popup overlay (`help_menu.asm` + `commands/help_menu.py`, 8 commits). Pushed to `origin` 2026-09-09 as a backup — was local-only. Supersedes the two overlay commits on the now-deleted `dwarf-hoard-floor`. **Needs a live end-to-end retest** before a PR (see the `LOAD $05` history). #53 (`feature/keymap-editor`) is stacked on this branch. |
 
 ---
