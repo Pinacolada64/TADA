@@ -81,7 +81,7 @@ class PageCommand(Command):
                                                  'matter what room either of you is in.'),
             ('page Alice,Bob=Party at the inn', 'Comma-separate names to page several '
                                                  'people the same message at once.'),
-            ('page #friends=Where is everyone?','A saved GROUPS name (see GROUPS) works '
+            ('page #friends=Where is everyone?','A saved GROUPS name (see |command|GROUPS|reset|) works '
                                                  "as a target too, paging everyone in it "
                                                  'without listing them by name.'),
             ('page #r=on my way',              "'#reply' (or '#r') stands in for the "
@@ -92,7 +92,7 @@ class PageCommand(Command):
                                                  'newest first, with how long ago.  '
                                                  "'#last 5' also saves 5 as the number "
                                                  'of entries to show (1-10).'),
-            ('p Bob=Meet me at the inn',        "'p' (also 'tell'/'msg') is a shorter "
+            ('p Bob=Meet me at the inn',        "|command|p|reset| (also |command|tell|reset|/|command|msg|reset|) is a shorter "
                                                  'alias for page -- all work the same '
                                                  'way.'),
             ('page #ignore Bob',                "'#ignore' blocks a specific player's "
@@ -101,7 +101,7 @@ class PageCommand(Command):
                                                  "'#unignore' him."),
             ('page #haven',                     "'#haven' blocks everyone's pages at "
                                                  "once, not just one player -- lasts "
-                                                 "until you type 'page #unhaven'."),
+                                                 "until you type |command|page #unhaven|reset|."),
         ],
         notes = [
             'Use [whisper] to restrict delivery to players in your room.',

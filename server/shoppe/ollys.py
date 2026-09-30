@@ -421,7 +421,7 @@ async def _help_section(ctx: GameContext) -> None:
         '',
         *underline('How Ammo Works', ctx),
         'Projectile and energy weapons require ammunition to fire. '
-        'Purchase ammo here, then [USE] the ammo item to load it into '
+        'Purchase ammo here, then |command|USE|reset| the ammo item to load it into '
         'your readied weapon.  Rounds are consumed one-per-shot in '
         'combat.  When you run out you cannot [ATTACK] until you reload.',
         '',

@@ -908,7 +908,7 @@ class CombatSession:
             # ---- Per-round status warnings (SPUR.COMBAT.S lines 21-25, 88) ----
             hp = getattr(player, 'hit_points', 1)
             if hp < 9:
-                await ctx.send('[+] HP DANGEROUSLY LOW [+]  (FLEE might be wiser!)')
+                await ctx.send('[+] HP DANGEROUSLY LOW [+]  (|command|FLEE|reset| might be wiser!)')
             for warn in _survival_warnings(player):
                 await ctx.send(warn)
 
@@ -1366,7 +1366,7 @@ class CombatSession:
             wn   = result.weapon_name or 'weapon'
             term = _ammo_term(wn).upper() + 'S'
             await ctx.send(f'NO {term} READY for the {wn}!')
-            await ctx.send('(Try USE to load ammunition first.)')
+            await ctx.send('(Try |command|USE|reset| to load ammunition first.)')
             return
         if result.bad_weapon_choice:
             await ctx.send('(bad weapon choice)')

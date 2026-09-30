@@ -34,7 +34,7 @@ class AskCommand(Command):
         ],
         examples = [
             ('ask riddle',           'ASK works like SAY, but always phrased as a question. '
-                                      "In Gollum's cave, while he's alive, \"ask riddle\" opens a "
+                                      "In Gollum's cave, while he's alive, |command|ask riddle|reset| opens a "
                                       'menu of riddles to pose to him instead of broadcasting text.'),
             ('ask What time is it?', 'Everywhere else (or once Gollum is gone), ASK just '
                                       'broadcasts your question to the room using the "asks" '

@@ -177,7 +177,7 @@ class WearCommand(Command):
                 player.unsaved_changes = True
                 lines = ['Ring worn!  You are hard to see!']
                 if not player.is_expert:
-                    lines.append('(WEAR again to remove)')
+                    lines.append('(|command|WEAR|reset| again to remove)')
                 lines.append('THE EVIL SENSES YOU MORE CLEARLY!')
                 stats = getattr(player, 'stats', None) or {}
                 pt = int(stats.get('Constitution', 10))
@@ -201,7 +201,7 @@ class WearCommand(Command):
                 player.unsaved_changes = True
                 lines = ['Crystal Pendant worn!']
                 if not player.is_expert:
-                    lines.append('(WEAR again to remove)')
+                    lines.append('(|command|WEAR|reset| again to remove)')
                 await ctx.send(lines)
             else:
                 player.clear_flag(PlayerFlags.PENDANT_WORN)

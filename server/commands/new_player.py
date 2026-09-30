@@ -191,8 +191,8 @@ class NewPlayerCommand(Command):
             ("new <username> <password>",  "Skip the username/password prompts."),
         ],
         notes = [
-            "Type 'help', 'h', or '?' at any prompt for assistance.",
-            "You may type 'quit' at any time to abandon character creation.",
+            "Type |command|help|reset|, |command|h|reset|, or |command|?|reset| at any prompt for assistance.",
+            "You may type |command|quit|reset| at any time to abandon character creation.",
         ],
     )
 
@@ -413,7 +413,7 @@ async def _handle_abandon_or_pause(ctx, step_num: int, prefill_password: Optiona
         try:
             await ctx.send(
                 '', "Character creation abandoned. Feel free to try again "
-                "any time with 'new'.",
+                "any time with |command|new|reset|.",
             )
         except Exception:
             pass
@@ -505,7 +505,7 @@ async def _choose_username(ctx, prefill: Optional[str] = None,
         if len(candidate) >= 3 and not _username_taken(candidate):
             default_username = candidate
 
-    preamble = ["", "('quit' or 'q' abandons choosing a user name.)",
+    preamble = ["", "(|command|quit|reset| or |command|q|reset| abandons choosing a user name.)",
                 "Your name must be at least 3 characters.",
                 "Choose a username (letters and numbers only).",
                 "(This is for a planned integration with CommodoreServer.com "
