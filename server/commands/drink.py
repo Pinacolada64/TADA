@@ -64,6 +64,8 @@ class DrinkCommand(Command):
                 if player.drink is not None \
                 and not player.is_expert else ''
             await ctx.send(f'You kneel and drink your fill.{non_expert}')
+            from room_notices import notify, the, who
+            await notify(ctx, f'{who(player)} kneels and drinks from the pool.')
             return CommandResult.ok()
 
         entries = _drink_entries(player)
@@ -117,6 +119,8 @@ class DrinkCommand(Command):
         inv = getattr(player, 'inventory', None)
         if inv is not None:
             inv.remove(item)
+        from room_notices import notify, the, who
+        await notify(ctx, f'{who(player)} drinks {the(name)}.')
 
         # GREEN MOONSHINE — causes poison (SPUR.SUB.S moonshin subroutine).
         if 'MOONSHINE' in uname:

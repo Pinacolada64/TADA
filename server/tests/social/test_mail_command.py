@@ -321,7 +321,7 @@ class TestComposeOnlineNotify(MailCommandTestCase):
              patch('commands.mail.find_online', return_value=([target_ctx], [])):
             run(MailCommand().execute(ctx, 'Alice=hi'))
         sent = str(target_ctx.send.call_args)
-        self.assertIn("type 'mail' to read", sent)
+        self.assertIn("type |command|mail|reset| to read", sent)
 
     def test_notify_omits_hint_for_expert(self):
         target_ctx = self._online_target_ctx(is_expert=True)
@@ -330,7 +330,7 @@ class TestComposeOnlineNotify(MailCommandTestCase):
              patch('commands.mail.find_online', return_value=([target_ctx], [])):
             run(MailCommand().execute(ctx, 'Alice=hi'))
         sent = str(target_ctx.send.call_args)
-        self.assertNotIn("type 'mail' to read", sent)
+        self.assertNotIn("to read)", sent)
         self.assertIn('You have new mail from bob.', sent)
 
     def test_short_message_does_not_notify_offline_target(self):

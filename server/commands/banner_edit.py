@@ -68,7 +68,7 @@ class BannerEditCommand(Command):
                 return CommandResult.fail('No banner name given.')
             return await self._edit(ctx, ' '.join(rest))
 
-        await ctx.send(f'Unknown "banner" subcommand: {sub!r}. Try "banner list" or "banner edit <name>".')
+        await ctx.send(f'Unknown "banner" subcommand: {sub!r}. Try |command|banner list|reset| or |command|banner edit <name>|reset|.')
         return CommandResult.fail('Unknown subcommand.', error='unknown_subcommand')
 
     async def _list(self, ctx) -> CommandResult:

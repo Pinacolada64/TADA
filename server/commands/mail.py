@@ -120,11 +120,11 @@ class MailCommand(Command):
             'Unread mail is announced when you log in.',
             'Inside the listing, a bare number reads that message; '
             "'d<n>' deletes it.",
-            "'mail #read' walks your mailbox one message at a time with "
+            "|command|mail #read|reset| walks your mailbox one message at a time with "
             'a Reply/Delete/Archive/Keep menu -- requires Prompt Mode '
             '(PREFS) on and more than one message.',
             'MAIL always leaves a letter in the mailbox, whether or not '
-            'the recipient is online -- use PAGE for a live message.',
+            'the recipient is online -- use |command|PAGE|reset| for a live message.',
         ],
     )
 
@@ -430,7 +430,7 @@ class MailCommand(Command):
             mail_store.add_message(name, ctx.player.name, body)
 
         for tctx in online_ctxs:
-            hint = '' if tctx.player.is_expert else " (type 'mail' to read)"
+            hint = '' if tctx.player.is_expert else " (type |command|mail|reset| to read)"
             await tctx.send(f'You have new mail from {ctx.player.name}.{hint}')
 
     async def _compose(self, ctx, args: tuple) -> CommandResult:

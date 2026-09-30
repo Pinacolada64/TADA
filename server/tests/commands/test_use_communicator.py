@@ -60,7 +60,10 @@ class _FakeCtx:
         self.server.game_map.levels = {n: {1: MagicMock()} for n in range(1, 8)}
         self.server._teleport_to = AsyncMock()
         self.sent: list = []
+        self.room_said: list = []     # room_notices' beam out/in lines
         self.send = AsyncMock(side_effect=self._record)
+        self.send_room = AsyncMock(
+            side_effect=lambda line, exclude_self=False: self.room_said.append(line))
         self.prompt = AsyncMock(return_value=confirm)
 
     async def _record(self, msg, **kwargs):
@@ -101,6 +104,9 @@ class TestSuccessfulBeamAboard(unittest.IsolatedAsyncioTestCase):
         ctx.server._teleport_to.assert_awaited_once_with(ctx, 6, 1)
         self.assertIn('The device hums strangely!', ctx.flat())
         self.assertIn("Standby to beam aboard", ctx.flat())
+        # the room left sees them go, the ship's room sees them arrive
+        self.assertEqual(ctx.room_said, [f'{player.name} shimmers and fades away!',
+                                         f'{player.name} shimmers into view!'])
 
     async def test_declining_confirm_prompt_does_not_teleport(self):
         player = _make_player()
@@ -180,6 +186,9 @@ class TestMalfunctionRisk(unittest.IsolatedAsyncioTestCase):
         flat = ctx.flat()
         self.assertIn('A strange buzzing comes from the communicator!!', flat)
         self.assertIn('MALFUNCTION', flat)
+        self.assertEqual(ctx.room_said, [
+            f'{player.name} flickers erratically and vanishes!',
+            f'{player.name} flickers into view, looking dazed.'])
 
     async def test_malfunction_does_not_prompt_for_confirmation(self):
         player = _make_player()

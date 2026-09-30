@@ -142,9 +142,9 @@ class DropCommand(Command):
             ('drop',         'DROP takes item off your hands and leaves it in the room. '
                               'With no name given, it lists your inventory and lets you '
                               'pick which item to drop by number.'),
-            ('drop guide',   "Naming an item drops it directly -- \"drop guide\" drops "
+            ('drop guide',   "Naming an item drops it directly -- |command|drop guide|reset| drops "
                               "the Adventurer's Guide without going through the list."),
-            ('drop sword',   'The name only needs to be a partial match, so "drop sword" '
+            ('drop sword',   'The name only needs to be a partial match, so |command|drop sword|reset| '
                               'drops whatever you\'re carrying with "sword" anywhere in '
                               'its name (a Long Sword, say) without typing it in full.'),
         ],

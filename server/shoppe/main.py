@@ -254,7 +254,7 @@ async def _show_menu(ctx: GameContext) -> None:
     for key, label, _ in _menu_entries(ctx):
         lines.append(f'  [{key}] {label}')
     lines += ['  [LOCKER] Private Locker', '  [SCHOOL] Formal Shield Training',
-              '  [X] Leave the Shoppe', '']
+              '  [Q] Leave the Shoppe', '']
     await ctx.send(lines)
 
 
@@ -320,7 +320,12 @@ async def _shoppe_session(ctx: GameContext, player) -> None:
 
         cmd = full[:1]
 
-        if cmd == 'x':
+        # [Q] leaves, like nearly every other menu's [Q] Leave / [Q]uit
+        # (it was [X]; 'x' still works for anyone used to it). An exact
+        # 'q' only -- unlike the one-letter menu keys below, a first-letter
+        # match would walk the player out on e.g. 'quote', which
+        # try_global_command() should get instead.
+        if full == 'q' or cmd == 'x':
             await ctx.send(f'You climb back up the passageway into the daylight.')
             break
 
@@ -340,7 +345,7 @@ async def _shoppe_session(ctx: GameContext, player) -> None:
             pass
         else:
             keys = '/'.join(k for k, _, _ in menu)
-            await ctx.send(f'"{raw.strip()}"? ({keys}/[X] Leave)')
+            await ctx.send(f'"{raw.strip()}"? ({keys}/[Q] Leave)')
 
 
 # ---------------------------------------------------------------------------

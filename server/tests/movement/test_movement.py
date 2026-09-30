@@ -83,7 +83,7 @@ def test_moving_to_room_37_on_a_different_level_does_not_enter_bar():
     the player's level -- confirmed live, moving to room 49 on a
     different level dropped the player straight into the bar. The real
     trigger is level-gated in the original source (see the test above),
-    same as its Allys Guild/Jake's Stable siblings.
+    same as its Allies' Guild/Jake's Stable siblings.
     """
     s = Server('127.0.0.1', 0)
 

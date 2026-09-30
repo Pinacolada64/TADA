@@ -39,7 +39,7 @@ class TipsCommand(Command):
                          "next one in the sequence, whether you got here manually or "
                          "via a login tip."),
             ('tips #off', "By default a tip shows automatically at each login -- "
-                          "'#off' turns that off; TIPS still works fine typed manually, "
+                          "'#off' turns that off; |command|TIPS|reset| still works fine typed manually, "
                           "'#on' turns automatic display back on."),
         ],
         description = (
@@ -62,7 +62,7 @@ class TipsCommand(Command):
         if '#off' in switches:
             player.command_settings.tips.enabled = False
             player.unsaved_changes = True
-            await ctx.send("Tips won't be shown when you log in. (TIPS still works any time.)")
+            await ctx.send("Tips won't be shown when you log in. (|command|TIPS|reset| still works any time.)")
             return CommandResult.ok('Tips disabled.')
 
         all_tips = load_tips()

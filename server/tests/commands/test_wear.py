@@ -35,6 +35,10 @@ class _FakeCtx:
     def __init__(self, player):
         self.player = player
         self._sent: list[str] = []
+        self.room_said: list = []
+
+    async def send_room(self, line, exclude_self=False):
+        self.room_said.append(line)   # room_notices' lines for bystanders
 
     async def send(self, msg, **kwargs):
         if isinstance(msg, list):
@@ -158,6 +162,7 @@ class TestWearArmorSetsActiveArmorId(unittest.IsolatedAsyncioTestCase):
         await WearCommand().execute(ctx, 'leather armor')
         self.assertEqual(player.active_armor_id, 24)
         self.assertEqual(player.armor, 100)
+        self.assertEqual(ctx.room_said, [f'{player.name} puts on the leather armor.'])
 
     async def test_worn_armor_rating_reflects_its_own_condition(self):
         player = _make_player()

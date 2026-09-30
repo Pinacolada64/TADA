@@ -66,7 +66,7 @@ class UnreadyCommand(Command):
                                  "anything. When a party ally has a weapon readied "
                                  "too, UNREADY lists every readied weapon (yours and "
                                  "theirs) and lets you pick one -- the mirror of "
-                                 "READY's list. Name a party ally (\"unready alan\") "
+                                 "READY's list. Name a party ally (|command|unready alan|reset|) "
                                  "to repack theirs directly.")],
     )
 

@@ -330,12 +330,18 @@ class GameContext(BaseContext):
 
         Dispatching through ctx.send() ensures each client gets the right
         encoding (JSON for ANSI clients, raw PETSCII bytes for C64 clients).
+        Same room means same level and same virtual area too -- room
+        numbers repeat on every level, and the Shoppe shares its room
+        number with the lobby above it (see room_notices.location_of()).
         """
-        my_room = getattr(self.client, 'room', None)
+        from room_notices import location_of
+        here = (int(getattr(self.player, 'map_level', 1) or 1),
+                getattr(self.client, 'room', None),
+                location_of(self.client)[2])       # the virtual area, if any
         for addr, other_client in self.server.clients.items():
             if exclude_self and other_client is self.client:
                 continue
-            if getattr(other_client, 'room', None) != my_room:
+            if location_of(other_client) != here:
                 continue
             other_ctx = getattr(other_client, 'ctx', None)
             if other_ctx:
@@ -692,12 +698,16 @@ class PETSCIINetworkContext(GameContext):
             return None
 
     async def send_room(self, *lines, exclude_self: bool = False) -> None:
-        """Broadcast via each recipient's own ctx so encoding is correct."""
-        my_room = getattr(self.client, 'room', None)
+        """Broadcast via each recipient's own ctx so encoding is correct.
+        Same room, level and virtual area -- see GameContext.send_room()."""
+        from room_notices import location_of
+        here = (int(getattr(self.player, 'map_level', 1) or 1),
+                getattr(self.client, 'room', None),
+                location_of(self.client)[2])       # the virtual area, if any
         for addr, other_client in self.server.clients.items():
             if exclude_self and other_client is self.client:
                 continue
-            if getattr(other_client, 'room', None) != my_room:
+            if location_of(other_client) != here:
                 continue
             other_ctx = getattr(other_client, 'ctx', None)
             if other_ctx:

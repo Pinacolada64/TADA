@@ -279,11 +279,11 @@ async def main(ctx: GameContext, bar=None) -> None:
     ])
     await broadcast_open_room(ctx, f'{player.name} wanders into the stable.')
 
-    await enter_area(ctx, 'JakesStable')
+    await enter_area(ctx, "Jake's Stable")
     try:
         await _stable_session(ctx)
     finally:
-        await leave_area(ctx, 'JakesStable')
+        await leave_area(ctx, "Jake's Stable")
 
 
 async def _stable_session(ctx: GameContext) -> None:

@@ -112,7 +112,7 @@ class ShutdownCommand(Command):
     async def _schedule(self, ctx, server, raw_minutes: str) -> CommandResult:
         existing = getattr(server, '_shutdown_task', None)
         if existing is not None and not existing.done():
-            await ctx.send('A shutdown is already scheduled. Use "shutdown #cancel" first.')
+            await ctx.send('A shutdown is already scheduled. Use |command|shutdown #cancel|reset| first.')
             return CommandResult.fail('Already scheduled.', error='already_scheduled')
 
         if raw_minutes.strip().lower() == 'now':

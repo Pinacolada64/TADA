@@ -547,7 +547,7 @@ class GetCommand(Command):
 
         # --- Fireplace: USE only (SPUR.MISC.S:285) ---
         if item_cat == ItemCategory.ITEM and item_id == _FIREPLACE:
-            await ctx.send('You can only USE this..')
+            await ctx.send('You can only |command|USE|reset| this..')
             return CommandResult.ok()
 
         # --- Obelisk: too large to move (SPUR.MISC.S:287) ---
