@@ -12,14 +12,7 @@ Sections: Open PRs → Merged PRs (newest first).
 
 ## Open PRs
 
-#### [#50](https://github.com/Pinacolada64/TADA/pull/50) `fix/switch-consistency` → `master` — Fix `#<switch>` consistency
-- **Tip:** `50d58cf` (3 commits), **behind `master` and conflicting** (2026-09-30: 4 hunks in
-  `server/commands/board/board.py` and `server/commands/news.py`, from the board rework
-  that landed after it) -- needs `master` merged in and those spots redone.
-- `board edit` accepted alongside `board #edit`; `map.py`/`teleport.py` moved onto
-  `parse_args()`'s switch/positional split; `news.py`/`banner_edit.py` gain `#`-switch
-  forms (`news #post`, etc.). `ban.py` deliberately left as-is. Two bot scripts
-  updated to `news #post`.
+_None open right now._
 
 ---
 
@@ -35,6 +28,7 @@ Sections: Open PRs → Merged PRs (newest first).
 
 | PR | Merge commit | Branch | Title |
 |----|--------------|--------|-------|
+| [#50](https://github.com/Pinacolada64/TADA/pull/50) | `d64bf82` | `fix/switch-consistency` | `#<switch>` consistency: `board edit` accepted alongside `board #edit`; `map.py`/`teleport.py` on `parse_args()`'s switch/positional split; `news`/`banner` admin sub-actions `#`-only (`news #post`, `banner #list`, ...) with a "needs a '#'" hint for the bare form. Master merged in first (`50bfeac`): 7 hunks against #51/#52's help-text rework, kept master's `\|command\|` text with the `#` spellings. |
 | [#61](https://github.com/Pinacolada64/TADA/pull/61) | `f0092cf` | `128-client-swiftlink` | The whole C64/C128 client stack in one merge (91 commits): C64 help popup (`feature/help-popup`), Keymap Editor (#53), KERNAL-free screen output + two-row input area + lost-lines fix + Hourglass clock (`feature/kernal-free-screen`); the native C128 client (#58 and earlier), its 80-column VDC output with scrollback and built-in Keymap Editor (`KEYMAP128.CFG`, Alt, Page Up/Down on Alt + grey arrows, #59), and SwiftLink play. All C64/x128 VICE suites pass; **real-hardware tests still pending** for both clients. |
 | [#59](https://github.com/Pinacolada64/TADA/pull/59) | `80dc99e` (via #61) | `128-client-keymap` | C128 80-column VDC output, 150-line scrollback, built-in Keymap Editor (forked `keymap_menu_128.asm`). Landed inside #61. |
 | [#58](https://github.com/Pinacolada64/TADA/pull/58) | `8ef87c8` (via #61) | `128-client-hourglass` | C128 Hourglass clock on the status row; lowercase charset, locked. Landed inside #61. |
