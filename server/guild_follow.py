@@ -52,6 +52,7 @@ import os
 from pathlib import Path
 
 from base_classes import Guild, RoomAlignment
+from flags import PlayerFlags
 
 log = logging.getLogger(__name__)
 
@@ -293,34 +294,79 @@ async def stop_following(ctx, message: str = 'You stop following {leader}.') -> 
     return True
 
 
-async def bring_followers(ctx, *, from_level: int, from_room: int,
-                          to_level: int, to_room: int, direction: str) -> None:
-    """Leader just took a normal map exit: walk every live follower still
-    standing in the room the leader left along with them. Followers who
-    aren't there any more (or are busy in a shop, fight, or duel) are left
-    behind and their link dropped."""
-    followers = live_followers(ctx.server, ctx.player)
-    if not followers:
-        return
-    from base_classes import compass_txts
-    from visited_rooms import mark_visited
-    leader = ctx.player
-    way = compass_txts.get(direction, direction).lower()
-    for fctx in followers:
+class MovingGroup:
+    """Who goes along when a leader takes an exit (gather_group()):
+    `moving` -- live followers' contexts, still in the room the leader is
+    leaving; `lost` -- live followers who aren't (or are busy in a shop,
+    fight or duel), whose link gets dropped; `carried` -- the logged-off
+    guildmates the leader carries along ({'id', 'name'} dicts).
+    `following` / `unconscious` split everyone moving by whether they walk
+    or are carried -- room_notices' group lines name the first and give the
+    second a "carries ..., who is unconscious" line."""
+
+    def __init__(self, moving, lost, carried):
+        self.moving = moving
+        self.lost = lost
+        self.carried = carried
+        self.following = []
+        self.unconscious = []
+        for fctx in moving:
+            (self.unconscious if _is_unconscious(fctx.player) else self.following).append(
+                fctx.player.name)
+        for entry in carried:
+            (self.unconscious if entry.get('unconscious') else self.following).append(
+                entry.get('name') or entry.get('id'))
+
+    @property
+    def clients(self) -> list:
+        return [fctx.client for fctx in self.moving]
+
+    def __bool__(self) -> bool:
+        return bool(self.following or self.unconscious)
+
+
+def _is_unconscious(player) -> bool:
+    try:
+        return bool(player.query_flag(PlayerFlags.UNCONSCIOUS))
+    except Exception:
+        return False
+
+
+def gather_group(ctx, *, from_level: int, from_room: int) -> MovingGroup:
+    """Sort the leader's followers for a move out of from_level/from_room --
+    see MovingGroup. Changes nothing yet."""
+    moving, lost = [], []
+    for fctx in live_followers(ctx.server, ctx.player):
         fplayer = fctx.player
         fclient = fctx.client
         same_spot = (int(getattr(fplayer, 'map_level', 1) or 1) == int(from_level)
                      and int(getattr(fclient, 'room', 0) or 0) == int(from_room))
         busy = (getattr(fclient, 'virtual_location', None)
                 or getattr(fplayer, 'active_duel', None) is not None)
-        if not same_spot or busy:
-            fplayer.guild_following = None
-            try:
-                await fctx.send(f'You lose track of {leader.name}.')
-            except Exception:
-                pass
-            continue
-        leave_combat = getattr(ctx.server, '_leave_combat_on_move', None)
+        (lost if not same_spot or busy else moving).append(fctx)
+    return MovingGroup(moving, lost, carried(ctx.player))
+
+
+async def lose_track(ctx, group: MovingGroup) -> None:
+    """Drop the link of every follower the leader is leaving behind."""
+    for fctx in group.lost:
+        fctx.player.guild_following = None
+        try:
+            await fctx.send(f'You lose track of {ctx.player.name}.')
+        except Exception:
+            pass
+
+
+def relocate_followers(ctx, group: MovingGroup, *, from_room: int,
+                       to_level: int, to_room: int) -> None:
+    """Move the group's live followers to the leader's destination, without
+    a word yet -- done before the leader moves, so the leader's own view of
+    the new room lists them. show_followers() tells them afterwards."""
+    from visited_rooms import mark_visited
+    leave_combat = getattr(ctx.server, '_leave_combat_on_move', None)
+    for fctx in group.moving:
+        fplayer = fctx.player
+        fclient = fctx.client
         if callable(leave_combat):
             leave_combat(fctx, from_room)
         fplayer.map_level = int(to_level)
@@ -332,11 +378,34 @@ async def bring_followers(ctx, *, from_level: int, from_room: int,
         fplayer.map_room = int(to_room)
         fplayer.unsaved_changes = True
         mark_visited(fplayer, int(to_level), int(to_room))
+
+
+async def show_followers(ctx, group: MovingGroup, direction: str) -> None:
+    """"You follow Rulan north." and the new room, for each live follower --
+    after the leader has arrived, so the room they see includes them."""
+    from base_classes import compass_txts
+    way = compass_txts.get(direction, direction).lower()
+    for fctx in group.moving:
         try:
-            await fctx.send(f'You follow {leader.name} {way}.')
+            await fctx.send(f'You follow {ctx.player.name} {way}.')
             await ctx.server._show_room(fctx)
         except Exception:
-            log.exception('guild_follow: failed to show room to %s', fplayer.name)
+            log.exception('guild_follow: failed to show room to %s', fctx.player.name)
+
+
+async def bring_followers(ctx, *, from_level: int, from_room: int,
+                          to_level: int, to_room: int, direction: str) -> None:
+    """Leader just took a normal map exit: walk every live follower still
+    standing in the room the leader left along with them. Followers who
+    aren't there any more (or are busy in a shop, fight, or duel) are left
+    behind and their link dropped. simple_server.py's _move() calls the
+    steps (gather_group / lose_track / relocate_followers /
+    show_followers) separately, to fit the leader's own move and the room
+    notices between them; this runs them back to back."""
+    group = gather_group(ctx, from_level=from_level, from_room=from_room)
+    await lose_track(ctx, group)
+    relocate_followers(ctx, group, from_room=from_room, to_level=to_level, to_room=to_room)
+    await show_followers(ctx, group, direction)
 
 
 async def drop_off_on_logoff(ctx) -> None:

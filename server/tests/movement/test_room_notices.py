@@ -73,6 +73,42 @@ class TestLines(unittest.TestCase):
         self.assertEqual(the('An Old Map'), 'An Old Map')
         self.assertEqual(the('Anvil'), 'the Anvil')
 
+    def test_names_phrase(self):
+        from room_notices import names_phrase
+        self.assertEqual(names_phrase(['Frodo']), 'Frodo')
+        self.assertEqual(names_phrase(['Frodo', 'Sam']), 'Frodo and Sam')
+        self.assertEqual(names_phrase(['Frodo', 'Sam', 'Pippin']), 'Frodo, Sam and Pippin')
+
+    def test_group_lines(self):
+        from room_notices import (carry_line, group_arrival_line, group_departure_line,
+                                  leader_departure_line, you_carry_line)
+        rulan = _player('Rulan')
+        two = ['Frodo', 'Sam']
+        self.assertEqual(group_departure_line(rulan, 'n', two),
+                         'Rulan leaves north, with Frodo and Sam following.')
+        self.assertEqual(leader_departure_line('n', two),
+                         'You leave north, with Frodo and Sam following.')
+        self.assertEqual(group_arrival_line(rulan, 'n', two),
+                         'Rulan arrives from the south, with Frodo and Sam following.')
+        self.assertEqual(group_departure_line(rulan, 'u', ['Frodo']),
+                         'Rulan goes up, with Frodo following.')
+        self.assertEqual(leader_departure_line('d', ['Frodo']),
+                         'You go down, with Frodo following.')
+        self.assertEqual(group_arrival_line(rulan, 'u', ['Frodo']),
+                         'Rulan arrives from below, with Frodo following.')
+        ann = _player('Ann', Gender.FEMALE, party=['Fat Olaf'])
+        self.assertEqual(group_departure_line(ann, 'e', ['Frodo']),
+                         'Ann and her party leave east, with Frodo following.')
+        # nobody conscious following: the plain lines, and nothing for the leader
+        self.assertEqual(group_departure_line(rulan, 'n', []), 'Rulan moves north.')
+        self.assertEqual(group_arrival_line(rulan, 'n', []), 'Rulan enters from the south.')
+        self.assertIsNone(leader_departure_line('n', []))
+        self.assertEqual(carry_line(rulan, ['Bilbo']), 'Rulan carries Bilbo, who is unconscious.')
+        self.assertEqual(carry_line(rulan, ['Bilbo', 'Sam']),
+                         'Rulan carries Bilbo and Sam, who are unconscious.')
+        self.assertEqual(you_carry_line(['Bilbo']), 'You carry Bilbo, who is unconscious.')
+        self.assertIsNone(carry_line(rulan, []))
+
     def test_mount_lines(self):
         ann = _player('Ann', Gender.FEMALE)
         self.assertEqual(mount_line(ann, 'Blaze'), 'Ann climbs onto Blaze.')
@@ -135,29 +171,45 @@ class TestMoveNotifies(unittest.IsolatedAsyncioTestCase):
             (13, 'Ryan enters from the north.', True),
         ])
 
-    async def test_departure_before_follow_me_followers_move(self):
-        """The room left hears the leader go before FOLLOW ME moves the
-        followers (guild_follow.bring_followers), so they see their leader
-        leave, then "You follow ..."; the arrival goes out after both."""
+    async def test_group_moves_as_one_with_follow_me(self):
+        """A FOLLOW ME leader moves as one group (guild_follow.py): the room
+        left and the room reached each get one line naming the followers,
+        plus a "carries ... unconscious" line; the leader reads its own
+        version; followers get only "You follow ...", after they've been
+        moved -- and aren't sent the group lines."""
+        from flags import PlayerFlags
         server = Server('127.0.0.1', 0, 0)
         server.game_map = _map()
-        ctx = MagicMock()
-        ctx.client.room = 1
-        ctx.player = _player()
-        ctx.player.map_room = 1
-        ctx.send = AsyncMock()
-        events = []
 
-        async def send_room(line, exclude_self=False):
-            events.append(('room', ctx.client.room, line))
-        ctx.send_room = send_room
+        def person(name, room, *, following=None, unconscious=False):
+            player = _player(name)
+            player.id = name.lower()
+            player.map_room = room
+            player.guild_following = following
+            player.carried_followers = []
+            player.quote = None
+            player.query_flag = lambda flag, u=unconscious: u and flag == PlayerFlags.UNCONSCIOUS
+            client = SimpleNamespace(room=room, presence_area=None, virtual_location=None)
+            got = []
 
-        async def bring_followers(ctx_, **kwargs):
-            events.append(('followers', kwargs['from_room'], kwargs['to_room']))
+            async def send(*lines):
+                for line in lines:
+                    got.extend(line if isinstance(line, list) else [line])
+            ctx = SimpleNamespace(player=player, client=client, server=server, send=send)
+            client.ctx = ctx
+            return ctx, got
+
+        leader, leader_got = person('Rulan', 1)
+        leader.player.carried_followers = [{'id': 'pippin', 'name': 'Pippin'}]
+        frodo, frodo_got = person('Frodo', 1, following='rulan')
+        sam, sam_got = person('Sam', 1, following='rulan', unconscious=True)
+        left, left_got = person('Watcher', 1)
+        reached, reached_got = person('Rival', 13)
+        server.clients = {i: c.client for i, c in enumerate((leader, frodo, sam, left, reached))}
 
         with patch.object(Server, '_show_room_then_encounter', new=AsyncMock()), \
-             patch('visited_rooms.mark_visited'), \
-             patch('guild_follow.bring_followers', new=bring_followers):
+             patch.object(Server, '_show_room', new=AsyncMock()), \
+             patch('visited_rooms.mark_visited'):
             for mod, fn in (('encounters.desert', 'try_desert_sweat'),
                             ('ally_events', 'try_ally_find_silver'),
                             ('wild_horse_events', 'try_wandering_horse_encounter'),
@@ -172,15 +224,19 @@ class TestMoveNotifies(unittest.IsolatedAsyncioTestCase):
                 patch(f'{mod}.{fn}', new=AsyncMock()).start()
             patch('encounters.dwarf.maybe_relocate').start()
             try:
-                await server._move(ctx, 's')
+                await server._move(leader, 's')
             finally:
                 patch.stopall()
 
-        self.assertEqual(events, [
-            ('room', 1, 'Ryan moves south.'),
-            ('followers', 1, 13),
-            ('room', 13, 'Ryan enters from the north.'),
-        ])
+        self.assertEqual(leader_got, ['You leave south, with Frodo and Pippin following.',
+                                      'You carry Sam, who is unconscious.'])
+        self.assertEqual(left_got, ['Rulan leaves south, with Frodo and Pippin following.',
+                                    'Rulan carries Sam, who is unconscious.'])
+        self.assertEqual(reached_got, ['Rulan arrives from the north, with Frodo and Pippin following.',
+                                       'Rulan carries Sam, who is unconscious.'])
+        self.assertEqual(frodo_got, ['You follow Rulan south.'])
+        self.assertEqual(sam_got, ['You follow Rulan south.'])
+        self.assertEqual((frodo.client.room, sam.client.room, leader.client.room), (13, 13, 13))
 
     async def test_failed_move_says_nothing_to_the_room(self):
         server = Server('127.0.0.1', 0, 0)

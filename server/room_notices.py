@@ -101,6 +101,112 @@ def arrival_line(player, direction: str) -> str | None:
     return f'{subject} {verb} from the {compass_txts[came_from].lower()}.'
 
 
+def names_phrase(names) -> str:
+    """'Frodo' / 'Frodo and Sam' / 'Frodo, Sam and Pippin'."""
+    names = [n for n in names if n]
+    if len(names) <= 1:
+        return ''.join(names)
+    return f"{', '.join(names[:-1])} and {names[-1]}"
+
+
+# --- A leader moving with FOLLOW ME followers (guild_follow.py). The whole
+# group goes at once: the room left and the room reached each get one line
+# naming everyone, instead of hearing about the leader alone. Followers who
+# are unconscious aren't "following" -- the leader carries them, and that
+# gets a line of its own. Up/down read "goes up" / "arrives from below".
+
+def _way(direction: str) -> str:
+    return compass_txts[direction].lower()
+
+
+def group_departure_line(player, direction: str, following) -> str | None:
+    """'Rulan leaves north, with Frodo and Sam following.' (the room left).
+    With nobody conscious following, the plain departure_line()."""
+    direction = _dir(direction)
+    if direction is None:
+        return None
+    if not following:
+        return departure_line(player, direction)
+    subject, plural = _mover(player)
+    if direction in ('u', 'd'):
+        verb = 'go' if plural else 'goes'
+    else:
+        verb = 'leave' if plural else 'leaves'
+    return f'{subject} {verb} {_way(direction)}, with {names_phrase(following)} following.'
+
+
+def leader_departure_line(direction: str, following) -> str | None:
+    """'You leave north, with Frodo and Sam following.' -- the leader's own
+    view; None when nobody conscious is following (a solo move says
+    nothing to the mover)."""
+    direction = _dir(direction)
+    if direction is None or not following:
+        return None
+    verb = 'go' if direction in ('u', 'd') else 'leave'
+    return f'You {verb} {_way(direction)}, with {names_phrase(following)} following.'
+
+
+def group_arrival_line(player, direction: str, following) -> str | None:
+    """'Rulan arrives from the south, with Frodo and Sam following.' (the
+    room reached; *direction* is the way they went, as in arrival_line()).
+    With nobody conscious following, the plain arrival_line()."""
+    direction = _dir(direction)
+    if direction is None:
+        return None
+    if not following:
+        return arrival_line(player, direction)
+    subject, plural = _mover(player)
+    verb = 'arrive' if plural else 'arrives'
+    came_from = OPPOSITE[direction]
+    if came_from in ('u', 'd'):
+        side = 'above' if came_from == 'u' else 'below'
+        return f'{subject} {verb} from {side}, with {names_phrase(following)} following.'
+    return (f'{subject} {verb} from the {compass_txts[came_from].lower()}, '
+            f'with {names_phrase(following)} following.')
+
+
+def carry_line(player, unconscious) -> str | None:
+    """'Rulan carries Bilbo, who is unconscious.' (plural: 'Bilbo and Frodo,
+    who are unconscious'). None if nobody is being carried."""
+    if not unconscious:
+        return None
+    be = 'is' if len(unconscious) == 1 else 'are'
+    return f'{who(player)} carries {names_phrase(unconscious)}, who {be} unconscious.'
+
+
+def you_carry_line(unconscious) -> str | None:
+    """'You carry Bilbo, who is unconscious.' -- the leader's own view."""
+    if not unconscious:
+        return None
+    be = 'is' if len(unconscious) == 1 else 'are'
+    return f'You carry {names_phrase(unconscious)}, who {be} unconscious.'
+
+
+async def notify_except(ctx, lines, exclude_clients) -> None:
+    """Like notify(), but also leaves out *exclude_clients* (followers
+    moving with the leader, who get their own "You follow ..." instead).
+    GameContext.send_room() can only leave out the sender, so this walks
+    server.clients itself with the same same-room test (location_of()).
+    Without a server to walk (a bare test double), falls back to notify()."""
+    lines = [line for line in (lines or []) if line]
+    if not lines:
+        return
+    server = getattr(ctx, 'server', None)
+    clients = getattr(server, 'clients', None)
+    if not isinstance(clients, dict):
+        for line in lines:
+            await notify(ctx, line)
+        return
+    skip = set(map(id, exclude_clients or [])) | {id(ctx.client)}
+    here = location_of(ctx.client)
+    for other in list(clients.values()):
+        if id(other) in skip or location_of(other) != here:
+            continue
+        other_ctx = getattr(other, 'ctx', None)
+        if other_ctx is not None:
+            await other_ctx.send(*lines)
+
+
 async def notify(ctx, line: str | None) -> None:
     """ctx.send_room(*line*) to everyone else here, if there's a line.
     A context without an awaitable send_room (a bare test double) is

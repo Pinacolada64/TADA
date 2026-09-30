@@ -1301,30 +1301,56 @@ class Server:
 
         # Tell the room being left which way the player went, and (below)
         # the room reached where they came from -- see room_notices.py.
-        # send_room() goes by the sender's *current* room, so the
-        # departure has to go out before the move and the arrival after.
-        # It also goes out before FOLLOW ME moves the followers (just
-        # below), so they see their leader leave, then "You follow ...".
-        from room_notices import departure_line, arrival_line, notify
-        await notify(ctx, departure_line(ctx.player, direction))
-
-        # FOLLOW ME's live followers (guild_follow.py) arrive alongside the
-        # leader -- moved before the leader's own room display so it lists
-        # them as present.
+        # The departure has to go out before the move and the arrival
+        # after (both go by the mover's *current* room).
+        #
+        # A FOLLOW ME leader (guild_follow.py) moves as one group with the
+        # followers: the rooms hear "Rulan leaves north, with Frodo and Sam
+        # following." / "Rulan arrives from the south, with ...", plus
+        # "Rulan carries Bilbo, who is unconscious." for anyone carried;
+        # the leader reads "You leave north, with ...". Followers aren't
+        # sent those -- they get "You follow Rulan north." and the new room
+        # once the leader is in it (show_followers). They're moved first,
+        # silently, so the leader's own view of the new room lists them.
         import guild_follow
-        await guild_follow.bring_followers(ctx, from_level=level, from_room=int(room_no),
-                                           to_level=target_level, to_room=int(dest),
-                                           direction=direction)
+        from room_notices import (arrival_line, carry_line, departure_line,
+                                  group_arrival_line, group_departure_line,
+                                  leader_departure_line, notify, notify_except,
+                                  you_carry_line)
+        group = guild_follow.gather_group(ctx, from_level=level, from_room=int(room_no))
+        await guild_follow.lose_track(ctx, group)
+        if group:
+            for line in (leader_departure_line(direction, group.following),
+                         you_carry_line(group.unconscious)):
+                if line:
+                    await ctx.send(line)
+            await notify_except(ctx, [group_departure_line(ctx.player, direction, group.following),
+                                      carry_line(ctx.player, group.unconscious)],
+                                group.clients)
+        else:
+            await notify(ctx, departure_line(ctx.player, direction))
+        guild_follow.relocate_followers(ctx, group, from_room=int(room_no),
+                                        to_level=target_level, to_room=int(dest))
+
+        async def announce_arrival():
+            if group:
+                await notify_except(ctx, [group_arrival_line(ctx.player, direction, group.following),
+                                          carry_line(ctx.player, group.unconscious)],
+                                    group.clients)
+            else:
+                await notify(ctx, arrival_line(ctx.player, direction))
 
         if target_level != level:
             await self._teleport_to(ctx, target_level, int(dest), message_number=message_number)
-            await notify(ctx, arrival_line(ctx.player, direction))
+            await announce_arrival()
+            await guild_follow.show_followers(ctx, group, direction)
             return
 
         ctx.client.room = int(dest)
         ctx.player.map_room = int(dest)
         ctx.player.unsaved_changes = True
-        await notify(ctx, arrival_line(ctx.player, direction))
+        await announce_arrival()
+        await guild_follow.show_followers(ctx, group, direction)
         from visited_rooms import mark_visited
         mark_visited(ctx.player, level, int(dest))
         logging.debug('EXIT moved to room=%r', dest)
