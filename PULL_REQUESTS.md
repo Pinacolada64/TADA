@@ -29,22 +29,6 @@ Sections: Open PRs → Merged PRs (newest first).
 - Tests: `vice128_swiftlink_test.py` 8/8, keymap 9/9, VDC 8/8, clock 4/4. Not yet tried:
   login color apply with a real account, Keymap Editor Save while online, real hardware.
 
-#### [#60](https://github.com/Pinacolada64/TADA/pull/60) `feature/room-notify-movement` → `master` — Room notices: movement, level-aware rooms, and other visible actions
-- **Tip:** `cd22500` (2 commits), up to date with `master`.
-- **Conflicts with #54 (merged 2026-09-30)** in one hunk of `server/simple_server.py`:
-  both insert code just before the player moves -- FOLLOW ME's `bring_followers()` and
-  the departure notice. Needs `master` merged in and the order of the two decided.
-- Movement tells the room left "Ryan moves north." / "Ryan and his party move north."
-  and the room reached "Ryan enters from the south." (new `room_notices.py`, called
-  from `_move()`; covers walked level changes and fleeing). Also announced now:
-  transporter/communicator beaming (and malfunctions), mount/dismount/lasso,
-  respawn, the bar and the Shoppe/Ship's Stores/Allies' Guild/Jake's Stable/guild
-  halls, wear/unwear, eat/drink, read, pray, cast.
-- **Fix:** `send_room()` (JSON and PETSCII) and the "X is here" list compared the
-  room *number* only, so every broadcast leaked into the same-numbered room on
-  every other level; they now compare `(level, room)`.
-- Full suite 4702 passed, 2 skipped. Not yet live-tested with two clients.
-
 #### [#59](https://github.com/Pinacolada64/TADA/pull/59) `128-client-keymap` → `feature/kernal-free-screen` — Commodore 128 client: 80-column VDC output, scrollback, built-in Keymap Editor
 - **Tip:** `9660cd3` (23 commits), up to date with `feature/kernal-free-screen`.
   **Stacked** — base is `feature/kernal-free-screen`, which has no PR of its own.
@@ -97,6 +81,7 @@ Sections: Open PRs → Merged PRs (newest first).
 
 | PR | Merge commit | Branch | Title |
 |----|--------------|--------|-------|
+| [#60](https://github.com/Pinacolada64/TADA/pull/60) | `2d9badf` | `feature/room-notify-movement` | Room notices (`room_notices.py`): movement ("Ryan moves north." / "Ryan enters from the south."), beaming, mount/dismount/lasso, respawn, entering the bar/shops/guild halls, wear/eat/drink/read/pray/cast. FOLLOW ME groups move as one: "Rulan leaves north, with Frodo and Sam following." / "... arrives from the south, with ...", "Rulan carries Bilbo, who is unconscious."; followers get only "You follow ...". Fix: `send_room()` and the "X is here" list compared room number only, leaking across levels. Master (#54) merged in with the departure notice ahead of the followers. Live-checked by the new `tools/bot_follow_me.py` (7/7). |
 | [#54](https://github.com/Pinacolada64/TADA/pull/54) | `c859099` | `feature/follow-me` | SPUR's FOLLOW ME / STAY guild followers (`guild_follow.py`, `commands/stay.py`): online guildmates follow live on every exit, logged-off ones are carried and dropped off by STAY or at logoff; carried followers add to duel guild support. Deferred (TODO.md): unconscious-carry, guild-leader gate, `#!`/`<<` markers, editplayer entry for `followed_leader_name`. |
 | [#52](https://github.com/Pinacolada64/TADA/pull/52) | `5847aa2` | `feature/command-token-sweep-2` | `\|command\|...\|reset\|` markup swept into the remaining player-facing command mentions: help text in 19 command files, the pre-login menu and hints, and 61 more strings in 26 files. |
 | [#57](https://github.com/Pinacolada64/TADA/pull/57) | `1c7aae7` | `fix/tips` | Tips run through `substitute_tokens()` (`%n`/`%o`/`%p`/`%r` name and pronouns instead of "your character"/"his"); Spur wording and typo fixes, Dwarf tip "gold" -> "silver". |
