@@ -29,7 +29,7 @@ class LookCommand(Command):
         description = (
             'Without a target, describes your current location. '
             'With a target, gives a plain description of that object, '
-            'creature, or player -- see EXAMINE for a closer look that '
+            'creature, or player -- see |command|EXAMINE|reset| for a closer look that '
             'might reveal something LOOK misses.'
         ),
         category = HelpCategory.INTERACTION,

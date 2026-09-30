@@ -63,7 +63,7 @@ class AttackCommand(Command):
                                 "room) works the same way -- it's not for targeting a "
                                 'specific monster among several, since only one can occupy '
                                 'a room at a time.'),
-            ('k',              "'k' (also 'kill' or 'fight') is a shorter alias for "
+            ('k',              "|command|k|reset| (also |command|kill|reset| or |command|fight|reset|) is a shorter alias for "
                                 'attack -- all four do exactly the same thing.'),
         ],
         description = (
@@ -133,7 +133,7 @@ class AttackCommand(Command):
         # Warn if no weapon readied, but allow bare-hands combat
         weapon = getattr(player, 'readied_weapon', None)
         if weapon is None:
-            await ctx.send('(Fighting unarmed!  Use "ready" to equip a weapon.)')
+            await ctx.send('(Fighting unarmed!  Use |command|ready|reset| to equip a weapon.)')
 
         from combat import enter_combat
         await enter_combat(ctx, monster)

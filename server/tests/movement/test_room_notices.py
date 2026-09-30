@@ -135,6 +135,53 @@ class TestMoveNotifies(unittest.IsolatedAsyncioTestCase):
             (13, 'Ryan enters from the north.', True),
         ])
 
+    async def test_departure_before_follow_me_followers_move(self):
+        """The room left hears the leader go before FOLLOW ME moves the
+        followers (guild_follow.bring_followers), so they see their leader
+        leave, then "You follow ..."; the arrival goes out after both."""
+        server = Server('127.0.0.1', 0, 0)
+        server.game_map = _map()
+        ctx = MagicMock()
+        ctx.client.room = 1
+        ctx.player = _player()
+        ctx.player.map_room = 1
+        ctx.send = AsyncMock()
+        events = []
+
+        async def send_room(line, exclude_self=False):
+            events.append(('room', ctx.client.room, line))
+        ctx.send_room = send_room
+
+        async def bring_followers(ctx_, **kwargs):
+            events.append(('followers', kwargs['from_room'], kwargs['to_room']))
+
+        with patch.object(Server, '_show_room_then_encounter', new=AsyncMock()), \
+             patch('visited_rooms.mark_visited'), \
+             patch('guild_follow.bring_followers', new=bring_followers):
+            for mod, fn in (('encounters.desert', 'try_desert_sweat'),
+                            ('ally_events', 'try_ally_find_silver'),
+                            ('wild_horse_events', 'try_wandering_horse_encounter'),
+                            ('encounters.dwarf', 'try_steal'),
+                            ('encounters.little_girl', 'try_encounter'),
+                            ('encounters.meteor', 'try_encounter'),
+                            ('encounters.ringwraith', 'try_wraith_stalks'),
+                            ('encounters.galadriel', 'try_encounter'),
+                            ('encounters.djinn_sighting', 'try_encounter'),
+                            ('ally_events.starvation', 'try_encounter'),
+                            ('spells.charm', 'try_charm_join_offer')):
+                patch(f'{mod}.{fn}', new=AsyncMock()).start()
+            patch('encounters.dwarf.maybe_relocate').start()
+            try:
+                await server._move(ctx, 's')
+            finally:
+                patch.stopall()
+
+        self.assertEqual(events, [
+            ('room', 1, 'Ryan moves south.'),
+            ('followers', 1, 13),
+            ('room', 13, 'Ryan enters from the north.'),
+        ])
+
     async def test_failed_move_says_nothing_to_the_room(self):
         server = Server('127.0.0.1', 0, 0)
         server.game_map = _map()

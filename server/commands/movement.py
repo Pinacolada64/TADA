@@ -240,7 +240,7 @@ class MoveCommand(Command):
         summary     = 'Move in a compass direction.',
         description = (
             'Use single-letter shortcuts (n, s, e, w, u, d), full words '
-            '(north, south, east, west, up, down), or "go <direction>". '
+            '(north, south, east, west, up, down), or |command|go <direction>|reset|. '
             'PREFS (\'W\') can switch w/a/s/d to mean north/west/south/east '
             'instead.'
         ),
@@ -251,9 +251,9 @@ class MoveCommand(Command):
         ],
         examples = [
             ('n',        "A single letter (n/s/e/w/u/d) moves one step in that compass "
-                          "direction on its own -- no 'go' needed."),
-            ('go west',  "'go <direction>' is the alternate, full-word form -- 'go west' "
-                          "and typing 'w' (or 'west') on its own all do the same thing, "
+                          "direction on its own -- no |command|go|reset| needed."),
+            ('go west',  "|command|go <direction>|reset| is the alternate, full-word form -- |command|go west|reset| "
+                          "and typing |command|w|reset| (or |command|west|reset|) on its own all do the same thing, "
                           "unless PREFS has remapped w/a/s/d to a WASD-style keymap."),
         ],
     )
@@ -279,6 +279,11 @@ class MoveCommand(Command):
             hint = 'w/a/s/d/u' if getattr(ctx.player.command_settings, 'wasd_movement', False) else 'n/s/e/w/u/d'
             await ctx.send(f'Go where? ({hint})')
             return CommandResult.fail('No direction.', error='no_direction')
+
+        # A FOLLOW ME follower who walks off on their own breaks away
+        # (guild_follow.py) -- being led moves them without coming here.
+        import guild_follow
+        await guild_follow.stop_following(ctx)
 
         # Check for special exits before normal movement
         game_map = getattr(ctx.server, 'game_map', None)

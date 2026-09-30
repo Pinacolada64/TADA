@@ -84,7 +84,7 @@ class TakeCommand(Command):
             ('take from batman',       "TAKE retrieves an item you'd previously GIVEn to "
                                         "a servant ally, back into your own inventory -- "
                                         'it only works on servants, not every ally in '
-                                        'your party. "take from batman" lists what an '
+                                        'your party. |command|take from batman|reset| lists what an '
                                         'ally named Batman is currently carrying.'),
             ('take sword from batman', 'Naming an item skips the listing and takes it '
                                         'directly, if Batman is actually carrying one '

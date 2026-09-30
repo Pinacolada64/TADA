@@ -25,7 +25,7 @@ class PasswordCommand(Command):
             "twice to confirm). This is your login password, not your "
             "character name -- it's kept separate for a planned link to a "
             "CommodoreServer.com account. Admins can reset another "
-            "account's password with `password <username>`, without "
+            "account's password with |command|password <username>|reset|, without "
             "needing to know that account's current password."
         ),
         category = HelpCategory.AUTHENTICATION,

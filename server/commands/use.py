@@ -157,7 +157,7 @@ def _apply_item(item, player) -> list[str]:
         active = not getattr(player, 'compass_active', False)
         player.compass_active = active
         if active:
-            return ['Compass used.', '(USE again to return to pack)']
+            return ['Compass used.', '(|command|USE|reset| again to return to pack)']
         return ['Compass placed in pack.']
 
     # ---- Shield ------------------------------------------------------------

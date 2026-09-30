@@ -433,6 +433,15 @@ class Server:
                     await active_duel.forfeit(player)
                 except Exception:
                     logging.exception('%s: failed to forfeit duel on disconnect', addr)
+            # SPUR.LOGON.S:384's LOGON.STAY: a FOLLOW ME leader logging off
+            # (any exit path) drops carried guildmates here and releases
+            # live ones; a live follower's leader is told they're gone.
+            if player is not None:
+                try:
+                    import guild_follow
+                    await guild_follow.drop_off_on_logoff(ctx)
+                except Exception:
+                    logging.exception('%s: failed guild-follow drop-off on disconnect', addr)
             # Belt-and-suspenders save for any exit path that *isn't* a
             # clean quit (an uncaught exception/CancelledError anywhere in
             # _login()/_game_loop(), a raw socket error, etc.) -- those
@@ -683,12 +692,12 @@ class Server:
             await ctx.send(*banner)
         await ctx.send(
             '',
-            "Type 'connect <username> <password>' to log in.",
-            "Type 'connect guest' to look around as a guest.",
-            "Type 'new' to create a new character.",
-            "Type 'who' to see who is online.",
-            "Type 'prefs' to set terminal type, colors, and other display preferences.",
-            "Type 'help' for help, 'help about' to learn what this is, or 'quit' to leave.",
+            "Type |command|connect <username> <password>|reset| to log in.",
+            "Type |command|connect guest|reset| to look around as a guest.",
+            "Type |command|new|reset| to create a new character.",
+            "Type |command|who|reset| to see who is online.",
+            "Type |command|prefs|reset| to set terminal type, colors, and other display preferences.",
+            "Type |command|help|reset| for help, |command|help about|reset| to learn what this is, or |command|quit|reset| to leave.",
             '',
         )
 
@@ -708,7 +717,7 @@ class Server:
 
             if not result.success and result.error == 'unknown_command':
                 available = sorted(
-                    f"'{name}'" for name, cmd in processor.get_all_commands().items()
+                    f"|command|{name}|reset|" for name, cmd in processor.get_all_commands().items()
                     if cmd.is_available_in(processor.current_mode)
                 )
                 await ctx.send(
@@ -821,7 +830,7 @@ class Server:
 
             if not result.success and result.error == 'unknown_command':
                 await ctx.send(f"Unknown command '{raw.strip().split()[0]}'. "
-                               "Type 'help' for a list.")
+                               "Type |command|help|reset| for a list.")
                 await self._maybe_offer_help(ctx)
             elif not result.success and result.error == 'command_error':
                 # An uncaught exception in the command itself (see
@@ -892,9 +901,9 @@ class Server:
         from formatting import titled_box
         tip_lines = titled_box(
             ctx, 'Need a Hand?',
-            "Having trouble finding a command? Try 'help' for the full "
-            "list, 'help #search <word>' to look something up by "
-            "keyword, or 'help #summary' for one-line descriptions of "
+            "Having trouble finding a command? Try |command|help|reset| for the full "
+            "list, |command|help #search <word>|reset| to look something up by "
+            "keyword, or |command|help #summary|reset| for one-line descriptions of "
             "everything.",
             frame_color='green', text_color='white', title_color='purple',
         )
@@ -1294,8 +1303,18 @@ class Server:
         # the room reached where they came from -- see room_notices.py.
         # send_room() goes by the sender's *current* room, so the
         # departure has to go out before the move and the arrival after.
+        # It also goes out before FOLLOW ME moves the followers (just
+        # below), so they see their leader leave, then "You follow ...".
         from room_notices import departure_line, arrival_line, notify
         await notify(ctx, departure_line(ctx.player, direction))
+
+        # FOLLOW ME's live followers (guild_follow.py) arrive alongside the
+        # leader -- moved before the leader's own room display so it lists
+        # them as present.
+        import guild_follow
+        await guild_follow.bring_followers(ctx, from_level=level, from_room=int(room_no),
+                                           to_level=target_level, to_room=int(dest),
+                                           direction=direction)
 
         if target_level != level:
             await self._teleport_to(ctx, target_level, int(dest), message_number=message_number)
