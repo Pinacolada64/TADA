@@ -209,9 +209,14 @@ reaches `$6000`.
   rest come from the save area (block copy). A one-line step shifts the
   window by block copy (bottom-up, row by row, when moving down: the
   chip only copies upward through memory) and draws one new row. A page
-  (C= + CRSR, 20 rows) redraws everything. Any other key, and any
-  dialogue output, restores the saved live window. The status row shows
-  "Scrollback: NNN of NNN" while scrolled back.
+  (20 rows -- the keymap's Page Up/Page Down, Alt + the grey arrows by
+  default) redraws everything. Any other key, and any dialogue output,
+  restores the saved live window. While scrolled back the status row
+  shows "Scrollback: NNN of NNN -- CRSR: a line, Alt+Grey Up/Alt+Grey
+  Down: a page", the page keys looked up in the keymap and named by the
+  Keymap Editor's `describe_combo` (`sb_append_page_key`), so a
+  rebinding shows there -- as it does in the startup banner and the
+  online hint (`out_page_keys`).
 - Speed in x128 at 1 MHz: about 38 scrolled lines/sec (~26 ms per line,
   most of it waiting on the block copies). FAST (2 MHz) mode is an easy
   doubling for the CPU part if it's ever needed, since the VIC screen
@@ -228,41 +233,56 @@ reaches `$6000`.
 - ~~No SwiftLink yet~~ -- see "SwiftLink" below; `fill` and `clock`
   stay as offline-demo commands. Server CLR (`$93`) handling is now
   reachable from real server text but not yet exercised by a test.
-- The 128 has no Page Up/Down keys. If C= + main-keyboard CRSR paging
-  (back only) proves awkward, F1-F8 are now plain keys (the Keymap
-  Editor work reprograms them, below) and could take paging instead.
+- ~~The 128 has no Page Up/Down keys~~ -- paging is now two bindable
+  keymap actions (below), Alt + the grey top-row arrows by default;
+  the old hardwired C= + CRSR paging is gone.
 
-## Keymap Editor (shared with the C64 client) -- built 2026-09-29
+## Keymap Editor -- built 2026-09-29
 
-The C64 client's Keymap Editor popup (`keymap_menu.asm`) is built into
-this client from the same source; the 128 keeps its own resident half.
-Tested by `vice128_keymap_test.py` (9/9): runs the client with a scratch
-`.d64` on drive 8, so `KEYMAP.CFG` really goes through KERNAL SAVE/LOAD.
+The C64 client's Keymap Editor popup, built into this client. It
+started out built from the C64's own `keymap_menu.asm`; the same day
+Ryan split the two -- separate editors and separate files -- so the 128
+now has its own copy, free to diverge: the ALT modifier, Page Up/Page
+Down, the 128's extra keys. The C64 client's `keymap_menu.asm`,
+`keymap.asm` and `constants.asm` are back to what they were, and it
+keeps `KEYMAP.CFG`. Tested by `vice128_keymap_test.py` (9/9), which
+runs the client with a scratch `.d64` on drive 8, so `KEYMAP128.CFG`
+really goes through KERNAL SAVE/LOAD.
 
 ### Files
 
-- `keymap_menu.asm` -- shared, unchanged in behavior for the C64 (its
-  `KEYMAP.ED` still assembles byte-identical). The C64-only addresses it
-  read directly are now named in `constants.asm`: `KM_SHFLAG` (`$028D`),
-  `KM_SFDX` (`$CB`), `KM_KEY_NONE` (`$40`). An `{ifdef:c128}` block
-  extends its key-number table with the 128's 24 extra keys.
-- `constants_128.asm` -- the 128's values for those (`$D3`, `$D4`, 88).
-  The Makefile's `keymap_menu_128.asm` rule swaps it in for
-  `constants.asm` and comments out the overlay `orig`; the build passes
-  `-def:c128`.
+- `keymap_menu_128.asm` -- the popup, forked from `keymap_menu.asm`
+  (row for row, so the C64 file's comments still describe most of it).
+  Adds Page Up/Page Down rows, ALT in the modifier names and masks, the
+  128's key numbers 64-87 in `key_num_unshifted` (the grey arrows as
+  pseudo-codes `$F0-$F3`, named "Grey Up" etc.), and saves
+  `KEYMAP128.CFG`.
+- `constants_128.asm` -- what the popup reads from its host: `KM_SHFLAG`
+  (`$D3`), `KM_SFDX` (`$D4`), `KM_KEY_NONE` (88), `KM_MOD_MASK` (15:
+  SHIFT/C=/CTRL/ALT).
 - `keymap_host_128.asm` -- the nine `JT_*` entry points the popup calls,
   as real labels (the C64's jump table lives at `$C000`, ROM on the 128):
   save/restore screen, resume, status line, and the popup's cursor.
-- `keymap_128.asm` -- `keymap_table` + `KEYMAP_TABLE_PTR`, the C64's six
-  default bindings, `init_keymap` (LOAD `KEYMAP.CFG` or copy the
-  defaults), and `km_dispatch`, which runs the actions on
-  `input_editor.asm` (prev_word/next_word/home, a new `km_end`, macro
-  text typed in through the editor's own `insert`/`cright`).
+- `keymap_128.asm` -- `keymap_table` + `KEYMAP_TABLE_PTR`, the defaults,
+  `init_keymap` (LOAD `KEYMAP128.CFG` or copy the defaults), and
+  `km_dispatch`, which runs the actions on `input_editor.asm`
+  (prev_word/next_word/home, a new `km_end`, macro text typed in through
+  the editor's own `insert`/`cright`, Page Up/Page Down on the
+  scrollback).
 
-`KEYMAP.CFG` is the same file on both machines: same 15 x 27-byte slots,
-same modifier bits (the 128's ALT is masked off), nav keys as GETIN
-bytes, macro triggers as matrix key numbers -- keys 0-63 are the same
-physical keys on both keyboards.
+### `KEYMAP128.CFG`
+
+17 slots of 27 bytes (modifier, key, action, 24 bytes of macro text):
+0-5 the nav functions and the "open the editor" key (F7), 6-14 macros,
+15-16 Page Up/Page Down (actions 6/7). Slots 0-14 match the C64's
+`KEYMAP.CFG` layout, but the files are separate. Modifier bits: SHIFT 1,
+C= 2, CTRL 4, ALT 8. Nav keys are GETIN bytes; macro triggers and the
+page keys are matrix key numbers (`$D4`), captured by the popup's
+`capture_macro_combo` -- the only way to tell the grey top-row arrows
+(key numbers 83/84) from the main CRSR key, which GETIN reports
+identically. Defaults: Page Up = ALT + grey up (83), Page Down = ALT +
+grey down (84). ALT decodes as a modifier flag like SHIFT, so it sets
+`$D3` bit 3 without taking `$D4`.
 
 ### Drawing in 40 and 80 columns
 
@@ -287,7 +307,8 @@ directly.
 
 ### MMU and memory
 
-The program now ends near `$4610`, so the client sets `$FF00` = `$0E`
+The program ends past `$4000` (near `$4E70` with SwiftLink), so the
+client sets `$FF00` = `$0E`
 (RAM at `$4000-$BFFF`, I/O and KERNAL in) at startup and keeps it.
 Checked against the ROMs first: the editor never writes `$FF00`, and the
 KERNAL only does in save/restore pairs (INDFET/INDSTA used by LOAD/SAVE,
@@ -316,11 +337,16 @@ crosses `$4000`.
 ### Key priority in `editor_key_hook`
 
 Any key first clears a status message ("Saved keymap."). In 80 columns
-plain CRSR UP/DOWN (any modifier but CTRL) go to scrollback; everything
-else leaves scrollback and goes to the keymap. So the defaults' Home/End
-on plain CRSR UP/DOWN only work in 40 columns; CLR/HOME still gives Home
-in 80. The old hardcoded CTRL+CRSR word jump in `input_editor.asm` is
-gone -- the keymap does it.
+plain (or SHIFTed) CRSR UP/DOWN scroll the dialogue a line
+(`vdc_key_hook`); with C=, CTRL or ALT held they go to the keymap, like
+every other key. Keys the keymap doesn't turn into Page Up/Page Down
+then leave scrollback -- after the keymap, not before, or every Page Up
+would snap back to the live view first and never page more than once
+(`km_paged`). So the defaults' Home/End on plain CRSR UP/DOWN only work
+in 40 columns; CLR/HOME still gives Home in 80. In 40 columns Page
+Up/Page Down are swallowed (there's no scrollback). The old hardcoded
+CTRL+CRSR word jump in `input_editor.asm` is gone -- the keymap does
+it.
 
 ### Bugs fixed on the way
 
@@ -339,9 +365,10 @@ gone -- the keymap does it.
   (swiftlink.asm's RTS flow control holds the server off once it fills)
   until the popup closes. Not yet exercised live with a server talking
   while the popup is open.
-- `read_error_channel` (shared) loops until EOI, which never comes if no
-  drive answers at all -- a real 128 or C64 with the drive switched off
-  would hang on Save. Exiting on ST bit 7 too would fix it for both.
+- `read_error_channel` (in both clients' editors) loops until EOI, which
+  never comes if no drive answers at all -- a real 128 or C64 with the
+  drive switched off would hang on Save. Exiting on ST bit 7 too would
+  fix it.
 - The popup's F-key/CTRL fixes stay in place after the client exits.
 
 ## SwiftLink -- built 2026-09-29

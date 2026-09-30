@@ -226,6 +226,7 @@ try:
           and decode(vdc_row(22)) == line_text(60)
           and line_colors_ok(vdc_attrs(22))
           and status.startswith('Scrollback: 001 of 043')
+          and status.endswith('CRSR: a line, Alt+Grey Up/Alt+Grey Down: a page')
           and byte_at(SYMS['sb_offset']) == 1,
           f'|{status}|')
 

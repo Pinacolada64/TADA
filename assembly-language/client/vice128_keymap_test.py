@@ -296,7 +296,7 @@ try:
                              capture_output=True, text=True).stdout
     vice = boot('-80col', disk)
     reloaded = dump('default', slot6, 9)
-    check('H save, then a fresh boot LOADs the macro back from KEYMAP.CFG',
+    check('H save, then a fresh boot LOADs the macro back from KEYMAP128.CFG',
           saved_status.startswith('Saved keymap')
           and 'keymap128.cfg' in listing.lower()
           and reloaded == bytes([0, 10, 0xff, *b'LOOK', 0x5f, 0]),

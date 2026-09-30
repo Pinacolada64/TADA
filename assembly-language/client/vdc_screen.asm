@@ -64,7 +64,7 @@ HIST_ATTR_HI       = $30         ; $3000 above them, $9000-$bedf). Was 200
                                  ; (check_128_layout.py)
 MMU_CR             = $ff00
 MMU_HIST_CONFIG    = $0e         ; bank 0 RAM $4000-$bfff, I/O, KERNAL ROM
-SB_PAGE            = 20          ; lines per C= + CRSR page
+SB_PAGE            = 20          ; lines per Page Up/Page Down
 
 ; --- vdc_screen_init: hardware cursor off (input_editor.asm draws its
 ; own), take the editor's current attribute as the dialogue default, and
@@ -754,7 +754,11 @@ vdc_status_wait:
         jmp vdc_fill
 
 ; --- sb_status_text: builds the scrollback position message (screen
-; codes, 0-terminated) into sb_status_buf; returns A/Y = its address. ---
+; codes, 0-terminated) into sb_status_buf; returns A/Y = its address.
+; The page keys are looked up in the keymap (keymap_128.asm's slots 15-
+; 16) and named the way the Keymap Editor names them, so the message
+; follows a rebinding -- "Scrollback: 001 of 043 -- CRSR: a line, Alt+
+; Grey Up/Alt+Grey Down: a page" with the defaults. ---
 sb_status_text:
         ldx #0
         lda #<sb_msg_pos
@@ -769,6 +773,18 @@ sb_status_text:
         jsr sb_append_dec3
         lda #<sb_msg_keys
         ldy #>sb_msg_keys
+        jsr sb_append
+        lda keymap_table+KM_PAGE_SLOT_OFFSET
+        ldy keymap_table+KM_PAGE_SLOT_OFFSET+1
+        jsr sb_append_page_key
+        lda #<sb_msg_slash
+        ldy #>sb_msg_slash
+        jsr sb_append
+        lda keymap_table+KM_PAGE_SLOT_OFFSET+BINDING_SIZE
+        ldy keymap_table+KM_PAGE_SLOT_OFFSET+BINDING_SIZE+1
+        jsr sb_append_page_key
+        lda #<sb_msg_page
+        ldy #>sb_msg_page
         jsr sb_append
         lda #0
         sta sb_status_buf,x
@@ -797,6 +813,59 @@ sb_append_read:
         jmp sb_append_read
 sb_append_rts:
         rts
+
+; .A = a page slot's modifier bits, .Y = its matrix key number -> the
+; combo's name (screen codes) appended to sb_status_buf at X (X
+; advances, capped like sb_append); "none" if nothing is bound. Same
+; steps as client-128.asm's out_page_key, through the Keymap Editor's
+; describe_combo -- which borrows scr_ptr_lo/hi, the input editor's
+; strptr ($fb/$fc). This runs while a line is being typed (scrolling
+; back is done mid-line), so those two bytes are put back afterwards.
+sb_append_page_key:
+        stx sb_pk_index
+        sta list_trigger_mod
+        cpy #KM_KEY_NONE
+        bcs sb_page_key_none
+        tya
+        ora list_trigger_mod
+        beq sb_page_key_none        ; mod = key = 0: nothing captured
+        lda key_num_unshifted,y
+        sta list_trigger_key
+        lda scr_ptr_lo
+        pha
+        lda scr_ptr_hi
+        pha
+        lda #<list_trigger_mod
+        sta scr_ptr_lo
+        lda #>list_trigger_mod
+        sta scr_ptr_hi
+        jsr describe_combo          ; screen codes at row_scratch+15
+        pla
+        sta scr_ptr_hi
+        pla
+        sta scr_ptr_lo
+        ldx sb_pk_index
+        ldy #0
+sb_page_key_copy:
+        cpy describe_combo_col
+        beq sb_page_key_rts
+        cpx #VDC_COLS
+        bcs sb_page_key_rts
+        lda row_scratch+15,y
+        sta sb_status_buf,x
+        inx
+        iny
+        jmp sb_page_key_copy
+sb_page_key_none:
+        ldx sb_pk_index
+        lda #<sb_msg_none
+        ldy #>sb_msg_none
+        jmp sb_append
+sb_page_key_rts:
+        rts
+
+sb_pk_index:
+        byte 0
 
 ; A = 0-255 -> three digits appended to sb_status_buf at X (only ever
 ; early in the message, so always in bounds; the buffer's slack covers it
@@ -845,7 +914,16 @@ sb_msg_of:
         ascii " of "
         byte 0
 sb_msg_keys:
-        ascii " -- CRSR: a line, Alt+grey CRSR: a page"
+        ascii " -- CRSR: a line, "
+        byte 0
+sb_msg_slash:
+        ascii "/"
+        byte 0
+sb_msg_page:
+        ascii ": a page"
+        byte 0
+sb_msg_none:
+        ascii "none"
         byte 0
 {alpha:normal}
 
