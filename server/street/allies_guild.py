@@ -149,11 +149,11 @@ async def main(ctx: GameContext, bar=None) -> None:
     ])
     await broadcast_open_room(ctx, f'{player.name} ducks down a side alley and vanishes.')
 
-    await enter_area(ctx, 'AllysGuild')
+    await enter_area(ctx, "Allies' Guild")
     try:
         await _guild_session(ctx, player)
     finally:
-        await leave_area(ctx, 'AllysGuild')
+        await leave_area(ctx, "Allies' Guild")
 
 
 async def _guild_session(ctx: GameContext, player) -> None:

@@ -31,7 +31,7 @@ def _dir(direction: str) -> str | None:
     return d if d in OPPOSITE else _WORDS.get(d)
 
 
-def location_of(client) -> tuple:
+def room_of(client) -> tuple:
     """(level, room) for a connected client. The level is the player's
     map_level (set on every level change, see Server._teleport_to);
     anything without one counts as level 1, the same default _move()
@@ -39,6 +39,19 @@ def location_of(client) -> tuple:
     player = getattr(getattr(client, 'ctx', None), 'player', None)
     level = int(getattr(player, 'map_level', 1) or 1)
     return level, getattr(client, 'room', None)
+
+
+def location_of(client) -> tuple:
+    """(level, room, area): room_of() plus the virtual area the client is
+    standing in (presence.py's enter_area() -- the Shoppe, the elevator
+    inside it, the bar, a guild), None for the open room. Two clients are
+    "in the same room" for send_room() and the "X is here" list only if
+    all three match, so someone in the Shoppe no longer hears the lobby
+    upstairs, and vice versa. Activities that also set virtual_location
+    (reading news, editing text, a duel) aren't areas: they don't change
+    where the player is standing, so they don't count here."""
+    area = getattr(client, 'presence_area', None)
+    return room_of(client) + (area if isinstance(area, str) else None,)
 
 
 def _mover(player) -> tuple[str, bool]:

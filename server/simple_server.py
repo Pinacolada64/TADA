@@ -1124,7 +1124,7 @@ class Server:
             # Same level too, not just the same room number -- see
             # room_notices.location_of().
             from room_notices import location_of
-            here = (level, room_no)
+            here = (level, room_no, location_of(client)[2])
             others = []
             for addr, c in self.clients.items():
                 if c is client or location_of(c) != here:

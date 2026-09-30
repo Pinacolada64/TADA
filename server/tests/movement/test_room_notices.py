@@ -148,12 +148,13 @@ class TestMoveNotifies(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ctx.client.room, 1)
 
 
-def _client(room, level, name):
+def _client(room, level, name, area=None, activity=None):
     player = _player(name, level=level)
     player.query_flag = lambda flag: False    # _describe_room_parts reads
     player.quote = None                       # these for each bystander
     other_ctx = SimpleNamespace(player=player, send=AsyncMock())
-    return SimpleNamespace(room=room, ctx=other_ctx)
+    return SimpleNamespace(room=room, ctx=other_ctx, presence_area=area,
+                           virtual_location=area or activity)
 
 
 class TestSendRoomLevels(unittest.IsolatedAsyncioTestCase):
@@ -182,7 +183,43 @@ class TestSendRoomLevels(unittest.IsolatedAsyncioTestCase):
 
     def test_location_of_defaults_to_level_1(self):
         bare = SimpleNamespace(room=5, ctx=SimpleNamespace(player=None))
-        self.assertEqual(location_of(bare), (1, 5))
+        self.assertEqual(location_of(bare), (1, 5, None))
+
+    async def _say(self, cls, speaker, *listeners):
+        clients = {str(i): c for i, c in enumerate((speaker,) + listeners)}
+        fake_self = SimpleNamespace(player=speaker.ctx.player, client=speaker,
+                                    server=SimpleNamespace(clients=clients))
+        await cls.send_room(fake_self, 'hello', exclude_self=True)
+
+    async def test_virtual_areas_hear_only_their_own(self):
+        """The Shoppe shares room 1's number with the lobby above it."""
+        for cls in (GameContext, PETSCIINetworkContext):
+            lobby = _client(1, 1, 'Ryan')
+            shopper = _client(1, 1, 'Ann', area='Shoppe')
+            reader = _client(1, 1, 'Bob', activity='Reading news')  # not a place
+            await self._say(cls, lobby, shopper, reader)
+            shopper.ctx.send.assert_not_called()
+            reader.ctx.send.assert_awaited_once_with('hello')
+
+            lobby = _client(1, 1, 'Ryan')
+            shopper = _client(1, 1, 'Ann', area='Shoppe')
+            other = _client(1, 1, 'Cid', area='Shoppe')
+            await self._say(cls, shopper, lobby, other)
+            lobby.ctx.send.assert_not_called()
+            other.ctx.send.assert_awaited_once_with('hello')
+
+    async def test_area_broadcasts_stay_on_one_level(self):
+        """There's a Shoppe on each of levels 1-5 -- the name isn't a place."""
+        from presence import broadcast_area, others_present
+        me = _client(1, 1, 'Ryan', area='Shoppe')
+        same = _client(1, 1, 'Ann', area='Shoppe')
+        other_level = _client(1, 3, 'Bob', area='Shoppe')
+        ctx = SimpleNamespace(player=me.ctx.player, client=me,
+                              server=SimpleNamespace(clients={'m': me, 's': same, 'o': other_level}))
+        await broadcast_area(ctx, 'Shoppe', 'hi')
+        same.ctx.send.assert_awaited_once_with('hi')
+        other_level.ctx.send.assert_not_called()
+        self.assertEqual(others_present(ctx, 'Shoppe'), ['Ann'])
 
 
 class TestOccupantListLevels(unittest.TestCase):
