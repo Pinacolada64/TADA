@@ -196,7 +196,8 @@ class GameContext(BaseContext):
         codec = codec_for_settings(self.player.client_settings)
         formatted = format_lines(raw, self.player.client_settings, codec)
         if isinstance(codec, ANSICodec):
-            formatted = ansi_encode_lines(formatted, reset_color=codec.reset())
+            formatted = ansi_encode_lines(formatted, reset_color=codec.reset(),
+                                          command_color=codec.command_color)
         elif isinstance(codec, PlainCodec):
             formatted = plain_encode_lines(formatted)
 
@@ -329,12 +330,18 @@ class GameContext(BaseContext):
 
         Dispatching through ctx.send() ensures each client gets the right
         encoding (JSON for ANSI clients, raw PETSCII bytes for C64 clients).
+        Same room means same level and same virtual area too -- room
+        numbers repeat on every level, and the Shoppe shares its room
+        number with the lobby above it (see room_notices.location_of()).
         """
-        my_room = getattr(self.client, 'room', None)
+        from room_notices import location_of
+        here = (int(getattr(self.player, 'map_level', 1) or 1),
+                getattr(self.client, 'room', None),
+                location_of(self.client)[2])       # the virtual area, if any
         for addr, other_client in self.server.clients.items():
             if exclude_self and other_client is self.client:
                 continue
-            if getattr(other_client, 'room', None) != my_room:
+            if location_of(other_client) != here:
                 continue
             other_ctx = getattr(other_client, 'ctx', None)
             if other_ctx:
@@ -453,6 +460,19 @@ def _petscii_input_to_ascii(data: bytes) -> str:
                  arrows (Ryan's call), so it's left unhandled/discarded
                  here like any other unmapped control/graphics byte.
       0xC1-0xDA  A-Z shifted in lowercase charset (0xC1 = 'A', 0xDA = 'Z')
+      0xDD       Shift+'-' -> '|'. Verified the same way as 0xA0 above --
+                 py65 disassembly of kernal-901246-01.bin: matrix position
+                 43 (the '-' key) is $2D in the unshifted table ($EB81+43)
+                 and $DD in the shift table ($EBC2+43). Conveniently the
+                 exact same byte formatting.py's _PETSCII_RAW_BYTE_OVERRIDES
+                 sends back out for '|' (the box-drawing vertical bar,
+                 '│') -- input and output round-trip through the identical
+                 wire byte. Before this branch existed, 0xDD fell through
+                 every case here undetected: 'say "|"'/'say "||"' silently
+                 became 'say ""' server-side (empty message, "Say what?"),
+                 and mid-message pipes vanished outright, well before
+                 petscii_encode() or say.py's escape handling ever saw
+                 them -- confirmed live 9/19/26.
     Everything else (control codes, graphics) is discarded. 0x5E is
     outside 0x20-0x40 because cbmcodecs2 decodes it to the UPWARDS ARROW
     glyph (U+2191), not '^' -- see formatting.py's
@@ -481,6 +501,8 @@ def _petscii_input_to_ascii(data: bytes) -> str:
             chars.append('^')
         elif b == 0xA0:                # Shift+Space
             chars.append('_')
+        elif b == 0xDD:                # Shift+'-'
+            chars.append('|')
         elif 0x61 <= b <= 0x7A:        # a-z (some terminal modes)
             chars.append(chr(b))
         elif 0xC1 <= b <= 0xDA:        # shifted A-Z in lowercase charset → uppercase
@@ -503,6 +525,8 @@ class PETSCIINetworkContext(GameContext):
 
     LINE_ENDING: bytes = b'\r'          # Commodore CR
     CODEC_NAME:  str   = 'petscii_c64en_lc'
+    _status_clock_shown = False     # prompt() sent a non-empty Hourglass
+                                    # clock stream that hasn't been cleared
 
     async def send(self, *lines, flush: bool = False) -> None:
         """Encode and send as raw PETSCII bytes — no JSON envelope.
@@ -559,6 +583,7 @@ class PETSCIINetworkContext(GameContext):
         from formatting import codec_for_settings, PETSCIICodec, plain_encode_lines
         codec = codec_for_settings(self.player.client_settings)
         reset_color = codec.reset_color if isinstance(codec, PETSCIICodec) else None
+        command_color = codec.command_color if isinstance(codec, PETSCIICodec) else None
         codec_name = self._text_codec_name()
         if codec_name == 'ascii':
             # petscii_encode() always interprets surviving |token| color
@@ -573,6 +598,7 @@ class PETSCIINetworkContext(GameContext):
                                        line_ending     = self._line_ending_bytes(),
                                        screen_columns  = self.player.client_settings.screen_columns,
                                        reset_color     = reset_color,
+                                       command_color   = command_color,
                                        apply_overrides = codec_name != 'ascii')
         try:
             self.writer.write(encoded)
@@ -610,12 +636,31 @@ class PETSCIINetworkContext(GameContext):
             self._in_turn = False
         from tada_utilities import substitute_tokens
         prompt_text = substitute_tokens(prompt_text, self.player)
-        if self.player.query_flag(PlayerFlags.HOURGLASS):
+        # Hourglass clock: a PETSCII-translation connection gets it on the
+        # right side of the C64 client's status row (a framed stream, see
+        # commands/c64_display.py's encode_clock()) rather than prefixed
+        # onto the prompt. ASCII translation keeps the old inline prefix --
+        # that player has asked for plain text, not framed binary.
+        hourglass    = self.player.query_flag(PlayerFlags.HOURGLASS)
+        status_clock = self._text_codec_name() != 'ascii'
+        if hourglass:
             clock = format_player_time(datetime.datetime.now(), self.player)
-            prompt_text = f"[{clock}] {prompt_text}"
+            if status_clock:
+                from commands.c64_display import encode_clock
+                self.writer.write(encode_clock(
+                    petscii_encode(clock, self._text_codec_name(), apply_overrides=False)))
+                self._status_clock_shown = True
+            else:
+                prompt_text = f"[{clock}] {prompt_text}"
+        if status_clock and not hourglass and self._status_clock_shown:
+            # Hourglass just turned off -- clear the clock once.
+            from commands.c64_display import encode_clock
+            self.writer.write(encode_clock(b''))
+            self._status_clock_shown = False
         if prompt_text:
             codec = codec_for_settings(self.player.client_settings)
             reset_color = codec.reset_color if isinstance(codec, PETSCIICodec) else None
+            command_color = codec.command_color if isinstance(codec, PETSCIICodec) else None
             codec_name = self._text_codec_name()
             out_text = prompt_text + ' > '
             if codec_name == 'ascii':
@@ -628,6 +673,7 @@ class PETSCIINetworkContext(GameContext):
             # terminates each send() with CR, so the cursor is already
             # on a fresh line.
             self.writer.write(petscii_encode(out_text, codec_name, reset_color=reset_color,
+                                             command_color=command_color,
                                              apply_overrides=codec_name != 'ascii'))
             await self.writer.drain()
         try:
@@ -652,12 +698,16 @@ class PETSCIINetworkContext(GameContext):
             return None
 
     async def send_room(self, *lines, exclude_self: bool = False) -> None:
-        """Broadcast via each recipient's own ctx so encoding is correct."""
-        my_room = getattr(self.client, 'room', None)
+        """Broadcast via each recipient's own ctx so encoding is correct.
+        Same room, level and virtual area -- see GameContext.send_room()."""
+        from room_notices import location_of
+        here = (int(getattr(self.player, 'map_level', 1) or 1),
+                getattr(self.client, 'room', None),
+                location_of(self.client)[2])       # the virtual area, if any
         for addr, other_client in self.server.clients.items():
             if exclude_self and other_client is self.client:
                 continue
-            if getattr(other_client, 'room', None) != my_room:
+            if location_of(other_client) != here:
                 continue
             other_ctx = getattr(other_client, 'ctx', None)
             if other_ctx:

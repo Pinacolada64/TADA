@@ -25,7 +25,7 @@ TARGET          = tada-client
 # `-fs8 "."` (or a real 1541/1581) serves as device 8, since the resident
 # program LOADs it by filename at runtime -- this Makefile's own directory
 # already doubles as that build/serve directory.
-MODULES         = petscii_editor config_menu
+MODULES         = petscii_editor config_menu help_menu keymap_menu
 
 petscii_editor_pp.asm: petscii_editor.asm
 	$(PREPROCESSOR) petscii_editor.asm
@@ -38,6 +38,18 @@ config_menu_pp.asm: config_menu.asm
 
 config_menu.prg: config_menu_pp.asm
 	$(C64LIST) config_menu_pp.asm -prg:config_menu -sym -ovr
+
+help_menu_pp.asm: help_menu.asm
+	$(PREPROCESSOR) help_menu.asm
+
+help_menu.prg: help_menu_pp.asm
+	$(C64LIST) help_menu_pp.asm -prg:help_menu -sym -ovr
+
+keymap_menu_pp.asm: keymap_menu.asm
+	$(PREPROCESSOR) keymap_menu.asm
+
+keymap_menu.prg: keymap_menu_pp.asm
+	$(C64LIST) keymap_menu_pp.asm -prg:keymap_menu -sym -ovr
 
 # --- ROM paths ---
 # Stock KERNAL/BASIC/CHARGEN -- kept around for reference/fallback even
@@ -79,7 +91,7 @@ SL_BAUD         = 38400
 # needs its own preprocessing pass first, same as $(TARGET) itself --
 # {include:screen-handler_pp.asm} in tada-client.asm names the
 # preprocessed file, not the raw source.
-SPLIT_MODULES   = screen-handler
+SPLIT_MODULES   = screen-handler screen-output keymap keyboard_rollover
 
 # Step 1: preprocess macros and constants
 $(TARGET)_pp.asm: $(TARGET).asm $(addsuffix _pp.asm,$(SPLIT_MODULES))
@@ -88,9 +100,22 @@ $(TARGET)_pp.asm: $(TARGET).asm $(addsuffix _pp.asm,$(SPLIT_MODULES))
 screen-handler_pp.asm: screen-handler.asm
 	$(PREPROCESSOR) screen-handler.asm
 
+screen-output_pp.asm: screen-output.asm
+	$(PREPROCESSOR) screen-output.asm
+
+keymap_pp.asm: keymap.asm
+	$(PREPROCESSOR) keymap.asm
+
+keyboard_rollover_pp.asm: keyboard_rollover.asm
+	$(PREPROCESSOR) keyboard_rollover.asm
+
 # Step 2: assemble to .prg and .sym in one pass
 $(TARGET).prg: $(TARGET)_pp.asm
 	$(C64LIST) $(TARGET)_pp.asm -prg:$(TARGET) -sym -ovr
+	@# Fail if the resident program has grown into OVERLAY_BUF -- see
+	@# tada-client.asm's OVERLAY_BUF comment (this collision has recurred
+	@# three times as floating labels drift upward).
+	python3 ./check_overlay_margin.py $(TARGET)_pp.sym
 
 # Step 3: convert symbols to VICE label format
 # Note: C64List names the sym file after the input file (tada-client_pp.sym)
@@ -98,15 +123,8 @@ $(TARGET)-vice-labels: $(TARGET).prg
 	$(CONVERT_LABELS) $(TARGET)_pp.sym $(TARGET)-vice-labels
 
 # Step 4: generate VICE monitor commands to auto-load labels
-# TEMP (2026-08-17, Ryan+Claude live debugging the play-#test SID-stream
-# hang): also auto-arms watchpoints on sid_mode/sid_remaining_lo/hi so
-# they survive killing and relaunching VICE between attempts -- a fresh
-# remote-monitor connection doesn't carry over watchpoints set on a
-# previous VICE process. Revert to just the `ll` line once that bug's
-# found and fixed.
 monitor-commands: $(TARGET)-vice-labels
 	echo "ll \"$(TARGET)-vice-labels\"" > monitor-commands
-	echo "watch store 0314 0319" >> monitor-commands
 
 # Default target: build everything
 all: $(TARGET).prg $(TARGET)-vice-labels monitor-commands $(addsuffix .prg,$(MODULES))
@@ -169,14 +187,61 @@ vice: all $(TARGET).d64
 # client.asm's own petscii_editor_filename now uses the matching raw
 # $d0,$c5,$d4,... byte literals rather than `ascii` for exactly this
 # reason -- keep the two in sync if either changes.
-$(TARGET).d64: $(TARGET).prg petscii_editor.prg config_menu.prg
+$(TARGET).d64: $(TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg keymap_menu.prg
 	rm -f $(TARGET).d64
 	c1541 -format "tada,00" d64 $(TARGET).d64
 	c1541 $(TARGET).d64 -write $(TARGET).prg "tada-client"
 	c1541 $(TARGET).d64 -write petscii_editor.prg "PETSCII.ED"
 	c1541 $(TARGET).d64 -write config_menu.prg "CONFIG.MNU"
+	c1541 $(TARGET).d64 -write help_menu.prg "HELP.MNU"
+	c1541 $(TARGET).d64 -write keymap_menu.prg "KEYMAP.ED"
 
 d64: $(TARGET).d64
+
+# --- Debug build ---
+# A second, separately-named .prg/.d64 with -def:keymap_debug passed to
+# c64list, for trying out {ifdef:keymap_debug}...{endif} code (keymap.
+# asm's dispatch rework) without touching $(TARGET).prg/$(TARGET).d64
+# (the normal build above) at all -- Ryan's ask, 2026-09-02: build a
+# debug variant instead of risking the working copy while a new
+# dispatch path is still being verified live.
+#
+# A dedicated parser variable (keymap_debug), deliberately NOT the
+# pre-existing "debug" one $(TARGET).asm already has and unconditionally
+# {undef:}s near its top -- confirmed live 2026-09-02 that -def:debug
+# alone doesn't even work around that ({def:}/{undef:} process
+# sequentially, so a later {undef:} always wins over an earlier
+# command-line -def:), and more importantly that "debug" wakes up an
+# old, apparently-never-actually-run-before per-character trace
+# elsewhere in tada-client.asm that corrupts real keyboard input (see
+# the keymap_debug ifdef block's own comment in tada-client.asm for the
+# root cause). keymap_debug sidesteps both problems: unaffected by that
+# {undef:}, and doesn't share a name with anything else in the file, so
+# this could just reuse $(TARGET)_pp.asm directly as c64list's input --
+# no sed-stripping needed the way working around "debug" would have
+# required -- EXCEPT c64list names its .sym output after the INPUT
+# file regardless of -prg:, so assembling $(TARGET)_pp.asm twice (once
+# per build) would make the second run silently overwrite the first
+# build's own $(TARGET)_pp.sym. A plain `cp` to a distinctly-named
+# input file avoids that, still far simpler than the sed version.
+DEBUG_TARGET = $(TARGET)-debug
+
+$(DEBUG_TARGET)_pp.asm: $(TARGET)_pp.asm
+	cp $(TARGET)_pp.asm $(DEBUG_TARGET)_pp.asm
+
+$(DEBUG_TARGET).prg: $(DEBUG_TARGET)_pp.asm
+	$(C64LIST) $(DEBUG_TARGET)_pp.asm -prg:$(DEBUG_TARGET) -sym -ovr -def:keymap_debug
+
+$(DEBUG_TARGET).d64: $(DEBUG_TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg keymap_menu.prg
+	rm -f $(DEBUG_TARGET).d64
+	c1541 -format "tada,00" d64 $(DEBUG_TARGET).d64
+	c1541 $(DEBUG_TARGET).d64 -write $(DEBUG_TARGET).prg "tada-client"
+	c1541 $(DEBUG_TARGET).d64 -write petscii_editor.prg "PETSCII.ED"
+	c1541 $(DEBUG_TARGET).d64 -write config_menu.prg "CONFIG.MNU"
+	c1541 $(DEBUG_TARGET).d64 -write help_menu.prg "HELP.MNU"
+	c1541 $(DEBUG_TARGET).d64 -write keymap_menu.prg "KEYMAP.ED"
+
+debug-d64: $(DEBUG_TARGET).d64
 
 # Just preprocess, useful for checking macro/const output
 preprocess: $(TARGET)_pp.asm
@@ -197,7 +262,11 @@ clean:
 	      $(addsuffix _pp.sym,$(MODULES)) \
 	      $(addsuffix .prg,$(MODULES)) \
 	      $(addsuffix .sym,$(MODULES)) \
-	      $(TARGET).d64
+	      $(TARGET).d64 \
+	      $(DEBUG_TARGET)_pp.asm \
+	      $(DEBUG_TARGET)_pp.sym \
+	      $(DEBUG_TARGET).prg \
+	      $(DEBUG_TARGET).d64
 
 # Show build status and server reachability
 status:
@@ -212,4 +281,73 @@ status:
 		echo "$(SL_HOST):$(SL_PORT) REACHABLE" || \
 		echo "$(SL_HOST):$(SL_PORT) NOT REACHABLE"
 
-.PHONY: all vice d64 preprocess build clean status
+# --- Commodore 128 client (client-128.asm) ---
+# Separate program, separate memory map/KERNAL from tada-client.asm
+# above -- see client-128.asm's own header comment. No SwiftLink/
+# server connection yet, so no ACIA flags or d64 image needed (unlike
+# vice: above); just assemble and autostart. input_editor.asm (the
+# ported sliding-input.asm line editor) is {include:}'d directly, with
+# no {const:}/{def:} macros of its own, so -- unlike screen-handler.asm
+# above -- it does NOT need its own macro_preprocessor.py pass; it's
+# still listed as a prerequisite below since c64list reads it straight
+# off disk when it hits the {include:} line.
+TARGET128       = client-128
+LAUNCH_VICE128  = x128
+
+# The Keymap Editor popup (keymap_menu_128.asm, forked from the C64
+# client's keymap_menu.asm) is built into the 128 client rather than
+# loaded as an overlay; like any split module it gets its own
+# preprocessing pass first.
+keymap_menu_128_pp.asm: keymap_menu_128.asm constants_128.asm
+	$(PREPROCESSOR) keymap_menu_128.asm
+
+$(TARGET128)_pp.asm: $(TARGET128).asm input_editor.asm vdc.asm vdc_screen.asm keymap_host_128.asm keymap_128.asm keymap_menu_128_pp.asm swiftlink.asm
+	$(PREPROCESSOR) $(TARGET128).asm
+
+$(TARGET128).prg: $(TARGET128)_pp.asm
+	$(C64LIST) $(TARGET128)_pp.asm -prg:$(TARGET128) -sym -ovr
+	python3 ./check_128_layout.py $(TARGET128).prg $(TARGET128)_pp.sym
+
+$(TARGET128)-vice-labels: $(TARGET128).prg
+	$(CONVERT_LABELS) $(TARGET128)_pp.sym $(TARGET128)-vice-labels
+
+monitor-commands-128: $(TARGET128)-vice-labels
+	echo "ll \"$(TARGET128)-vice-labels\"" > monitor-commands-128
+
+all128: $(TARGET128).prg $(TARGET128)-vice-labels monitor-commands-128
+
+# Positional trailing .prg argument autostarts it directly, same as
+# every live-testing launch this session -- no -autostart/d64 needed
+# since there's no overlay module or disk image to bundle yet. Own
+# remote-monitor port (6511) so this can run alongside `make vice`
+# (port 6510) without colliding.
+#
+# SwiftLink: an ACIA at $DE00 in SwiftLink mode raising NMI, bridged to
+# the server's PETSCII port over IP232 -- the same emulated cartridge as
+# `make vice`, spelled out in full since x128's ACIA can also sit at
+# $D700 (-acia1base). RUN/STOP at "Connecting..." runs it offline.
+vice128: all128
+	$(LAUNCH_VICE128) \
+	-acia1 -acia1base 0xDE00 -acia1mode 1 -acia1irq 1 \
+	-myaciadev 0 \
+	-rsdev1 "$(SL_HOST):$(SL_PORT)" -rsdev1ip232 \
+	-rsdev1baud "$(SL_BAUD)" \
+	-moncommands "monitor-commands-128" \
+	-remotemonitor \
+	-remotemonitoraddress "127.0.0.1:6511" \
+	$(TARGET128).prg
+
+preprocess128: $(TARGET128)_pp.asm
+
+build128: all128
+
+clean128:
+	rm -f $(TARGET128)_pp.asm \
+	      keymap_menu_128_pp.asm \
+	      $(TARGET128)_pp.prg \
+	      $(TARGET128)_pp.sym \
+	      $(TARGET128).prg \
+	      $(TARGET128)-vice-labels \
+	      monitor-commands-128
+
+.PHONY: all vice d64 debug-d64 preprocess build clean status all128 vice128 preprocess128 build128 clean128

@@ -41,6 +41,10 @@ class _FakeCtx:
         self.player = player
         self._sent: list[str] = []
         self._prompt_reply = prompt_reply
+        self.room_said: list = []
+
+    async def send_room(self, line, exclude_self=False):
+        self.room_said.append(line)   # room_notices' lines for bystanders
 
     async def send(self, msg, **kwargs):
         if isinstance(msg, list):
@@ -105,6 +109,7 @@ class TestUnwearBySlotName(unittest.IsolatedAsyncioTestCase):
         ctx = _FakeCtx(player)
         await UnwearCommand().execute(ctx, 'leather', 'armor')
         self.assertIsNone(player.active_armor_id)
+        self.assertEqual(ctx.room_said, [f'{player.name} takes off the leather armor.'])
 
 
 class TestUnwearBothWornPrompts(unittest.IsolatedAsyncioTestCase):

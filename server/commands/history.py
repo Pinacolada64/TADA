@@ -14,7 +14,7 @@ class HistoryCommand(Command):
         category = HelpCategory.GENERAL,
         usage    = [
             ('history', 'Show your last commands, most recent first.'),
-            ('^1',      'Re-run the most recent command shown by "history".'),
+            ('^1',      'Re-run the most recent command shown by |command|history|reset|.'),
             ('^3',      'Re-run the 3rd-most-recent command.'),
         ],
         notes = [

@@ -64,8 +64,16 @@ def format_tip_box(ctx, tip: str, tip_number: int, total: int,
     width defaults to None so titled_box() can derive it from the
     player's own screen_columns (e.g. 40 for a Commodore 64) -- a
     hardcoded default here would always win over that, pinning every tip
-    box to a fixed width regardless of the player's actual terminal."""
+    box to a fixed width regardless of the player's actual terminal.
+
+    *tip*'s %-tokens (%n name, %o/%p/%r pronouns, ...) are expanded
+    against the viewing player (ctx.player) via
+    tada_utilities.substitute_tokens(), so tips.json can say "%n" /
+    "defend %r" instead of a hardcoded "your character" / "himself"."""
     from formatting import titled_box
+    from tada_utilities import substitute_tokens
+
+    tip = substitute_tokens(tip, ctx.player)
 
     box = titled_box(
         ctx, f'Tip #{tip_number} / {total}', tip, width=width,

@@ -67,7 +67,7 @@ class BannerEditCommand(Command):
             if positional and positional[0].lower() in ('list', 'edit'):
                 bare = positional[0].lower()
                 hint = f'banner #{bare}' + (' <name>' if bare == 'edit' else '')
-                await ctx.send(f"'{bare}' needs a '#' -- try '{hint}'.")
+                await ctx.send(f"'{bare}' needs a '#' -- try |command|{hint}|reset|.")
                 return CommandResult.fail('Missing #.', error='missing_hash')
             await ctx.send('Usage: banner #edit <name> | banner #list')
             return CommandResult.fail('No subcommand given.')
@@ -80,7 +80,7 @@ class BannerEditCommand(Command):
                 return CommandResult.fail('No banner name given.')
             return await self._edit(ctx, ' '.join(positional))
 
-        await ctx.send(f'Unknown "banner" subcommand: {sub!r}. Try "banner #list" or "banner #edit <name>".')
+        await ctx.send(f'Unknown "banner" subcommand: {sub!r}. Try |command|banner #list|reset| or |command|banner #edit <name>|reset|.')
         return CommandResult.fail('Unknown subcommand.', error='unknown_subcommand')
 
     async def _list(self, ctx) -> CommandResult:

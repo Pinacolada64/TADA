@@ -613,8 +613,12 @@ class CombatSession:
             return False
 
         mname = self.monster.get('name', '')
+        from monsters import monster_display_name
+        from room_notices import notify
+        who = getattr(ctx.player, 'name', None) or 'Someone'
         if 'HORSE' not in mname.upper():
             await ctx.send('You practice with the lasso.')
+            await notify(ctx, f'{who} swings a lasso at {monster_display_name(self.monster)}.')
             return False
 
         from ally_events.capture_horse import mount_slot_available, capture_mount
@@ -626,6 +630,7 @@ class CombatSession:
         mount = await capture_mount(ctx, self.monster)
         if mount is None:
             return False
+        await notify(ctx, f'{who} lassoes {monster_display_name(self.monster)}!')
         self._done.set()
         self._remove_attacker(ctx)
         return True
@@ -908,7 +913,7 @@ class CombatSession:
             # ---- Per-round status warnings (SPUR.COMBAT.S lines 21-25, 88) ----
             hp = getattr(player, 'hit_points', 1)
             if hp < 9:
-                await ctx.send('[+] HP DANGEROUSLY LOW [+]  (FLEE might be wiser!)')
+                await ctx.send('[+] HP DANGEROUSLY LOW [+]  (|command|FLEE|reset| might be wiser!)')
             for warn in _survival_warnings(player):
                 await ctx.send(warn)
 
@@ -1366,7 +1371,7 @@ class CombatSession:
             wn   = result.weapon_name or 'weapon'
             term = _ammo_term(wn).upper() + 'S'
             await ctx.send(f'NO {term} READY for the {wn}!')
-            await ctx.send('(Try USE to load ammunition first.)')
+            await ctx.send('(Try |command|USE|reset| to load ammunition first.)')
             return
         if result.bad_weapon_choice:
             await ctx.send('(bad weapon choice)')

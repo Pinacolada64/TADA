@@ -39,7 +39,7 @@ class LurkCommand(Command):
             'is redirected off you and onto one of your allies instead.'
         ),
         notes = [
-            'Same command dispatch as "attack" -- opens or continues a '
+            'Same command dispatch as |command|attack|reset| -- opens or continues a '
             'fight in this room, or gives you one swing if you join one '
             'already in progress.',
         ],

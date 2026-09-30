@@ -7,7 +7,7 @@ from formatting import hrule_char, underline
 from network_context import GameContext
 from player import Player
 from base_classes import CombinationTypes, Combination
-from presence import enter_area, leave_area, broadcast_area, broadcast_open_room, others_present
+from presence import enter_area, leave_area, broadcast_area, broadcast_nearby, others_present
 
 log = logging.getLogger(__name__)
 
@@ -174,7 +174,9 @@ async def main(ctx: GameContext) -> None:
     await ctx.send(
         'A burly guard stands here, his arms crossed. He looks you up and down.',
     )
-    await broadcast_open_room(ctx, f'{player.name} steps up to the elevator.')
+    # The elevator is inside the Shoppe: the Shoppe sees this, not the
+    # lobby upstairs (presence.broadcast_nearby).
+    await broadcast_nearby(ctx, f'{player.name} steps up to the elevator.')
 
     await enter_area(ctx, 'Elevator')
     try:
@@ -212,7 +214,9 @@ async def _elevator_session(ctx: GameContext, player) -> None:
 
         if not cmd or cmd in ('x', 'l', 'leave'):
             await ctx.send('The guard steps aside as you leave.')
-            await broadcast_open_room(ctx, f'{player.name} steps away from the elevator.')
+            # No broadcast here: leave_area('Elevator') tells the Shoppe the
+            # player stepped out. This used to go to broadcast_open_room(),
+            # i.e. the lobby upstairs, though the player never left the Shoppe.
             break
 
         if cmd == 'u':

@@ -71,6 +71,31 @@ def _isolate_news_file():
 
 
 # ---------------------------------------------------------------------------
+# Global Dwarf state isolation
+# ---------------------------------------------------------------------------
+# encounters/dwarf.py's _STATE_FILE is a fixed relative path
+# (run/server/dwarf_state.json), not derived from net_common.run_server_dir,
+# so without this every test that builds a Server (_place_dwarf()) or moves
+# a player (maybe_relocate()) read -- and, once the relocation interval
+# elapsed, rewrote -- the live game's own Dwarf location. That made
+# tests/horses/test_wild_horse_placement.py fail intermittently whenever the
+# live Dwarf happened to be standing in one of the wild horse's candidate
+# rooms, and let a local test run relocate the Dwarf on the live server
+# sharing this directory. Same session-scoped autouse pattern as the
+# fixtures above; tests/combat/test_dwarf.py's own _isolated_state() patches
+# over it per test.
+@pytest.fixture(scope='session', autouse=True)
+def _isolate_dwarf_state():
+    import tempfile
+    from pathlib import Path
+    from unittest.mock import patch
+
+    with tempfile.TemporaryDirectory() as tmp:
+        with patch('encounters.dwarf._STATE_FILE', Path(tmp) / 'dwarf_state.json'):
+            yield
+
+
+# ---------------------------------------------------------------------------
 # Global battle.log / credential-dir isolation
 # ---------------------------------------------------------------------------
 # net_common.append_battle_log() and user_dir() both resolve their path from

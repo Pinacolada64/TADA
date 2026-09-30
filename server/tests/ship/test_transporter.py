@@ -36,12 +36,16 @@ class _FakeCtx:
     def __init__(self, responses, player, game_map=None):
         self._q = list(responses)
         self.sent: list = []
+        self.room_said: list = []
         self.player = player
         self.client = _FakeClient()
         self.server = SimpleNamespace(
             clients={}, items=[], game_map=game_map,
             _show_room=AsyncMock(), _teleport_to=AsyncMock(),
         )
+
+    async def send_room(self, line, exclude_self=False):
+        self.room_said.append(line)   # room_notices' beam out/in lines
 
     async def send(self, *args):
         for a in args:
@@ -112,6 +116,8 @@ class TestTransporterBeamDown(_IsolatedBattleLog):
         self.assertEqual(player.map_level, 3)
         ctx.server._show_room.assert_awaited()
         self.assertIn('Standby to beam down!', ctx._flat())
+        self.assertEqual(ctx.room_said, ['Rulan shimmers and fades away!',
+                                         'Rulan shimmers into view!'])
 
     async def test_bad_level_choice_stays_on_ship(self):
         player = _new_player('Rulan')
@@ -146,6 +152,8 @@ class TestTransporterMalfunction(_IsolatedBattleLog):
         self.assertTrue(result)
         ctx.server._teleport_to.assert_awaited_once_with(ctx, 4, 7)
         self.assertIn('*** MALFUNCTION ***', ctx._flat())
+        self.assertEqual(ctx.room_said, ['Rulan flickers erratically and vanishes!',
+                                         'Rulan flickers into view, looking dazed.'])
 
 
 if __name__ == '__main__':

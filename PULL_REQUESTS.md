@@ -12,16 +12,14 @@ Sections: Open PRs → Merged PRs (newest first).
 
 ## Open PRs
 
-#### [#47](https://github.com/Pinacolada64/TADA/pull/47) `fix/dwarf-hoard-floor` → `master` — Dwarf hoard resets to a 500-silver floor, not zero
-- **Tip:** `296a0c5` (2 commits). Rebased onto current `master`.
-- Ports SPUR.MISC.S's original `dh=0:dl=500` payout: killing the Dwarf right
-  after someone else drained his hoard used to net **nothing**; now it's a
-  guaranteed 500-silver minimum. `encounters/dwarf.py` (`config.dwarf_silver = 500`
-  in `on_killed()`), `config.py` (setting description), `test_dwarf.py` (18 pass).
-- `96b93cd` is the original `05ddbbe` — it had been a shared base commit under
-  `feature/ooc` / `feature/say-verb-switch` / `feature/pose` (all merged without
-  it during the 2026-09-09 cleanup); `296a0c5` fixes two "gold" → "silver"
-  comments to match the port's convention.
+#### [#50](https://github.com/Pinacolada64/TADA/pull/50) `fix/switch-consistency` → `master` — Fix `#<switch>` consistency
+- **Tip:** `50d58cf` (3 commits), **behind `master` and conflicting** (2026-09-30: 4 hunks in
+  `server/commands/board/board.py` and `server/commands/news.py`, from the board rework
+  that landed after it) -- needs `master` merged in and those spots redone.
+- `board edit` accepted alongside `board #edit`; `map.py`/`teleport.py` moved onto
+  `parse_args()`'s switch/positional split; `news.py`/`banner_edit.py` gain `#`-switch
+  forms (`news #post`, etc.). `ban.py` deliberately left as-is. Two bot scripts
+  updated to `news #post`.
 
 ---
 
@@ -30,7 +28,6 @@ Sections: Open PRs → Merged PRs (newest first).
 | Branch | Tip | Status |
 |--------|-----|--------|
 | `feat/helpstaff` | `52b49ca` | WIP snapshot — `helpstaff` command (ask an available staffer for help: request → relay to `PlayerFlags.HELPSTAFF_AVAILABLE` players → first to `helpstaff accept <name>` is teleported in). 182-line command + 237-line test, recovered verbatim from tag `pre-30-cleanup` after the #30 mishap. **Not wired**: still needs the `HELPSTAFF_AVAILABLE` flag added to `flags.py`, `Server.pending_help_requests` init, command registration, and an editplayer toggle. Isolated test run: 5 pass / 9 fail (all on the missing flag). |
-| `feature/help-popup` | `e5ce52f` | Native C64 help / keyboard-shortcuts / credits popup overlay (`help_menu.asm` + `commands/help_menu.py`, 8 commits). Pushed to `origin` 2026-09-09 as a backup — was local-only. Supersedes the two overlay commits on the now-deleted `dwarf-hoard-floor`. **Needs a live end-to-end retest** before a PR (see the `LOAD $05` history). |
 
 ---
 
@@ -38,6 +35,20 @@ Sections: Open PRs → Merged PRs (newest first).
 
 | PR | Merge commit | Branch | Title |
 |----|--------------|--------|-------|
+| [#61](https://github.com/Pinacolada64/TADA/pull/61) | `f0092cf` | `128-client-swiftlink` | The whole C64/C128 client stack in one merge (91 commits): C64 help popup (`feature/help-popup`), Keymap Editor (#53), KERNAL-free screen output + two-row input area + lost-lines fix + Hourglass clock (`feature/kernal-free-screen`); the native C128 client (#58 and earlier), its 80-column VDC output with scrollback and built-in Keymap Editor (`KEYMAP128.CFG`, Alt, Page Up/Down on Alt + grey arrows, #59), and SwiftLink play. All C64/x128 VICE suites pass; **real-hardware tests still pending** for both clients. |
+| [#59](https://github.com/Pinacolada64/TADA/pull/59) | `80dc99e` (via #61) | `128-client-keymap` | C128 80-column VDC output, 150-line scrollback, built-in Keymap Editor (forked `keymap_menu_128.asm`). Landed inside #61. |
+| [#58](https://github.com/Pinacolada64/TADA/pull/58) | `8ef87c8` (via #61) | `128-client-hourglass` | C128 Hourglass clock on the status row; lowercase charset, locked. Landed inside #61. |
+| [#53](https://github.com/Pinacolada64/TADA/pull/53) | `5cba399` (via #61) | `feature/keymap-editor` | C64 Keymap Editor: rebindable nav keys, macros, combo capture, 3-key rollover scan, `KEYMAP.CFG`. Landed inside #61 (was still a draft). |
+| [#60](https://github.com/Pinacolada64/TADA/pull/60) | `2d9badf` | `feature/room-notify-movement` | Room notices (`room_notices.py`): movement ("Ryan moves north." / "Ryan enters from the south."), beaming, mount/dismount/lasso, respawn, entering the bar/shops/guild halls, wear/eat/drink/read/pray/cast. FOLLOW ME groups move as one: "Rulan leaves north, with Frodo and Sam following." / "... arrives from the south, with ...", "Rulan carries Bilbo, who is unconscious."; followers get only "You follow ...". Fix: `send_room()` and the "X is here" list compared room number only, leaking across levels. Master (#54) merged in with the departure notice ahead of the followers. Live-checked by the new `tools/bot_follow_me.py` (7/7). |
+| [#54](https://github.com/Pinacolada64/TADA/pull/54) | `c859099` | `feature/follow-me` | SPUR's FOLLOW ME / STAY guild followers (`guild_follow.py`, `commands/stay.py`): online guildmates follow live on every exit, logged-off ones are carried and dropped off by STAY or at logoff; carried followers add to duel guild support. Deferred (TODO.md): unconscious-carry, guild-leader gate, `#!`/`<<` markers, editplayer entry for `followed_leader_name`. |
+| [#52](https://github.com/Pinacolada64/TADA/pull/52) | `5847aa2` | `feature/command-token-sweep-2` | `\|command\|...\|reset\|` markup swept into the remaining player-facing command mentions: help text in 19 command files, the pre-login menu and hints, and 61 more strings in 26 files. |
+| [#57](https://github.com/Pinacolada64/TADA/pull/57) | `1c7aae7` | `fix/tips` | Tips run through `substitute_tokens()` (`%n`/`%o`/`%p`/`%r` name and pronouns instead of "your character"/"his"); Spur wording and typo fixes, Dwarf tip "gold" -> "silver". |
+| [#47](https://github.com/Pinacolada64/TADA/pull/47) | `535fe60` | `fix/dwarf-hoard-floor` | Dwarf hoard resets to a 500-silver floor on kill (SPUR.MISC.S `dh=0:dl=500`), not zero. |
+| [#56](https://github.com/Pinacolada64/TADA/pull/56) | `ba85c8d` | `fix/client-load-current-drive` | C64 client: `load_petscii_editor` / `load_config_menu` LOAD overlays from the drive the client was loaded from (KERNAL FA, `$ba`, via `setlfs_current_drive`; falls back to 8 if below 8) instead of hard-coded device 8. Same fix + help/keymap sites on `feature/keymap-editor` (#53: `df5d47a`, `cd777d4`). **Not yet live-tested in VICE from drive 9.** |
+| [#55](https://github.com/Pinacolada64/TADA/pull/55) | `1e8a675` | `fix/dwarf-horse-collision` | Stop the Dwarf overwriting other monsters (`_place_dwarf()` no longer writes over an occupied room, e.g. the wild horse in rooms 30/52/68); session autouse `_isolate_dwarf_state` fixture keeps tests off the live `dwarf_state.json`. Follow-up: `room_alignment.py`, `winners.py`, `simple_server.py:737` share the hard-coded-path pattern. |
+| [#49](https://github.com/Pinacolada64/TADA/pull/49) | `1bdc83a` | `feat/text-editor-split-join` | Line editor `.e s`plit / `.e j`oin subcommands (undo/redo-checkpointed); `.e` "show buffers" moved to `.e b`. Merged alongside #51, which carried the same commits. |
+| [#51](https://github.com/Pinacolada64/TADA/pull/51) | `666e6c6` | `feature/command-color-tokens` | PREFS-configurable \|command\|...\|reset\| markup token for literal command syntax, swept into player-facing text; `.e split`/`.e join`; `board` "read new" rework (`rn`/`ra`/`sa`/`ld` folded into the listing's "Read which" prompt, `sn` added). |
+| [#48](https://github.com/Pinacolada64/TADA/pull/48) | `fdae53b` | `feature/reply-target-token` | `page`/`whisper` `#reply`/`#r` (reply to your last correspondent) and `#last [N]` (recent-recipient history, 10-entry ring buffer); `command_settings.page`/`.whisper` namespaces. |
 | [#46](https://github.com/Pinacolada64/TADA/pull/46) | `fe4c1ed` | `feature/pose` | `pose` / `emote` / `me` command with a bare `:` shortcut (wired like `say`'s `"`). Third-person action text shown to the room verbatim, de-conjugated to first person for the actor. |
 | [#36](https://github.com/Pinacolada64/TADA/pull/36) | `8ccff36` | `feature/give-drink-polish` | Drinking from a pool appends "(Your thirst has been quenched.)" for non-expert players. (The branch's other commit — a `give` ally pick-list — was dropped before merge: `master` already had it via `inventory_select`.) |
 | [#33](https://github.com/Pinacolada64/TADA/pull/33) | `44be439` | `feature/say-verb-switch` | `say #verb` (comma-based dialogue attribution) + `say #split` / `#unsplit` (inline equivalents of the PREFS 'Y' toggle), with in-game help coverage. |

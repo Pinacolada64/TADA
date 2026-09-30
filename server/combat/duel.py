@@ -380,6 +380,10 @@ def _guild_support(side: '_DuelSide') -> int:
         other_player = getattr(other_ctx, 'player', None) if other_ctx else None
         if other_player is not None and getattr(other_player, 'guild', None) == guild:
             count += 1
+    # Logged-off guildmates carried along by FOLLOW ME (guild_follow.py)
+    # -- SPUR's own follow.b loop counts exactly these yt$ entries.
+    import guild_follow
+    count += len(guild_follow.carried(side.player))
     return min(count, 5)
 
 
@@ -1211,7 +1215,7 @@ async def _send_challenge(ctx: GameContext, target_ctx) -> CommandResult:
     if getattr(challenger, 'readied_weapon', None) is None:
         await ctx.send(
             "NO WEAPON READIED! (You feel dumber)",
-            "Use READY to prepare a weapon before you DUEL.",
+            "Use |command|READY|reset| to prepare a weapon before you DUEL.",
         )
         # SPUR.DUEL.S's no.wep: docks a point of INT for the attempt.
         stats = getattr(challenger, 'stats', {}) or {}
@@ -1228,7 +1232,7 @@ async def _send_challenge(ctx: GameContext, target_ctx) -> CommandResult:
         '',
         f'|red|{challenger.name} challenges you to a duel!|reset|',
         f'  Your BHR: {_bhr(target)}   {challenger.name}\'s BHR: {_bhr(challenger)}',
-        "Type 'duel accept' or 'duel decline'.",
+        "Type |command|duel accept|reset| or |command|duel decline|reset|.",
         '',
     )
     return CommandResult.ok(f'Challenged {target.name}.')
@@ -1361,7 +1365,7 @@ async def _resolve_grovel(ctx: GameContext) -> CommandResult:
 async def _submit_tactic(ctx: GameContext, tactic: DuelTactic) -> CommandResult:
     session = getattr(ctx.player, 'active_duel', None)
     if session is None:
-        await ctx.send("You're not in a duel. Use DUEL <player> to challenge someone.")
+        await ctx.send("You're not in a duel. Use |command|DUEL <player>|reset| to challenge someone.")
         return CommandResult.fail('No active duel.')
     side = session.side_for(ctx.player)
     if side.down and tactic not in _DOWN_TACTICS:
@@ -1385,7 +1389,7 @@ async def _toggle_verbose(ctx: GameContext) -> CommandResult:
     wait on the opponent."""
     session = getattr(ctx.player, 'active_duel', None)
     if session is None:
-        await ctx.send("You're not in a duel. Use DUEL <player> to challenge someone.")
+        await ctx.send("You're not in a duel. Use |command|DUEL <player>|reset| to challenge someone.")
         return CommandResult.fail('No active duel.')
     side = session.side_for(ctx.player)
     side.verbose = not side.verbose
@@ -1445,7 +1449,7 @@ class DuelCommand(Command):
         ],
         description = (
             'Challenges another online player in your room to a SPORT '
-            'DUEL. Both sides need a weapon readied (see READY). Once '
+            'DUEL. Both sides need a weapon readied (see |command|READY|reset|). Once '
             'accepted, each round both duelists privately choose Attack, '
             'Parry, Bash, or Flee -- the round resolves the instant both '
             'have chosen, and both sides see the same result. Parry '

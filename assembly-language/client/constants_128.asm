@@ -1,0 +1,22 @@
+; constants_128.asm -- keymap_menu_128.asm's view of its host,
+; client-128.asm; the 128 counterpart of the C64 overlay's constants.asm.
+;
+; The JT_* names are NOT defined here: on the C64 they're fixed jump-
+; table addresses at $c000, which is ROM on the 128. keymap_host_128.asm
+; defines each one as a real label (JT_SAVE_SCREEN: ...) instead, and
+; KEYMAP_TABLE_PTR likewise lives in keymap_128.asm as a label -- labels
+; can be referenced before they're defined, `=` constants can't, and
+; these are only ever referenced.
+
+; Live keyboard state the popup reads (see constants.asm's copies for the
+; C64 values). $d3/$d4 per Compute's 128 Programmer's Guide's zero-page
+; map, and the editor ROM's own SCNKEY ($C636: ldx $d4 / $C651: ldy $d4).
+; Key numbers 0-63 are the same physical keys as the C64's; 64-87 are the
+; 128's extra keys (keypad, HELP, ESC, TAB, ALT, LINE FEED, the top-row
+; arrows, NO SCROLL), and 88 means nothing is held.
+KM_SHFLAG                    = $d3
+KM_SFDX                      = $d4
+KM_KEY_NONE                  = 88
+
+; Modifier bits the editor captures: SHIFT 1, C= 2, CTRL 4, ALT 8 ($d3).
+KM_MOD_MASK                  = 15

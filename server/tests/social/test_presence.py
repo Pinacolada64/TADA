@@ -14,10 +14,13 @@ def make_client(name: str, area: str | None = None) -> MagicMock:
     """Return a minimal server-side client mock."""
     client = MagicMock()
     client.virtual_location = area
-    client.ctx = MagicMock()
+    client.presence_area = area
+    client.room = 1                 # area broadcasts only reach the same
+    client.ctx = MagicMock()        # level + room (presence._same_place)
     client.ctx.send = AsyncMock()
     client.ctx.player = MagicMock()
     client.ctx.player.name = name
+    client.ctx.player.map_level = 1
     return client
 
 
