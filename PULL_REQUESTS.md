@@ -12,6 +12,49 @@ Sections: Open PRs → Merged PRs (newest first).
 
 ## Open PRs
 
+#### [#60](https://github.com/Pinacolada64/TADA/pull/60) `feature/room-notify-movement` → `master` — Room notices: movement, level-aware rooms, and other visible actions
+- **Tip:** `cd22500` (2 commits), up to date with `master`.
+- Movement tells the room left "Ryan moves north." / "Ryan and his party move north."
+  and the room reached "Ryan enters from the south." (new `room_notices.py`, called
+  from `_move()`; covers walked level changes and fleeing). Also announced now:
+  transporter/communicator beaming (and malfunctions), mount/dismount/lasso,
+  respawn, the bar and the Shoppe/Ship's Stores/Allies' Guild/Jake's Stable/guild
+  halls, wear/unwear, eat/drink, read, pray, cast.
+- **Fix:** `send_room()` (JSON and PETSCII) and the "X is here" list compared the
+  room *number* only, so every broadcast leaked into the same-numbered room on
+  every other level; they now compare `(level, room)`.
+- Full suite 4702 passed, 2 skipped. Not yet live-tested with two clients.
+
+#### [#59](https://github.com/Pinacolada64/TADA/pull/59) `128-client-keymap` → `feature/kernal-free-screen` — Commodore 128 client: 80-column VDC output, scrollback, built-in Keymap Editor
+- **Tip:** `9660cd3` (23 commits), up to date with `feature/kernal-free-screen`.
+  **Stacked** — base is `feature/kernal-free-screen`, which has no PR of its own.
+  Contains #58's commit (`8ef87c8`).
+- The whole 128 client line so far: `$1C01` BASIC stub, 40/80 detection, ESC-T/ESC-B
+  window, ported line editor, IRQ task table, Hourglass clock; `vdc.asm` /
+  `vdc_screen.asm` 80-column output with a 150-line scrollback; the Keymap Editor
+  built in (`keymap_host_128.asm`, `KEYMAP.CFG` shared with the C64).
+- **PR description is stale:** tip `9660cd3` (pushed after it was written) forks the
+  popup into its own `keymap_menu_128.asm` and makes scrollback paging a rebindable
+  Page Up/Page Down on Alt + the grey arrows, replacing the C= + CRSR paging and the
+  Makefile `sed` build the description still mentions.
+- Superseded in practice by `128-client-swiftlink` (see Feature branches), which
+  carries all of this plus SwiftLink.
+
+#### [#58](https://github.com/Pinacolada64/TADA/pull/58) `128-client-hourglass` → `128-client` — client-128: Hourglass clock on the status row; lowercase charset, locked
+- **Tip:** `8ef87c8` (1 commit), up to date with `128-client`.
+- Right-aligned clock on status row 23 with `clock_reset`/`clock_putc`/`clock_commit`
+  for the server's `$0b` clock stream; lowercase charset at boot (CHR$(14)), locked
+  with CHR$(11). `vice128_clock_test.py` 4/4. Also inside #59.
+
+#### [#57](https://github.com/Pinacolada64/TADA/pull/57) `fix/tips` → `master` — Tips: name/pronoun %-substitution, Spur wording, typo fixes
+- **Tip:** `0548b02` (1 commit), up to date with `master`.
+- `format_tip_box()` runs tip text through `substitute_tokens()`, so five tips in
+  `tips.json` now use `%n`/`%o`/`%p`/`%r` (name, him/her, his/her, himself/herself)
+  instead of hardcoded "your character"/"his"/"himself". BHR tip reworded ("not
+  even the almighty Spur knows") with two typo fixes; Dwarf tip "gold" → "silver".
+- 3 new tests; its full-suite run had 1 failure in `test_editplayer.py` that
+  already failed without the change.
+
 #### [#54](https://github.com/Pinacolada64/TADA/pull/54) `feature/follow-me` → `master` — Port SPUR's FOLLOW ME and STAY guild-follower commands
 - **Tip:** `9c99f63` (2 commits), up to date with `master`.
 - `follow me` (SPUR.MISC5.S `come`) recruits same-guild characters in the room with
@@ -63,6 +106,7 @@ Sections: Open PRs → Merged PRs (newest first).
 | Branch | Tip | Status |
 |--------|-----|--------|
 | `feat/helpstaff` | `52b49ca` | WIP snapshot — `helpstaff` command (ask an available staffer for help: request → relay to `PlayerFlags.HELPSTAFF_AVAILABLE` players → first to `helpstaff accept <name>` is teleported in). 182-line command + 237-line test, recovered verbatim from tag `pre-30-cleanup` after the #30 mishap. **Not wired**: still needs the `HELPSTAFF_AVAILABLE` flag added to `flags.py`, `Server.pending_help_requests` init, command registration, and an editplayer toggle. Isolated test run: 5 pass / 9 fail (all on the missing flag). |
+| `128-client-swiftlink` | `8b698b4` | The C128 client over SwiftLink (`910c711`): `swiftlink.asm` shared with the C64 via `{def: c128}` (128 NMI entry/exit via `$FF33`); "Connecting..." or RUN/STOP for the offline demo; answers the 40/80 menu; server text shown mid-typing; prompts moved to the input row; clock/apply streams handled, popup streams skipped with a cancel reply. Also carries #59's keymap work (as copies in `910c711`, not shared history — built on `142a97e`), "Line Start"/"Line End" labels, and `tools/bot_crowd.py` (`8b698b4`). Tests: `vice128_swiftlink_test.py` 8/8, keymap 9/9, VDC 8/8, clock 4/4. No PR yet — would go on top of `feature/kernal-free-screen` like #59. |
 | `feature/help-popup` | `e5ce52f` | Native C64 help / keyboard-shortcuts / credits popup overlay (`help_menu.asm` + `commands/help_menu.py`, 8 commits). Pushed to `origin` 2026-09-09 as a backup — was local-only. Supersedes the two overlay commits on the now-deleted `dwarf-hoard-floor`. **Needs a live end-to-end retest** before a PR (see the `LOAD $05` history). #53 (`feature/keymap-editor`) is stacked on this branch. |
 
 ---
