@@ -613,8 +613,12 @@ class CombatSession:
             return False
 
         mname = self.monster.get('name', '')
+        from monsters import monster_display_name
+        from room_notices import notify
+        who = getattr(ctx.player, 'name', None) or 'Someone'
         if 'HORSE' not in mname.upper():
             await ctx.send('You practice with the lasso.')
+            await notify(ctx, f'{who} swings a lasso at {monster_display_name(self.monster)}.')
             return False
 
         from ally_events.capture_horse import mount_slot_available, capture_mount
@@ -626,6 +630,7 @@ class CombatSession:
         mount = await capture_mount(ctx, self.monster)
         if mount is None:
             return False
+        await notify(ctx, f'{who} lassoes {monster_display_name(self.monster)}!')
         self._done.set()
         self._remove_attacker(ctx)
         return True

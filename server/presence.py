@@ -81,11 +81,20 @@ def occupants(server, area: str) -> list:
             if (getattr(c, 'virtual_location', None) or '').lower() == area_lower]
 
 
+def _same_place(ctx, client) -> bool:
+    """*client* is on the caller's level and in the caller's room: an area
+    name alone isn't a place -- there's a Shoppe on each of levels 1-5."""
+    from room_notices import room_of
+    player = getattr(ctx, 'player', None)
+    here = (int(getattr(player, 'map_level', 1) or 1), getattr(ctx.client, 'room', None))
+    return room_of(client) == here
+
+
 def others_present(ctx, area: str) -> list[str]:
     """Return names of other players in *area*, excluding the caller."""
     names = []
     for client in occupants(ctx.server, area):
-        if client is ctx.client:
+        if client is ctx.client or not _same_place(ctx, client):
             continue
         player = getattr(getattr(client, 'ctx', None), 'player', None)
         name   = getattr(player, 'name', None)
@@ -95,9 +104,10 @@ def others_present(ctx, area: str) -> list[str]:
 
 
 async def broadcast_area(ctx, area: str, message: str) -> None:
-    """Send *message* to every occupant of *area* except the sender."""
+    """Send *message* to every occupant of *area* (on the sender's level,
+    in the sender's room) except the sender."""
     for client in occupants(ctx.server, area):
-        if client is ctx.client:
+        if client is ctx.client or not _same_place(ctx, client):
             continue
         peer_ctx = getattr(client, 'ctx', None)
         if peer_ctx:
@@ -113,12 +123,18 @@ async def broadcast_open_room(ctx, message: str) -> None:
     Use this for entranceway events (e.g. "X steps up to the elevator") that
     should be visible to players standing in the open room but not to those
     already inside a sub-area (elevator, shoppe, bar, etc.).
+
+    Same room means same level too (room_notices.location_of()) -- room
+    numbers repeat on every level, and after an elevator ride the
+    Shoppe's "steps out" used to reach room 1 on every level.
     """
-    my_room = getattr(ctx.client, 'room', None)
+    from room_notices import room_of
+    player = getattr(ctx, 'player', None)
+    here = (int(getattr(player, 'map_level', 1) or 1), getattr(ctx.client, 'room', None))
     for client in ctx.server.clients.values():
         if client is ctx.client:
             continue
-        if getattr(client, 'room', None) != my_room:
+        if room_of(client) != here:
             continue
         if getattr(client, 'virtual_location', None) is not None:
             continue
@@ -130,16 +146,58 @@ async def broadcast_open_room(ctx, message: str) -> None:
                 log.warning('presence.broadcast_open_room: send failed for %s', client)
 
 
+async def broadcast_nearby(ctx, message: str) -> None:
+    """*message* to whoever can see the player right now: the occupants of
+    the virtual area they're standing in (the Shoppe, when they step up to
+    its elevator), or the open room if they aren't in one."""
+    current = getattr(ctx.client, 'virtual_location', None)
+    if current:
+        await broadcast_area(ctx, current, message)
+    else:
+        await broadcast_open_room(ctx, message)
+
+
+# Areas named after their owner read without an article ("steps out of
+# Jake's Stable"); everything else gets one ("steps out of the Shoppe",
+# "the Allies' Guild", "the Thieves Guild HQ").
+_NO_ARTICLE = {"jake's stable"}
+
+
+def _area_phrase(area: str) -> str:
+    return area if area.lower() in _NO_ARTICLE else f'the {area}'
+
+
 async def enter_area(ctx, area: str) -> None:
-    """Mark this client as being in *area* and notify other occupants."""
+    """Mark this client as being in *area* and notify other occupants.
+
+    Areas nest -- the elevator is inside the Shoppe -- so the area being
+    left behind is remembered (the same save/restore text_editor.py and
+    news.py do around their own virtual_location) and leave_area() puts
+    it back."""
+    outer = getattr(ctx.client, 'area_outer', None)
+    if not isinstance(outer, dict):
+        outer = {}
+        ctx.client.area_outer = outer
+    outer[area.lower()] = getattr(ctx.client, 'virtual_location', None)
     ctx.client.virtual_location = area
+    ctx.client.presence_area = area     # where send_room() reaches (room_notices.location_of)
     name = getattr(ctx.player, 'name', '???')
-    await broadcast_area(ctx, area, f'{name} steps into the {area}.')
+    await broadcast_area(ctx, area, f'{name} steps into {_area_phrase(area)}.')
 
 
 async def leave_area(ctx, area: str) -> None:
-    """Clear this client's virtual location and notify remaining occupants and the open room."""
-    ctx.client.virtual_location = None
+    """Put this client back where they were before enter_area() -- the
+    enclosing area, or the open room -- and tell the area left and the
+    place they're back in. Leaving the elevator only tells the Shoppe;
+    only leaving the outermost area tells the open room."""
+    outer = getattr(ctx.client, 'area_outer', None)
+    previous = outer.pop(area.lower(), None) if isinstance(outer, dict) else None
+    ctx.client.virtual_location = previous
+    ctx.client.presence_area = previous
     name = getattr(ctx.player, 'name', '???')
-    await broadcast_area(ctx, area, f'{name} steps out of the {area}.')
-    await broadcast_open_room(ctx, f'{name} steps out of the {area}.')
+    left = f'{name} steps out of {_area_phrase(area)}.'
+    await broadcast_area(ctx, area, left)
+    if previous:
+        await broadcast_area(ctx, previous, left)
+    else:
+        await broadcast_open_room(ctx, left)

@@ -64,8 +64,8 @@ def _special_locations() -> dict[str, tuple[int, int]]:
         _ALLY_GUILD_LEVEL, _ALLY_GUILD_ROOM, _JAKES_LEVEL, _JAKES_ROOM,
     )
     return {
-        "Jake's Stable":        (_JAKES_LEVEL, _JAKES_ROOM),
-        "Bubba's Allys Guild":  (_ALLY_GUILD_LEVEL, _ALLY_GUILD_ROOM),
+        "Jake's Stable":         (_JAKES_LEVEL, _JAKES_ROOM),
+        "Bubba's Allies' Guild":  (_ALLY_GUILD_LEVEL, _ALLY_GUILD_ROOM),
     }
 
 

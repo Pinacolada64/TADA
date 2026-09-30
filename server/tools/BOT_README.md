@@ -43,6 +43,16 @@ Shared infrastructure (not itself a feature demo):
 - **`bot_water_drop_pawn_buyback.py`** — DROPs a metal weapon in a water
   room so it sinks, then buys it back from Ye Olde Pawn Shoppe's `[B]uy`
   option (`shoppe/pawn.py`'s `add_to_stock()`).
+- **`bot_follow_me.py`** — FOLLOW ME / STAY (`guild_follow.py`) plus
+  the room notices around a move (`room_notices.py`): a Claw leader
+  recruits a live and an offline guildmate (a Fist rival and a Civilian
+  just stare), walks two rooms, STAYs, and walks on alone; checks the
+  group moves as one ("Rulan leaves north, with Frodo and Sam
+  following." / "... arrives from the south, with ..."), followers only
+  get "You follow ...", both followers' saved rooms, and the offline
+  one's "You followed ..." at login.
+  Self-contained: seeds its own accounts into a temp dir and runs its own
+  `run_throwaway_server.py` (port 34192), 7 checks, ~30 s.
 - **`bot_swarm.py`** — 10 concurrent bots at once (wandering, PvE, PvP
   duels, page/whisper/shout, give/loot/pickup) hunting for concurrency
   bugs a one- or two-bot script can't reach.

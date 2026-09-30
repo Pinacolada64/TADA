@@ -83,6 +83,8 @@ class EatCommand(Command):
         inv = getattr(player, 'inventory', None)
         if inv is not None:
             inv.remove(item)
+        from room_notices import notify, the, who
+        await notify(ctx, f'{who(player)} eats {the(name)}.')
 
         # Monster meat — restores food; diseased monster's meat has 30% chance to infect
         # (SPUR.MISC3.S:369 fd=69 fd$=m$+" MEAT"; mon.des disease check).

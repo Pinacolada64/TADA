@@ -220,6 +220,7 @@ class WearCommand(Command):
             player.unsaved_changes = True
             await ctx.send('BATTLE ARMOR WORN.')
             await ctx.send('New armor rating=125%')
+            await _notify_worn(ctx, name)
             return CommandResult.ok()
 
         if item_no == _POWER_ARMOR_ID:
@@ -229,6 +230,7 @@ class WearCommand(Command):
             await ctx.send('POWER ARMOR ENERGIZED!')
             await ctx.send('Protects from nuclear back-blast for this play session!')
             await ctx.send('New armor rating=150%')
+            await _notify_worn(ctx, name)
             return CommandResult.ok()
 
         # ---- Generic armor (SPUR.SUB.S "wear") -----------------------------
@@ -245,4 +247,11 @@ class WearCommand(Command):
         player.unsaved_changes = True
         await ctx.send(f'(New armor rating: {new_armor}%)')
         await ctx.send(f'{name} worn.')
+        await _notify_worn(ctx, name)
         return CommandResult.ok()
+
+
+async def _notify_worn(ctx: GameContext, name: str) -> None:
+    """Tell the room -- see room_notices.py."""
+    from room_notices import notify, the, who
+    await notify(ctx, f'{who(ctx.player)} puts on {the(name)}.')

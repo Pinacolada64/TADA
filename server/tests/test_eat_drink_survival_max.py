@@ -32,6 +32,7 @@ def make_ctx(player):
     ctx = MagicMock()
     ctx.player = player
     ctx.send = AsyncMock()
+    ctx.send_room = AsyncMock()   # room_notices' "eats the ..." line
     ctx.prompt = AsyncMock(return_value='')
     return ctx
 
@@ -71,6 +72,9 @@ class TestEatHonorsSurvivalMax(_ConfigTestCase):
         run(EatCommand().execute(ctx, 'bread'))
         sent = str(ctx.send.call_args_list)
         self.assertNotIn('not hungry', sent.lower())
+        # _FakePlayer has no name -- room_notices.who() falls back
+        ctx.send_room.assert_awaited_once_with('Someone eats the LOAF OF BREAD.',
+                                               exclude_self=True)
 
     def test_not_hungry_at_raised_max_when_actually_full(self):
         config.survival_max = 40

@@ -49,6 +49,7 @@ def _make_ctx(server, *, room, item_ids=()):
     ctx.player.query_flag = MagicMock(return_value=False)  # not mounted
     ctx.player.command_settings.wasd_movement = False
     ctx.send = AsyncMock()
+    ctx.send_room = AsyncMock()   # _move's arrival/departure notices
     return ctx
 
 

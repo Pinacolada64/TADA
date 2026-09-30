@@ -330,7 +330,10 @@ async def _use_communicator(ctx, player) -> None:
         'The area fades from view!!',
         'To be replaced by metal walls!',
     ])
+    from room_notices import beam_in_line, beam_out_line, notify
+    await notify(ctx, beam_out_line(player))
     await ctx.server._teleport_to(ctx, 6, 1)
+    await notify(ctx, beam_in_line(player))
 
 
 async def _communicator_malfunction(ctx, player) -> None:
@@ -357,7 +360,10 @@ async def _communicator_malfunction(ctx, player) -> None:
     rooms = (game_map.levels.get(target_level, {}) if game_map else {}) or {}
     target_room = (random.choice(list(rooms.keys())) if rooms
                    else getattr(player, 'map_room', 1))
+    from room_notices import beam_in_line, beam_out_line, notify
+    await notify(ctx, beam_out_line(player, malfunction=True))
     await ctx.server._teleport_to(ctx, target_level, target_room)
+    await notify(ctx, beam_in_line(player, malfunction=True))
 
 
 def _not_a_weapon(item) -> bool:
