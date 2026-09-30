@@ -80,4 +80,6 @@ class MountCommand(Command):
         player.set_flag(PlayerFlags.MOUNTED)
         player.unsaved_changes = True
         await ctx.send(f'You climb onto {mount.name}.')
+        from room_notices import mount_line, notify
+        await notify(ctx, mount_line(ctx.player, mount.name))
         return CommandResult.ok()

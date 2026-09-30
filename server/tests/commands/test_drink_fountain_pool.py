@@ -42,6 +42,7 @@ class _FakeCtx:
         self.server.game_map.get_room = MagicMock(return_value=room)
         self.sent: list = []
         self.send = AsyncMock(side_effect=self._record)
+        self.send_room = AsyncMock()   # room_notices' lines for bystanders
         self.prompt = AsyncMock(return_value='')
 
     async def _record(self, msg, **kwargs):
@@ -87,6 +88,8 @@ class TestPoolOfWater(unittest.IsolatedAsyncioTestCase):
         await DrinkCommand().execute(ctx)
         self.assertGreater(player.drink, 2)
         self.assertTrue(any('drink your fill' in s for s in ctx.sent))
+        ctx.send_room.assert_awaited_once_with(
+            f'{player.name} kneels and drinks from the pool.', exclude_self=True)
 
     async def test_no_effect_in_ordinary_room(self):
         player = _make_player(drink=2, map_level=1)

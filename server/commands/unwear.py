@@ -39,6 +39,8 @@ async def _remove_slot(ctx: GameContext, player, slot: str) -> None:
     refresh_equipped_rating(player, slot)
     player.unsaved_changes = True
     await ctx.send(f'You take off the {name}.')
+    from room_notices import notify, the, who
+    await notify(ctx, f'{who(player)} takes off {the(name)}.')
 
 
 class UnwearCommand(Command):

@@ -1121,9 +1121,13 @@ class Server:
         # "X is here" list, so someone walking in immediately sees a fight
         # already in progress.
         try:
+            # Same level too, not just the same room number -- see
+            # room_notices.location_of().
+            from room_notices import location_of
+            here = (level, room_no)
             others = []
             for addr, c in self.clients.items():
-                if c is client or getattr(c, 'room', None) != room_no:
+                if c is client or location_of(c) != here:
                     continue
                 if getattr(c, 'virtual_location', None):
                     continue
@@ -1286,13 +1290,22 @@ class Server:
         from spells.charm import try_charm_join_offer
         await try_charm_join_offer(ctx, level=level, room_no=room_no)
 
+        # Tell the room being left which way the player went, and (below)
+        # the room reached where they came from -- see room_notices.py.
+        # send_room() goes by the sender's *current* room, so the
+        # departure has to go out before the move and the arrival after.
+        from room_notices import departure_line, arrival_line, notify
+        await notify(ctx, departure_line(ctx.player, direction))
+
         if target_level != level:
             await self._teleport_to(ctx, target_level, int(dest), message_number=message_number)
+            await notify(ctx, arrival_line(ctx.player, direction))
             return
 
         ctx.client.room = int(dest)
         ctx.player.map_room = int(dest)
         ctx.player.unsaved_changes = True
+        await notify(ctx, arrival_line(ctx.player, direction))
         from visited_rooms import mark_visited
         mark_visited(ctx.player, level, int(dest))
         logging.debug('EXIT moved to room=%r', dest)
@@ -1512,9 +1525,13 @@ class Server:
         player.food       = 20
         player.drink      = 20
 
-        # Respawn at room 1.
+        # Respawn at room 1 -- the room left and the room reached hear about
+        # it (room_notices.py).
+        from room_notices import notify, who
+        await notify(ctx, f"{who(player)}'s body fades away.")
         player.map_room   = 1
         ctx.client.room   = 1
+        await notify(ctx, f'{who(player)} staggers in, confused but alive.')
         # GuestPlayer has no map_level (or anything else persistence-related)
         # -- confirmed via audit 2026-08-19 that this crashed the whole
         # connection for any guest who died in combat, same bug class as

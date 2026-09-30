@@ -330,12 +330,16 @@ class GameContext(BaseContext):
 
         Dispatching through ctx.send() ensures each client gets the right
         encoding (JSON for ANSI clients, raw PETSCII bytes for C64 clients).
+        Same room means same level too -- room numbers repeat on every
+        level (see room_notices.location_of()).
         """
-        my_room = getattr(self.client, 'room', None)
+        from room_notices import location_of
+        here = (int(getattr(self.player, 'map_level', 1) or 1),
+                getattr(self.client, 'room', None))
         for addr, other_client in self.server.clients.items():
             if exclude_self and other_client is self.client:
                 continue
-            if getattr(other_client, 'room', None) != my_room:
+            if location_of(other_client) != here:
                 continue
             other_ctx = getattr(other_client, 'ctx', None)
             if other_ctx:
@@ -672,12 +676,15 @@ class PETSCIINetworkContext(GameContext):
             return None
 
     async def send_room(self, *lines, exclude_self: bool = False) -> None:
-        """Broadcast via each recipient's own ctx so encoding is correct."""
-        my_room = getattr(self.client, 'room', None)
+        """Broadcast via each recipient's own ctx so encoding is correct.
+        Same room and same level -- see GameContext.send_room()."""
+        from room_notices import location_of
+        here = (int(getattr(self.player, 'map_level', 1) or 1),
+                getattr(self.client, 'room', None))
         for addr, other_client in self.server.clients.items():
             if exclude_self and other_client is self.client:
                 continue
-            if getattr(other_client, 'room', None) != my_room:
+            if location_of(other_client) != here:
                 continue
             other_ctx = getattr(other_client, 'ctx', None)
             if other_ctx:

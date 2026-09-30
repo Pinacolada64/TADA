@@ -170,12 +170,24 @@ async def _auto_dismount_if_needed(ctx: GameContext) -> None:
         player.clear_flag(PlayerFlags.MOUNTED)
         player.unsaved_changes = True
         await ctx.send('Your horse balks at the water -- you dismount.')
+        from room_notices import balk_dismount_line, notify
+        await notify(ctx, balk_dismount_line(player))
+
+
+async def _notify(ctx: GameContext, what: str) -> None:
+    """'<player> <what>' to everyone else in the room -- entering and
+    leaving the menu-driven shops/guilds, which don't move the player's
+    room at all (see room_notices.py)."""
+    from room_notices import notify, who
+    await notify(ctx, f'{who(ctx.player)} {what}')
 
 
 async def _enter_shoppe(ctx: GameContext) -> None:
     """Player takes the elevator down to the Merchant Shoppe."""
     from shoppe.main import main as shoppe_main
+    await _notify(ctx, 'takes the elevator down to the Shoppe.')
     await shoppe_main(ctx)
+    await _notify(ctx, 'steps out of the elevator.')
     await ctx.server._show_room(ctx)
 
 
@@ -184,33 +196,44 @@ async def _enter_ship_stores(ctx: GameContext) -> None:
     room 1's rc==2 down-exit -- SPUR.SHIP.S's own copy of the shop
     program, not the regular Merchant Shoppe)."""
     from ship.main import main as ship_main
+    await _notify(ctx, "climbs down the manhole into the Ship's Stores.")
     await ship_main(ctx)
+    await _notify(ctx, 'climbs back up out of the manhole.')
     await ctx.server._show_room(ctx)
 
 
 async def _enter_allies_guild(ctx: GameContext) -> None:
     """Player finds Bubba's Allys Guild down the alley (level 4, room 42, east)."""
     from street.allies_guild import main as allies_guild_main
+    await _notify(ctx, "heads down the alley to Bubba's Allys Guild.")
     await allies_guild_main(ctx)
+    await _notify(ctx, 'comes back up the alley.')
     await ctx.server._show_room(ctx)
 
 
 async def _enter_jakes_stable(ctx: GameContext) -> None:
     """Player finds Jake's Stable (level 5, room 157, east)."""
     from street.jakes import main as jakes_main
+    await _notify(ctx, "heads into Jake's Stable.")
     await jakes_main(ctx)
+    await _notify(ctx, "comes back out of Jake's Stable.")
     await ctx.server._show_room(ctx)
 
 
 async def _enter_guild_hq(ctx: GameContext, guild_key: str) -> None:
     """Player enters a room aligned to their guild's HQ."""
     from guild_hq.main import main as hq_main
+    await _notify(ctx, 'enters the guild hall.')
     await hq_main(ctx, guild_key)
+    await _notify(ctx, 'comes back out of the guild hall.')
     await ctx.server._show_room(ctx)
 
 
 async def _enter_bar(ctx: GameContext) -> None:
     """Player enters the Wall Bar & Grill (room 37)."""
+    # The street room left behind -- bar/main.py itself tells the bar
+    # ("wanders into the Wall Bar & Grill") once the room has changed.
+    await _notify(ctx, 'heads into the Wall Bar & Grill.')
     ctx.client.room = _BAR_ROOM
     from bar.main import enter_bar
     await enter_bar(ctx)

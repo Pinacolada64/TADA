@@ -80,6 +80,7 @@ def make_ctx(player, *, room_no: int = 1, game_map: Map | None = None) -> MagicM
     ctx.client.room = room_no
     ctx.server.game_map = game_map if game_map is not None else make_map()
     ctx.send = AsyncMock()
+    ctx.send_room = AsyncMock()   # room_notices' mount/dismount lines
     return ctx
 
 

@@ -43,6 +43,10 @@ class _FakeCtx:
     def __init__(self, player):
         self.player = player
         self.sent: list = []
+        self.room_said: list = []
+
+    async def send_room(self, line, exclude_self=False):
+        self.room_said.append(line)   # room_notices' lines for bystanders
 
     async def send(self, *args):
         for a in args:
@@ -117,6 +121,7 @@ class TestSuccessfulPrayer(_IsolatedBattleLog):
         self.assertEqual(player.hit_points, 12)
         self.assertIn('hit points increase', ctx._flat())
         self.assertEqual(player.prayed_count, 1)
+        self.assertEqual(ctx.room_said, [f'Thunder rumbles overhead as {player.name} prays.'])
 
     async def test_str_egy_con_also_boosted_when_low(self):
         player = _player(hp=99, str_stat=2, egy_stat=2, con_stat=2)

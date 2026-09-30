@@ -358,6 +358,8 @@ class ReadCommand(Command):
 
         item   = entry.item
         number = _item_number(item)
+        from room_notices import notify, the, who
+        await notify(ctx, f'{who(player)} reads {the(getattr(item, "name", "book"))}.')
         if number == _SCRAP_OF_PAPER_ID:
             await _read_scrap_of_paper(ctx, player)
             return CommandResult.ok()
