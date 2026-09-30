@@ -539,14 +539,22 @@ class ConnectCommand(Command):
         autoduel = player.query_flag(PlayerFlags.GUILD_AUTODUEL)
         login_lines.append(f"Auto duel: {'ON' if autoduel else 'OFF'}")
 
-        # TODO: show "Your character WILL/WILL NOT follow other guild members"
-        #       once GUILD_FOLLOW_MODE is fully wired into movement. Gate on
-        #       real guild membership when this lands (SPUR.MISC5.S:202's
-        #       vv>=3 -- Civilian AND Outlaw are both below that cutoff, per
-        #       commands/stats.py's own Guild Follow line, Ryan's request).
+        # SPUR.LOGON.S:223-224 -- real guild members only (vv>=3: Civilian
+        # AND Outlaw are both below that cutoff, per commands/stats.py's own
+        # Guild Follow line, Ryan's request).
+        if guild not in (Guild.CIVILIAN, Guild.OUTLAW):
+            will = 'WILL' if player.query_flag(PlayerFlags.GUILD_FOLLOW_MODE) else 'WILL NOT'
+            login_lines.append(f"Your character {will} follow other guild members.")
 
-        # TODO: show "You followed {name} to your current location" — requires
-        #       storing the guild-follow leader name in player/misc data.
+        # SPUR.LOGON.S:234 -- a FOLLOW ME leader dropped this character off
+        # somewhere new while they were logged off (guild_follow.py's STAY /
+        # logoff drop-off). Shown once: SPUR's clr.misc resets misc.data
+        # record 250 to "*" on the way out; clearing it here is the same.
+        followed = getattr(player, 'followed_leader_name', None)
+        if followed:
+            login_lines += ["", f"You followed {followed} to your current location."]
+            player.followed_leader_name = None
+            player.unsaved_changes = True
 
         # TODO: warn if Amulet of Life has expired (AMULET_OF_LIFE_ENERGIZED flag
         #       cleared between sessions based on time elapsed).

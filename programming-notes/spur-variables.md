@@ -817,7 +817,17 @@ Related file-path variables, not in the original drive-specifier block:
   | `SS` | Salvage computer used |
   | `TR+` | Transporter used |
 
-- **`yt$`** — Characters following, `*` if none
+- **`yt$`** — Characters following, `*` if none. FOLLOW ME's (`SPUR.MISC5.S`
+  `come`) carried-follower list: `*`-delimited entries shaped
+  `<status letter><name>=<3-digit user id>` (status `C`/`D`/`E` =
+  unconscious, carried via `come.e`), appended by `come.f`. Drained by
+  `SPUR.MISC4.S`'s `stay.b` (STAY, and automatically as `LOGON.STAY` on
+  logoff), which rewrites each follower's `spur.users` level/room and
+  stores the leader's name in `misc.data` record 250 for their next
+  logon's "You followed <name>..." line. Also counted by `SPUR.DUEL.S`'s
+  `follow` guild-support loop and listed by `SPUR.SUB.S`'s `pr.guild`.
+  Capped at 210 chars (`come.d`). Python port: `guild_follow.py`
+  (`Player.carried_followers`).
 - **`yw` / `yx` / `yy` / `yz` (Bar modules only)** — 2-D map coordinates
   in `SPUR.BAR.S`, a completely separate overlay from every other
   meaning of these letters listed elsewhere in this file: `yw`=column,
