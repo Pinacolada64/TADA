@@ -12,51 +12,6 @@ Sections: Open PRs → Merged PRs (newest first).
 
 ## Open PRs
 
-#### [#61](https://github.com/Pinacolada64/TADA/pull/61) `128-client-swiftlink` → `128-client-keymap` — Commodore 128 client: SwiftLink connection, live server text, and keymap follow-ups
-- **Tip:** `80dc99e` (3 commits on top of `128-client-keymap`). **Stacked** on #59.
-- The C128 client over SwiftLink: `swiftlink.asm` shared with the C64 via `{def: c128}`
-  (the 128 KERNAL's NMI entry saves the registers and `$FF00` itself, so the handler
-  exits via `jmp $ff33`; handler + `rx_buf` below `$4000`). "Connecting..." or
-  RUN/STOP for the offline demo; answers the 40/80 menu; server text shown while
-  typing; prompts move to the input row; clock and login color/blink streams
-  handled, popup streams skipped with a cancel reply.
-- Keymap follow-ups: banner names the scrollback page keys from the live keymap,
-  grey arrows named "Grey Up/Down/Left/Right", "Home"/"End" → "Line Start"/"Line End"
-  (C64 and 128 popups). Also `make vice128` with an emulated SwiftLink and
-  `server/tools/bot_crowd.py`.
-- `80dc99e` is a content-neutral merge of `128-client-keymap` (the branch first carried
-  #59's keymap work as copies) so the PR stacks cleanly.
-- Tests: `vice128_swiftlink_test.py` 8/8, keymap 9/9, VDC 8/8, clock 4/4. Not yet tried:
-  login color apply with a real account, Keymap Editor Save while online, real hardware.
-
-#### [#59](https://github.com/Pinacolada64/TADA/pull/59) `128-client-keymap` → `feature/kernal-free-screen` — Commodore 128 client: 80-column VDC output, scrollback, built-in Keymap Editor
-- **Tip:** `9660cd3` (23 commits), up to date with `feature/kernal-free-screen`.
-  **Stacked** — base is `feature/kernal-free-screen`, which has no PR of its own.
-  Contains #58's commit (`8ef87c8`).
-- The whole 128 client line so far: `$1C01` BASIC stub, 40/80 detection, ESC-T/ESC-B
-  window, ported line editor, IRQ task table, Hourglass clock; `vdc.asm` /
-  `vdc_screen.asm` 80-column output with a 150-line scrollback; the Keymap Editor
-  built in (`keymap_host_128.asm`, `KEYMAP.CFG` shared with the C64).
-- **PR description is stale:** tip `9660cd3` (pushed after it was written) forks the
-  popup into its own `keymap_menu_128.asm` and makes scrollback paging a rebindable
-  Page Up/Page Down on Alt + the grey arrows, replacing the C= + CRSR paging and the
-  Makefile `sed` build the description still mentions.
-- #61 (`128-client-swiftlink`, SwiftLink) is stacked on this PR.
-
-#### [#58](https://github.com/Pinacolada64/TADA/pull/58) `128-client-hourglass` → `128-client` — client-128: Hourglass clock on the status row; lowercase charset, locked
-- **Tip:** `8ef87c8` (1 commit), up to date with `128-client`.
-- Right-aligned clock on status row 23 with `clock_reset`/`clock_putc`/`clock_commit`
-  for the server's `$0b` clock stream; lowercase charset at boot (CHR$(14)), locked
-  with CHR$(11). `vice128_clock_test.py` 4/4. Also inside #59.
-
-#### [#53](https://github.com/Pinacolada64/TADA/pull/53) `feature/keymap-editor` → `feature/help-popup` — Keymap editor: rebindable nav functions, macros, combo capture
-- **Tip:** `5112cff` (46 commits on top of `feature/help-popup`). **Stacked** — base is
-  `feature/help-popup`, which has no PR of its own yet (see Feature branches below).
-- Client-side keymap editor for the C64 client, persisted to `KEYMAP.CFG`: 15-slot
-  `keymap_table` with table-driven dispatch, Keymap/Macro Editor popup pages,
-  combo capture, F7 as a rebindable entry, and `keyboard_rollover.asm` (3-key
-  rollover scan replacing the stock KERNAL scan).
-
 #### [#50](https://github.com/Pinacolada64/TADA/pull/50) `fix/switch-consistency` → `master` — Fix `#<switch>` consistency
 - **Tip:** `50d58cf` (3 commits), **behind `master` and conflicting** (2026-09-30: 4 hunks in
   `server/commands/board/board.py` and `server/commands/news.py`, from the board rework
@@ -73,7 +28,6 @@ Sections: Open PRs → Merged PRs (newest first).
 | Branch | Tip | Status |
 |--------|-----|--------|
 | `feat/helpstaff` | `52b49ca` | WIP snapshot — `helpstaff` command (ask an available staffer for help: request → relay to `PlayerFlags.HELPSTAFF_AVAILABLE` players → first to `helpstaff accept <name>` is teleported in). 182-line command + 237-line test, recovered verbatim from tag `pre-30-cleanup` after the #30 mishap. **Not wired**: still needs the `HELPSTAFF_AVAILABLE` flag added to `flags.py`, `Server.pending_help_requests` init, command registration, and an editplayer toggle. Isolated test run: 5 pass / 9 fail (all on the missing flag). |
-| `feature/help-popup` | `e5ce52f` | Native C64 help / keyboard-shortcuts / credits popup overlay (`help_menu.asm` + `commands/help_menu.py`, 8 commits). Pushed to `origin` 2026-09-09 as a backup — was local-only. Supersedes the two overlay commits on the now-deleted `dwarf-hoard-floor`. **Needs a live end-to-end retest** before a PR (see the `LOAD $05` history). #53 (`feature/keymap-editor`) is stacked on this branch. |
 
 ---
 
@@ -81,6 +35,10 @@ Sections: Open PRs → Merged PRs (newest first).
 
 | PR | Merge commit | Branch | Title |
 |----|--------------|--------|-------|
+| [#61](https://github.com/Pinacolada64/TADA/pull/61) | `f0092cf` | `128-client-swiftlink` | The whole C64/C128 client stack in one merge (91 commits): C64 help popup (`feature/help-popup`), Keymap Editor (#53), KERNAL-free screen output + two-row input area + lost-lines fix + Hourglass clock (`feature/kernal-free-screen`); the native C128 client (#58 and earlier), its 80-column VDC output with scrollback and built-in Keymap Editor (`KEYMAP128.CFG`, Alt, Page Up/Down on Alt + grey arrows, #59), and SwiftLink play. All C64/x128 VICE suites pass; **real-hardware tests still pending** for both clients. |
+| [#59](https://github.com/Pinacolada64/TADA/pull/59) | `80dc99e` (via #61) | `128-client-keymap` | C128 80-column VDC output, 150-line scrollback, built-in Keymap Editor (forked `keymap_menu_128.asm`). Landed inside #61. |
+| [#58](https://github.com/Pinacolada64/TADA/pull/58) | `8ef87c8` (via #61) | `128-client-hourglass` | C128 Hourglass clock on the status row; lowercase charset, locked. Landed inside #61. |
+| [#53](https://github.com/Pinacolada64/TADA/pull/53) | `5cba399` (via #61) | `feature/keymap-editor` | C64 Keymap Editor: rebindable nav keys, macros, combo capture, 3-key rollover scan, `KEYMAP.CFG`. Landed inside #61 (was still a draft). |
 | [#60](https://github.com/Pinacolada64/TADA/pull/60) | `2d9badf` | `feature/room-notify-movement` | Room notices (`room_notices.py`): movement ("Ryan moves north." / "Ryan enters from the south."), beaming, mount/dismount/lasso, respawn, entering the bar/shops/guild halls, wear/eat/drink/read/pray/cast. FOLLOW ME groups move as one: "Rulan leaves north, with Frodo and Sam following." / "... arrives from the south, with ...", "Rulan carries Bilbo, who is unconscious."; followers get only "You follow ...". Fix: `send_room()` and the "X is here" list compared room number only, leaking across levels. Master (#54) merged in with the departure notice ahead of the followers. Live-checked by the new `tools/bot_follow_me.py` (7/7). |
 | [#54](https://github.com/Pinacolada64/TADA/pull/54) | `c859099` | `feature/follow-me` | SPUR's FOLLOW ME / STAY guild followers (`guild_follow.py`, `commands/stay.py`): online guildmates follow live on every exit, logged-off ones are carried and dropped off by STAY or at logoff; carried followers add to duel guild support. Deferred (TODO.md): unconscious-carry, guild-leader gate, `#!`/`<<` markers, editplayer entry for `followed_leader_name`. |
 | [#52](https://github.com/Pinacolada64/TADA/pull/52) | `5847aa2` | `feature/command-token-sweep-2` | `\|command\|...\|reset\|` markup swept into the remaining player-facing command mentions: help text in 19 command files, the pre-login menu and hints, and 61 more strings in 26 files. |
