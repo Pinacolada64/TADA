@@ -55,7 +55,7 @@ _WASD_ALIASES: dict[str, str] = {
 }
 
 # Rooms that trigger a sub-area module when entered, keyed by room number.
-# The bar is level-gated in the original source, same as the Allys Guild/
+# The bar is level-gated in the original source, same as the Allies' Guild/
 # Jake's Stable checks below it (SPUR.MAIN.S: "if cl=1 then if cr=49 then
 # if di=1 link dy$", right alongside those two's own cl/cr/di checks) --
 # _BAR_ROOM (37) is this port's own exit-*destination* room number, which
@@ -67,7 +67,7 @@ _BAR_LEVEL   = 1
 _BAR_ROOM    = 37   # Wall Bar & Grill
 _SHOPPE_ROOM = None  # Shoppe is reached via rc/rt elevator, not a map room
 
-# The Allys Guild (skip branch SPUR.MISC8.S s.guild) is a hardcoded
+# The Allies' Guild (skip branch SPUR.MISC8.S s.guild) is a hardcoded
 # interception in the original source, not a normal data-driven room exit:
 # SPUR.MAIN.S: "if cl=4 if cr=42 if di=3 i$=\"SRV.GUILD\":...link dy$"
 # (cl=level, cr=room, di=3 means the player typed East). Level 4 room 42
@@ -203,9 +203,9 @@ async def _enter_ship_stores(ctx: GameContext) -> None:
 
 
 async def _enter_allies_guild(ctx: GameContext) -> None:
-    """Player finds Bubba's Allys Guild down the alley (level 4, room 42, east)."""
+    """Player finds Bubba's Allies' Guild down the alley (level 4, room 42, east)."""
     from street.allies_guild import main as allies_guild_main
-    await _notify(ctx, "heads down the alley to Bubba's Allys Guild.")
+    await _notify(ctx, "heads down the alley to Bubba's Allies' Guild.")
     await allies_guild_main(ctx)
     await _notify(ctx, 'comes back up the alley.')
     await ctx.server._show_room(ctx)
@@ -302,7 +302,7 @@ class MoveCommand(Command):
 
         # TODO: handle live monster blocking player's movement
 
-        # Allys Guild: hardcoded level/room/direction interception (see
+        # Allies' Guild: hardcoded level/room/direction interception (see
         # _ALLY_GUILD_LEVEL / _ALLY_GUILD_ROOM above), matching SPUR's own
         # hardcoded check rather than a data-driven room exit.
         if (direction == 'e' and player_level == _ALLY_GUILD_LEVEL

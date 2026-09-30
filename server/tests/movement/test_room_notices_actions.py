@@ -1,7 +1,7 @@
 """tests/movement/test_room_notices_actions.py
 
 The room hears about the menu-driven places (the Shoppe elevator, the
-Ship's Stores, Bubba's Allys Guild, Jake's Stable, a guild hall) going
+Ship's Stores, Bubba's Allies' Guild, Jake's Stable, a guild hall) going
 in and coming back out, about the player heading into the Wall Bar &
 Grill (from the street room they left -- bar/main.py tells the bar
 itself), and about a dead player's respawn (the room they died in, then
@@ -58,7 +58,7 @@ class TestBuildings(unittest.IsolatedAsyncioTestCase):
     async def test_allies_guild(self):
         self.assertEqual(
             await self._visit(movement._enter_allies_guild, 'street.allies_guild.main'), [
-                "Ryan heads down the alley to Bubba's Allys Guild.",
+                "Ryan heads down the alley to Bubba's Allies' Guild.",
                 'Ryan comes back up the alley.'])
 
     async def test_jakes_stable(self):

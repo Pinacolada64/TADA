@@ -63,7 +63,7 @@ class AllyFlags(Enum):
     FIND_THINGS = auto()
     MOUNT = auto()
     BODY_BUILD = auto()
-    # Allys Guild training (SPUR.MISC8.S s.armor/s.wep, skip branch):
+    # Allies' Guild training (SPUR.MISC8.S s.armor/s.wep, skip branch):
     ARMORED = auto()
     COMBAT_TRAINED = auto()
     # Jake's Stable mount equipping (SPUR.USE.S eq.horse "@" sigil).
