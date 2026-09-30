@@ -199,7 +199,9 @@ try:
           has(s + h, '[4/8] > 8') and has(s + h, '80 column mode set.')
           and s[23].startswith('TADA -- Commodore 128 client')
           and '(offline)' not in s[23]
-          and s[24] == 'login >' and has(s, "Type 'connect guest'"),
+          # The hint's command is a |command| color token since #52 (no quotes
+          # any more): "Type connect guest to look around as a guest."
+          and s[24] == 'login >' and has(s, 'connect guest to look around'),
           f'|{s[23]}| |{s[24]}|')
 
     type_line('connect guest', 4)
@@ -248,7 +250,7 @@ try:
     s = screen(40)
     check('G 40 columns: menu answered 4, login prompt on the input row',
           s[23].startswith('TADA -- Commodore 128 client')
-          and s[24] == 'login >' and has(s, "'connect guest'"),
+          and s[24] == 'login >' and has(s, 'connect guest to look around'),
           f'|{s[23]}| |{s[24]}|')
 
     type_line('connect guest', 5)
