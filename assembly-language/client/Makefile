@@ -15,6 +15,10 @@ LAUNCH_VICE     = x64sc
 
 # --- Target ---
 TARGET          = tada-client
+# Defined up here rather than in the Commodore 128 section below:
+# $(TARGET).d64 lists $(TARGET128).prg as a prerequisite, and make
+# expands prerequisite lists as it reads them.
+TARGET128       = client-128
 
 # --- Loadable overlay modules ---
 # Separate .prg files, loaded on demand at OVERLAY_BUF (see tada-client.asm's
@@ -187,7 +191,15 @@ vice: all $(TARGET).d64
 # client.asm's own petscii_editor_filename now uses the matching raw
 # $d0,$c5,$d4,... byte literals rather than `ascii` for exactly this
 # reason -- keep the two in sync if either changes.
-$(TARGET).d64: $(TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg keymap_menu.prg
+#
+# The C128 client ($(TARGET128).prg, see the Commodore 128 section below)
+# rides along on the same image as "tada-128", so one disk carries both
+# clients over to a real C128 at once (Ryan's ask, 2026-09-30). It's
+# written last so the C64 client stays the first directory entry --
+# `make vice`'s -autostart, and a real LOAD"*",8, still boot the C64
+# client. No filename collisions: the 128 client loads no overlays and
+# keeps its own KEYMAP128.CFG, separate from the C64 client's KEYMAP.CFG.
+$(TARGET).d64: $(TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg keymap_menu.prg $(TARGET128).prg
 	rm -f $(TARGET).d64
 	c1541 -format "tada,00" d64 $(TARGET).d64
 	c1541 $(TARGET).d64 -write $(TARGET).prg "tada-client"
@@ -195,6 +207,7 @@ $(TARGET).d64: $(TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg ke
 	c1541 $(TARGET).d64 -write config_menu.prg "CONFIG.MNU"
 	c1541 $(TARGET).d64 -write help_menu.prg "HELP.MNU"
 	c1541 $(TARGET).d64 -write keymap_menu.prg "KEYMAP.ED"
+	c1541 $(TARGET).d64 -write $(TARGET128).prg "tada-128"
 
 d64: $(TARGET).d64
 
@@ -232,7 +245,7 @@ $(DEBUG_TARGET)_pp.asm: $(TARGET)_pp.asm
 $(DEBUG_TARGET).prg: $(DEBUG_TARGET)_pp.asm
 	$(C64LIST) $(DEBUG_TARGET)_pp.asm -prg:$(DEBUG_TARGET) -sym -ovr -def:keymap_debug
 
-$(DEBUG_TARGET).d64: $(DEBUG_TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg keymap_menu.prg
+$(DEBUG_TARGET).d64: $(DEBUG_TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg keymap_menu.prg $(TARGET128).prg
 	rm -f $(DEBUG_TARGET).d64
 	c1541 -format "tada,00" d64 $(DEBUG_TARGET).d64
 	c1541 $(DEBUG_TARGET).d64 -write $(DEBUG_TARGET).prg "tada-client"
@@ -240,6 +253,7 @@ $(DEBUG_TARGET).d64: $(DEBUG_TARGET).prg petscii_editor.prg config_menu.prg help
 	c1541 $(DEBUG_TARGET).d64 -write config_menu.prg "CONFIG.MNU"
 	c1541 $(DEBUG_TARGET).d64 -write help_menu.prg "HELP.MNU"
 	c1541 $(DEBUG_TARGET).d64 -write keymap_menu.prg "KEYMAP.ED"
+	c1541 $(DEBUG_TARGET).d64 -write $(TARGET128).prg "tada-128"
 
 debug-d64: $(DEBUG_TARGET).d64
 
@@ -291,7 +305,6 @@ status:
 # above -- it does NOT need its own macro_preprocessor.py pass; it's
 # still listed as a prerequisite below since c64list reads it straight
 # off disk when it hits the {include:} line.
-TARGET128       = client-128
 LAUNCH_VICE128  = x128
 
 # The Keymap Editor popup (keymap_menu_128.asm, forked from the C64
@@ -318,7 +331,8 @@ all128: $(TARGET128).prg $(TARGET128)-vice-labels monitor-commands-128
 
 # Positional trailing .prg argument autostarts it directly, same as
 # every live-testing launch this session -- no -autostart/d64 needed
-# since there's no overlay module or disk image to bundle yet. Own
+# since there's no overlay module to bundle. (For real hardware, `make
+# d64` puts this client on $(TARGET).d64 alongside the C64 one.) Own
 # remote-monitor port (6511) so this can run alongside `make vice`
 # (port 6510) without colliding.
 #
