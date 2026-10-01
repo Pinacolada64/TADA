@@ -2061,10 +2061,6 @@ help_menu_filename:
 {include:screen-handler_pp.asm}
 {include:screen-output_pp.asm}
 
-; gothic_charset -- no macro-preprocessor directives, so (like
-; constants.asm) included directly, not via a _pp.asm preprocessed copy.
-{include:gothic-charset.asm}
-
 ; --- Blinking input cursor ---
 ; GETIN-driven input (unlike CHRIN) never engages the KERNAL's own
 ; line-editor cursor blink, so read_line draws its own, blinked via one
@@ -3339,8 +3335,21 @@ SID_BUF:
 ; resident copy of these 2000 bytes exists rather than each module
 ; (petscii_editor.asm's help screen, a future config menu, ...)
 ; allocating its own.
+;
+; These 2000 bytes start out holding gothic_charset's 2048 bytes of
+; glyph data instead of zeros (Ryan's ask, 2026-10-01: get the charset's
+; 2K back). The charset is only ever read once, by switch_to_bank3_with_
+; charset -- the very first call at start: -- which copies it into the
+; RAM under $d000 where the VIC reads it; nothing touches these buffers
+; until a popup's JT_SAVE_SCREEN, long after that, and restore_screen
+; only ever puts back what save_screen wrote. Saves 2000 bytes of
+; resident space (and as much of the .prg) over a separate zero-filled
+; pair. Keep both of these the LAST thing in the program: the region
+; runs 48 bytes past BACKUP_COLORS' end (2048 vs 2000), and
+; check_overlay_margin.py measures the resident end from backup_chars.
+;
+; gothic_charset -- no macro-preprocessor directives, so (like
+; constants.asm) included directly, not via a _pp.asm preprocessed copy.
 BACKUP_CHARS:
-        area 1000, 0
-
-BACKUP_COLORS:
-        area 1000, 0
+{include:gothic-charset.asm}
+BACKUP_COLORS = BACKUP_CHARS + 1000
