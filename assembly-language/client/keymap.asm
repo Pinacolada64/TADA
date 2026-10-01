@@ -26,16 +26,6 @@
 ; separate macro_preprocessor.py pass can see them (see KERNAL_PLOT's
 ; own comment in tada-client.asm for the general reasoning).
 
-; KERNAL routines used only by read_error_channel below, local to this
-; file (unlike KERNAL_SETNAM/SETLFS/LOAD above, nothing outside
-; keymap.asm needs these, so plain {const:} is fine here).
-{const: KERNAL_OPEN   $ffc0}
-{const: KERNAL_CLOSE  $ffc3}
-{const: KERNAL_CHKIN  $ffc6}
-{const: KERNAL_CLRCHN $ffcc}
-{const: KERNAL_CHRIN  $ffcf}
-{const: KERNAL_READST $ffb7}
-
 ; ============================================================
 ; --- Keymap: rebindable input-line functions + macros ---
 ; ============================================================
@@ -188,10 +178,13 @@ keymap_default:
 ; comment). FILE NOT FOUND ($04) is the ordinary first-run case (or a
 ; disk with no saved keymap), not a real error -- any LOAD failure at
 ; all just copies keymap_default in instead, no attempt to distinguish
-; "no file" from "no drive"/other genuine errors, since the fallback is
-; correct either way and there's no player-facing prompt to show a
-; KERNAL error number to this early in boot (before the screen/status
-; row are even fully set up). Called from tada-client.asm's own start:
+; "no file" from other genuine errors, since the fallback is correct
+; either way and there's no player-facing prompt to show a KERNAL error
+; number to this early in boot (before the screen/status row are even
+; fully set up). "No drive at all" is the one case checked up front
+; (disk.asm's select_drive, 2026-09-30): it skips the LOAD and the
+; error-channel read outright rather than talking to an empty bus.
+; Called from tada-client.asm's own start:
 ; before init_nmi/init_swiftlink -- purely local disk I/O, unrelated to
 ; the network setup that follows it.
 init_keymap:
@@ -222,11 +215,15 @@ init_keymap:
                                     ; this replaces that batch, same as
                                     ; any other status_push_reset call)
 
+        jsr select_drive         ; disk.asm -- no drive on the bus at
+        bcc init_keymap_have_drive ; all: skip the LOAD (and the error
+        jmp init_keymap_no_drive  ; channel) and use the defaults
+init_keymap_have_drive:
         lda #10                  ; length of "KEYMAP.CFG" below
         ldx #<keymap_data_filename
         ldy #>keymap_data_filename
         jsr KERNAL_SETNAM
-        jsr current_drive_to_x   ; drive the client was loaded from
+        jsr current_drive_to_x   ; select_drive's pick
         lda #2                   ; file number -- distinct from load_
                                   ; help_menu/load_keymap_menu's #1,
         ldy #0                   ; unrelated but harmless either way.
@@ -265,7 +262,13 @@ init_keymap:
         jmp init_keymap_clear_error ; loaded successfully -- keymap_
                                       ; table already holds the real
                                       ; saved data
+init_keymap_no_drive:
+        jsr init_keymap_copy_default
+        jmp init_keymap_restore_status
 init_keymap_use_default:
+        jsr init_keymap_copy_default
+        jmp init_keymap_clear_error
+init_keymap_copy_default:
         lda #<keymap_default
         sta copy_src_lo
         lda #>keymap_default
@@ -278,7 +281,7 @@ init_keymap_use_default:
         sta copy_remaining_lo
         lda #>KEYMAP_DEFAULT_SIZE
         sta copy_remaining_hi
-        jsr copy_block
+        jmp copy_block           ; tail call
 init_keymap_clear_error:
         ; Read (and discard) the drive's error channel regardless of
         ; whether the LOAD above succeeded or failed -- every CBM DOS
@@ -291,7 +294,9 @@ init_keymap_clear_error:
         ; skipping this would leave a normal, expected first-run "no
         ; KEYMAP.CFG yet" outcome looking like a real drive problem to
         ; anyone glancing at the drive light.
-        jsr read_error_channel
+        jsr read_error_channel     ; disk.asm's; the code it returns
+                                     ; doesn't matter here
+init_keymap_restore_status:
 
         ; Restore the build-date status message init_screen originally
         ; pushed (tada-client.asm's own build_msg/start:) -- "Loading
@@ -307,32 +312,9 @@ init_keymap_clear_error:
         jsr build_status_line
         rts
 
-; --- read_error_channel: drain the drive's command/error channel ---
-; OPEN 15,<drive>,15 / read until EOI / CLOSE 15 -- the standard KERNAL
-; pattern for clearing a drive's error status after any operation
-; (LOAD, SAVE, etc). Discards every byte read rather than displaying
-; it: the point here is purely to clear the ERROR LED, not to surface
-; the message anywhere -- init_keymap already knows success/failure
-; from LOAD's own carry flag and has nothing further to say about it.
-read_error_channel:
-        lda #0                    ; filename length 0 -- OPEN 15,<drive>,15
-        jsr KERNAL_SETNAM          ; (the command/error channel) takes
-        jsr current_drive_to_x     ; no filename
-        lda #15
-        ldy #15
-        jsr KERNAL_SETLFS
-        jsr KERNAL_OPEN
-        ldx #15
-        jsr KERNAL_CHKIN           ; channel 15 becomes the input channel
-read_error_channel_loop:
-        jsr KERNAL_CHRIN
-        jsr KERNAL_READST
-        and #$40                   ; EOI (end of the status line)
-        beq read_error_channel_loop
-        jsr KERNAL_CLRCHN
-        lda #15
-        jmp KERNAL_CLOSE            ; tail call -- CLOSE's own rts
-                                     ; returns straight to our caller
+; read_error_channel moved to disk.asm (2026-09-30), which also makes it
+; safe with no drive answering -- the old version here could hang in
+; CHRIN waiting for an EOI that never came.
 
 ; --- Load the keymap_menu overlay module and hand control to it ---
 ; Reached only via tada-client.asm's read_line_not_return F7 check -- a
@@ -358,6 +340,10 @@ load_keymap_menu:
                                     ; own Save/Cancel messages instead,
                                     ; being a separate standalone .prg)
 
+        jsr select_drive         ; disk.asm -- see init_keymap
+        bcc load_keymap_menu_have_drive
+        jmp load_overlay_no_drive ; tada-client.asm: "?LOAD ERR $05"
+load_keymap_menu_have_drive:
         lda #9                   ; length of "KEYMAP.ED" below
         ldx #<keymap_menu_filename
         ldy #>keymap_menu_filename

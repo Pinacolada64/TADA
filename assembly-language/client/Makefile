@@ -52,7 +52,7 @@ help_menu.prg: help_menu_pp.asm
 keymap_menu_pp.asm: keymap_menu.asm
 	$(PREPROCESSOR) keymap_menu.asm
 
-keymap_menu.prg: keymap_menu_pp.asm
+keymap_menu.prg: keymap_menu_pp.asm disk.asm
 	$(C64LIST) keymap_menu_pp.asm -prg:keymap_menu -sym -ovr
 
 # --- ROM paths ---
@@ -98,7 +98,7 @@ SL_BAUD         = 38400
 SPLIT_MODULES   = screen-handler screen-output keymap keyboard_rollover
 
 # Step 1: preprocess macros and constants
-$(TARGET)_pp.asm: $(TARGET).asm $(addsuffix _pp.asm,$(SPLIT_MODULES))
+$(TARGET)_pp.asm: $(TARGET).asm $(addsuffix _pp.asm,$(SPLIT_MODULES)) disk.asm
 	$(PREPROCESSOR) $(TARGET).asm
 
 screen-handler_pp.asm: screen-handler.asm
@@ -314,7 +314,7 @@ LAUNCH_VICE128  = x128
 keymap_menu_128_pp.asm: keymap_menu_128.asm constants_128.asm
 	$(PREPROCESSOR) keymap_menu_128.asm
 
-$(TARGET128)_pp.asm: $(TARGET128).asm input_editor.asm vdc.asm vdc_screen.asm keymap_host_128.asm keymap_128.asm keymap_menu_128_pp.asm swiftlink.asm
+$(TARGET128)_pp.asm: $(TARGET128).asm input_editor.asm vdc.asm vdc_screen.asm keymap_host_128.asm keymap_128.asm keymap_menu_128_pp.asm swiftlink.asm disk.asm
 	$(PREPROCESSOR) $(TARGET128).asm
 
 $(TARGET128).prg: $(TARGET128)_pp.asm

@@ -71,6 +71,12 @@ KM_PAGE_SLOT_OFFSET = 405        ; PAGE_SLOT_FIRST(15) * BINDING_SIZE(27)
 ; (secondary address 0: into keymap_table, whatever the file's header
 ; says -- see keymap.asm's init_keymap), or copy the defaults in. ---
 init_keymap:
+        jsr select_drive            ; disk.asm -- no drive on the bus at
+        bcc init_keymap_have_drive  ; all: defaults, and no LOAD or error
+        lda #5                      ; channel (5 = DEVICE NOT PRESENT,
+        sta km_load_error           ; what LOAD itself would have said)
+        jmp init_keymap_default_start
+init_keymap_have_drive:
         lda #13
         ldx #<km_cfg_filename
         ldy #>km_cfg_filename
@@ -78,7 +84,7 @@ init_keymap:
         lda #0                      ; 128: data and filename both in bank 0
         ldx #0                      ; (SETBNK -- the C64 has no banks)
         jsr SETBNK
-        jsr km_drive_to_x
+        jsr current_drive_to_x      ; disk.asm; select_drive's pick
         lda #2
         ldy #0
         jsr KM_SETLFS
@@ -88,6 +94,7 @@ init_keymap:
         jsr KM_LOAD
         bcc init_keymap_loaded
         sta km_load_error
+init_keymap_default_start:
         ldx #0
 init_keymap_default:
         lda keymap_default,x
@@ -106,18 +113,9 @@ init_keymap_page_default:
         cmp #5                      ; DEVICE NOT PRESENT: no error channel
         beq init_keymap_rts         ; to read either
 init_keymap_loaded:
-        jmp read_error_channel      ; keymap_menu.asm's -- turns the drive's
+        jmp read_error_channel      ; disk.asm's -- turns the drive's
                                     ; error LED off (see keymap.asm)
 init_keymap_rts:
-        rts
-
-km_drive_to_x:
-        lda $ba                     ; last device used (the client's drive)
-        cmp #8
-        bcs km_drive_ok
-        lda #8
-km_drive_ok:
-        tax
         rts
 
 {alpha:alt}

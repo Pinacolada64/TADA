@@ -1826,3 +1826,6 @@ main_loop_sp:
 ; no overlay `orig`). ---
 {include:keymap_menu_128_pp.asm}
 {include:keymap_128.asm}
+; disk.asm: bus scan, drive selection, error channel -- shared with the
+; C64 client (see its header)
+{include:disk.asm}

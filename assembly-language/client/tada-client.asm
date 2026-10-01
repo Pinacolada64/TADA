@@ -1890,6 +1890,9 @@ jump_table_template:
 ; nothing is lost during the load's real wall-clock time. The module
 ; picks up that data itself via JT_SL_RECV once it's running.
 load_petscii_editor:
+        jsr select_drive         ; disk.asm: the client's drive if it's
+        bcs load_overlay_no_drive ; still there, else the first one on
+                                  ; the bus -- none at all aborts here
         lda #10                  ; length of "PETSCII.ED" below
         ldx #<petscii_editor_filename
         ldy #>petscii_editor_filename
@@ -1922,6 +1925,8 @@ load_petscii_editor:
 ; routine's own comment for the full reasoning (shared here rather than
 ; repeated).
 load_config_menu:
+        jsr select_drive         ; see load_petscii_editor
+        bcs load_overlay_no_drive
         lda #10                  ; length of "CONFIG.MNU" below
         ldx #<config_menu_filename
         ldy #>config_menu_filename
@@ -1940,6 +1945,8 @@ load_config_menu:
 ; petscii_editor's own comment for the full reasoning (shared here rather
 ; than repeated).
 load_help_menu:
+        jsr select_drive         ; see load_petscii_editor
+        bcs load_overlay_no_drive
         lda #8                   ; length of "HELP.MNU" below
         ldx #<help_menu_filename
         ldy #>help_menu_filename
@@ -1963,20 +1970,15 @@ setlfs_current_drive:
         ldy #1                   ; secondary address 1
         jmp KERNAL_SETLFS        ; its rts returns to our caller
 
-; .X = the drive to use for any disk I/O: CURRENT_DRIVE, or 8 if that's
-; below 8. Clobbers .A, so call it BEFORE loading .A with the file
-; number. Also called directly by keymap.asm ({include:}d, so this is an
-; ordinary global label there) for its own KEYMAP.CFG load and command-
-; channel OPENs, whose file/secondary addresses differ from
-; setlfs_current_drive's.
-current_drive_to_x:
-        lda CURRENT_DRIVE
-        cmp #8
-        bcs current_drive_ok
-        lda #8
-current_drive_ok:
-        tax
-        rts
+; current_drive_to_x (.X = the drive to use for any disk I/O) moved to
+; disk.asm, {include:}d below, along with select_drive/read_error_
+; channel -- shared there with keymap_menu.asm and client-128.asm.
+
+; select_drive found no drive on the serial bus at all -- don't attempt
+; the LOAD; report it as the KERNAL's own DEVICE NOT PRESENT (5).
+load_overlay_no_drive:
+        lda #5
+        ; fall through
 
 ; LOAD failed (either overlay module) -- report the KERNAL error number
 ; and hand control back to the ordinary prompt loop instead of jumping
@@ -2041,6 +2043,11 @@ help_menu_filename:
 ; compilation unit (see the Makefile's SPLIT_MODULES for why it names
 ; the _pp.asm file, not the raw source).
 {include:keymap_pp.asm}
+
+; --- Disk drives: bus scan, drive selection, error channel ---
+; disk.asm -- raw, no _pp.asm (no {const:}s of its own). Shared with
+; keymap_menu.asm and client-128.asm; see its header.
+{include:disk.asm}
 
 ; --- Keyboard rollover scan (replaces stock scan inside irq_handler) ---
 ; Split into its own file, keyboard_rollover.asm -- see that file's own
