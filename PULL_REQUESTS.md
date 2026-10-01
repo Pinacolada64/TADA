@@ -12,7 +12,23 @@ Sections: Open PRs → Merged PRs (newest first).
 
 ## Open PRs
 
-_None open right now._
+#### [#62](https://github.com/Pinacolada64/TADA/pull/62) `feature/drive-scan` → `master` — C64/C128 clients: drive detection, build number on startup status line
+- **Tip:** `dd20338` (3 commits on top of `master`).
+- `09eab00` — serial bus drive detection: new shared `disk.asm` (`probe_device`,
+  `scan_serial_bus`, `select_drive`, hang-proof `read_error_channel`) in both clients
+  and `keymap_menu.asm`; every overlay LOAD and keymap LOAD/SAVE goes through
+  `select_drive`, so no drive gives DEVICE NOT PRESENT instead of a hang. Fixes
+  `scratch_keymap_file` leaving file 15 open (CLOSE takes .A, not .X).
+- `5667995` — C64: `gothic_charset` stored in `BACKUP_CHARS`/`BACKUP_COLORS` (read once
+  at boot, before any popup saves the screen), ~2K resident space back;
+  `check_overlay_margin.py` updated to match.
+- `dd20338` — build number on both clients' startup status line
+  ("build 42, 2026-Oct-01 13:02:56") via c64list `{buildrev:}` and per-client
+  `.buildrev` counters (shared `build_rev.asm`); the C128 shows it until the first key,
+  with a `[key]` tag.
+- Tested in VICE (true drive emulation: stock/JiffyDOS, no drives, C128 1571+1581;
+  `vice128_keymap_test.py` 9/9; build number live on both). **Real hardware, C128
+  80-column, and C128 connected-to-server build message still untested.**
 
 ---
 
