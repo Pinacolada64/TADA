@@ -230,7 +230,13 @@ read_error_channel:
         lda #DOS_NO_DEVICE
         sta drive_status_code
         lda DSK_STATUS              ; the LOAD/SAVE this follows found
-        bmi read_error_channel_done ; nobody there: don't TALK to it
+        bpl read_error_channel_ask  ; nobody there: don't TALK to it --
+        jmp read_error_channel_done ; jmp, not bmi: the done label is 135
+                                    ; bytes on, out of branch range, and
+                                    ; c64list assembled the bmi silently
+                                    ; as a branch into its own operand
+                                    ; (check_branch_targets.py, 2026-10-01)
+read_error_channel_ask:
         jsr current_drive_to_x
         cpx dsk_verified            ; select_drive/probe_device just found
         beq read_error_channel_open ; it: no probe (it'd reset the status)
