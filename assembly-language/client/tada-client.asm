@@ -37,6 +37,15 @@
 ; live $028d modifier byte -- hex_digits/print_hex_byte helpers, etc).
 {undef: debug}
 
+; Build revision tracker (Ryan's ask, 2026-10-01): c64list reads the
+; decimal number in tada-client.buildrev into the parser variable
+; __BuildRev, and after every error-free assemble writes it back
+; incremented by one -- so each successful `make build` stamps the next
+; number. Shown on the boot status message (build_msg). The file must
+; hold digits only -- no newline. `make debug-d64` assembles this same
+; source too, so it bumps the same counter.
+{buildrev:tada-client.buildrev}
+
 ; SwiftLink ACIA registers/constants -- moved to swiftlink.asm (2026-08-24)
 ; alongside the routines that use them, since {const:} is
 ; macro_preprocessor.py's own textual substitution (resolved only within
@@ -643,6 +652,7 @@ init_screen:
         jsr so_ctl_clear          ; CLR: blank the screen, home the cursor
         jsr update_status_line
         jsr redraw_status_row     ; blank reverse bar, queue empty so far
+        jsr strip_build_rev_zeros ; "build 00042" -> "build 42"
         jsr status_push_reset     ; build-date/time message, its own
         ldx #<build_msg           ; batch -- shows immediately (status_
         ldy #>build_msg           ; push_buf's "first message of a fresh
@@ -1805,23 +1815,9 @@ clock_recv_idx:
 clock_remaining:
         byte 0
 
-; --- Build-date/time status message -- shown at boot as its own batch
-; (status_push_buf's "first message of a fresh batch" behavior displays
-; it immediately) until the first real event (e.g. a SID stream) pushes
-; its own batch and replaces it. {alpha:pokealt} makes this `ascii`
-; literal emit real screen codes at assembly time -- required since
-; redraw_status_row pokes queue content straight into SCREEN_RAM rather
-; than going through CHROUT's own PETSCII->screencode conversion. Reset
-; to {alpha:normal} right after so this doesn't leak into anything below
-; that uses plain `ascii`.
-{alpha:pokealt}
-build_msg:
-        ascii "build "
-        ascii {usedef:__BuildDate}
-        ascii " "
-        ascii {usedef:__BuildTime}
-        byte 0
-{alpha:normal}
+; Build-date/time status message (build_msg, strip_build_rev_zeros) --
+; shared with client-128.asm, see build_rev.asm.
+{include:build_rev.asm}
 
 ; .a = new cursor_blink_mask value -- see JT_SET_BLINK_MASK's own comment.
 set_blink_mask:

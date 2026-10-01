@@ -78,6 +78,14 @@
 ;     C64's STATUS_ROW (bypassing CHROUT/PLOT there for exactly this
 ;     kind of reason, if for a different underlying cause).
 
+; Build revision tracker, same as tada-client.asm's (Ryan's ask,
+; 2026-10-01): c64list stamps the number in client-128.buildrev into
+; __BuildRev and writes it back incremented after every error-free
+; assemble -- this client's own counter, separate from the C64 client's.
+; Digits only in the file, no newline. Shown via build_rev.asm's
+; build_msg (see show_build_msg).
+{buildrev:client-128.buildrev}
+
 ; MMU mode configuration register -- bit 7 is the 40/80 switch.
 {const: MMU_MODE_CONFIG $d505}
 {const: SWITCH_40_COL_MASK $80}
@@ -260,6 +268,7 @@ connect:
         lda #<status_msg
         ldy #>status_msg
         jsr set_status_msg
+        jsr show_build_msg
         lda screen_mode           ; 80 columns: say which keys scroll back,
         bne connect_negotiate     ; ahead of the server's first text
         jsr out_scroll_hint
@@ -277,6 +286,7 @@ go_offline:
         lda #<status_msg_offline
         ldy #>status_msg_offline
         jsr set_status_msg
+        jsr show_build_msg
         lda screen_mode
         bne go_offline_40
         lda #<eighty_msg
@@ -1110,6 +1120,20 @@ set_status_msg:
         sty status_msg_ptr+1
         jmp draw_status_row
 
+; --- show_build_msg: build_rev.asm's "build 42, 2026-Oct-01 13:02:56"
+; on the status row as a status_override -- so it holds until the first
+; key (editor_key_hook clears it), then status_msg shows again, like the
+; C64 client's build message holding until its first real status event.
+; Called once connect is over (connected or offline), not before: the
+; override would hide "Connecting... RUN/STOP to go offline". ---
+show_build_msg:
+        jsr strip_build_rev_zeros
+        lda #<build_msg
+        sta status_override
+        lda #>build_msg
+        sta status_override+1
+        jmp draw_status_row
+
 ; --- out_char: .A = PETSCII for the dialogue area, whichever screen.
 ; 40 columns: CHROUT into the ESC-T/ESC-B window. 80 columns: dlg_putc.
 ; Preserves X (and Y) either way -- callers index strings with X. ---
@@ -1344,14 +1368,42 @@ draw_status_have_msg:
         ldx #0
 draw_status_msg_loop:
         cpx draw_status_limit
-        bcs draw_status_clock
+        bcs draw_status_key_tag
 draw_status_read:
         lda $ffff,x               ; self-modified: status_msg or sb_status_buf
-        beq draw_status_clock
+        beq draw_status_key_tag
         ora #REVERSE_BIT
         sta status_line,x
         inx
         jmp draw_status_msg_loop
+; "[key]" at the message area's right end while a status_override is up
+; (Ryan's ask, 2026-10-01) -- the next key clears every override (see
+; editor_key_hook), so this tells the player to press one. Only if a
+; blank column is left between it and the message (.X = the column just
+; past the message); otherwise the message wins and there's no tag.
+; Never over the scrollback position message.
+draw_status_key_tag:
+        lda sb_offset
+        bne draw_status_clock
+        lda status_override+1
+        beq draw_status_clock
+        lda draw_status_limit
+        sec
+        sbc #KEY_TAG_LEN
+        bcc draw_status_clock     ; row too short for it at all
+        sta draw_status_tag_col
+        cpx draw_status_tag_col
+        bcs draw_status_clock     ; no gap left -- message reaches it
+        tax
+        ldy #0
+draw_status_key_tag_loop:
+        lda key_tag,y
+        beq draw_status_clock
+        ora #REVERSE_BIT
+        sta status_line,x
+        inx
+        iny
+        jmp draw_status_key_tag_loop
 draw_status_clock:
         lda scr_cols
         sec
@@ -1383,6 +1435,8 @@ draw_status_vic_loop:
         rts
 
 draw_status_limit:
+        byte 0
+draw_status_tag_col:
         byte 0
 
 ; --- Hourglass clock (PlayerFlags.HOURGLASS) -- the display half of
@@ -1769,7 +1823,20 @@ status_msg_offline:
 status_msg_connecting:
         ascii "Connecting... RUN/STOP to go offline"
         byte 0
+; draw_status_row's "press a key" tag for a status_override message.
+; The brackets are raw screen codes: {alpha:pokealt} passes "[" and "]"
+; through as ASCII $5b/$5d -- graphics glyphs in screen codes, not
+; brackets ($1b/$1d) -- checked in the assembled .prg.
+key_tag:
+        byte $1b                  ; [
+        ascii "key"
+        byte $1d, 0               ; ]
+KEY_TAG_LEN = 5
 {alpha:normal}
+
+; build_msg/strip_build_rev_zeros -- shared with tada-client.asm. Kept up
+; here with status_msg, below $4000, since draw_status_row reads it.
+{include:build_rev.asm}
 
 ; Dialogue note for a server popup this client doesn't have yet (see
 ; frame_finish). PETSCII for out_string, {alpha:alt} for real capitals.
