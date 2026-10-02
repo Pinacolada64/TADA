@@ -12,8 +12,23 @@ Sections: Open PRs → Merged PRs (newest first).
 
 ## Open PRs
 
+#### [#64](https://github.com/Pinacolada64/TADA/pull/64) `feature/border-style` → `feature/drive-scan` — C64 client: Video Settings Border style (Single/Double)
+- **Tip:** `555a04e`. Stacked on #62 (builds on its POPUP_SCREEN fix and drive picker);
+  merge after #62 — GitHub retargets it to `master` once `feature/drive-scan` is gone.
+- `555a04e` — new Border style field in `CONFIG.MNU`: CRSR left/right bar picks Single
+  (resident Gothic box glyphs) or Double (CP437 double lines), redefining the 11 box
+  screen codes in the charset itself, so every box on screen changes live; RUN/STOP
+  reverts. Gothic glyphs backed up to `BORDER_BACKUP` in overlay RAM at `$9000`, above
+  every module (`check_overlay_margin.py --modules` guards it). New resident
+  `JT_RUN_UNDER_IO` (`$c036`) banks I/O out NMI-safely for the copy (ACIA receive IRQ
+  off with RTS deasserted, RAM NMI vector → `rti`, a pending byte drained by hand).
+  Session-only: not saved to the server or `TADA64.CFG`.
+- Tested: `vice_border_style_test.py` (x64sc + SwiftLink over IP232 to a fake server in
+  the script) 22/22, including a text burst sent mid-swap printing intact. **Real
+  hardware untested.**
+
 #### [#62](https://github.com/Pinacolada64/TADA/pull/62) `feature/drive-scan` → `master` — C64/C128 clients: drive detection, build number on startup status line
-- **Tip:** `d9919cd` (4 code commits on top of `master`, plus this file's #62 entry).
+- **Tip:** `5bac04c` (5 code commits on top of `master`, plus this file's #62 entry).
 - `09eab00` — serial bus drive detection: new shared `disk.asm` (`probe_device`,
   `scan_serial_bus`, `select_drive`, hang-proof `read_error_channel`) in both clients
   and `keymap_menu.asm`; every overlay LOAD and keymap LOAD/SAVE goes through
@@ -29,6 +44,17 @@ Sections: Open PRs → Merged PRs (newest first).
 - `d9919cd` — `disk.asm` fix: `read_error_channel`'s no-device `bmi` needed +135 bytes
   and c64list silently assembled it as a branch into its own operand (C64 `$15e8`,
   C128 `$4fdc`); now `bpl` over a `jmp`. Found by `check_branch_targets.py`.
+- `5bac04c` — drive picker + overlay fix, the 2026-10-01 work committed 10/2:
+  `DRIVE.MNU` (F5; `drive_menu_body.asm`, shared with the 128 client, wrapped by
+  `drive_menu.asm`) lists the drives on the bus with their model (`drive_id.asm`, M-R
+  lookup) under a CRSR up/down highlight bar, RETURN saves the data drive.
+  `TADA64.CFG`/`TADA128.CFG` gain an 8-byte `config_settings` block after
+  `keymap_table` (`CFG_DATA_DRIVE`), reached by overlays through
+  `CONFIG_SETTINGS_PTR` (`$c034`). `POPUP_SCREEN` (`$c400`): the C64 overlays had
+  poked their popups at `$0400`, which the client stopped displaying with PR #61's
+  double-buffered screen. New VICE tests: `vice_drive_id_test.py`,
+  `vice_drive_menu_test.py`, `vice_drive_picker_live_test.py`,
+  `vice128_drive_picker_test.py`.
 - Tested in VICE (true drive emulation: stock/JiffyDOS, no drives, C128 1571+1581;
   `vice128_keymap_test.py` 9/9; build number live on both). **Real hardware, C128
   80-column, and C128 connected-to-server build message still untested.**
