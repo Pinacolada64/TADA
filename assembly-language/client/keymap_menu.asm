@@ -3413,12 +3413,16 @@ bottom_border:
 ; off-by-one this replaced (the old "@0:TADA64.CFG" code had `lda #14`
 ; for a 13-byte string). {alpha:alt} for the $C1-$DA uppercase-letter
 ; range a real disk directory needs (see keymap.asm's own
-; filename-block comment for the full reasoning); "S0:" is plain
-; ASCII/PETSCII punctuation, unaffected by alpha:alt either way (that
-; mode only remaps letters).
+; filename-block comment for the full reasoning). The "S" of "S0:" is a
+; letter too, though, and alpha:alt turned it into $D3, which DOS
+; doesn't take as SCRATCH: with a TADA64.CFG already on the disk the
+; old file stayed and the SAVE after it failed with 63, FILE EXISTS
+; (found 2026-10-02 -- see config_menu.asm's cm_scratch_command). A raw
+; byte $53 bypasses alpha mode.
 {alpha:alt}
 keymap_scratch_command:
-        ascii "S0:"
+        byte $53                  ; 'S' (SCRATCH) as DOS wants it
+        ascii "0:"
 keymap_filename:
         ascii "TADA64.CFG"
 keymap_filename_end:
