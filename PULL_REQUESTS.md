@@ -33,20 +33,6 @@ Sections: Open PRs → Merged PRs (newest first).
   `vice128_keymap_test.py` 9/9; build number live on both). **Real hardware, C128
   80-column, and C128 connected-to-server build message still untested.**
 
-
-#### [#63](https://github.com/Pinacolada64/TADA/pull/63) `feature/128-40col-vdc-scrollback` → `master` — C128 client: 40-column scrollback in VDC RAM (8563 RAM-size detection)
-- **Tip:** `bd44070` (1 code commit on top of `master`, plus this file's #63 entry). Independent of #62.
-- `vdc.asm`'s `vdc_detect_ram`: Fred's BASIC 8563 DRAM-size test in assembly (R28 bit 4 on,
-  `$55`/`$AA` at `$4200`, does `$4300` echo?, R28 back, DLCHR from BANK 15). Sizes the
-  40-column history ring in VDC RAM: 64K → 614 rows at `$4000`, 16K → 179 rows at `$0800`.
-- New `vic_screen.asm`: `vic_putc` draws/scrolls the 40-column dialogue itself (no more
-  CHROUT in an ESC-T/ESC-B window), pushing rows that scroll off into the ring; CRSR and
-  Page Up/Down scroll back in 40 columns as in 80.
-- Tested in VICE: new `vice128_vic_scrollback_test.py` passes both layouts (16K incl. ring
-  overrun), `vice128_vdc_test.py` 8/8. **VICE 3.8 reports 64K even with `-VDC16KB`** (VICE
-  bug #1981, fixed after 3.8). **Real hardware:** a metal-case C128DCR reports 64K
-  (correct, 2026-10-02); 16K detection on a flat 128 still untested.
-
 ---
 
 ## Feature branches (no PR)
@@ -61,6 +47,7 @@ Sections: Open PRs → Merged PRs (newest first).
 
 | PR | Merge commit | Branch | Title |
 |----|--------------|--------|-------|
+| [#63](https://github.com/Pinacolada64/TADA/pull/63) | `fe9423e` | `feature/128-40col-vdc-scrollback` | C128 client: 40-column scrollback in VDC RAM. `vdc_detect_ram` (Fred's 8563 DRAM-size test: R28 bit 4, `$55`/`$AA` at `$4200`, does `$4300` echo?) sizes the ring: 64K → 614 rows at `$4000`, 16K → 179 rows at `$0800`. New `vic_screen.asm`: `vic_putc` draws/scrolls 40-column dialogue itself (no CHROUT window), CRSR and Page Up/Down scroll back as in 80 columns. VICE suites pass both layouts; **64K confirmed on a real metal-case C128DCR**; 16K on a flat 128 still untested (VICE 3.8 can't: bug #1981). |
 | [#50](https://github.com/Pinacolada64/TADA/pull/50) | `d64bf82` | `fix/switch-consistency` | `#<switch>` consistency: `board edit` accepted alongside `board #edit`; `map.py`/`teleport.py` on `parse_args()`'s switch/positional split; `news`/`banner` admin sub-actions `#`-only (`news #post`, `banner #list`, ...) with a "needs a '#'" hint for the bare form. Master merged in first (`50bfeac`): 7 hunks against #51/#52's help-text rework, kept master's `\|command\|` text with the `#` spellings. |
 | [#61](https://github.com/Pinacolada64/TADA/pull/61) | `f0092cf` | `128-client-swiftlink` | The whole C64/C128 client stack in one merge (91 commits): C64 help popup (`feature/help-popup`), Keymap Editor (#53), KERNAL-free screen output + two-row input area + lost-lines fix + Hourglass clock (`feature/kernal-free-screen`); the native C128 client (#58 and earlier), its 80-column VDC output with scrollback and built-in Keymap Editor (`KEYMAP128.CFG`, Alt, Page Up/Down on Alt + grey arrows, #59), and SwiftLink play. All C64/x128 VICE suites pass; **real-hardware tests still pending** for both clients. |
 | [#59](https://github.com/Pinacolada64/TADA/pull/59) | `80dc99e` (via #61) | `128-client-keymap` | C128 80-column VDC output, 150-line scrollback, built-in Keymap Editor (forked `keymap_menu_128.asm`). Landed inside #61. |
