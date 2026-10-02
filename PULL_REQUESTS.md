@@ -12,7 +12,40 @@ Sections: Open PRs → Merged PRs (newest first).
 
 ## Open PRs
 
-_None open right now._
+#### [#62](https://github.com/Pinacolada64/TADA/pull/62) `feature/drive-scan` → `master` — C64/C128 clients: drive detection, build number on startup status line
+- **Tip:** `d9919cd` (4 code commits on top of `master`, plus this file's #62 entry).
+- `09eab00` — serial bus drive detection: new shared `disk.asm` (`probe_device`,
+  `scan_serial_bus`, `select_drive`, hang-proof `read_error_channel`) in both clients
+  and `keymap_menu.asm`; every overlay LOAD and keymap LOAD/SAVE goes through
+  `select_drive`, so no drive gives DEVICE NOT PRESENT instead of a hang. Fixes
+  `scratch_keymap_file` leaving file 15 open (CLOSE takes .A, not .X).
+- `5667995` — C64: `gothic_charset` stored in `BACKUP_CHARS`/`BACKUP_COLORS` (read once
+  at boot, before any popup saves the screen), ~2K resident space back;
+  `check_overlay_margin.py` updated to match.
+- `dd20338` — build number on both clients' startup status line
+  ("build 42, 2026-Oct-01 13:02:56") via c64list `{buildrev:}` and per-client
+  `.buildrev` counters (shared `build_rev.asm`); the C128 shows it until the first key,
+  with a `[key]` tag.
+- `d9919cd` — `disk.asm` fix: `read_error_channel`'s no-device `bmi` needed +135 bytes
+  and c64list silently assembled it as a branch into its own operand (C64 `$15e8`,
+  C128 `$4fdc`); now `bpl` over a `jmp`. Found by `check_branch_targets.py`.
+- Tested in VICE (true drive emulation: stock/JiffyDOS, no drives, C128 1571+1581;
+  `vice128_keymap_test.py` 9/9; build number live on both). **Real hardware, C128
+  80-column, and C128 connected-to-server build message still untested.**
+
+
+#### [#63](https://github.com/Pinacolada64/TADA/pull/63) `feature/128-40col-vdc-scrollback` → `master` — C128 client: 40-column scrollback in VDC RAM (8563 RAM-size detection)
+- **Tip:** `bd44070` (1 code commit on top of `master`, plus this file's #63 entry). Independent of #62.
+- `vdc.asm`'s `vdc_detect_ram`: Fred's BASIC 8563 DRAM-size test in assembly (R28 bit 4 on,
+  `$55`/`$AA` at `$4200`, does `$4300` echo?, R28 back, DLCHR from BANK 15). Sizes the
+  40-column history ring in VDC RAM: 64K → 614 rows at `$4000`, 16K → 179 rows at `$0800`.
+- New `vic_screen.asm`: `vic_putc` draws/scrolls the 40-column dialogue itself (no more
+  CHROUT in an ESC-T/ESC-B window), pushing rows that scroll off into the ring; CRSR and
+  Page Up/Down scroll back in 40 columns as in 80.
+- Tested in VICE: new `vice128_vic_scrollback_test.py` passes both layouts (16K incl. ring
+  overrun), `vice128_vdc_test.py` 8/8. **VICE 3.8 reports 64K even with `-VDC16KB`** (VICE
+  bug #1981, fixed after 3.8). **Real hardware:** a metal-case C128DCR reports 64K
+  (correct, 2026-10-02); 16K detection on a flat 128 still untested.
 
 ---
 

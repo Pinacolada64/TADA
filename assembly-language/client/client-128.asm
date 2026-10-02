@@ -241,10 +241,11 @@ forty_col_mode:
         jsr init_irq              ; install the IRQ dispatcher (just the
                                    ; blink-cursor task so far) before
                                    ; anything else touches the screen
+        jsr vic_screen_init       ; history in VDC RAM, sized by
+                                  ; vdc_detect_ram (vic_screen.asm)
         jsr init_window
-        ; ...and fall into connect. The narrow window init_window leaves
-        ; behind is out_begin's state (see out_begin), so connect and
-        ; go_offline print dialogue straight away.
+        ; ...and fall into connect: dialogue output goes straight to
+        ; vic_putc from here on, same as 80 columns' dlg_putc.
 
 ; --- connect: "Connecting..." on the status row until the server's
 ; first byte arrives (answer the negotiation menu, then the line editor
@@ -260,11 +261,8 @@ connect:
         lda #<status_msg
         ldy #>status_msg
         jsr set_status_msg
-        lda screen_mode           ; 80 columns: say which keys scroll back,
-        bne connect_negotiate     ; ahead of the server's first text
-        jsr out_scroll_hint
-connect_negotiate:
-        jsr negotiate
+        jsr out_scroll_hint       ; which keys scroll back, ahead of the
+        jsr negotiate             ; server's first text
         jsr out_end
         jmp main_loop
 
@@ -282,27 +280,24 @@ go_offline:
         lda #<eighty_msg
         ldy #>eighty_msg
         jsr out_string
+        jmp go_offline_banner
+go_offline_40:
+        ; Demo: a few lines of filler dialogue text, and what
+        ; vdc_detect_ram found -- how many rows of scrollback 40 columns
+        ; get out of the VDC's RAM.
+        lda #<demo_msg
+        ldy #>demo_msg
+        jsr out_string
+        jsr vic_ram_msg_out
+go_offline_banner:
         jsr out_scroll_hint
         lda #<eighty_msg_tail
         ldy #>eighty_msg_tail
-        jmp go_offline_banner
-go_offline_40:
-        ; Demo: a few lines of filler dialogue text, printed via ordinary
-        ; CHROUT -- confirms the window actually confines/scrolls this
-        ; text to rows 0-22 rather than running over the status/input
-        ; rows below it. NEEDS LIVE VICE CONFIRMATION -- assembles clean
-        ; and follows the documented ESC-T/ESC-B contract, but the
-        ; window-scrolling *behavior* itself hasn't been visually
-        ; verified yet (no automated test harness reaches real hardware/
-        ; emulator behavior for this).
-        lda #<demo_msg
-        ldy #>demo_msg
-go_offline_banner:
         jsr out_string
         jsr out_end
         jmp main_loop
 
-; --- out_scroll_hint: the 80-column scrollback keys into the dialogue
+; --- out_scroll_hint: the scrollback keys into the dialogue
 ; -- "CRSR up/down: scroll back a line. Alt+Grey Up/Alt+Grey Down: a
 ; page." with the defaults. ---
 out_scroll_hint:
@@ -443,6 +438,8 @@ negotiate_send:
 ;
 ; In 80 columns there's no window to widen: the editor's window is the
 ; whole screen and dialogue output bypasses CHROUT (vdc_screen.asm).
+; Since 2026-10-01 that's true in 40 columns as well (vic_screen.asm):
+; the window stays the whole screen and nothing is narrowed any more.
 ;
 ; With SwiftLink the widen/narrow pair became out_end/out_begin, which
 ; also keep the dialogue's own cursor and color apart from the input
@@ -529,67 +526,35 @@ out_string_read:
 out_string_rts:
         rts
 
-; --- out_begin / out_end: bracket dialogue output in 40 columns. The
-; line editor runs with the ESC-T/ESC-B window widened to the whole
-; screen (set_window_full) and its cursor on INPUT_ROW; dialogue text
-; needs the narrow window back, the cursor where the last dialogue
-; output left it, and the dialogue's own text color (the server's color
-; codes change KERNAL_COLOR, which would otherwise carry over to the
-; input row, and the input row's color would carry over to the text).
-; out_end saves the dialogue cursor/color and widens the window again.
-; 80 columns: both are no-ops -- dlg_putc keeps its own cursor and
-; attribute and never goes near the editor's.
-;
-; State at boot: init_window leaves the narrow window with the cursor
-; home, i.e. out_begin's state, so startup output goes straight out and
-; the first out_end records where it stopped. ---
+; --- out_begin / out_end: bracket dialogue output. Both are no-ops on
+; both screens now -- dlg_putc (80 columns) and vic_putc (40, since
+; 2026-10-01) keep their own cursor and color and never go near the
+; editor's, so the input row's cursor and KERNAL_COLOR are left alone.
+; They used to narrow the 40-column ESC-T/ESC-B window to rows 0-22,
+; move the KERNAL cursor to the dialogue and swap its color in, then
+; widen the window again afterwards -- that went when 40-column
+; dialogue stopped going through CHROUT (vic_screen.asm), and the
+; brackets stay as the place to hang anything output needs again. ---
 out_begin:
-        lda screen_mode
-        beq out_begin_rts
-        jsr set_window_narrow
-        lda KERNAL_COLOR
-        sta input_color
-        lda dlg40_color
-        sta KERNAL_COLOR
-        clc
-        ldx dlg40_row
-        ldy dlg40_col
-        jsr KERNAL_PLOT
-out_begin_rts:
         rts
 
 out_end:
-        lda screen_mode
-        beq out_end_rts
-        sec
-        jsr KERNAL_PLOT           ; read the dialogue cursor (window-
-        stx dlg40_row             ; relative, but the window starts at
-        sty dlg40_col             ; row 0, column 0)
-        lda KERNAL_COLOR
-        sta dlg40_color
-        lda input_color
-        sta KERNAL_COLOR
-        jsr set_window_full
-out_end_rts:
         rts
 
 ; --- editor_idle_hook: called by input_editor.asm's key-poll loops
 ; while no key is waiting. Carry clear = nothing happened; carry set =
 ; dialogue output happened, so the editor redraws the input line and
-; cursor (in 40 columns the output moved the KERNAL cursor off it).
-; While the 80-column view is scrolled back, received bytes stay in
-; rx_buf -- dlg_putc would snap the view back to live mid-read -- and
+; cursor.
+; While the view is scrolled back, received bytes stay in rx_buf --
+; dlg_putc/vic_putc would snap the view back to live mid-read -- and
 ; swiftlink.asm's RTS flow control holds the server off once it fills;
 ; they show as soon as the player leaves scrollback. ---
 editor_idle_hook:
         lda rx_tail
         cmp rx_head
         beq editor_idle_none
-        lda screen_mode
-        bne editor_idle_drain
-        lda sb_offset
+        jsr sb_any_offset
         bne editor_idle_none
-editor_idle_drain:
         jsr out_begin
         lda #DRAIN_SETTLE_IDLE
         jsr drain_rx
@@ -599,8 +564,8 @@ editor_idle_drain:
         inc prompt_moved
 editor_idle_end:
         jsr out_end
-        lda prompt_moved          ; drawn after out_end: the input row is
-        beq editor_idle_drew      ; outside the narrow 40-column window
+        lda prompt_moved          ; drawn after out_end, on the input
+        beq editor_idle_drew      ; row
         lda #0
         sta prompt_moved
         jsr show_prompt
@@ -983,32 +948,8 @@ relocate_copy:
         lda line_cap_cols
         sta prompt_cols
         jsr line_cap_reset
-        lda screen_mode
-        beq relocate_erase_vdc
-        sec                       ; 40 columns: blank the prompt's columns
-        jsr KERNAL_PLOT           ; and put the cursor back at the start
-        stx relocate_row          ; of its row (one physical row -- the
-        clc                       ; prompt is under 30 columns)
-        ldy #0
-        jsr KERNAL_PLOT
-        ldx prompt_cols
-relocate_blank:
-        lda #' '
-        jsr KERNAL_CHROUT
-        dex
-        bne relocate_blank
-        clc
-        ldx relocate_row
-        ldy #0
-        jsr KERNAL_PLOT
-        sec
-        rts
-relocate_erase_vdc:
-        ldx dlg_row
-        jsr dlg_blank_row
-        lda #0
-        sta dlg_col
-        sec
+        jsr dlg_blank_cur_row     ; erase it from the dialogue, cursor back
+        sec                       ; at the start of its row
         rts
 relocate_no:
         clc
@@ -1098,8 +1039,6 @@ prompt_cols:
         byte 0                    ; columns it takes on the input row
 prompt_moved:
         byte 0
-relocate_row:
-        byte 0
 show_prompt_idx:
         byte 0
 
@@ -1111,24 +1050,19 @@ set_status_msg:
         jmp draw_status_row
 
 ; --- out_char: .A = PETSCII for the dialogue area, whichever screen.
-; 40 columns: CHROUT into the ESC-T/ESC-B window. 80 columns: dlg_putc.
-; Preserves X (and Y) either way -- callers index strings with X. ---
+; 40 columns: vic_putc. 80 columns: dlg_putc. Preserves X (and Y)
+; either way -- callers index strings with X. ---
 ;
-; The 40-column path clears quote mode after every character: server text
-; can hold a lone '"', and in quote mode CHROUT prints the color/cursor
-; codes that follow as reverse glyphs instead of obeying them (the same
-; reset tada-client.asm did around CHROUT before its screen-output.asm).
+; The 40-column path used to CHROUT into an ESC-T/ESC-B window and clear
+; quote mode after every character (a lone '"' in server text turned the
+; color/cursor codes after it into reverse glyphs). vic_putc has no quote
+; mode, so that reset went with it (2026-10-01).
 out_char:
         pha
         lda screen_mode
         beq out_char_vdc
         pla
-        jsr KERNAL_CHROUT
-        pha
-        lda #0
-        sta KERNAL_QTSW
-        pla
-        rts
+        jmp vic_putc
 out_char_vdc:
         pla
         jmp dlg_putc
@@ -1138,14 +1072,15 @@ out_char_vdc:
 ; clear = .A is what the editor should handle (normally the key itself).
 ;
 ; Order: any key first clears a status-row override ("Saved keymap."
-; etc.). In 80 columns, plain (or SHIFTed) CRSR UP/DOWN scroll the
-; dialogue a line (vdc_key_hook); every other key leaves scrollback. Then
-; the keymap (keymap_128.asm's km_dispatch) gets the key -- word jumps,
-; home/end, macros, F7 for the editor, and Page Up/Page Down (ALT + the
-; grey arrows by default), which is why CRSR with C=, CTRL or ALT held
-; skips the line scroll. So in 80 columns a keymap binding on plain
-; CRSR UP/DOWN (the defaults' Home/End) is shadowed by scrollback; in 40
-; columns it works as on the C64. ---
+; etc.). Plain (or SHIFTed) CRSR UP/DOWN scroll the dialogue a line
+; (scroll_key_hook -- vdc_key_hook in 80 columns, vic_screen.asm's in 40);
+; every other key leaves scrollback. Then the keymap (keymap_128.asm's
+; km_dispatch) gets the key -- word jumps, home/end, macros, F7 for the
+; editor, and Page Up/Page Down (ALT + the grey arrows by default), which
+; is why CRSR with C=, CTRL or ALT held skips the line scroll. So a keymap
+; binding on plain CRSR UP/DOWN (the defaults' Home/End) is shadowed by
+; scrollback -- in 40 columns too since they got scrollback (2026-10-01);
+; before that it worked there as on the C64. ---
 editor_key_hook:
         sta editor_hook_key
         lda status_override+1
@@ -1154,8 +1089,6 @@ editor_key_hook:
         sta status_override+1
         jsr draw_status_row
 editor_hook_no_msg:
-        lda screen_mode
-        bne editor_hook_keymap
         lda editor_hook_key
         cmp #$91
         beq editor_hook_crsr
@@ -1166,7 +1099,7 @@ editor_hook_crsr:
         and #$0e                  ; C=, CTRL or ALT + CRSR: keymap
         bne editor_hook_keymap    ; territory (SHIFT is CRSR UP itself)
         lda editor_hook_key
-        jmp vdc_key_hook
+        jmp scroll_key_hook
 editor_hook_keymap:
         lda editor_hook_key
         jsr km_dispatch
@@ -1177,7 +1110,7 @@ editor_hook_keymap:
         pha
         lda km_paged
         bne editor_hook_rts
-        jsr sb_exit
+        jsr sb_exit_any
 editor_hook_rts:
         pla
         plp
@@ -1197,8 +1130,14 @@ done:
 ; header comment) -- status_row/input_row below the window are reached
 ; via raw SCREEN_RAM pokes instead, never through PLOT/CHROUT again
 ; after this runs. ---
+;
+; Since 2026-10-01 the window is the whole screen (set_window_full)
+; rather than rows WIN_TOP-WIN_BOTTOM: dialogue no longer goes through
+; CHROUT at all (vic_screen.asm draws and scrolls it), so the KERNAL
+; window only matters to input_editor.asm on the input row -- the
+; narrow window, and the set_window_narrow that set it, went.
 init_window:
-        jsr set_window_narrow
+        jsr set_window_full
 
         ; ESC-T/ESC-B set the window's bounds but do NOT clear its
         ; contents or home the cursor the way the BASIC-level
@@ -1224,33 +1163,15 @@ init_window:
         jsr KERNAL_CHROUT
         rts
 
-; --- set_window_narrow / set_window_full: ESC-T/ESC-B window-bound
-; helpers. set_window_narrow (rows WIN_TOP-WIN_BOTTOM) is the normal
-; dialogue-window bound, used both at boot (init_window, which also
-; clears) and after each input_editor.asm call (which must NOT clear,
-; since that would wipe the scrolled dialogue history -- see
-; main_loop's comment). set_window_full extends the bottom edge down
-; to INPUT_ROW so the editor's PLOT-based redraw can reach it. ---
-set_window_narrow:
-        clc
-        ldx #WIN_TOP
-        ldy #0
-        jsr KERNAL_PLOT
-        lda #27                  ; ESC
-        jsr KERNAL_CHROUT
-        lda #'T'
-        jsr KERNAL_CHROUT
-
-        clc
-        ldx #WIN_BOTTOM
-        ldy #39
-        jsr KERNAL_PLOT
-        lda #27                  ; ESC
-        jsr KERNAL_CHROUT
-        lda #'B'
-        jsr KERNAL_CHROUT
-        rts
-
+; --- set_window_full: the ESC-T/ESC-B window over the whole screen,
+; rows WIN_TOP-INPUT_ROW, so the editor's PLOT-based redraw can reach the
+; input row. Used at boot (init_window, which also clears) and before
+; each input_editor.asm call (main_loop -- the Keymap Editor can leave
+; the window changed). Its bottom edge is set by poking the cursor
+; position rather than PLOTting there; the comment inside says why.
+; (The narrow-window helper that comment compares against,
+; set_window_narrow, was removed 2026-10-01 along with the narrow
+; window.) ---
 set_window_full:
         clc
         ldx #WIN_TOP
@@ -1322,9 +1243,9 @@ draw_status_blank_loop:
         cpx scr_cols
         bne draw_status_blank_loop
 
-        ldx sb_offset
+        jsr sb_any_offset         ; scrolled back, either screen
         beq draw_status_not_sb
-        jsr sb_status_text
+        jsr sb_status_any
         jmp draw_status_have_msg
 draw_status_not_sb:
         lda status_override       ; a one-off message (the Keymap Editor's
@@ -1725,7 +1646,7 @@ eighty_msg_tail:
         ascii "Type fill for 60 test lines."
         byte 13, 13, 0
 
-; The scrollback keys, also shown on connecting in 80 columns (connect).
+; The scrollback keys, also shown on connecting (connect).
 ; out_page_keys fills in the page keys from the keymap, so a rebinding
 ; shows up here -- under 80 columns even with two 15-character combos.
 scroll_hint_msg:
@@ -1736,18 +1657,19 @@ scroll_hint_end:
         byte 13, 0
 {alpha:normal}
 
-; Sent through CHROUT into the scrolling window -- plain PETSCII/ASCII
-; text is fine here (not raw screen codes -- unlike status_msg below,
-; this never gets poked directly to SCREEN_RAM). {alpha:alt} for real
-; capitals, same as eighty_msg (plain ascii folds them to lowercase).
+; Sent through out_char (vic_putc) into the dialogue -- plain PETSCII/
+; ASCII text is fine here (not raw screen codes -- unlike status_msg
+; below, vic_putc converts it). {alpha:alt} for real capitals, same as
+; eighty_msg (plain ascii folds them to lowercase). Followed by
+; vic_screen.asm's VDC RAM line, then the scroll hint (go_offline).
 {alpha:alt}
 demo_msg:
         ascii "40-column mode (vic-ii) detected."
         byte 13
-        ascii "Scrolling dialogue window: rows 0-22."
+        ascii "Dialogue rows 0-22; scrollback in VDC."
         byte 13
         ascii "Status row: row 23 (below). Input row: row 24."
-        byte 13, 13, 0
+        byte 13, 0
 
 echo_prefix:
         ascii "You typed: "
@@ -1788,17 +1710,6 @@ status_msg_ptr:
 offline:
         byte 0
 
-; out_begin/out_end's saved 40-column dialogue cursor and color, and the
-; input row's color while dialogue output runs.
-dlg40_row:
-        byte 0
-dlg40_col:
-        byte 0
-dlg40_color:
-        byte 0
-input_color:
-        byte 0
-
 ; inputbuf: input_editor.asm's line buffer, one byte per input-row
 ; column (scr_cols, up to MAX_COLS=80) plus a null terminator --
 ; call_sliding_input points strptr at this before every call.
@@ -1826,3 +1737,6 @@ main_loop_sp:
 ; no overlay `orig`). ---
 {include:keymap_menu_128_pp.asm}
 {include:keymap_128.asm}
+; 40-column dialogue output and its VDC-RAM scrollback -- mainline only,
+; so it sits up here too (vdc_detect_ram, which can't, is in vdc.asm)
+{include:vic_screen.asm}
