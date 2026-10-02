@@ -139,4 +139,39 @@ JT_CLEAR_SCREEN              = $c02f
 ; $c032, not $c023 -- JT_CURSOR_HIDE/JT_UPDATE_CURSOR (above) took the
 ; 6 bytes this used to start at, then JT_GET_CURSOR/JT_SET_CURSOR/
 ; JT_CLEAR_SCREEN the 9 after that ($c029 until 2026-09-28).
+; POPUP_SCREEN -- where the overlays poke their popups: tada-client.asm's
+; SCREEN_BUF_A, the VIC-bank-3 screen buffer every loader makes front
+; (ensure_buffer_a_front) before jumping to OVERLAY_BUF. The overlays
+; used macro_preprocessor.py's built-in SCREEN_RAM ($0400) instead,
+; which the client stopped displaying when the double-buffered bank-3
+; screen (a9001e4) reached master with PR #61 -- every C64 popup drew
+; off-screen and only its color-RAM greying showed (found 2026-10-01).
+; Keep in step with SCREEN_BUF_A.
+POPUP_SCREEN                 = $c400
+
 KEYMAP_TABLE_PTR             = $c032
+
+; CONFIG_SETTINGS_PTR -- same idea as KEYMAP_TABLE_PTR, for the client
+; settings block (keymap.asm's config_settings) saved in TADA64.CFG
+; right after keymap_table. Written by init_keymap at boot; read by
+; drive_menu.asm (DRIVE.MNU), which can't see keymap.asm's symbols.
+; Added 2026-10-01 with the drive picker.
+CONFIG_SETTINGS_PTR          = $c034
+
+; config_settings' layout -- byte offsets into the block, shared by the
+; client (keymap.asm), the overlays and the 128 client (keymap_128.asm
+; keeps the same layout after its own keymap_table).
+CONFIG_VERSION       = 1      ; bump when the block's layout changes
+CFG_VERSION          = 0      ; +0: CONFIG_VERSION when it was saved
+CFG_DATA_DRIVE       = 1      ; +1: the data drive (session logs and
+                              ;     other data files -- the client's own
+                              ;     files and TADA64.CFG stay on the
+                              ;     drive it was loaded from); 0 = none
+                              ;     chosen yet, use that drive
+CONFIG_SETTINGS_SIZE = 8      ; +2..+7 reserved, zero
+
+; TADA64.CFG's whole size: keymap_table (keymap.asm's KEYMAP_TABLE_SIZE,
+; 432) + the settings block. What keymap_menu.asm's and drive_menu.asm's
+; SAVEs write, from KEYMAP_TABLE_PTR. By hand -- see keymap.asm's
+; KEYMAP_TABLE_SIZE comment on c64list truncating computed values.
+CONFIG_FILE_SIZE     = 440    ; 432 + 8

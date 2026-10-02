@@ -245,8 +245,8 @@ Ryan split the two -- separate editors and separate files -- so the 128
 now has its own copy, free to diverge: the ALT modifier, Page Up/Page
 Down, the 128's extra keys. The C64 client's `keymap_menu.asm`,
 `keymap.asm` and `constants.asm` are back to what they were, and it
-keeps `KEYMAP.CFG`. Tested by `vice128_keymap_test.py` (9/9), which
-runs the client with a scratch `.d64` on drive 8, so `KEYMAP128.CFG`
+keeps `TADA64.CFG`. Tested by `vice128_keymap_test.py` (9/9), which
+runs the client with a scratch `.d64` on drive 8, so `TADA128.CFG`
 really goes through KERNAL SAVE/LOAD.
 
 ### Files
@@ -256,7 +256,7 @@ really goes through KERNAL SAVE/LOAD.
   Adds Page Up/Page Down rows, ALT in the modifier names and masks, the
   128's key numbers 64-87 in `key_num_unshifted` (the grey arrows as
   pseudo-codes `$F0-$F3`, named "Grey Up" etc.), and saves
-  `KEYMAP128.CFG`.
+  `TADA128.CFG`.
 - `constants_128.asm` -- what the popup reads from its host: `KM_SHFLAG`
   (`$D3`), `KM_SFDX` (`$D4`), `KM_KEY_NONE` (88), `KM_MOD_MASK` (15:
   SHIFT/C=/CTRL/ALT).
@@ -264,18 +264,22 @@ really goes through KERNAL SAVE/LOAD.
   as real labels (the C64's jump table lives at `$C000`, ROM on the 128):
   save/restore screen, resume, status line, and the popup's cursor.
 - `keymap_128.asm` -- `keymap_table` + `KEYMAP_TABLE_PTR`, the defaults,
-  `init_keymap` (LOAD `KEYMAP128.CFG` or copy the defaults), and
+  `init_keymap` (LOAD `TADA128.CFG` or copy the defaults), and
   `km_dispatch`, which runs the actions on `input_editor.asm`
   (prev_word/next_word/home, a new `km_end`, macro text typed in through
   the editor's own `insert`/`cright`, Page Up/Page Down on the
   scrollback).
 
-### `KEYMAP128.CFG`
+### `TADA128.CFG`
 
-17 slots of 27 bytes (modifier, key, action, 24 bytes of macro text):
-0-5 the nav functions and the "open the editor" key (F7), 6-14 macros,
-15-16 Page Up/Page Down (actions 6/7). Slots 0-14 match the C64's
-`KEYMAP.CFG` layout, but the files are separate. Modifier bits: SHIFT 1,
+18 slots of 27 bytes (modifier, key, action, 24 bytes of macro text):
+0-5 the nav functions and the "open the editor" key (F7), 6 the drive
+picker (F5, action 6), 7-15 macros, 16-17 Page Up/Page Down (actions
+7/8). Slots 0-15 match the C64's `TADA64.CFG` layout, but the files are
+separate. After the table comes an 8-byte settings block
+(`config_settings`: a version byte, then the data drive the picker
+chose, 0 = none yet; the rest reserved), so the file is 494 bytes plus
+the load address. Modifier bits: SHIFT 1,
 C= 2, CTRL 4, ALT 8. Nav keys are GETIN bytes; macro triggers and the
 page keys are matrix key numbers (`$D4`), captured by the popup's
 `capture_macro_combo` -- the only way to tell the grey top-row arrows

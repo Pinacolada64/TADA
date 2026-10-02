@@ -215,6 +215,20 @@ whole time.
   execution environment by this resident program's own use of them, and
   safe to share since a module runs to completion before control ever
   returns to resident code (never concurrently with it).
+- Modules as of 2026-10-01 (addresses above are historical: `OVERLAY_BUF`
+  is `$3800` now and the jump table lives at `$c000` -- see
+  `tada-client.asm`/`constants.asm`): `PETSCII.ED`, `CONFIG.MNU`
+  (Video Settings), `HELP.MNU`, `KEYMAP.ED` (F7) and `DRIVE.MNU` (F5, the
+  drive picker -- `drive_menu.asm` wrapping `drive_menu_body.asm`, which
+  the 128 client builds in too). The keymap editor and the drive picker
+  save `TADA64.CFG`: `keymap_table` plus an 8-byte settings block
+  (`config_settings` in `keymap.asm`, reached through `KEYMAP_TABLE_PTR`/
+  `CONFIG_SETTINGS_PTR`) holding the data drive.
+- Modules poke their popups at `POPUP_SCREEN` (`constants.asm`, `$c400`
+  = `SCREEN_BUF_A`, the VIC-bank-3 buffer every loader makes front), never
+  `macro_preprocessor.py`'s built-in `SCREEN_RAM` (`$0400`) -- the client
+  stopped displaying `$0400` with the double-buffered screen, and every
+  popup drew off-screen until 2026-10-01.
 - See `petscii_editor.asm` for the first real module -- also the
   reference for the "no `ds` directive, no macro parameters" bulk-copy
   pattern (self-modified `lda`/`sta` operands, incrementing the operand

@@ -29,10 +29,11 @@
 ;
 ; The Keymap Editor (same day) is the C64 client's own keymap_menu.asm,
 ; built in (keymap_host_128.asm hosts it, keymap_128.asm holds the table
-; and dispatch); F7 opens it in either mode, and KEYMAP.CFG is shared
-; with the C64 client. See 128_CLIENT_MECHANICS.md's Keymap Editor
-; section, and MMU_CLIENT_CONFIG below for why the program may now
-; extend past $4000.
+; and dispatch); F7 opens it in either mode. It saves to its own
+; TADA128.CFG (the C64 client's is TADA64.CFG). See
+; 128_CLIENT_MECHANICS.md's Keymap Editor section, and
+; MMU_CLIENT_CONFIG below for why the program may now extend past
+; $4000.
 ;
 ; SwiftLink (also 2026-09-29): the C64 client's own swiftlink.asm, built
 ; with {def: c128} for the 128 KERNAL's different NMI entry/exit (see
@@ -216,7 +217,7 @@ start:
         lda #MMU_CLIENT_CONFIG
         sta MMU_CONFIG_REG
         jsr km_init_keyboard      ; F-keys -> single codes, CTRL+CRSR fix
-        jsr init_keymap           ; KEYMAP.CFG, or the defaults -- disk I/O,
+        jsr init_keymap           ; TADA128.CFG, or the defaults -- disk I/O,
                                   ; so before SwiftLink starts raising NMIs
         jsr init_nmi              ; install our receive handler before the
         jsr init_swiftlink        ; ACIA is told to start raising NMIs on it
@@ -1896,3 +1897,8 @@ main_loop_sp:
 ; disk.asm: bus scan, drive selection, error channel -- shared with the
 ; C64 client (see its header)
 {include:disk.asm}
+; The drive picker (F5): drive_id.asm's M-R model lookup and the popup
+; the C64 loads as DRIVE.MNU, built in under c128 (see
+; drive_menu_body.asm's header)
+{include:drive_id.asm}
+{include:drive_menu_body_pp.asm}

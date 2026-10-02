@@ -20,3 +20,11 @@ KM_KEY_NONE                  = 88
 
 ; Modifier bits the editor captures: SHIFT 1, C= 2, CTRL 4, ALT 8 ($d3).
 KM_MOD_MASK                  = 15
+
+; config_settings' layout (keymap_128.asm's block after keymap_table,
+; saved in TADA128.CFG) -- the same offsets as constants.asm's copies
+; for the C64's TADA64.CFG; see those for what each byte means.
+CONFIG_VERSION       = 1
+CFG_VERSION          = 0
+CFG_DATA_DRIVE       = 1
+CONFIG_SETTINGS_SIZE = 8

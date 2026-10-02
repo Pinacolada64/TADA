@@ -307,9 +307,9 @@ dcu_want_off:
         rts
 
 demo_cursor_toggle:
-        lda SCREEN_RAM+(BOX_TOP_ROW+4)*40+30
+        lda POPUP_SCREEN+(BOX_TOP_ROW+4)*40+30
         eor #$80
-        sta SCREEN_RAM+(BOX_TOP_ROW+4)*40+30
+        sta POPUP_SCREEN+(BOX_TOP_ROW+4)*40+30
         rts
 
 ; --- Save: send the new values back, restore the screen, hand back ---
@@ -380,9 +380,9 @@ draw_popup:
         sta poke_src_lo
         lda #>top_border
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+0)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+0)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+0)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+0)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -390,9 +390,9 @@ draw_popup:
         sta poke_src_lo
         lda #>row_title
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+1)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+1)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+1)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+1)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -400,9 +400,9 @@ draw_popup:
         sta poke_src_lo
         lda #>row_field1
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+2)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+2)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+2)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+2)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -410,9 +410,9 @@ draw_popup:
         sta poke_src_lo
         lda #>row_field2
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+3)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+3)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+3)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+3)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -420,9 +420,9 @@ draw_popup:
         sta poke_src_lo
         lda #>row_field3
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+4)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+4)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+4)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+4)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -430,9 +430,9 @@ draw_popup:
         sta poke_src_lo
         lda #>row_blank
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+5)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+5)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+5)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+5)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -444,9 +444,9 @@ draw_popup:
         sta poke_src_lo
         lda #>row_blank
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+6)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+6)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+6)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+6)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -454,9 +454,9 @@ draw_popup:
         sta poke_src_lo
         lda #>row_blank
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+7)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+7)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+7)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+7)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -464,9 +464,9 @@ draw_popup:
         sta poke_src_lo
         lda #>row_help1
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+8)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+8)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+8)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+8)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -474,9 +474,9 @@ draw_popup:
         sta poke_src_lo
         lda #>row_help2
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+9)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+9)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+9)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+9)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -484,9 +484,9 @@ draw_popup:
         sta poke_src_lo
         lda #>row_help3
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+10)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+10)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+10)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+10)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -494,9 +494,9 @@ draw_popup:
         sta poke_src_lo
         lda #>bottom_border
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+11)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+11)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+11)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+11)*40)
         sta poke_dst_hi
         jmp poke_line
 
@@ -513,7 +513,7 @@ draw_values:
 dv_border_off:
         lda blank_char
 dv_border_store:
-        sta SCREEN_RAM+(BOX_TOP_ROW+2)*40+5
+        sta POPUP_SCREEN+(BOX_TOP_ROW+2)*40+5
 
         lda selected_field
         cmp #1
@@ -523,7 +523,7 @@ dv_border_store:
 dv_bg_off:
         lda blank_char
 dv_bg_store:
-        sta SCREEN_RAM+(BOX_TOP_ROW+3)*40+5
+        sta POPUP_SCREEN+(BOX_TOP_ROW+3)*40+5
 
         lda selected_field
         cmp #2
@@ -533,28 +533,28 @@ dv_bg_store:
 dv_blink_off:
         lda blank_char
 dv_blink_store:
-        sta SCREEN_RAM+(BOX_TOP_ROW+4)*40+5
+        sta POPUP_SCREEN+(BOX_TOP_ROW+4)*40+5
 
         lda cur_border
         jsr to_decimal2
         lda digit_tens
-        sta SCREEN_RAM+(BOX_TOP_ROW+2)*40+32
+        sta POPUP_SCREEN+(BOX_TOP_ROW+2)*40+32
         lda digit_ones
-        sta SCREEN_RAM+(BOX_TOP_ROW+2)*40+33
+        sta POPUP_SCREEN+(BOX_TOP_ROW+2)*40+33
 
         lda cur_bg
         jsr to_decimal2
         lda digit_tens
-        sta SCREEN_RAM+(BOX_TOP_ROW+3)*40+32
+        sta POPUP_SCREEN+(BOX_TOP_ROW+3)*40+32
         lda digit_ones
-        sta SCREEN_RAM+(BOX_TOP_ROW+3)*40+33
+        sta POPUP_SCREEN+(BOX_TOP_ROW+3)*40+33
 
         lda cur_blink
         jsr to_decimal2
         lda digit_tens
-        sta SCREEN_RAM+(BOX_TOP_ROW+4)*40+32
+        sta POPUP_SCREEN+(BOX_TOP_ROW+4)*40+32
         lda digit_ones
-        sta SCREEN_RAM+(BOX_TOP_ROW+4)*40+33
+        sta POPUP_SCREEN+(BOX_TOP_ROW+4)*40+33
 
         lda selected_field
         beq dv_help_border
@@ -696,7 +696,7 @@ poke_help_line:
 poke_help_loop:
 poke_help_load:
         lda $ffff,x
-        sta SCREEN_RAM+(BOX_TOP_ROW+6)*40+5,x
+        sta POPUP_SCREEN+(BOX_TOP_ROW+6)*40+5,x
         inx
         cpx #30
         bne poke_help_loop

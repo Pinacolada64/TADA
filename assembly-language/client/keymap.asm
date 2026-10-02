@@ -11,7 +11,7 @@
 ; line exactly as if typed), so there's no protocol/round-trip the way
 ; Video Settings (c64_display.py) or Help (help_menu.py) have -- opened
 ; by a local F7 keypress (read_line_not_return's own check, in
-; tada-client.asm), persisted to/from disk (KEYMAP.CFG) rather than
+; tada-client.asm), persisted to/from disk (TADA64.CFG) rather than
 ; sent to the server at all.
 ;
 ; Pulled into tada-client.asm via {include:keymap_pp.asm} (see the
@@ -52,7 +52,7 @@
 ;                            just whatever keymap_table's own zero-fill
 ;                            (or a loaded file's leftover bytes) left
 ;                            there -- harmless, nothing ever reads it
-MAX_BINDINGS   = 15        ; the 5 built-in nav functions (word-left,
+MAX_BINDINGS   = 16        ; the 5 built-in nav functions (word-left,
                              ; word-right, home via CRSR-UP, home via
                              ; the real CLR/HOME key, end), the built-in
                              ; "open the editor" binding (F7 by
@@ -60,9 +60,12 @@ MAX_BINDINGS   = 15        ; the 5 built-in nav functions (word-left,
                              ; it a real, rebindable keymap_table entry
                              ; instead of a hardcoded special case, so
                              ; it's visible/rebindable the same as
-                             ; everything else) plus up to 9 macros --
-                             ; still fits without a scrollable list in
-                             ; the editor popup
+                             ; everything else), the drive picker
+                             ; binding (F5 by default, 2026-10-01 --
+                             ; the 16th slot was added with it so the
+                             ; macros stayed at 9) plus up to 9 macros
+                             ; -- still fits without a scrollable list
+                             ; in the editor popup
 MACRO_TEXT_LEN = 24
 BINDING_SIZE   = 3 + MACRO_TEXT_LEN
 ; Hand-computed rather than written as MAX_BINDINGS*BINDING_SIZE --
@@ -72,9 +75,9 @@ BINDING_SIZE   = 3 + MACRO_TEXT_LEN
 ; than the actual product, silently truncating 405 ($0195) down to
 ; $95 with just a warning (no error) to catch it. If MAX_BINDINGS or
 ; BINDING_SIZE changes, recompute this by hand: MAX_BINDINGS*BINDING_SIZE.
-KEYMAP_TABLE_SIZE   = 405         ; MAX_BINDINGS(15) * BINDING_SIZE(27)
-KEYMAP_DEFAULT_BINDINGS = 6
-KEYMAP_DEFAULT_SIZE = BINDING_SIZE * KEYMAP_DEFAULT_BINDINGS
+KEYMAP_TABLE_SIZE   = 432         ; MAX_BINDINGS(16) * BINDING_SIZE(27)
+KEYMAP_DEFAULT_BINDINGS = 7
+KEYMAP_DEFAULT_SIZE = 189         ; BINDING_SIZE(27) * 7, by hand too
 
 MOD_SHIFT = 1
 MOD_CMDRE = 2
@@ -86,6 +89,7 @@ ACTION_WORD_RIGHT  = 2
 ACTION_HOME        = 3
 ACTION_END         = 4
 ACTION_OPEN_EDITOR = 5
+ACTION_OPEN_DRIVES = 6           ; the drive picker (drive_menu.asm)
 ACTION_MACRO       = 255
 
 ; keymap_table is a resident buffer (not inside any overlay module) --
@@ -104,13 +108,25 @@ ACTION_MACRO       = 255
 keymap_table:
         area KEYMAP_TABLE_SIZE, $00
 
+; --- Client settings, saved in TADA64.CFG right after keymap_table ---
+; One LOAD/SAVE covers both: init_keymap loads the whole file here, and
+; keymap_menu.asm/drive_menu.asm save keymap_table through the end of
+; this block (CONFIG_FILE_SIZE). Layout: constants.asm's CFG_* offsets.
+; Added 2026-10-01 (Ryan: the file's scope is growing, hence the rename
+; from KEYMAP.CFG). These assembled values are what's used when no file
+; loads; config_validate checks a loaded block.
+config_settings:
+        byte CONFIG_VERSION          ; CFG_VERSION
+        byte 0                       ; CFG_DATA_DRIVE: none chosen yet
+        area (CONFIG_SETTINGS_SIZE-2), 0
+
 ; --- Built-in default keymap ---
 ; Matches this scheme's original home before the dispatch rework
 ; (2026-09-02, see keymap_dispatch's own comment): CTRL+CRSR-LEFT/DOWN
 ; for word-left/right, plain CRSR-UP/DOWN for home/end -- the exact
 ; hardcoded `cmp`/$028d checks tada-client.asm's read_line_not_return
 ; used to have, before keymap_dispatch + this table replaced them.
-; Copied into keymap_table by init_keymap whenever no KEYMAP.CFG loads
+; Copied into keymap_table by init_keymap whenever no TADA64.CFG loads
 ; successfully (first run, or a disk without one), so a player who's
 ; never opened the Keymap Editor sees no behavior change at all. Only
 ; these KEYMAP_DEFAULT_SIZE bytes need copying -- the remaining
@@ -169,10 +185,12 @@ keymap_default:
         area MACRO_TEXT_LEN, $20
         byte 0, $88, ACTION_OPEN_EDITOR   ; F7, no modifier
         area MACRO_TEXT_LEN, $20
+        byte 0, $87, ACTION_OPEN_DRIVES   ; F5, no modifier (2026-10-01)
+        area MACRO_TEXT_LEN, $20
 
 ; --- init_keymap: LOAD a saved keymap from disk, or fall back to the
 ; built-in default ---
-; Attempts KERNAL LOAD "KEYMAP.CFG",8,1 directly into keymap_table (the
+; Attempts KERNAL LOAD "TADA64.CFG",8,1 directly into keymap_table (the
 ; file's own embedded header, written by keymap_menu.asm's future Save
 ; action, always matches this exact address -- see keymap_table's own
 ; comment). FILE NOT FOUND ($04) is the ordinary first-run case (or a
@@ -201,11 +219,15 @@ init_keymap:
         sta KEYMAP_TABLE_PTR
         lda #>keymap_table
         sta KEYMAP_TABLE_PTR+1
+        lda #<config_settings     ; same for the settings block --
+        sta CONFIG_SETTINGS_PTR   ; drive_menu.asm reads it
+        lda #>config_settings
+        sta CONFIG_SETTINGS_PTR+1
 
         jsr status_push_reset
         ldx #<keymap_loading_msg
         ldy #>keymap_loading_msg
-        jsr build_status_line     ; "Loading KEYMAP.CFG..." -- status_
+        jsr build_status_line     ; "Loading TADA64.CFG..." -- status_
                                     ; push_reset/build_status_line are
                                     ; already live by this point (called
                                     ; from tada-client.asm's start:
@@ -219,7 +241,7 @@ init_keymap:
         bcc init_keymap_have_drive ; all: skip the LOAD (and the error
         jmp init_keymap_no_drive  ; channel) and use the defaults
 init_keymap_have_drive:
-        lda #10                  ; length of "KEYMAP.CFG" below
+        lda #10                  ; length of "TADA64.CFG" below
         ldx #<keymap_data_filename
         ldy #>keymap_data_filename
         jsr KERNAL_SETNAM
@@ -230,7 +252,7 @@ init_keymap_have_drive:
                                     ; Secondary address 0 (NOT 1, unlike
                                     ; load_keymap_menu's own LOAD just
                                     ; above) -- Ryan's diagnosis,
-                                    ; 2026-09-22: KEYMAP.CFG is a plain
+                                    ; 2026-09-22: TADA64.CFG is a plain
                                     ; DATA file key_save (keymap_menu.
                                     ; asm) writes via a bare KERNAL SAVE
                                     ; from keymap_table, not a real .prg
@@ -259,9 +281,9 @@ init_keymap_have_drive:
         ldy KEYMAP_TABLE_PTR+1     ; whenever secondary address is 0
         jsr KERNAL_LOAD
         bcs init_keymap_use_default
-        jmp init_keymap_clear_error ; loaded successfully -- keymap_
-                                      ; table already holds the real
-                                      ; saved data
+        jsr config_validate       ; loaded successfully -- keymap_
+        jmp init_keymap_clear_error ; table (and config_settings)
+                                      ; already hold the real saved data
 init_keymap_no_drive:
         jsr init_keymap_copy_default
         jmp init_keymap_restore_status
@@ -292,7 +314,7 @@ init_keymap_clear_error:
         ; caller (this routine) already decided how to handle the
         ; failure on its own via LOAD's carry flag. Ryan's catch --
         ; skipping this would leave a normal, expected first-run "no
-        ; KEYMAP.CFG yet" outcome looking like a real drive problem to
+        ; TADA64.CFG yet" outcome looking like a real drive problem to
         ; anyone glancing at the drive light.
         jsr read_error_channel     ; disk.asm's; the code it returns
                                      ; doesn't matter here
@@ -300,7 +322,7 @@ init_keymap_restore_status:
 
         ; Restore the build-date status message init_screen originally
         ; pushed (tada-client.asm's own build_msg/start:) -- "Loading
-        ; KEYMAP.CFG..." above replaced that batch via status_push_
+        ; TADA64.CFG..." above replaced that batch via status_push_
         ; reset, and nothing else pushes a new one before the player
         ; ever sees the screen, so without this it would just sit there
         ; permanently instead of the build date, which is what every
@@ -315,6 +337,27 @@ init_keymap_restore_status:
 ; read_error_channel moved to disk.asm (2026-09-30), which also makes it
 ; safe with no drive answering -- the old version here could hang in
 ; CHRIN waiting for an EOI that never came.
+
+; --- config_validate: sanity-check a config_settings block just loaded
+; from TADA64.CFG. A data drive outside 8-30 (a damaged file, or one
+; from some future layout) goes back to 0, "none chosen"; the version
+; byte is restamped as this build's, since that's what it's now in. ---
+config_validate:
+        lda config_settings+CFG_DATA_DRIVE
+        beq config_validate_version
+        cmp #8                    ; disk.asm's DSK_FIRST_DRIVE/LAST_DRIVE
+        bcc config_validate_clear ; (8-30), as literals: disk.asm is
+        cmp #31                   ; {include:}d after this file, and a
+        bcc config_validate_version ; plain `=` constant isn't safe to
+                                    ; forward-reference (see config_
+                                    ; menu.asm's BOX_TOP_ROW comment)
+config_validate_clear:
+        lda #0
+        sta config_settings+CFG_DATA_DRIVE
+config_validate_version:
+        lda #CONFIG_VERSION
+        sta config_settings+CFG_VERSION
+        rts
 
 ; --- Load the keymap_menu overlay module and hand control to it ---
 ; Reached only via tada-client.asm's read_line_not_return F7 check -- a
@@ -348,6 +391,8 @@ load_keymap_menu_have_drive:
         ldx #<keymap_menu_filename
         ldy #>keymap_menu_filename
         jsr KERNAL_SETNAM
+load_local_overlay:              ; load_drive_menu joins here, its own
+                                  ; filename set -- the rest is the same
         jsr setlfs_current_drive
         lda #0
         jsr KERNAL_LOAD
@@ -369,6 +414,25 @@ load_keymap_menu_ok:
                                    ; load_petscii_editor's own comment)
         jmp OVERLAY_BUF
 
+; --- Load the drive_menu overlay (DRIVE.MNU, the drive picker) ---
+; Reached via keymap_dispatch's ACTION_OPEN_DRIVES (F5 by default).
+; Same as load_keymap_menu bar its message and filename -- it joins
+; load_keymap_menu at load_local_overlay for the LOAD and the hand-off.
+load_drive_menu:
+        jsr status_push_reset
+        ldx #<drive_opening_msg
+        ldy #>drive_opening_msg
+        jsr build_status_line     ; "Opening drive picker..."
+        jsr select_drive         ; disk.asm -- see init_keymap
+        bcc load_drive_menu_have_drive
+        jmp load_overlay_no_drive ; tada-client.asm: "?LOAD ERR $05"
+load_drive_menu_have_drive:
+        lda #9                   ; length of "DRIVE.MNU" below
+        ldx #<drive_menu_filename
+        ldy #>drive_menu_filename
+        jsr KERNAL_SETNAM
+        jmp load_local_overlay
+
 ; {alpha:pokealt} makes the `ascii` line below emit real screen codes
 ; at assembly time -- required, not cosmetic, same reasoning as
 ; tada-client.asm's own build_msg: redraw_status_row pokes queue
@@ -376,10 +440,13 @@ load_keymap_menu_ok:
 ; own PETSCII->screencode conversion.
 {alpha:pokealt}
 keymap_loading_msg:
-        ascii "Loading KEYMAP.CFG..."
+        ascii "Loading TADA64.CFG..."
         byte 0
 keymap_opening_msg:
         ascii "Opening keymap editor..."
+        byte 0
+drive_opening_msg:
+        ascii "Opening drive picker..."
         byte 0
 {alpha:normal}
 
@@ -393,13 +460,15 @@ keymap_opening_msg:
 {alpha:alt}
 keymap_menu_filename:
         ascii "KEYMAP.ED"
-; KEYMAP.CFG (init_keymap's own LOAD, and keymap_menu.asm's future SAVE)
+drive_menu_filename:
+        ascii "DRIVE.MNU"
+; TADA64.CFG (init_keymap's own LOAD, and keymap_menu.asm's future SAVE)
 ; is data, not a program -- doesn't belong beside the overlay-module
 ; filename above, but needs the exact same $C1-$DA alpha:alt encoding
 ; for the same reason, so it stays in this one block rather than
 ; opening a second one just for one name.
 keymap_data_filename:
-        ascii "KEYMAP.CFG"
+        ascii "TADA64.CFG"
 {alpha:normal}
 
 ; ============================================================
@@ -631,6 +700,11 @@ keymap_dispatch_try_open_editor:
                                      ; back, not this call chain's own
                                      ; rts
 keymap_dispatch_try_macro:
+        cmp #ACTION_OPEN_DRIVES
+        bne keymap_dispatch_try_macro_2
+        jmp load_drive_menu       ; never returns here, like load_
+                                    ; keymap_menu above
+keymap_dispatch_try_macro_2:
         cmp #ACTION_MACRO
         bne keymap_dispatch_handled
         jsr keymap_insert_macro    ; needs scr_ptr_lo/hi still pointing

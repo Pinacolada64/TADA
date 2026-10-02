@@ -29,7 +29,7 @@ TARGET128       = client-128
 # `-fs8 "."` (or a real 1541/1581) serves as device 8, since the resident
 # program LOADs it by filename at runtime -- this Makefile's own directory
 # already doubles as that build/serve directory.
-MODULES         = petscii_editor config_menu help_menu keymap_menu
+MODULES         = petscii_editor config_menu help_menu keymap_menu drive_menu
 
 petscii_editor_pp.asm: petscii_editor.asm
 	$(PREPROCESSOR) petscii_editor.asm
@@ -54,6 +54,19 @@ keymap_menu_pp.asm: keymap_menu.asm
 
 keymap_menu.prg: keymap_menu_pp.asm disk.asm
 	$(C64LIST) keymap_menu_pp.asm -prg:keymap_menu -sym -ovr
+
+# The drive picker (F5): carries its own disk.asm + drive_id.asm, like
+# keymap_menu.prg carries disk.asm.
+# drive_menu.asm is a thin wrapper around drive_menu_body.asm, which
+# the 128 client builds in as well; both get their own preprocessing.
+drive_menu_body_pp.asm: drive_menu_body.asm
+	$(PREPROCESSOR) drive_menu_body.asm
+
+drive_menu_pp.asm: drive_menu.asm drive_menu_body_pp.asm
+	$(PREPROCESSOR) drive_menu.asm
+
+drive_menu.prg: drive_menu_pp.asm disk.asm drive_id.asm constants.asm
+	$(C64LIST) drive_menu_pp.asm -prg:drive_menu -sym -ovr
 
 # --- ROM paths ---
 # Stock KERNAL/BASIC/CHARGEN -- kept around for reference/fallback even
@@ -198,8 +211,8 @@ vice: all $(TARGET).d64
 # written last so the C64 client stays the first directory entry --
 # `make vice`'s -autostart, and a real LOAD"*",8, still boot the C64
 # client. No filename collisions: the 128 client loads no overlays and
-# keeps its own KEYMAP128.CFG, separate from the C64 client's KEYMAP.CFG.
-$(TARGET).d64: $(TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg keymap_menu.prg $(TARGET128).prg
+# keeps its own TADA128.CFG, separate from the C64 client's TADA64.CFG.
+$(TARGET).d64: $(TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg keymap_menu.prg drive_menu.prg $(TARGET128).prg
 	rm -f $(TARGET).d64
 	c1541 -format "tada,00" d64 $(TARGET).d64
 	c1541 $(TARGET).d64 -write $(TARGET).prg "tada-client"
@@ -207,6 +220,7 @@ $(TARGET).d64: $(TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg ke
 	c1541 $(TARGET).d64 -write config_menu.prg "CONFIG.MNU"
 	c1541 $(TARGET).d64 -write help_menu.prg "HELP.MNU"
 	c1541 $(TARGET).d64 -write keymap_menu.prg "KEYMAP.ED"
+	c1541 $(TARGET).d64 -write drive_menu.prg "DRIVE.MNU"
 	c1541 $(TARGET).d64 -write $(TARGET128).prg "tada-128"
 
 d64: $(TARGET).d64
@@ -245,7 +259,7 @@ $(DEBUG_TARGET)_pp.asm: $(TARGET)_pp.asm
 $(DEBUG_TARGET).prg: $(DEBUG_TARGET)_pp.asm
 	$(C64LIST) $(DEBUG_TARGET)_pp.asm -prg:$(DEBUG_TARGET) -sym -ovr -def:keymap_debug
 
-$(DEBUG_TARGET).d64: $(DEBUG_TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg keymap_menu.prg $(TARGET128).prg
+$(DEBUG_TARGET).d64: $(DEBUG_TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg keymap_menu.prg drive_menu.prg $(TARGET128).prg
 	rm -f $(DEBUG_TARGET).d64
 	c1541 -format "tada,00" d64 $(DEBUG_TARGET).d64
 	c1541 $(DEBUG_TARGET).d64 -write $(DEBUG_TARGET).prg "tada-client"
@@ -253,6 +267,7 @@ $(DEBUG_TARGET).d64: $(DEBUG_TARGET).prg petscii_editor.prg config_menu.prg help
 	c1541 $(DEBUG_TARGET).d64 -write config_menu.prg "CONFIG.MNU"
 	c1541 $(DEBUG_TARGET).d64 -write help_menu.prg "HELP.MNU"
 	c1541 $(DEBUG_TARGET).d64 -write keymap_menu.prg "KEYMAP.ED"
+	c1541 $(DEBUG_TARGET).d64 -write drive_menu.prg "DRIVE.MNU"
 	c1541 $(DEBUG_TARGET).d64 -write $(TARGET128).prg "tada-128"
 
 debug-d64: $(DEBUG_TARGET).d64
@@ -276,6 +291,7 @@ clean:
 	      $(addsuffix _pp.sym,$(MODULES)) \
 	      $(addsuffix .prg,$(MODULES)) \
 	      $(addsuffix .sym,$(MODULES)) \
+	      drive_menu_body_pp.asm \
 	      $(TARGET).d64 \
 	      $(DEBUG_TARGET)_pp.asm \
 	      $(DEBUG_TARGET)_pp.sym \
@@ -314,7 +330,7 @@ LAUNCH_VICE128  = x128
 keymap_menu_128_pp.asm: keymap_menu_128.asm constants_128.asm
 	$(PREPROCESSOR) keymap_menu_128.asm
 
-$(TARGET128)_pp.asm: $(TARGET128).asm input_editor.asm vdc.asm vdc_screen.asm keymap_host_128.asm keymap_128.asm keymap_menu_128_pp.asm swiftlink.asm disk.asm build_rev.asm
+$(TARGET128)_pp.asm: $(TARGET128).asm input_editor.asm vdc.asm vdc_screen.asm keymap_host_128.asm keymap_128.asm keymap_menu_128_pp.asm swiftlink.asm disk.asm drive_id.asm drive_menu_body_pp.asm build_rev.asm
 	$(PREPROCESSOR) $(TARGET128).asm
 
 $(TARGET128).prg: $(TARGET128)_pp.asm
