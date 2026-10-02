@@ -13,22 +13,31 @@ Sections: Open PRs → Merged PRs (newest first).
 ## Open PRs
 
 #### [#64](https://github.com/Pinacolada64/TADA/pull/64) `feature/border-style` → `feature/drive-scan` — C64 client: Video Settings Border style (Single/Double)
-- **Tip:** `555a04e`. Stacked on #62 (builds on its POPUP_SCREEN fix and drive picker);
-  merge after #62 — GitHub retargets it to `master` once `feature/drive-scan` is gone.
+- **Tip:** `867691a` (3 code commits, plus merges of `feature/drive-scan`). Stacked on #62
+  (builds on its POPUP_SCREEN fix, drive picker and `config_settings` block); merge
+  after #62 — GitHub retargets it to `master` once `feature/drive-scan` is gone.
 - `555a04e` — new Border style field in `CONFIG.MNU`: CRSR left/right bar picks Single
   (resident Gothic box glyphs) or Double (CP437 double lines), redefining the 11 box
   screen codes in the charset itself, so every box on screen changes live; RUN/STOP
-  reverts. Gothic glyphs backed up to `BORDER_BACKUP` in overlay RAM at `$9000`, above
-  every module (`check_overlay_margin.py --modules` guards it). New resident
-  `JT_RUN_UNDER_IO` (`$c036`) banks I/O out NMI-safely for the copy (ACIA receive IRQ
-  off with RTS deasserted, RAM NMI vector → `rti`, a pending byte drained by hand).
-  Session-only: not saved to the server or `TADA64.CFG`.
+  reverts. Resident `run_under_io` banks I/O out NMI-safely for the glyph copy (ACIA
+  receive IRQ off with RTS deasserted, RAM NMI vector → `rti`, a pending byte drained
+  by hand).
+- `d5153f4` — saved in `TADA64.CFG`: `config_settings` byte +2 = `CFG_BORDER_STYLE`
+  (was reserved/zero, so old files read as Single; `CONFIG_VERSION` stays 1). The swap
+  moved resident (`border_style.asm`, `JT_SET_BORDER_STYLE` `$c036`) so boot reapplies
+  a saved Double; the Gothic glyphs are backed up at boot to `BORDER_BACKUP` in overlay
+  RAM at `$9000`, above every module (`check_overlay_margin.py --modules` guards it).
+  RETURN saves the file only when the style changed; status row reports the outcome.
+- `867691a` — `CONFIG.MNU`'s SCRATCH command letter as `$53`: `{alpha:alt}` had made it
+  `$D3`, so a save over an existing `TADA64.CFG` failed with 63, FILE EXISTS (same bug
+  fixed for the other menus on #62, `2706566`).
 - Tested: `vice_border_style_test.py` (x64sc + SwiftLink over IP232 to a fake server in
-  the script) 22/22, including a text burst sent mid-swap printing intact. **Real
-  hardware untested.**
+  the script, two boots from one disk) 34/34, including a text burst sent mid-swap
+  printing intact and the saved style reapplied at the second boot. **Real hardware
+  untested.**
 
 #### [#62](https://github.com/Pinacolada64/TADA/pull/62) `feature/drive-scan` → `master` — C64/C128 clients: drive detection, build number on startup status line
-- **Tip:** `5bac04c` (5 code commits on top of `master`, plus this file's #62 entry).
+- **Tip:** `2706566` (6 code commits on top of `master`, plus this file's #62 entries).
 - `09eab00` — serial bus drive detection: new shared `disk.asm` (`probe_device`,
   `scan_serial_bus`, `select_drive`, hang-proof `read_error_channel`) in both clients
   and `keymap_menu.asm`; every overlay LOAD and keymap LOAD/SAVE goes through
@@ -55,6 +64,11 @@ Sections: Open PRs → Merged PRs (newest first).
   double-buffered screen. New VICE tests: `vice_drive_id_test.py`,
   `vice_drive_menu_test.py`, `vice_drive_picker_live_test.py`,
   `vice128_drive_picker_test.py`.
+- `2706566` — SCRATCH command letter as `$53` in `keymap_menu.asm`, `keymap_menu_128.asm`
+  and `drive_menu_body.asm`: `{alpha:alt}` (for the config file's `$C1`-`$DA` filename
+  letters) had turned the `S` of `"S0:"` into `$D3`, so the old file was never
+  scratched and every save after a disk's first failed with 63, FILE EXISTS. Found via
+  #64's Border style save.
 - Tested in VICE (true drive emulation: stock/JiffyDOS, no drives, C128 1571+1581;
   `vice128_keymap_test.py` 9/9; build number live on both). **Real hardware, C128
   80-column, and C128 connected-to-server build message still untested.**
