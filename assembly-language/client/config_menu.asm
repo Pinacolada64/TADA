@@ -1116,10 +1116,15 @@ bottom_border:
 ; "S0:TADA64.CFG" and "TADA64.CFG" share the filename bytes, as in
 ; keymap_menu.asm/drive_menu_body.asm. {alpha:alt}: a disk directory's
 ; uppercase letters are $C1-$DA (see keymap.asm's filename-block
-; comment).
+; comment) -- but not the command letter: alpha:alt turned "S0:" into
+; $D3 "0:", which DOS doesn't take as SCRATCH, so a TADA64.CFG already
+; on the disk stayed and the SAVE after it failed with 63, FILE EXISTS
+; (found 2026-10-02 by vice_border_style_test.py's second save). A raw
+; byte $53 bypasses alpha mode.
 {alpha:alt}
 cm_scratch_command:
-        ascii "S0:"
+        byte $53                  ; 'S' (SCRATCH) as DOS wants it
+        ascii "0:"
 cm_filename:
         ascii "TADA64.CFG"
 cm_filename_end:

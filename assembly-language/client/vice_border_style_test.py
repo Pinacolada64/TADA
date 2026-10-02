@@ -176,7 +176,7 @@ def open_popup(srv: FakeServer):
     time.sleep(1)
 
 
-def wait_status(text: str, timeout: float = 20) -> str:
+def wait_status(text: str, timeout: float = 45) -> str:
     """Poll the status row until it starts with `text` (the save runs
     SCRATCH + SAVE at 1541 speed first); returns the last row seen."""
     end = time.time() + timeout
