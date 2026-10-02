@@ -43,8 +43,9 @@ STYLE_COL_END    = 35         ; one past the last (column 34)
 STYLE_BAR_SINGLE = 20
 STYLE_BAR_DOUBLE = 27
 STYLE_BAR_WIDTH  = 8
-GLYPH_COUNT      = 11         ; glyph_codes' entries, by hand (see
-                              ; constants.asm's BORDER_STATE_END)
+CM_SAVE_PTR      = $fb        ; KERNAL SAVE's zero-page start pointer
+                              ; (drive_menu_body.asm's DM_SAVE_PTR)
+CM_KERNAL_SAVE   = $ffd8
 
 ; SCREEN_RAM/COLOR_RAM/CHROUT/GETIN are macro_preprocessor.py built-ins
 ; (C64_CONSTANTS) -- no {const:} needed for those here.
@@ -288,155 +289,25 @@ apply_live:
         jmp apply_style
 
 ; --- Border style: Gothic single-line box glyphs vs CP437-style double ---
-; Ryan's ask, 2026-10-02. The 11 box-drawing screen codes in glyph_codes
-; (the same ones this popup's own frame and the server's PETSCII table
-; borders use) get redefined in the resident charset itself, so every
-; box on screen -- this popup included, as a live preview -- switches
-; style at once. Nothing is sent to the server: the style lasts until
-; the client is restarted (see the BORDER_SIG clear in tada-client.asm's
-; switch_to_bank3_with_charset).
-;
-; The Gothic originals are backed up to BORDER_BACKUP before anything is
-; overwritten. That backup lives at a fixed spot in overlay RAM, not in
-; this module's own image: this module is discarded on exit and other
-; overlays load over it, and once Double is in place the backup is the
-; only copy of the Gothic glyphs left (the boot-time charset image in
-; BACKUP_CHARS is long gone -- it doubles as the screen backup). See
-; constants.asm's BORDER_STATE comment.
+; Ryan's ask, 2026-10-02. The glyph swap itself is resident (border_
+; style.asm, through JT_SET_BORDER_STYLE) so a saved style can be put
+; back at boot; this popup only picks one, previews it live (every box
+; on screen, this popup's frame included, switches at once) and, on
+; Save, stores it in TADA64.CFG (save_border_style).
 
-; border_init: take the backup on the first open since boot, then pick
-; up whichever style is in the charset now as both cur_style and
-; orig_style (Cancel's revert target).
+; border_init: pick up whichever style is in the charset now as both
+; cur_style and orig_style (Cancel's revert target).
 border_init:
-        lda BORDER_SIG
-        cmp #BORDER_SIG_0
-        bne bi_backup
-        lda BORDER_SIG+1
-        cmp #BORDER_SIG_1
-        beq bi_have
-bi_backup:
-        ; no valid backup: nothing has touched the box glyphs since boot,
-        ; so the charset still holds the Gothic ones -- copy them out
-        lda #<BORDER_BACKUP
-        sta gl_buf_lo
-        lda #>BORDER_BACKUP
-        sta gl_buf_hi
-        lda #0                    ; charset -> buffer
-        sta gl_dir
-        ldx #<gl_transfer
-        ldy #>gl_transfer
-        jsr JT_RUN_UNDER_IO
-        lda #0
-        sta BORDER_CUR_STYLE      ; Single
-        lda #BORDER_SIG_0
-        sta BORDER_SIG
-        lda #BORDER_SIG_1
-        sta BORDER_SIG+1
-bi_have:
         lda BORDER_CUR_STYLE
         sta cur_style
         sta orig_style
         rts
 
-; apply_style: copy cur_style's glyphs into the charset, if they aren't
-; the ones already there.
+; apply_style: put cur_style's glyphs in the charset (a no-op when
+; they're already there -- set_border_style checks).
 apply_style:
         lda cur_style
-        cmp BORDER_CUR_STYLE
-        beq as_rts
-        sta BORDER_CUR_STYLE
-        lda cur_style
-        bne as_double
-        lda #<BORDER_BACKUP       ; Single: the Gothic originals
-        sta gl_buf_lo
-        lda #>BORDER_BACKUP
-        sta gl_buf_hi
-        jmp as_copy
-as_double:
-        lda #<double_glyphs
-        sta gl_buf_lo
-        lda #>double_glyphs
-        sta gl_buf_hi
-as_copy:
-        lda #1                    ; buffer -> charset
-        sta gl_dir
-        ldx #<gl_transfer
-        ldy #>gl_transfer
-        jmp JT_RUN_UNDER_IO
-as_rts:
-        rts
-
-; gl_transfer: copy the GLYPH_COUNT glyphs in glyph_codes between the
-; charset and the linear buffer at gl_buf_lo/hi (8 bytes per glyph, in
-; glyph_codes order). gl_dir 0 = charset -> buffer, 1 = buffer ->
-; charset. Runs only via JT_RUN_UNDER_IO (all RAM mapped, no I/O, no
-; KERNAL) -- everything it touches is this module's own code/data,
-; BORDER_STATE and the charset, all plain RAM. A glyph's charset address
-; is POPUP_CHARGEN + code*8; every code here is under $80, so that's
-; lo = code<<3, hi = >POPUP_CHARGEN + code>>5.
-gl_transfer:
-        lda gl_buf_lo
-        sta glt_buf_rd+1
-        sta glt_buf_wr+1
-        lda gl_buf_hi
-        sta glt_buf_rd+2
-        sta glt_buf_wr+2
-        ldy #0
-glt_glyph:
-        lda glyph_codes,y
-        asl
-        asl
-        asl
-        sta glt_chr_rd+1
-        sta glt_chr_wr+1
-        lda glyph_codes,y
-        lsr
-        lsr
-        lsr
-        lsr
-        lsr
-        clc
-        adc #>POPUP_CHARGEN
-        sta glt_chr_rd+2
-        sta glt_chr_wr+2
-        ldx #0
-glt_byte:
-        lda gl_dir
-        bne glt_in
-glt_chr_rd:
-        lda $ffff,x
-glt_buf_wr:
-        sta $ffff,x
-        jmp glt_next
-glt_in:
-glt_buf_rd:
-        lda $ffff,x
-glt_chr_wr:
-        sta $ffff,x
-glt_next:
-        inx
-        cpx #8
-        bne glt_byte
-        lda glt_buf_rd+1          ; next glyph's 8 bytes in the buffer
-        clc
-        adc #8
-        sta glt_buf_rd+1
-        sta glt_buf_wr+1
-        bcc glt_no_carry
-        inc glt_buf_rd+2
-        inc glt_buf_wr+2
-glt_no_carry:
-        iny
-        cpy #GLYPH_COUNT
-        bne glt_glyph
-        rts
-
-gl_buf_lo:
-        byte 0
-gl_buf_hi:
-        byte 0
-gl_dir:
-        byte 0
+        jmp JT_SET_BORDER_STYLE   ; tail call
 
 ; --- Live-preview cursor: blinks (or holds solid) at cur_blink's rate ---
 ; Ryan's ask: show the actual blink behavior, not just a number, while
@@ -510,11 +381,113 @@ key_save:
         jsr JT_SL_SEND
         lda cur_blink
         jsr JT_SL_SEND
-        jsr JT_RESTORE_SCREEN
+        jsr save_border_style      ; -> X/Y = a status message, Y = 0
+        stx cm_msg_ptr             ; for none; after the server's
+        sty cm_msg_ptr+1           ; answer, so it isn't kept waiting
+                                    ; on the disk
+        jsr JT_RESTORE_SCREEN      ; BEFORE the status message -- it
+                                    ; repaints the status row from the
+                                    ; snapshot (see keymap_menu.asm's
+                                    ; key_save comment)
+        ldy cm_msg_ptr+1
+        beq key_save_exit          ; style unchanged: nothing to say
+        ldx cm_msg_ptr
+        jsr JT_STATUS_PUSH_RESET   ; X/Y pass through
+        jsr JT_BUILD_STATUS_LINE
+key_save_exit:
         ldx module_entry_sp        ; discard this visit's own config_loop/
         txs                          ; dispatch call depth -- see module_
                                        ; start's own comment
         jmp JT_RESUME
+
+; --- save_border_style: store cur_style in TADA64.CFG if it changed ---
+; The border/bg/blink values live on the server; the border style lives
+; with the client, in config_settings' CFG_BORDER_STYLE (keymap.asm,
+; found through CONFIG_SETTINGS_PTR), which is saved as part of
+; TADA64.CFG -- Ryan's call, 2026-10-02. Only when the style actually
+; changed, so an ordinary Video Settings save doesn't touch the disk.
+; The file goes to the client's own drive, the same SCRATCH + SAVE as
+; drive_menu_body.asm's dm_save_config. Out: X/Y = the status message,
+; or Y = 0 for none (no message sits in the zero page).
+save_border_style:
+        lda CONFIG_SETTINGS_PTR    ; aim sbs_get/sbs_put at the resident
+        clc                        ; CFG_BORDER_STYLE byte
+        adc #CFG_BORDER_STYLE
+        sta sbs_get+1
+        sta sbs_put+1
+        lda CONFIG_SETTINGS_PTR+1
+        adc #0
+        sta sbs_get+2
+        sta sbs_put+2
+sbs_get:
+        lda $ffff
+        cmp cur_style
+        bne sbs_changed
+        ldy #0
+        rts
+sbs_changed:
+        lda cur_style
+sbs_put:
+        sta $ffff                  ; resident copy first: holds for the
+                                    ; session, and for the next save by
+                                    ; any menu, even if this one fails
+        lda #0
+        sta cm_save_failed
+        jsr select_drive           ; disk.asm -- the client's drive, or
+        bcc sbs_drive              ; the first one on the bus
+        ldx #<style_no_drive_msg
+        ldy #>style_no_drive_msg
+        rts
+sbs_drive:
+        lda #CM_SCRATCH_LEN        ; SCRATCH the old file first, then a
+        ldx #<cm_scratch_command   ; plain SAVE (see keymap_menu.asm's
+        ldy #>cm_scratch_command   ; key_save on why not "@0:")
+        jsr DSK_SETNAM
+        jsr current_drive_to_x
+        lda #DSK_CMD_CHANNEL
+        ldy #DSK_CMD_CHANNEL
+        jsr DSK_SETLFS
+        jsr DSK_OPEN
+        lda #DSK_CMD_CHANNEL       ; CLOSE takes the file number in .A
+        jsr DSK_CLOSE
+        lda #CM_FILENAME_LEN
+        ldx #<cm_filename
+        ldy #>cm_filename
+        jsr DSK_SETNAM
+        jsr current_drive_to_x
+        lda #2
+        ldy #1
+        jsr DSK_SETLFS
+        lda KEYMAP_TABLE_PTR       ; SAVE wants a zero-page pointer to the
+        sta CM_SAVE_PTR            ; start: keymap_table, then the
+        lda KEYMAP_TABLE_PTR+1     ; settings block right after it
+        sta CM_SAVE_PTR+1
+        lda KEYMAP_TABLE_PTR       ; end = start + CONFIG_FILE_SIZE
+        clc
+        adc #<CONFIG_FILE_SIZE
+        tax
+        lda KEYMAP_TABLE_PTR+1
+        adc #>CONFIG_FILE_SIZE
+        tay
+        lda #CM_SAVE_PTR
+        jsr CM_KERNAL_SAVE
+        rol cm_save_failed         ; KERNAL error (carry) -> bit 0
+        jsr read_error_channel     ; the drive's verdict (26 WRITE PROTECT
+        rol cm_save_failed         ; ON, 72 DISK FULL, ...) -- and its LED
+        ldx #<style_saved_msg
+        ldy #>style_saved_msg
+        lda cm_save_failed
+        and #$03
+        beq sbs_done
+        ldx #<style_error_msg
+        ldy #>style_error_msg
+sbs_done:
+        rts
+
+cm_msg_ptr:
+        word 0
+cm_save_failed:
+        byte 0
 
 ; --- Cancel: revert the live preview, send a cancel marker, hand back ---
 key_cancel:
@@ -881,131 +854,6 @@ digit_ones:
 blink_masks:
         byte $08, $10, $20, $40, $00
 
-; The 11 box-drawing screen codes border style redefines -- table.py's
-; PETSCII Border set server-side, plus this popup's own frame. Order
-; matters: BORDER_BACKUP and double_glyphs both hold one glyph per entry,
-; in this order (gl_transfer). GLYPH_COUNT must match by hand.
-glyph_codes:
-        byte $40, $5b, $5d, $6b, $6d, $6e, $70, $71, $72, $73, $7d
-
-; Double style: CP437's double-line box set (U+2550-256C), drawn on the
-; same 8x8 grid -- vertical lines on columns 2 and 5, straddling the
-; Gothic single line's columns 3-4; horizontal lines on rows 2 and 4,
-; one blank row between (Ryan's call, 2026-10-02: the lower line on row
-; 5 sat a pixel too low), so a mix of the two styles (e.g. a server
-; table drawn while the other style was in place) still meets near the
-; middle of each cell. Same `bits` pseudo op as gothic-charset.asm.
-double_glyphs:
-;   $40 ═ horizontal
-        bits ........
-        bits ........
-        bits ********
-        bits ........
-        bits ********
-        bits ........
-        bits ........
-        bits ........
-
-;   $5b ╬ cross
-        bits ..*..*..
-        bits ..*..*..
-        bits ***..***
-        bits ........
-        bits ***..***
-        bits ..*..*..
-        bits ..*..*..
-        bits ..*..*..
-
-;   $5d ║ vertical
-        bits ..*..*..
-        bits ..*..*..
-        bits ..*..*..
-        bits ..*..*..
-        bits ..*..*..
-        bits ..*..*..
-        bits ..*..*..
-        bits ..*..*..
-
-;   $6b ╠ left tee
-        bits ..*..*..
-        bits ..*..*..
-        bits ..*..***
-        bits ..*.....
-        bits ..*..***
-        bits ..*..*..
-        bits ..*..*..
-        bits ..*..*..
-
-;   $6d ╚ bottom-left
-        bits ..*..*..
-        bits ..*..*..
-        bits ..*..***
-        bits ..*.....
-        bits ..******
-        bits ........
-        bits ........
-        bits ........
-
-;   $6e ╗ top-right
-        bits ........
-        bits ........
-        bits ******..
-        bits .....*..
-        bits ***..*..
-        bits ..*..*..
-        bits ..*..*..
-        bits ..*..*..
-
-;   $70 ╔ top-left
-        bits ........
-        bits ........
-        bits ..******
-        bits ..*.....
-        bits ..*..***
-        bits ..*..*..
-        bits ..*..*..
-        bits ..*..*..
-
-;   $71 ╩ bottom tee
-        bits ..*..*..
-        bits ..*..*..
-        bits ***..***
-        bits ........
-        bits ********
-        bits ........
-        bits ........
-        bits ........
-
-;   $72 ╦ top tee
-        bits ........
-        bits ........
-        bits ********
-        bits ........
-        bits ***..***
-        bits ..*..*..
-        bits ..*..*..
-        bits ..*..*..
-
-;   $73 ╣ right tee
-        bits ..*..*..
-        bits ..*..*..
-        bits ***..*..
-        bits .....*..
-        bits ***..*..
-        bits ..*..*..
-        bits ..*..*..
-        bits ..*..*..
-
-;   $7d ╝ bottom-right
-        bits ..*..*..
-        bits ..*..*..
-        bits ***..*..
-        bits .....*..
-        bits ******..
-        bits ........
-        bits ........
-        bits ........
-
 ; --- Plain untransformed byte fill ---
 ; Input: fill_dst_lo/hi = dest base, fill_value = byte, fill_remaining_lo/
 ; hi = count. Generalized (count is an input, not hardcoded) unlike
@@ -1236,6 +1084,17 @@ help2_value:
 help2_style:
         ascii " Crsr Left/Right: Choose style"
 
+; save_border_style's status-row messages, NUL-terminated
+style_saved_msg:
+        ascii "Border style saved."
+        byte 0
+style_no_drive_msg:
+        ascii "Border style not saved: no drive"
+        byte 0
+style_error_msg:
+        ascii "Border style not saved: disk error"
+        byte 0
+
 row_help1:
         byte $20,$20,$20,$20, $5d
         ascii " Crsr Up/Down: Select option  "
@@ -1253,3 +1112,21 @@ bottom_border:
         area 30, $40
         byte $7d, $20,$20,$20,$20
 {alpha:normal}
+
+; "S0:TADA64.CFG" and "TADA64.CFG" share the filename bytes, as in
+; keymap_menu.asm/drive_menu_body.asm. {alpha:alt}: a disk directory's
+; uppercase letters are $C1-$DA (see keymap.asm's filename-block
+; comment).
+{alpha:alt}
+cm_scratch_command:
+        ascii "S0:"
+cm_filename:
+        ascii "TADA64.CFG"
+cm_filename_end:
+{alpha:normal}
+CM_SCRATCH_LEN  = cm_filename_end - cm_scratch_command  ; 13
+CM_FILENAME_LEN = cm_filename_end - cm_filename         ; 10
+
+; Its own copy of disk.asm (select_drive, current_drive_to_x,
+; read_error_channel), as a standalone .prg must -- same as DRIVE.MNU.
+{include:disk.asm}

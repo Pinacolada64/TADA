@@ -229,24 +229,24 @@ whole time.
   `macro_preprocessor.py`'s built-in `SCREEN_RAM` (`$0400`) -- the client
   stopped displaying `$0400` with the double-buffered screen, and every
   popup drew off-screen until 2026-10-01.
-- The charset itself is RAM behind `$d000` (`POPUP_CHARGEN`), readable
+- The charset itself is RAM behind `$d000` (`CHARGEN_DEST`), readable
   and writable only with I/O banked out -- and with SwiftLink up, its
   receive NMI (which SEI can't mask) would then read `$de00` as plain
-  RAM. A module that needs the charset goes through `JT_RUN_UNDER_IO`
-  (`$c036`, resident `run_under_io`): it calls the module's routine
-  with all RAM mapped while the ACIA's receive IRQ is held off (RTS
-  deasserted), points the RAM NMI vector at an `rti`, and buffers any
-  byte that landed meanwhile by hand afterward. The routine may not
-  touch I/O or call the KERNAL.
+  RAM. Resident `run_under_io` calls a routine with all RAM mapped while
+  the ACIA's receive IRQ is held off (RTS deasserted), points the RAM NMI
+  vector at an `rti`, and buffers any byte that landed meanwhile by hand
+  afterward. The routine may not touch I/O or call the KERNAL.
 - Video Settings' Border style (2026-10-02): Single (the Gothic box
   glyphs) or Double (CP437-style double lines), swapped in place for
   the 11 box-drawing screen codes, so every box on screen changes
-  together. `CONFIG.MNU` backs the Gothic glyphs up to `BORDER_BACKUP`
-  first, in overlay RAM at `$9000` -- above every module's image
-  (`check_overlay_margin.py --modules` fails the `.d64` build if one
-  reaches it), since the module itself is discarded on exit and once
-  Double is in, that backup is the only Gothic copy left. Session-only:
-  nothing goes to the server, and boot clears `BORDER_SIG`.
+  together. The swap is resident (`border_style.asm`; overlays reach it
+  through `JT_SET_BORDER_STYLE`, `$c036`) so boot can reapply the saved
+  style. The Gothic glyphs are backed up at boot, from `gothic_charset`'s
+  source image, to `BORDER_BACKUP` in overlay RAM at `$9000` -- above
+  every module's image (`check_overlay_margin.py --modules` fails the
+  `.d64` build if one reaches it). `CONFIG.MNU` saves the choice in
+  `TADA64.CFG` (`config_settings`' `CFG_BORDER_STYLE`, byte +2) when it
+  changes; the server never sees it.
 - See `petscii_editor.asm` for the first real module -- also the
   reference for the "no `ds` directive, no macro parameters" bulk-copy
   pattern (self-modified `lda`/`sta` operands, incrementing the operand

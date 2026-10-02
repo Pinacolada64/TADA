@@ -6,18 +6,25 @@ SwiftLink bridged over IP232 to a fake server in this script -- no real
 TADA server needed. The fake server answers the negotiation, then sends
 the display-settings stream that opens CONFIG.MNU, the same bytes
 commands/c64_display.py sends.
-  1. first open: the Gothic box glyphs get backed up to BORDER_BACKUP
-     (constants.asm), BORDER_SIG set, style Single, bar on "Single"
+First boot (fresh disk, no TADA64.CFG):
+  1. first open: the Gothic box glyphs were backed up to BORDER_BACKUP
+     (constants.asm) at boot, style Single, bar on "Single"
   2. CRSR-DOWN x3: marker on the Border style row, its help text and
      the "Choose style" CRSR hint shown
-  3. CRSR-RIGHT: the charset's 11 box glyphs become config_menu.asm's
-     double_glyphs, bar on "Double"; CRSR-LEFT puts Gothic back
+  3. CRSR-RIGHT: the charset's 11 box glyphs become border_style.asm's
+     bs_double_glyphs, bar on "Double"; CRSR-LEFT puts Gothic back
   4. while toggling, the server sends a burst of text -- run_under_io
      holds the receive NMI off around each glyph copy, so after RETURN
      (Save) every line must still print intact
-  5. RETURN sends the usual 3-byte save; Double stays in the charset
+  5. RETURN sends the usual 3-byte save, saves TADA64.CFG ("Border
+     style saved." on the status row, CFG_BORDER_STYLE = 1); Double
+     stays in the charset
   6. second open: bar starts on "Double", the backup is still Gothic;
      CRSR-LEFT then RUN/STOP (Cancel) reverts the charset to Double
+  7. the disk's TADA64.CFG holds CFG_BORDER_STYLE = 1
+Second boot (same disk):
+  8. Double is back in the charset before any popup opens
+  9. open, CRSR-LEFT to Single, RETURN: saved, and the disk now says 0
 Saves a screenshot next to this script (border_style_live.png).
 
 Written 2026-10-02. Usage:
@@ -32,14 +39,17 @@ import vice_drive_id_test as vt          # mon(), dump(), MON
 
 CLIENT = Path(__file__).parent
 SCREEN = 0xc400                          # the client's SCREEN_BUF_A
-CHARGEN = 0xd000                         # constants.asm's POPUP_CHARGEN
-BORDER_SIG = 0x9000                      # constants.asm's BORDER_STATE
-BORDER_CUR_STYLE = 0x9002
+CHARGEN = 0xd000                         # tada-client.asm's CHARGEN_DEST
+BORDER_CUR_STYLE = 0x9000                # constants.asm's BORDER_STATE
 BORDER_BACKUP = 0x9008
+STATUS_ROW = 23
+CFG_SIZE = 440                           # constants.asm's CONFIG_FILE_SIZE
+CFG_BORDER_STYLE = 2                     # offset in the settings block
+KEYMAP_TABLE_SIZE = 432
 GLYPH_CODES = [0x40, 0x5b, 0x5d, 0x6b, 0x6d, 0x6e, 0x70, 0x71, 0x72, 0x73, 0x7d]
 STYLE_ROW = 11                           # config_menu.asm: BOX_TOP_ROW+5
 HELP_ROW = 13                            # BOX_TOP_ROW+7
-PORT = 34099
+PORTS = (34099, 34098)                   # one per boot
 OPEN_STREAM = bytes([0x01, 0x06, 0x03, 0x00, 14, 6, 2])   # border 14, bg 6, blink 2
 
 
@@ -54,7 +64,7 @@ def bits_glyphs(path: Path, start_label: str, count: int) -> bytes:
 
 GOTHIC_ALL = bits_glyphs(CLIENT / 'gothic-charset.asm', 'gothic_charset', 128)
 GOTHIC = b''.join(GOTHIC_ALL[c * 8:c * 8 + 8] for c in GLYPH_CODES)
-DOUBLE = bits_glyphs(CLIENT / 'config_menu.asm', 'double_glyphs', len(GLYPH_CODES))
+DOUBLE = bits_glyphs(CLIENT / 'border_style.asm', 'bs_double_glyphs', len(GLYPH_CODES))
 
 
 def petscii_encode(text: str) -> bytes:
@@ -69,8 +79,8 @@ def petscii_encode(text: str) -> bytes:
 class FakeServer:
     """One IP232 connection: collects what the client sends (escapes
     stripped -- nothing here sends or expects a real $ff byte)."""
-    def __init__(self):
-        self.lsock = socket.create_server(('127.0.0.1', PORT))
+    def __init__(self, port: int):
+        self.lsock = socket.create_server(('127.0.0.1', port))
         self.conn = None
         self.rx = bytearray()
         threading.Thread(target=self._run, daemon=True).start()
@@ -166,38 +176,71 @@ def open_popup(srv: FakeServer):
     time.sleep(1)
 
 
-def main():
-    assert len(DOUBLE) == 88, len(DOUBLE)
-    disk = CLIENT / 'border_style_live.d64'
-    shutil.copy(CLIENT / 'tada-client.d64', disk)
-    srv = FakeServer()
+def wait_status(text: str, timeout: float = 20) -> str:
+    """Poll the status row until it starts with `text` (the save runs
+    SCRATCH + SAVE at 1541 speed first); returns the last row seen."""
+    end = time.time() + timeout
+    row = ''
+    while time.time() < end:
+        row = screen_rows(STATUS_ROW, 1)[0].rstrip()
+        if row.startswith(text):
+            break
+        time.sleep(1)
+    return row
+
+
+def boot(disk: Path, port: int) -> tuple[subprocess.Popen, FakeServer]:
+    srv = FakeServer(port)
     p = subprocess.Popen(
         ['x64sc', '-acia1', '-acia1base', '0xDE00', '-acia1mode', '1',
          '-acia1irq', '1', '-myaciadev', '0',
-         '-rsdev1', f'127.0.0.1:{PORT}', '-rsdev1ip232', '-rsdev1baud', '38400',
+         '-rsdev1', f'127.0.0.1:{port}', '-rsdev1ip232', '-rsdev1baud', '38400',
          '-drive8type', '1541', '-8', str(disk),
          '-remotemonitor', '-remotemonitoraddress', f'127.0.0.1:{vt.MON}',
          '-autostart', str(disk)],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    try:
-        for _ in range(90):               # autostart + connect
-            if srv.conn:
-                break
-            time.sleep(1)
-        time.sleep(3)
-        srv.send('TADA border style test\r')
-        check('client answers the negotiation with "4"', srv.wait_rx(b'4\r', 30), bytes(srv.rx))
-        srv.rx.clear()
-        srv.send('Ready\r')
-        time.sleep(2)
+    for _ in range(90):                   # autostart + connect
+        if srv.conn:
+            break
+        time.sleep(1)
+    time.sleep(3)
+    srv.send('TADA border style test\r')
+    check('client answers the negotiation with "4"', srv.wait_rx(b'4\r', 30), bytes(srv.rx))
+    srv.rx.clear()
+    srv.send('Ready\r')
+    time.sleep(2)
+    return p, srv
 
-        print('First open:')
+
+def disk_style(p: subprocess.Popen, disk: Path) -> int | None:
+    """Detach drive 8 (writes the .d64 back), stop VICE, and read
+    CFG_BORDER_STYLE out of the disk's TADA64.CFG."""
+    vt.mon(['detach 8']); time.sleep(1)
+    p.terminate(); p.wait(timeout=10); time.sleep(1)
+    out = CLIENT / 'border_style_live_cfg.bin'
+    subprocess.run(['c1541', str(disk), '-read', 'TADA64.CFG', str(out)],
+                   capture_output=True)
+    data = out.read_bytes() if out.exists() else b''
+    out.unlink(missing_ok=True)
+    check(f'TADA64.CFG on the disk: 2 + {CFG_SIZE} bytes', len(data) == 2 + CFG_SIZE, len(data))
+    i = 2 + KEYMAP_TABLE_SIZE + CFG_BORDER_STYLE
+    return data[i] if len(data) > i else None
+
+
+def main():
+    assert len(DOUBLE) == 88, len(DOUBLE)
+    disk = CLIENT / 'border_style_live.d64'
+    shutil.copy(CLIENT / 'tada-client.d64', disk)
+    p = None
+    try:
+        print('First boot (no TADA64.CFG):')
+        p, srv = boot(disk, PORTS[0])
+        check('boot: backup holds the Gothic box glyphs', vt.dump(BORDER_BACKUP, 88) == GOTHIC)
+        check('boot: BORDER_CUR_STYLE = Single', vt.dump(BORDER_CUR_STYLE, 1) == b'\0')
+
         open_popup(srv)
         for r in screen_rows(6, 13):
             print('   |' + r + '|')
-        check('BORDER_SIG set', vt.dump(BORDER_SIG, 2) == b'TB', vt.dump(BORDER_SIG, 2))
-        check('BORDER_CUR_STYLE = Single', vt.dump(BORDER_CUR_STYLE, 1) == b'\0')
-        check('backup holds the Gothic box glyphs', vt.dump(BORDER_BACKUP, 88) == GOTHIC)
         check('charset still Gothic', charset_glyphs() == GOTHIC)
         check('bar on Single (cols 20-27)', reversed_cols(STYLE_ROW) == list(range(20, 28)),
               reversed_cols(STYLE_ROW))
@@ -235,9 +278,11 @@ def main():
         check('after toggling: Double', charset_glyphs() == DOUBLE)
 
         srv.rx.clear()
-        keys(0x0d, settle=4)              # RETURN: save
+        keys(0x0d, settle=1)              # RETURN: save
         check('RETURN sends the 3-byte save', srv.wait_rx(bytes([1, 6, 3, 0, 14, 6, 2]), 5),
               bytes(srv.rx).hex())
+        status = wait_status('Border style saved.')
+        check('status "Border style saved."', status.startswith('Border style saved.'), status)
         check('Double stays after Save', charset_glyphs() == DOUBLE)
         time.sleep(2)
         screen = '\n'.join(screen_rows(0, 23))
@@ -258,8 +303,28 @@ def main():
         check('RUN/STOP sends the cancel', srv.wait_rx(bytes([1, 0x58, 0, 0]), 5),
               bytes(srv.rx).hex())
         check('Cancel reverts the charset to Double', charset_glyphs() == DOUBLE)
+
+        style = disk_style(p, disk); p = None
+        check('disk: CFG_BORDER_STYLE = 1 (Double)', style == 1, style)
+
+        print('Second boot (TADA64.CFG from the first):')
+        p, srv = boot(disk, PORTS[1])
+        check('boot: Double back in the charset', charset_glyphs() == DOUBLE)
+        check('boot: BORDER_CUR_STYLE = Double', vt.dump(BORDER_CUR_STYLE, 1) == b'\1')
+        check('boot: backup still Gothic', vt.dump(BORDER_BACKUP, 88) == GOTHIC)
+        open_popup(srv)
+        check('bar starts on Double', reversed_cols(STYLE_ROW) == list(range(27, 35)),
+              reversed_cols(STYLE_ROW))
+        keys(0x11, 0x11, 0x11, 0x9d)      # to Border style, CRSR-LEFT
+        keys(0x0d, settle=1)              # RETURN: save Single
+        status = wait_status('Border style saved.')
+        check('status "Border style saved."', status.startswith('Border style saved.'), status)
+        check('Single in the charset', charset_glyphs() == GOTHIC)
+        style = disk_style(p, disk); p = None
+        check('disk: CFG_BORDER_STYLE = 0 (Single)', style == 0, style)
     finally:
-        p.terminate(); p.wait(timeout=10)
+        if p:
+            p.terminate(); p.wait(timeout=10)
         disk.unlink(missing_ok=True)
     print(f'\n{"ALL PASS" if not failures else f"{len(failures)} FAILED"}')
     sys.exit(1 if failures else 0)

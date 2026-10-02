@@ -13,9 +13,9 @@ import sys
 from pathlib import Path
 
 # --modules a.prg b.prg ...: instead, check that every overlay module's
-# image ends below BORDER_STATE (constants.asm) -- the border-style
-# glyph backup config_menu.asm keeps in overlay RAM above every module,
-# so other overlays loading at OVERLAY_BUF can't overwrite it.
+# image ends below BORDER_STATE (constants.asm) -- the Border style
+# glyph backup (border_style.asm) kept in overlay RAM above every
+# module, so overlays loading at OVERLAY_BUF can't overwrite it.
 if sys.argv[1:2] == ['--modules']:
     consts = Path('constants.asm').read_text()
     border_state = int(re.search(r'^BORDER_STATE\s+=\s+\$([0-9a-f]+)',

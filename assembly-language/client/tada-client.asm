@@ -390,6 +390,12 @@ start:
                                   ; comment in keyboard_rollover.asm
         jsr init_irq             ; install the IRQ dispatcher (sid_play +
                                   ; round-robin task table)
+        lda config_settings+CFG_BORDER_STYLE
+        jsr set_border_style     ; TADA64.CFG's Border style (border_
+                                  ; style.asm) -- not before here: the
+                                  ; swap runs through run_under_io,
+                                  ; which needs SwiftLink's NMI handler
+                                  ; installed and the ACIA set up
 
         ; tell the player RUN/STOP can give up on connecting (see
         ; wait_for_connect). The message sets its own colors, so save
@@ -740,12 +746,12 @@ usl_pad:
 init_jump_table:
         ldx #56                  ; 57 bytes: 15 jmp entries (45) + 8
                                     ; proto bytes + the 4 pointer bytes
-                                    ; JT_RUN_UNDER_IO sits behind --
+                                    ; JT_SET_BORDER_STYLE sits behind --
                                     ; bumped from 34/35 when JT_CURSOR_
                                     ; HIDE/JT_UPDATE_CURSOR were added,
                                     ; from 40/41 for JT_GET_CURSOR/
                                     ; JT_SET_CURSOR/JT_CLEAR_SCREEN, and
-                                    ; from 49/50 for JT_RUN_UNDER_IO
+                                    ; from 49/50 for JT_SET_BORDER_STYLE
 init_jump_table_loop:
         lda jump_table_template,x
         sta JT_BASE,x
@@ -1155,21 +1161,19 @@ switch_to_bank3_with_charset:
         lda #$80
         sta KERNAL_MODE
 
-        ; --- 5. Forget any border-style backup from before a reset ---
-        ; The charset is Gothic again as of step 2, so a backup and
-        ; BORDER_CUR_STYLE left in RAM by an earlier run (a soft reset
-        ; doesn't clear it) no longer describe it -- config_menu.asm
-        ; takes a fresh backup the next time it opens. See constants.
-        ; asm's BORDER_STATE comment.
-        lda #0
-        sta BORDER_SIG
+        ; --- 5. Back up the Gothic box glyphs for Border style ---
+        ; Now, while gothic_charset's source image is still intact (it
+        ; becomes the screen backup at the first popup) -- see border_
+        ; style.asm. Also resets BORDER_CUR_STYLE to Single, which a soft
+        ; reset would otherwise leave describing the previous run.
+        jsr bs_backup_gothic
 
         cli
         rts
 
 ; --- run_under_io: jsr .X/.Y (lo/hi) with $d000-$dfff banked to RAM ---
-; JT_RUN_UNDER_IO. For overlays that need the charset in the RAM behind
-; $d000 after boot (config_menu.asm's border-style glyph swap) --
+; For anything that needs the charset in the RAM behind $d000 after boot
+; (border_style.asm's set_border_style, the Border style glyph swap) --
 ; switch_to_bank3_with_charset's own $01 trick isn't safe any more
 ; once SwiftLink is up: its receive NMI can't be masked by SEI, and
 ; nmi_handler reads SL_STATUS/SL_DATA at $de01/$de00, which with I/O
@@ -1227,6 +1231,8 @@ rui_nmi_rti:
 
 rui_saved_01:
         byte 0
+
+{include:border_style.asm}
 
 ; --- flip_screen_buffer: atomically swap which 1K page the VIC displays ---
 ; Input: .A = the buffer's ABSOLUTE high byte to make the new front
@@ -1938,8 +1944,8 @@ jump_table_template:
                                      ; -- placeholders only: init_keymap
                                      ; (always after init_jump_table)
                                      ; writes the real pointers
-        jmp run_under_io          ; JT_RUN_UNDER_IO -- config_menu.asm's
-                                     ; border-style glyph swap; see
+        jmp set_border_style      ; JT_SET_BORDER_STYLE -- config_menu.
+                                     ; asm's Border style; see
                                      ; constants.asm's own comment
 
 ; --- Load the petscii_editor overlay module and hand control to it ---

@@ -158,43 +158,32 @@ KEYMAP_TABLE_PTR             = $c032
 ; Added 2026-10-01 with the drive picker.
 CONFIG_SETTINGS_PTR          = $c034
 
-; JT_RUN_UNDER_IO -- added 2026-10-02 with config_menu.asm's Border
-; style setting. jsr's the routine at .X/.Y (lo/hi) with $01 set to
-; all-RAM, so it can read and write the charset in the RAM behind
-; $d000 (POPUP_CHARGEN) -- with I/O banked out, SwiftLink's receive
-; NMI would read garbage from $de00 (see run_under_io in tada-client.
-; asm for how it's held off). The routine may not touch I/O or call
-; the KERNAL. Sits after the two pointers above rather than with the
-; rest of the jump table; init_jump_table writes it the same way.
-JT_RUN_UNDER_IO              = $c036
-
-; POPUP_CHARGEN -- where the client's charset lives: tada-client.asm's
-; CHARGEN_DEST, the RAM behind $d000 that VIC bank 3 reads its glyphs
-; from. Keep in step with CHARGEN_DEST.
-POPUP_CHARGEN                = $d000
+; JT_SET_BORDER_STYLE -- added 2026-10-02 with Video Settings' Border
+; style. .A = 0 Single (the Gothic box glyphs), nonzero Double: puts
+; that style's glyphs in the charset (border_style.asm's set_border_
+; style, resident so a saved style can be applied at boot) and records
+; it in BORDER_CUR_STYLE. Sits after the two pointers above rather than
+; with the rest of the jump table; init_jump_table writes it the same
+; way.
+JT_SET_BORDER_STYLE          = $c036
 
 ; Border-style state, kept in overlay RAM ABOVE every overlay module's
 ; image (the largest, keymap_menu, ends near $4cb0; check_overlay_
-; margin.py --modules fails the .d64 build if one ever reaches here) so
-; it survives other overlays loading over OVERLAY_BUF -- config_menu.asm
-; isn't resident, and once it has swapped in the double-line glyphs the
-; only copy of the Gothic originals is the backup here. Not $9e00-$9fff:
-; that's where the KERNAL would put RS-232 buffers if device 2 were ever
-; opened. tada-client.asm's switch_to_bank3_with_charset clears
-; BORDER_SIG at boot, since that's when the charset is freshly Gothic
-; again (a soft reset leaves this RAM as it was).
+; margin.py --modules fails the .d64 build if one ever reaches here)
+; rather than in the resident program -- Ryan's ask: back the Gothic
+; glyphs up in loadable-module RAM. Nothing loads this high, so it
+; survives every overlay. Not $9e00-$9fff: that's where the KERNAL would
+; put RS-232 buffers if device 2 were ever opened. border_style.asm's
+; bs_backup_gothic fills it at boot, straight from gothic_charset's
+; source image.
 BORDER_STATE                 = $9000
-BORDER_SIG                   = $9000  ; +0,+1: BORDER_SIG_0/_1 once the
-                                      ;     backup has been taken
-BORDER_CUR_STYLE             = $9002  ; +2: style in the charset now,
+BORDER_CUR_STYLE             = $9000  ; +0: style in the charset now,
                                       ;     0 = Single (Gothic), 1 = Double
 BORDER_BACKUP                = $9008  ; +8: the Gothic box glyphs, 8 bytes
-                                      ;     each, in config_menu.asm's
-                                      ;     glyph_codes order
+                                      ;     each, in border_style.asm's
+                                      ;     bs_glyph_codes order
 BORDER_STATE_END             = $9060  ; BORDER_BACKUP + 11 glyphs * 8, by
                                       ; hand (see CONFIG_FILE_SIZE)
-BORDER_SIG_0                 = $54    ; 'T' -- two bytes so stray power-on
-BORDER_SIG_1                 = $42    ; 'B'    RAM can't pass for valid
 
 ; config_settings' layout -- byte offsets into the block, shared by the
 ; client (keymap.asm), the overlays and the 128 client (keymap_128.asm
@@ -206,7 +195,13 @@ CFG_DATA_DRIVE       = 1      ; +1: the data drive (session logs and
                               ;     files and TADA64.CFG stay on the
                               ;     drive it was loaded from); 0 = none
                               ;     chosen yet, use that drive
-CONFIG_SETTINGS_SIZE = 8      ; +2..+7 reserved, zero
+CFG_BORDER_STYLE     = 2      ; +2: Video Settings' Border style, 0 =
+                              ;     Single, 1 = Double (C64 only -- the
+                              ;     128 keeps the byte but never reads
+                              ;     it); was reserved/zero before
+                              ;     2026-10-02, so older files read as
+                              ;     Single and CONFIG_VERSION stays 1
+CONFIG_SETTINGS_SIZE = 8      ; +3..+7 reserved, zero
 
 ; TADA64.CFG's whole size: keymap_table (keymap.asm's KEYMAP_TABLE_SIZE,
 ; 432) + the settings block. What keymap_menu.asm's and drive_menu.asm's
