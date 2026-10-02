@@ -31,7 +31,20 @@ VIC_BG     = $d021
 ; isn't safe to forward-reference the way this file originally had it --
 ; see this bug's own fix commentary in project memory).
 BOX_TOP_ROW = 6
-BOX_ROWS    = 12
+BOX_ROWS    = 13
+
+; Border style row's highlight bar (row+5): two overlapping 8-column
+; bars, " Single " at screen columns 20-27 and " Double " at 27-34 --
+; they share column 27's space, which is fine since only one is ever
+; shown (that overlap is what fits both, plus the label, in the box's
+; 30-column interior). Same reverse-video bar as drive_menu_body.asm's.
+STYLE_COL_FIRST  = 20         ; first column draw_values repaints
+STYLE_COL_END    = 35         ; one past the last (column 34)
+STYLE_BAR_SINGLE = 20
+STYLE_BAR_DOUBLE = 27
+STYLE_BAR_WIDTH  = 8
+GLYPH_COUNT      = 11         ; glyph_codes' entries, by hand (see
+                              ; constants.asm's BORDER_STATE_END)
 
 ; SCREEN_RAM/COLOR_RAM/CHROUT/GETIN are macro_preprocessor.py built-ins
 ; (C64_CONSTANTS) -- no {const:} needed for those here.
@@ -86,6 +99,10 @@ recv_blink:
         bcc recv_blink
         sta cur_blink
         sta orig_blink
+
+        jsr border_init           ; back up the Gothic box glyphs (if
+                                    ; not already) and read which style
+                                    ; the charset has now
 
         lda #0
         sta selected_field
@@ -166,14 +183,14 @@ key_field_up:
         dec selected_field
         jmp key_field_done
 kfu_wrap:
-        lda #2
+        lda #3
         sta selected_field
         jmp key_field_done
 
 key_field_down:
         inc selected_field
         lda selected_field
-        cmp #3
+        cmp #4
         bne key_field_done
         lda #0
         sta selected_field
@@ -182,14 +199,17 @@ key_field_done:
         jmp config_loop
 
 ; .a already saved off by the caller's dispatch (not needed here) -- these
-; just look at selected_field to know which of cur_border/cur_bg/cur_blink
-; to touch.
+; just look at selected_field to know which of cur_border/cur_bg/cur_blink/
+; cur_style to touch. Border style doesn't wrap: right moves the bar to
+; Double, left to Single, like the bar's own left-to-right layout.
 key_value_up:
         lda selected_field
         cmp #0
         beq kvu_border
         cmp #1
         beq kvu_bg
+        cmp #3
+        beq kvu_style
         ; blink: 1-5 (5 = solid/no blink), wrap 5->1
         inc cur_blink
         lda cur_blink
@@ -210,6 +230,10 @@ kvu_bg:
         and #$0f
         sta cur_bg
         jmp kv_apply
+kvu_style:
+        lda #1                    ; Double
+        sta cur_style
+        jmp kv_apply
 
 key_value_down:
         lda selected_field
@@ -217,6 +241,8 @@ key_value_down:
         beq kvd_border
         cmp #1
         beq kvd_bg
+        cmp #3
+        beq kvd_style
         ; blink: 1-5 (5 = solid/no blink), wrap 1->5
         lda cur_blink
         cmp #1
@@ -238,13 +264,18 @@ kvd_bg:
         lda cur_bg
         and #$0f
         sta cur_bg
+        jmp kv_apply
+kvd_style:
+        lda #0                    ; Single
+        sta cur_style
 
 kv_apply:
         jsr apply_live
         jsr draw_values
         jmp config_loop
 
-; --- Apply cur_border/cur_bg/cur_blink live (VIC-II POKEs + blink mask) ---
+; --- Apply cur_border/cur_bg/cur_blink/cur_style live (VIC-II POKEs +
+; blink mask + box glyphs) ---
 apply_live:
         lda cur_border
         sta VIC_BORDER
@@ -254,7 +285,158 @@ apply_live:
         lda blink_masks-1,x        ; cur_blink is 1-5 -- -1 makes it a
                                     ; plain 0-based index into blink_masks
         jsr JT_SET_BLINK_MASK
+        jmp apply_style
+
+; --- Border style: Gothic single-line box glyphs vs CP437-style double ---
+; Ryan's ask, 2026-10-02. The 11 box-drawing screen codes in glyph_codes
+; (the same ones this popup's own frame and the server's PETSCII table
+; borders use) get redefined in the resident charset itself, so every
+; box on screen -- this popup included, as a live preview -- switches
+; style at once. Nothing is sent to the server: the style lasts until
+; the client is restarted (see the BORDER_SIG clear in tada-client.asm's
+; switch_to_bank3_with_charset).
+;
+; The Gothic originals are backed up to BORDER_BACKUP before anything is
+; overwritten. That backup lives at a fixed spot in overlay RAM, not in
+; this module's own image: this module is discarded on exit and other
+; overlays load over it, and once Double is in place the backup is the
+; only copy of the Gothic glyphs left (the boot-time charset image in
+; BACKUP_CHARS is long gone -- it doubles as the screen backup). See
+; constants.asm's BORDER_STATE comment.
+
+; border_init: take the backup on the first open since boot, then pick
+; up whichever style is in the charset now as both cur_style and
+; orig_style (Cancel's revert target).
+border_init:
+        lda BORDER_SIG
+        cmp #BORDER_SIG_0
+        bne bi_backup
+        lda BORDER_SIG+1
+        cmp #BORDER_SIG_1
+        beq bi_have
+bi_backup:
+        ; no valid backup: nothing has touched the box glyphs since boot,
+        ; so the charset still holds the Gothic ones -- copy them out
+        lda #<BORDER_BACKUP
+        sta gl_buf_lo
+        lda #>BORDER_BACKUP
+        sta gl_buf_hi
+        lda #0                    ; charset -> buffer
+        sta gl_dir
+        ldx #<gl_transfer
+        ldy #>gl_transfer
+        jsr JT_RUN_UNDER_IO
+        lda #0
+        sta BORDER_CUR_STYLE      ; Single
+        lda #BORDER_SIG_0
+        sta BORDER_SIG
+        lda #BORDER_SIG_1
+        sta BORDER_SIG+1
+bi_have:
+        lda BORDER_CUR_STYLE
+        sta cur_style
+        sta orig_style
         rts
+
+; apply_style: copy cur_style's glyphs into the charset, if they aren't
+; the ones already there.
+apply_style:
+        lda cur_style
+        cmp BORDER_CUR_STYLE
+        beq as_rts
+        sta BORDER_CUR_STYLE
+        lda cur_style
+        bne as_double
+        lda #<BORDER_BACKUP       ; Single: the Gothic originals
+        sta gl_buf_lo
+        lda #>BORDER_BACKUP
+        sta gl_buf_hi
+        jmp as_copy
+as_double:
+        lda #<double_glyphs
+        sta gl_buf_lo
+        lda #>double_glyphs
+        sta gl_buf_hi
+as_copy:
+        lda #1                    ; buffer -> charset
+        sta gl_dir
+        ldx #<gl_transfer
+        ldy #>gl_transfer
+        jmp JT_RUN_UNDER_IO
+as_rts:
+        rts
+
+; gl_transfer: copy the GLYPH_COUNT glyphs in glyph_codes between the
+; charset and the linear buffer at gl_buf_lo/hi (8 bytes per glyph, in
+; glyph_codes order). gl_dir 0 = charset -> buffer, 1 = buffer ->
+; charset. Runs only via JT_RUN_UNDER_IO (all RAM mapped, no I/O, no
+; KERNAL) -- everything it touches is this module's own code/data,
+; BORDER_STATE and the charset, all plain RAM. A glyph's charset address
+; is POPUP_CHARGEN + code*8; every code here is under $80, so that's
+; lo = code<<3, hi = >POPUP_CHARGEN + code>>5.
+gl_transfer:
+        lda gl_buf_lo
+        sta glt_buf_rd+1
+        sta glt_buf_wr+1
+        lda gl_buf_hi
+        sta glt_buf_rd+2
+        sta glt_buf_wr+2
+        ldy #0
+glt_glyph:
+        lda glyph_codes,y
+        asl
+        asl
+        asl
+        sta glt_chr_rd+1
+        sta glt_chr_wr+1
+        lda glyph_codes,y
+        lsr
+        lsr
+        lsr
+        lsr
+        lsr
+        clc
+        adc #>POPUP_CHARGEN
+        sta glt_chr_rd+2
+        sta glt_chr_wr+2
+        ldx #0
+glt_byte:
+        lda gl_dir
+        bne glt_in
+glt_chr_rd:
+        lda $ffff,x
+glt_buf_wr:
+        sta $ffff,x
+        jmp glt_next
+glt_in:
+glt_buf_rd:
+        lda $ffff,x
+glt_chr_wr:
+        sta $ffff,x
+glt_next:
+        inx
+        cpx #8
+        bne glt_byte
+        lda glt_buf_rd+1          ; next glyph's 8 bytes in the buffer
+        clc
+        adc #8
+        sta glt_buf_rd+1
+        sta glt_buf_wr+1
+        bcc glt_no_carry
+        inc glt_buf_rd+2
+        inc glt_buf_wr+2
+glt_no_carry:
+        iny
+        cpy #GLYPH_COUNT
+        bne glt_glyph
+        rts
+
+gl_buf_lo:
+        byte 0
+gl_buf_hi:
+        byte 0
+gl_dir:
+        byte 0
 
 ; --- Live-preview cursor: blinks (or holds solid) at cur_blink's rate ---
 ; Ryan's ask: show the actual blink behavior, not just a number, while
@@ -342,6 +524,8 @@ key_cancel:
         sta cur_bg
         lda orig_blink
         sta cur_blink
+        lda orig_style
+        sta cur_style
         jsr apply_live             ; undo whatever was being live-previewed
 
         lda PROTO_STREAM_START
@@ -426,9 +610,9 @@ draw_popup:
         sta poke_dst_hi
         jsr poke_line
 
-        lda #<row_blank
+        lda #<row_field4
         sta poke_src_lo
-        lda #>row_blank
+        lda #>row_field4
         sta poke_src_hi
         lda #<(POPUP_SCREEN+(BOX_TOP_ROW+5)*40)
         sta poke_dst_lo
@@ -436,10 +620,6 @@ draw_popup:
         sta poke_dst_hi
         jsr poke_line
 
-        ; row+6 is the dynamic per-field help line -- draw_values (via
-        ; poke_help_line) overwrites its interior immediately after this,
-        ; and again on every field/value change, so blank is just its
-        ; initial state before that first happens.
         lda #<row_blank
         sta poke_src_lo
         lda #>row_blank
@@ -450,6 +630,10 @@ draw_popup:
         sta poke_dst_hi
         jsr poke_line
 
+        ; row+7 is the dynamic per-field help line -- draw_values (via
+        ; poke_help_line) overwrites its interior immediately after this,
+        ; and again on every field/value change, so blank is just its
+        ; initial state before that first happens.
         lda #<row_blank
         sta poke_src_lo
         lda #>row_blank
@@ -460,9 +644,9 @@ draw_popup:
         sta poke_dst_hi
         jsr poke_line
 
-        lda #<row_help1
+        lda #<row_blank
         sta poke_src_lo
-        lda #>row_help1
+        lda #>row_blank
         sta poke_src_hi
         lda #<(POPUP_SCREEN+(BOX_TOP_ROW+8)*40)
         sta poke_dst_lo
@@ -470,9 +654,9 @@ draw_popup:
         sta poke_dst_hi
         jsr poke_line
 
-        lda #<row_help2
+        lda #<row_help1
         sta poke_src_lo
-        lda #>row_help2
+        lda #>row_help1
         sta poke_src_hi
         lda #<(POPUP_SCREEN+(BOX_TOP_ROW+9)*40)
         sta poke_dst_lo
@@ -480,9 +664,9 @@ draw_popup:
         sta poke_dst_hi
         jsr poke_line
 
-        lda #<row_help3
+        lda #<row_help2
         sta poke_src_lo
-        lda #>row_help3
+        lda #>row_help2
         sta poke_src_hi
         lda #<(POPUP_SCREEN+(BOX_TOP_ROW+10)*40)
         sta poke_dst_lo
@@ -490,20 +674,31 @@ draw_popup:
         sta poke_dst_hi
         jsr poke_line
 
-        lda #<bottom_border
+        lda #<row_help3
         sta poke_src_lo
-        lda #>bottom_border
+        lda #>row_help3
         sta poke_src_hi
         lda #<(POPUP_SCREEN+(BOX_TOP_ROW+11)*40)
         sta poke_dst_lo
         lda #>(POPUP_SCREEN+(BOX_TOP_ROW+11)*40)
+        sta poke_dst_hi
+        jsr poke_line
+
+        lda #<bottom_border
+        sta poke_src_lo
+        lda #>bottom_border
+        sta poke_src_hi
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+12)*40)
+        sta poke_dst_lo
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+12)*40)
         sta poke_dst_hi
         jmp poke_line
 
 ; --- Draw the dynamic parts: field-selection marker + numeric values ---
 ; Column 5 of each field row (the space right after the box's left '|')
 ; carries the '>' marker for whichever field is selected, ' ' otherwise.
-; Column 32 of each field row carries the value as two decimal digits.
+; Column 32 of each numeric field row carries the value as two decimal
+; digits; the border style row carries its Single/Double highlight bar.
 draw_values:
         lda selected_field
         cmp #0
@@ -535,6 +730,38 @@ dv_blink_off:
 dv_blink_store:
         sta POPUP_SCREEN+(BOX_TOP_ROW+4)*40+5
 
+        lda selected_field
+        cmp #3
+        bne dv_style_off
+        lda marker_char
+        jmp dv_style_store
+dv_style_off:
+        lda blank_char
+dv_style_store:
+        sta POPUP_SCREEN+(BOX_TOP_ROW+5)*40+5
+
+        ; style bar: repaint the choices plain, then reverse cur_style's
+        ldx #STYLE_COL_FIRST
+dv_style_plain:
+        lda row_field4,x
+        sta POPUP_SCREEN+(BOX_TOP_ROW+5)*40,x
+        inx
+        cpx #STYLE_COL_END
+        bne dv_style_plain
+        ldx #STYLE_BAR_SINGLE
+        lda cur_style
+        beq dv_style_bar
+        ldx #STYLE_BAR_DOUBLE
+dv_style_bar:
+        ldy #STYLE_BAR_WIDTH
+dv_style_bar_loop:
+        lda POPUP_SCREEN+(BOX_TOP_ROW+5)*40,x
+        ora #$80                  ; reverse video
+        sta POPUP_SCREEN+(BOX_TOP_ROW+5)*40,x
+        inx
+        dey
+        bne dv_style_bar_loop
+
         lda cur_border
         jsr to_decimal2
         lda digit_tens
@@ -560,6 +787,8 @@ dv_blink_store:
         beq dv_help_border
         cmp #1
         beq dv_help_bg
+        cmp #3
+        beq dv_help_style
         lda #<help_blink
         sta poke_src_lo
         lda #>help_blink
@@ -576,8 +805,35 @@ dv_help_bg:
         sta poke_src_lo
         lda #>help_bg
         sta poke_src_hi
+        jmp dv_help_go
+dv_help_style:
+        lda #<help_style
+        sta poke_src_lo
+        lda #>help_style
+        sta poke_src_hi
 dv_help_go:
         jsr poke_help_line
+
+        ; row+10's CRSR-left/right hint: "Choose style" on the border
+        ; style field, "Incr/Decr" on the numeric ones (Ryan's ask)
+        ldx #<help2_value
+        ldy #>help2_value
+        lda selected_field
+        cmp #3
+        bne dv_help2_go
+        ldx #<help2_style
+        ldy #>help2_style
+dv_help2_go:
+        stx dv_help2_load+1
+        sty dv_help2_load+2
+        ldx #0
+dv_help2_loop:
+dv_help2_load:
+        lda $ffff,x
+        sta POPUP_SCREEN+(BOX_TOP_ROW+10)*40+5,x
+        inx
+        cpx #30
+        bne dv_help2_loop
         rts
 
 ; .a = value (0-19 is all this module ever needs -- border/bg are 0-15,
@@ -624,6 +880,131 @@ digit_ones:
 ; jumped into garbage memory).
 blink_masks:
         byte $08, $10, $20, $40, $00
+
+; The 11 box-drawing screen codes border style redefines -- table.py's
+; PETSCII Border set server-side, plus this popup's own frame. Order
+; matters: BORDER_BACKUP and double_glyphs both hold one glyph per entry,
+; in this order (gl_transfer). GLYPH_COUNT must match by hand.
+glyph_codes:
+        byte $40, $5b, $5d, $6b, $6d, $6e, $70, $71, $72, $73, $7d
+
+; Double style: CP437's double-line box set (U+2550-256C), drawn on the
+; same 8x8 grid -- vertical lines on columns 2 and 5, straddling the
+; Gothic single line's columns 3-4; horizontal lines on rows 2 and 4,
+; one blank row between (Ryan's call, 2026-10-02: the lower line on row
+; 5 sat a pixel too low), so a mix of the two styles (e.g. a server
+; table drawn while the other style was in place) still meets near the
+; middle of each cell. Same `bits` pseudo op as gothic-charset.asm.
+double_glyphs:
+;   $40 ═ horizontal
+        bits ........
+        bits ........
+        bits ********
+        bits ........
+        bits ********
+        bits ........
+        bits ........
+        bits ........
+
+;   $5b ╬ cross
+        bits ..*..*..
+        bits ..*..*..
+        bits ***..***
+        bits ........
+        bits ***..***
+        bits ..*..*..
+        bits ..*..*..
+        bits ..*..*..
+
+;   $5d ║ vertical
+        bits ..*..*..
+        bits ..*..*..
+        bits ..*..*..
+        bits ..*..*..
+        bits ..*..*..
+        bits ..*..*..
+        bits ..*..*..
+        bits ..*..*..
+
+;   $6b ╠ left tee
+        bits ..*..*..
+        bits ..*..*..
+        bits ..*..***
+        bits ..*.....
+        bits ..*..***
+        bits ..*..*..
+        bits ..*..*..
+        bits ..*..*..
+
+;   $6d ╚ bottom-left
+        bits ..*..*..
+        bits ..*..*..
+        bits ..*..***
+        bits ..*.....
+        bits ..******
+        bits ........
+        bits ........
+        bits ........
+
+;   $6e ╗ top-right
+        bits ........
+        bits ........
+        bits ******..
+        bits .....*..
+        bits ***..*..
+        bits ..*..*..
+        bits ..*..*..
+        bits ..*..*..
+
+;   $70 ╔ top-left
+        bits ........
+        bits ........
+        bits ..******
+        bits ..*.....
+        bits ..*..***
+        bits ..*..*..
+        bits ..*..*..
+        bits ..*..*..
+
+;   $71 ╩ bottom tee
+        bits ..*..*..
+        bits ..*..*..
+        bits ***..***
+        bits ........
+        bits ********
+        bits ........
+        bits ........
+        bits ........
+
+;   $72 ╦ top tee
+        bits ........
+        bits ........
+        bits ********
+        bits ........
+        bits ***..***
+        bits ..*..*..
+        bits ..*..*..
+        bits ..*..*..
+
+;   $73 ╣ right tee
+        bits ..*..*..
+        bits ..*..*..
+        bits ***..*..
+        bits .....*..
+        bits ***..*..
+        bits ..*..*..
+        bits ..*..*..
+        bits ..*..*..
+
+;   $7d ╝ bottom-right
+        bits ..*..*..
+        bits ..*..*..
+        bits ***..*..
+        bits .....*..
+        bits ******..
+        bits ........
+        bits ........
+        bits ........
 
 ; --- Plain untransformed byte fill ---
 ; Input: fill_dst_lo/hi = dest base, fill_value = byte, fill_remaining_lo/
@@ -685,7 +1066,7 @@ poke_line_skip:
 
 ; --- Plain untransformed 30-byte copy (dynamic per-field help text) ---
 ; Input: poke_src_lo/hi = source (a help_* table, 30 bytes, no box
-; border bytes). Dest is always fixed (row+6's interior, columns 5-34) --
+; border bytes). Dest is always fixed (row+7's interior, columns 5-34) --
 ; only the source varies, picked by draw_values based on selected_field.
 poke_help_line:
         lda poke_src_lo
@@ -696,7 +1077,7 @@ poke_help_line:
 poke_help_loop:
 poke_help_load:
         lda $ffff,x
-        sta POPUP_SCREEN+(BOX_TOP_ROW+6)*40+5,x
+        sta POPUP_SCREEN+(BOX_TOP_ROW+7)*40+5,x
         inx
         cpx #30
         bne poke_help_loop
@@ -736,7 +1117,8 @@ recv_length_prefix_hi:
 ; comment.)
 
 selected_field:
-        byte 0                    ; 0 = border, 1 = background, 2 = blink
+        byte 0                    ; 0 = border, 1 = background, 2 = blink,
+                                  ; 3 = border style
 cur_border:
         byte 0
 cur_bg:
@@ -748,6 +1130,10 @@ orig_border:
 orig_bg:
         byte 0
 orig_blink:
+        byte 0
+cur_style:
+        byte 0                    ; 0 = Single (Gothic), 1 = Double
+orig_style:
         byte 0
 
 ; Real stack depth at module_start's own entry -- see that routine's
@@ -817,6 +1203,13 @@ row_field3:
         byte $20,$20,$20,$20, $5d
         ascii "  Cursor blink speed:      00 "
         byte $5d, $20,$20,$20,$20
+; Interior columns 15-29 (screen 20-34) are the style bar's text --
+; draw_values copies them back from here and reverses one bar's worth;
+; see STYLE_COL_FIRST.
+row_field4:
+        byte $20,$20,$20,$20, $5d
+        ascii "  Border style: Single Double "
+        byte $5d, $20,$20,$20,$20
 row_blank:
         byte $20,$20,$20,$20, $5d
         ascii "                              "
@@ -833,6 +1226,15 @@ help_bg:
         ascii "Background color, 0-15        "
 help_blink:
         ascii "1=fastest .. 4=slowest, 5=off "
+help_style:
+        ascii "Single or Double line borders "
+
+; row_help2's interior, swapped in by draw_values per selected_field --
+; same 30 bytes as row_help2's own text, which help2_value repeats.
+help2_value:
+        ascii " Crsr Left/Right: Incr/Decr   "
+help2_style:
+        ascii " Crsr Left/Right: Choose style"
 
 row_help1:
         byte $20,$20,$20,$20, $5d
