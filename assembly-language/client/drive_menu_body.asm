@@ -710,10 +710,13 @@ dm_error_suffix:
 
 ; "S0:TADA64.CFG" and "TADA64.CFG" share the filename bytes, as in
 ; keymap_menu.asm. {alpha:alt}: a disk directory's uppercase letters are
-; $C1-$DA (see keymap.asm's filename-block comment).
+; $C1-$DA (see keymap.asm's filename-block comment) -- but not the
+; command letter, which DOS only takes as SCRATCH as $53 (see keymap_
+; menu.asm's keymap_scratch_command).
 {alpha:alt}
 dm_scratch_command:
-        ascii "S0:"
+        byte $53                  ; 'S' (SCRATCH) as DOS wants it
+        ascii "0:"
 dm_filename:
 {ifndef: c128}
         ascii "TADA64.CFG"
