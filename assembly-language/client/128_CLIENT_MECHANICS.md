@@ -327,9 +327,10 @@ also overruns the ring).
 
 ### Not done yet
 
-- Real hardware: detection is only verified in VICE so far, and only
-  the 64K answer (see the VICE 3.8 bug above) -- a flat 128 should
-  report 16K, a 128DCR 64K.
+- Real hardware: the 64K answer is confirmed -- Ryan's metal-case
+  C128DCR reports "VDC RAM: 64K -- 614 lines of scrollback."
+  (2026-10-02). The 16K answer is still unconfirmed anywhere (VICE 3.8
+  can't, see above): a flat 128 should report 16K.
 - Since 40-column scrollback arrived, a keymap binding on plain CRSR
   UP/DOWN (the defaults' Home/End) is shadowed in 40 columns too, as it
   already was in 80.

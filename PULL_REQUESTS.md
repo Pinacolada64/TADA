@@ -44,7 +44,8 @@ Sections: Open PRs → Merged PRs (newest first).
   Page Up/Down scroll back in 40 columns as in 80.
 - Tested in VICE: new `vice128_vic_scrollback_test.py` passes both layouts (16K incl. ring
   overrun), `vice128_vdc_test.py` 8/8. **VICE 3.8 reports 64K even with `-VDC16KB`** (VICE
-  bug #1981, fixed after 3.8) — 16K detection and real hardware still untested.
+  bug #1981, fixed after 3.8). **Real hardware:** a metal-case C128DCR reports 64K
+  (correct, 2026-10-02); 16K detection on a flat 128 still untested.
 
 ---
 
