@@ -63,6 +63,11 @@ BASIC 2.0" -- i.e., 128-only, not on a C64). A window that excludes the
 status/prompt row would make dialogue scrolling never touch those rows
 at all, instead of stash/restore working around the fact that it does.
 
+(Superseded 2026-10-01: the 40-column dialogue now draws and scrolls
+itself, like 80 columns, so it can keep a scrollback history -- see
+"40-column scrollback in VDC RAM" below. The KERNAL window is the whole
+screen and only matters to the input row's line editor now.)
+
 ### Tab stops (ESC-Y / ESC-Z) -- first piece, server-side only
 
 Not really "future client" work -- this is landing now on the *existing*
@@ -237,6 +242,100 @@ reaches `$6000`.
   keymap actions (below), Alt + the grey top-row arrows by default;
   the old hardwired C= + CRSR paging is gone.
 
+## 40-column scrollback in VDC RAM -- built 2026-10-01
+
+In 40 columns the VDC isn't on screen, so its RAM is spare storage:
+`vic_screen.asm` keeps the 40-column dialogue's scrollback history
+there. A 40-column row is 80 bytes (40 screen codes, then 40 colors),
+half an 80-column row's 160, so the same RAM holds twice the rows.
+
+### VDC RAM size: `vdc_detect_ram` (`vdc.asm`)
+
+A translation of "Fred's nifty program to determine size of 8563 dram"
+(BASIC, via Ryan):
+
+1. Save R28, set its bit 4 (DRAM type: 0 = 4416s/16K, 1 = 4164s/64K)
+   so the chip drives 64K addressing.
+2. Write `$55` to `$4200`; read `$4200` and `$4300`. Write `$AA` to
+   `$4200`; read both again.
+3. 16K chips ignore the address bit that separates the two, so `$4300`
+   echoes both writes; on 64K chips it holds still. Only a double echo
+   counts as 16K.
+4. Restore R28 and call DLCHR (`$FF62`) from BANK 15 (`$FF00 = $00`,
+   as BASIC does) to put the font back -- on 16K chips the probe write
+   landed somewhere in VDC RAM. With BASIC's ROMs over `$4000-$BFFF`
+   during that call, the routine has to live below `$4000`.
+
+Carry set = 64K; `vdc_ram_64k` keeps the answer. In VICE 3.8, x128
+`-VDC64KB` detects 64K, but `-VDC16KB` *also* says 64K: VICE bug #1981
+("x128 always reports 64k" for this exact Twin Cities 128 test), fixed
+in r45100 (April 2024), after 3.8 shipped. Under 3.8 a 16K session
+therefore gets the 64K layout, whose ring wraps onto the save area and
+font after ~50 rows -- a VICE-only problem. The test forces the 16K
+layout by hand to cover it; real 16K detection still wants a flat 128
+(or a newer VICE).
+
+### Layout
+
+| VDC RAM | Save area (live window) | History ring | Rows |
+|---|---|---|---|
+| 64K | `$1000-$172F` | `$4000-$FFFF` | 614 |
+| 16K | `$0000-$072F` | `$0800-$3FFF` | 179 |
+
+- **64K:** R28 stays in 64K addressing for the session. That reshuffles
+  what the 16K layout left in VDC RAM, so `vic_screen_init` runs DLCHR
+  again and blanks the VDC screen/attributes: an 80-column monitor left
+  plugged in shows a clean empty screen, with the VDC's own screen,
+  attributes and font (`$0000-$3FFF`) untouched after that.
+- **16K:** only `$1000-$1FFF` is spare beside the screen and font (28
+  rows after the save area), so this takes all 16K. The VDC display is
+  garbage until the next reset -- nobody's looking at it in 40-column
+  mode.
+
+The ring position, count and offset are words here (614 > 255), unlike
+`vdc_screen.asm`'s bytes; the status row reads "Scrollback: 001 of
+614" (shorter than 80 columns' message, which wouldn't fit beside the
+clock).
+
+### Output and the view
+
+`vic_putc` replaces CHROUT for 40-column dialogue: its own row, column,
+color (VIC-II color number -- `dlg_color_codes` is already in VIC-II
+order) and reverse flag, written straight into `SCREEN_RAM`/color RAM,
+with the same control codes and deferred wrap as `dlg_putc`. A scroll
+pushes row 0 to the ring (80 VDC writes) and moves rows 1-22 up with a
+CPU copy (three pages + 112 bytes, screen and color together). CLR
+pushes the rows in use first, as in 80 columns.
+
+Scrollback: the first back key copies rows 0-22 into the save area;
+every move then redraws all 23 rows from VDC RAM (ring rows and saved
+rows alike, 1840 VDC reads); leaving copies the save area back. Same
+keys as 80 columns -- CRSR UP/DOWN a line, the keymap's Page Up/Page
+Down a page -- and output or any other key returns to the live view.
+
+Knock-on changes in `client-128.asm`: `out_begin`/`out_end` are no-ops
+on both screens (no window to narrow, no cursor/color to swap);
+`set_window_narrow` is gone; `relocate_prompt` blanks the dialogue row
+directly (`dlg_blank_cur_row`); the scrollback checks in
+`editor_idle_hook`, `editor_key_hook` and `draw_status_row`, and the
+keymap's Page Up/Down, go through mode dispatchers at the end of
+`vic_screen.asm` (`sb_any_offset`, `sb_exit_any`, `scroll_key_hook`,
+...). `vdc_screen.asm`'s own 80-column code is unchanged.
+
+Test: `vice128_vic_scrollback_test.py` (both RAM sizes; the 16K run
+also overruns the ring).
+
+### Not done yet
+
+- Real hardware: detection is only verified in VICE so far, and only
+  the 64K answer (see the VICE 3.8 bug above) -- a flat 128 should
+  report 16K, a 128DCR 64K.
+- Since 40-column scrollback arrived, a keymap binding on plain CRSR
+  UP/DOWN (the defaults' Home/End) is shadowed in 40 columns too, as it
+  already was in 80.
+- The bank-0 RAM ring 80 columns uses (`$6000-$BEDF`) sits idle in 40
+  columns; it could add another 300 40-column rows if ever wanted.
+
 ## Keymap Editor -- built 2026-09-29
 
 The C64 client's Keymap Editor popup, built into this client. It
@@ -342,9 +441,9 @@ plain (or SHIFTed) CRSR UP/DOWN scroll the dialogue a line
 every other key. Keys the keymap doesn't turn into Page Up/Page Down
 then leave scrollback -- after the keymap, not before, or every Page Up
 would snap back to the live view first and never page more than once
-(`km_paged`). So the defaults' Home/End on plain CRSR UP/DOWN only work
-in 40 columns; CLR/HOME still gives Home in 80. In 40 columns Page
-Up/Page Down are swallowed (there's no scrollback). The old hardcoded
+(`km_paged`). So the defaults' Home/End on plain CRSR UP/DOWN don't
+work in either mode now (40 columns got scrollback 2026-10-01); CLR/HOME
+still gives Home. Page Up/Page Down page the scrollback in both. The old hardcoded
 CTRL+CRSR word jump in `input_editor.asm` is gone -- the keymap does
 it.
 

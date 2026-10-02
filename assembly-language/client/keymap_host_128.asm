@@ -63,6 +63,7 @@ SETBNK              = $ff68
 JT_SAVE_SCREEN:
         lda screen_mode
         beq km_save_vdc
+        jsr vsb_exit                ; the popup always opens on the live view
         lda #<KM_VIC_SCREEN
         ldy #>KM_VIC_SCREEN
         jsr km_set_src
