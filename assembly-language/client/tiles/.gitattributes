@@ -1,0 +1,3 @@
+# Raw C64 data (charsets, maps, color RAM values). Color values include
+# $0a and $0d, so line-ending conversion would corrupt them.
+*.bin binary

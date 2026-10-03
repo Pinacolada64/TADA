@@ -1,0 +1,7 @@
+{
+ "_comment": "tile_convert.py / make_demo_map.py --remap for ArMM1998's Overworld.png. C64 colors: 0 black, 5 green, 13 light green. Grass stays green (the background); foliage goes light green so trees and hedges stand out from it; their shadows drop to green and their dark outlines to black.",
+ "#3abe41": 5,
+ "#2eca5c": 13, "#2eca35": 13, "#50eb6c": 13, "#62eb3d": 13,
+ "#299750": 5,  "#29973b": 5,
+ "#2d5b43": 0,  "#2b7d4a": 0,  "#2d5b3f": 0,  "#315740": 0
+}
