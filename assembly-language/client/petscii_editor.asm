@@ -448,7 +448,7 @@ edit_cancel_confirm:
         jsr undraw_cursor
         ldx #0
 ecc_backup_loop:
-        lda SCREEN_RAM+960,x
+        lda POPUP_SCREEN+960,x
         sta cancel_backup_chars,x
         lda COLOR_RAM+960,x
         sta cancel_backup_colors,x
@@ -459,7 +459,7 @@ ecc_backup_loop:
         ldy #0
 ecc_prompt_loop:
         lda cancel_prompt_msg,y
-        sta SCREEN_RAM+960,y
+        sta POPUP_SCREEN+960,y
         lda #2                    ; red -- attention-grabbing, distinct
         sta COLOR_RAM+960,y        ; from the progress bar's cyan/white
         iny
@@ -486,7 +486,7 @@ ecc_wait:
         ldx #0
 ecc_restore_loop:
         lda cancel_backup_chars,x
-        sta SCREEN_RAM+960,x
+        sta POPUP_SCREEN+960,x
         lda cancel_backup_colors,x
         sta COLOR_RAM+960,x
         inx
@@ -625,10 +625,10 @@ calc_screen_ptr:
         pha
         lda cur_offset_lo
         clc
-        adc #<SCREEN_RAM
+        adc #<POPUP_SCREEN
         sta scr_ptr_lo
         lda cur_offset_hi
-        adc #>SCREEN_RAM
+        adc #>POPUP_SCREEN
         sta scr_ptr_hi
         pla
         rts
@@ -774,7 +774,7 @@ progress_init:
         ldy #0
 progress_init_label_loop:
         lda (scr_ptr_lo),y
-        sta SCREEN_RAM+960,y
+        sta POPUP_SCREEN+960,y
         lda #1                     ; white -- see comment above
         sta COLOR_RAM+960,y
         iny
@@ -783,7 +783,7 @@ progress_init_label_loop:
         ldx #8
 progress_init_bar_loop:
         lda #$20                   ; PETSCII/screen-code space (blank cell)
-        sta SCREEN_RAM+960,x
+        sta POPUP_SCREEN+960,x
         lda #3
         sta COLOR_RAM+960,x
         inx
@@ -819,7 +819,7 @@ progress_tick:
         cpx #40
         beq progress_tick_done
         lda #$a0                   ; reverse-video space -- solid block
-        sta SCREEN_RAM+960,x
+        sta POPUP_SCREEN+960,x
         inc progress_col
 progress_tick_done:
         rts
@@ -846,7 +846,7 @@ draw_startup_status_line:
 dssl_copy:
         lda startup_status_msg,y
         beq dssl_pad
-        sta SCREEN_RAM+960,y
+        sta POPUP_SCREEN+960,y
         lda #1                     ; white
         sta COLOR_RAM+960,y
         iny
@@ -855,7 +855,7 @@ dssl_copy:
         rts
 dssl_pad:
         lda #$20
-        sta SCREEN_RAM+960,y
+        sta POPUP_SCREEN+960,y
         lda #1
         sta COLOR_RAM+960,y
         iny
@@ -882,7 +882,7 @@ draw_status_line:
         ldy #0
 dsl_label_loop:
         lda status_color_label,y
-        sta SCREEN_RAM+960,y
+        sta POPUP_SCREEN+960,y
         lda #1                     ; white
         sta COLOR_RAM+960,y
         iny
@@ -891,19 +891,19 @@ dsl_label_loop:
 
         ldx current_color
         lda hex_chars,x
-        sta SCREEN_RAM+966
+        sta POPUP_SCREEN+966
         lda current_color          ; the digit's own color IS the swatch
         sta COLOR_RAM+966
 
         lda #$20
-        sta SCREEN_RAM+967
+        sta POPUP_SCREEN+967
         lda #1
         sta COLOR_RAM+967
 
         ldy #0
 dsl_row_label_loop:
         lda status_row_label,y
-        sta SCREEN_RAM+968,y
+        sta POPUP_SCREEN+968,y
         lda #1
         sta COLOR_RAM+968,y
         iny
@@ -912,21 +912,21 @@ dsl_row_label_loop:
 
         lda cur_row
         jsr byte_to_decimal2
-        stx SCREEN_RAM+972
-        sty SCREEN_RAM+973
+        stx POPUP_SCREEN+972
+        sty POPUP_SCREEN+973
         lda #1
         sta COLOR_RAM+972
         sta COLOR_RAM+973
 
         lda #$20
-        sta SCREEN_RAM+974
+        sta POPUP_SCREEN+974
         lda #1
         sta COLOR_RAM+974
 
         ldy #0
 dsl_col_label_loop:
         lda status_col_label,y
-        sta SCREEN_RAM+975,y
+        sta POPUP_SCREEN+975,y
         lda #1
         sta COLOR_RAM+975,y
         iny
@@ -935,8 +935,8 @@ dsl_col_label_loop:
 
         lda cur_col
         jsr byte_to_decimal2
-        stx SCREEN_RAM+979
-        sty SCREEN_RAM+980
+        stx POPUP_SCREEN+979
+        sty POPUP_SCREEN+980
         lda #1
         sta COLOR_RAM+979
         sta COLOR_RAM+980
@@ -944,7 +944,7 @@ dsl_col_label_loop:
         ldx #0                     ; blank the remaining columns 21-39
 dsl_blank_loop:
         lda #$20
-        sta SCREEN_RAM+981,x
+        sta POPUP_SCREEN+981,x
         lda #1
         sta COLOR_RAM+981,x
         inx
@@ -1012,9 +1012,9 @@ poke_line_skip:
 ; help_line_N over SCREEN_RAM (COLOR_RAM is left at the white fill --
 ; no per-line color needed for a plain help screen).
 draw_help_screen:
-        lda #<SCREEN_RAM
+        lda #<POPUP_SCREEN
         sta fill_dst_lo
-        lda #>SCREEN_RAM
+        lda #>POPUP_SCREEN
         sta fill_dst_hi
         lda #$20                  ; PETSCII space
         sta fill_value
@@ -1031,9 +1031,9 @@ draw_help_screen:
         sta poke_src_lo
         lda #>help_line1
         sta poke_src_hi
-        lda #<(SCREEN_RAM+40*1)
+        lda #<(POPUP_SCREEN+40*1)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+40*1)
+        lda #>(POPUP_SCREEN+40*1)
         sta poke_dst_hi
         jsr poke_line
 
@@ -1041,9 +1041,9 @@ draw_help_screen:
         sta poke_src_lo
         lda #>help_line2
         sta poke_src_hi
-        lda #<(SCREEN_RAM+40*3)
+        lda #<(POPUP_SCREEN+40*3)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+40*3)
+        lda #>(POPUP_SCREEN+40*3)
         sta poke_dst_hi
         jsr poke_line
 
@@ -1051,9 +1051,9 @@ draw_help_screen:
         sta poke_src_lo
         lda #>help_line3
         sta poke_src_hi
-        lda #<(SCREEN_RAM+40*4)
+        lda #<(POPUP_SCREEN+40*4)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+40*4)
+        lda #>(POPUP_SCREEN+40*4)
         sta poke_dst_hi
         jsr poke_line
 
@@ -1061,9 +1061,9 @@ draw_help_screen:
         sta poke_src_lo
         lda #>help_line4
         sta poke_src_hi
-        lda #<(SCREEN_RAM+40*5)
+        lda #<(POPUP_SCREEN+40*5)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+40*5)
+        lda #>(POPUP_SCREEN+40*5)
         sta poke_dst_hi
         jsr poke_line
 
@@ -1071,9 +1071,9 @@ draw_help_screen:
         sta poke_src_lo
         lda #>help_line5
         sta poke_src_hi
-        lda #<(SCREEN_RAM+40*6)
+        lda #<(POPUP_SCREEN+40*6)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+40*6)
+        lda #>(POPUP_SCREEN+40*6)
         sta poke_dst_hi
         jsr poke_line
 
@@ -1081,9 +1081,9 @@ draw_help_screen:
         sta poke_src_lo
         lda #>help_line6
         sta poke_src_hi
-        lda #<(SCREEN_RAM+40*8)
+        lda #<(POPUP_SCREEN+40*8)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+40*8)
+        lda #>(POPUP_SCREEN+40*8)
         sta poke_dst_hi
         jsr poke_line
         rts
@@ -1169,9 +1169,9 @@ paint_chars:
         sta pc_load+1
         lda #>CHAR_BUF
         sta pc_load+2
-        lda #<SCREEN_RAM
+        lda #<POPUP_SCREEN
         sta pc_store+1
-        lda #>SCREEN_RAM
+        lda #>POPUP_SCREEN
         sta pc_store+2
         lda #<CELLS
         sta pc_remaining_lo

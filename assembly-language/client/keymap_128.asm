@@ -1,9 +1,9 @@
 ; keymap_128.asm -- client-128.asm's resident keymap: the table, its
-; defaults, KEYMAP128.CFG loading, and the per-key dispatch into
+; defaults, TADA128.CFG loading, and the per-key dispatch into
 ; input_editor.asm. The 128 counterpart of the C64 client's keymap.asm;
 ; the popup that edits the table is keymap_menu_128.asm (see
 ; keymap_host_128.asm). Its own file since 2026-09-29 -- the C64 client
-; keeps KEYMAP.CFG.
+; keeps TADA64.CFG.
 ;
 ; Table format: keymap.asm's 27-byte slots (modifier, key, action, 24
 ; bytes of macro text), 17 of them: 0-5 the nav functions, 6-14 macros,
@@ -27,6 +27,14 @@ KM_SUBMIT_CHAR     = $5f         ; back-arrow in macro text = press RETURN
 keymap_table:
         area KEYMAP_TABLE_SIZE, $00
 
+; Client settings, saved in TADA128.CFG right after keymap_table -- see
+; keymap.asm's config_settings (same layout, constants_128.asm's CFG_*
+; offsets). key_save (keymap_menu_128.asm) writes through the end of it.
+config_settings:
+        byte CONFIG_VERSION          ; CFG_VERSION
+        byte 0                       ; CFG_DATA_DRIVE: none chosen yet
+        area (CONFIG_SETTINGS_SIZE-2), 0
+
 ; keymap_menu.asm reads the table's address from here (on the C64 it's a
 ; pointer at $c032 the resident client fills in, since the overlay can't
 ; see keymap.asm's symbols; built in here, it can -- this just keeps the
@@ -34,13 +42,18 @@ keymap_table:
 KEYMAP_TABLE_PTR:
         word keymap_table
 
-; Slots 0-5: copied from keymap.asm's keymap_default -- see its comments
+; Same for the settings block, for drive_menu.asm (built in here too;
+; on the C64 a pointer at $c034 that init_keymap fills in).
+CONFIG_SETTINGS_PTR:
+        word config_settings
+
+; Slots 0-6: copied from keymap.asm's keymap_default -- see its comments
 ; for each entry's history. On the 128, plain CRSR UP/DOWN (Home/End)
 ; only reach the keymap in 40 columns; in 80 they scroll back through
 ; the dialogue a line at a time (editor_key_hook). CLR/HOME still gives
 ; Home there.
-KEYMAP_DEFAULT_BINDINGS = 6
-KEYMAP_DEFAULT_SIZE     = 162    ; BINDING_SIZE(27) * 6, by hand (see
+KEYMAP_DEFAULT_BINDINGS = 7
+KEYMAP_DEFAULT_SIZE     = 189    ; BINDING_SIZE(27) * 7, by hand (see
                                  ; keymap.asm on c64list truncating
                                  ; computed products)
 keymap_default:
@@ -56,8 +69,10 @@ keymap_default:
         area MACRO_TEXT_LEN, $20
         byte 0, $88, ACTION_OPEN_EDITOR   ; F7 (km_init_keyboard makes
         area MACRO_TEXT_LEN, $20           ; the 128's F7 send $88)
+        byte 0, $87, ACTION_OPEN_DRIVES   ; F5 ($87, likewise)
+        area MACRO_TEXT_LEN, $20
 
-; Slots 15-16: ALT + the grey top-row CRSR UP/DOWN keys (key numbers
+; Slots 16-17: ALT + the grey top-row CRSR UP/DOWN keys (key numbers
 ; 83/84 -- the 128 KERNAL's decode tables, $FA80+83) page the scrollback.
 KEYMAP_PAGE_DEFAULT_SIZE = 54    ; 2 * BINDING_SIZE, by hand
 keymap_page_default:
@@ -65,20 +80,26 @@ keymap_page_default:
         area MACRO_TEXT_LEN, $20
         byte MOD_ALT, 84, ACTION_PAGE_DOWN
         area MACRO_TEXT_LEN, $20
-KM_PAGE_SLOT_OFFSET = 405        ; PAGE_SLOT_FIRST(15) * BINDING_SIZE(27)
+KM_PAGE_SLOT_OFFSET = 432        ; PAGE_SLOT_FIRST(16) * BINDING_SIZE(27)
 
-; --- init_keymap: LOAD "KEYMAP128.CFG" from the drive the client came from
+; --- init_keymap: LOAD "TADA128.CFG" from the drive the client came from
 ; (secondary address 0: into keymap_table, whatever the file's header
 ; says -- see keymap.asm's init_keymap), or copy the defaults in. ---
 init_keymap:
-        lda #13
+        jsr select_drive            ; disk.asm -- no drive on the bus at
+        bcc init_keymap_have_drive  ; all: defaults, and no LOAD or error
+        lda #5                      ; channel (5 = DEVICE NOT PRESENT,
+        sta km_load_error           ; what LOAD itself would have said)
+        jmp init_keymap_default_start
+init_keymap_have_drive:
+        lda #11                     ; length of "TADA128.CFG"
         ldx #<km_cfg_filename
         ldy #>km_cfg_filename
         jsr KM_SETNAM
         lda #0                      ; 128: data and filename both in bank 0
         ldx #0                      ; (SETBNK -- the C64 has no banks)
         jsr SETBNK
-        jsr km_drive_to_x
+        jsr current_drive_to_x      ; disk.asm; select_drive's pick
         lda #2
         ldy #0
         jsr KM_SETLFS
@@ -88,6 +109,7 @@ init_keymap:
         jsr KM_LOAD
         bcc init_keymap_loaded
         sta km_load_error
+init_keymap_default_start:
         ldx #0
 init_keymap_default:
         lda keymap_default,x
@@ -106,23 +128,32 @@ init_keymap_page_default:
         cmp #5                      ; DEVICE NOT PRESENT: no error channel
         beq init_keymap_rts         ; to read either
 init_keymap_loaded:
-        jmp read_error_channel      ; keymap_menu.asm's -- turns the drive's
+        jsr config_validate         ; the settings block came in too
+        jmp read_error_channel      ; disk.asm's -- turns the drive's
                                     ; error LED off (see keymap.asm)
 init_keymap_rts:
         rts
 
-km_drive_to_x:
-        lda $ba                     ; last device used (the client's drive)
-        cmp #8
-        bcs km_drive_ok
-        lda #8
-km_drive_ok:
-        tax
+; --- config_validate: a data drive outside 8-30 goes back to 0 ("none
+; chosen"), and the version byte is restamped -- see keymap.asm's. ---
+config_validate:
+        lda config_settings+CFG_DATA_DRIVE
+        beq config_validate_version
+        cmp #8                      ; disk.asm's DSK_FIRST_DRIVE..
+        bcc config_validate_clear   ; DSK_LAST_DRIVE, as literals: disk.asm
+        cmp #31                     ; is {include:}d after this file
+        bcc config_validate_version
+config_validate_clear:
+        lda #0
+        sta config_settings+CFG_DATA_DRIVE
+config_validate_version:
+        lda #CONFIG_VERSION
+        sta config_settings+CFG_VERSION
         rts
 
 {alpha:alt}
 km_cfg_filename:
-        ascii "KEYMAP128.CFG"
+        ascii "TADA128.CFG"
 {alpha:normal}
 
 ; --- km_dispatch: .A = a key from input_editor.asm (via editor_key_hook).
@@ -239,9 +270,13 @@ km_run_4:
         rts
 km_run_5:
         cmp #ACTION_OPEN_EDITOR
-        bne km_run_6
+        bne km_run_5b
         jmp module_start            ; keymap_menu.asm; leaves through
                                     ; JT_RESUME_LOCAL, never returns here
+km_run_5b:
+        cmp #ACTION_OPEN_DRIVES
+        bne km_run_6
+        jmp dm_module_start         ; drive_menu.asm, the same way
 km_run_6:
         cmp #ACTION_PAGE_UP
         bne km_run_7
