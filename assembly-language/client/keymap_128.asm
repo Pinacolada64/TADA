@@ -280,18 +280,14 @@ km_run_5b:
 km_run_6:
         cmp #ACTION_PAGE_UP
         bne km_run_7
-        lda screen_mode             ; scrollback exists in 80 columns only;
-        bne km_run_done             ; in 40 the key is just swallowed
-        jsr sb_page_back
+        jsr sb_page_back_any        ; either screen (40 columns since
         inc km_paged
         sec
         rts
 km_run_7:
         cmp #ACTION_PAGE_DOWN
         bne km_run_8
-        lda screen_mode
-        bne km_run_done
-        jsr sb_page_fwd
+        jsr sb_page_fwd_any         ; 2026-10-01, vic_screen.asm)
         inc km_paged
         sec
         rts
