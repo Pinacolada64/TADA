@@ -158,6 +158,33 @@ KEYMAP_TABLE_PTR             = $c032
 ; Added 2026-10-01 with the drive picker.
 CONFIG_SETTINGS_PTR          = $c034
 
+; JT_SET_BORDER_STYLE -- added 2026-10-02 with Video Settings' Border
+; style. .A = 0 Single (the Gothic box glyphs), nonzero Double: puts
+; that style's glyphs in the charset (border_style.asm's set_border_
+; style, resident so a saved style can be applied at boot) and records
+; it in BORDER_CUR_STYLE. Sits after the two pointers above rather than
+; with the rest of the jump table; init_jump_table writes it the same
+; way.
+JT_SET_BORDER_STYLE          = $c036
+
+; Border-style state, kept in overlay RAM ABOVE every overlay module's
+; image (the largest, keymap_menu, ends near $4cb0; check_overlay_
+; margin.py --modules fails the .d64 build if one ever reaches here)
+; rather than in the resident program -- Ryan's ask: back the Gothic
+; glyphs up in loadable-module RAM. Nothing loads this high, so it
+; survives every overlay. Not $9e00-$9fff: that's where the KERNAL would
+; put RS-232 buffers if device 2 were ever opened. border_style.asm's
+; bs_backup_gothic fills it at boot, straight from gothic_charset's
+; source image.
+BORDER_STATE                 = $9000
+BORDER_CUR_STYLE             = $9000  ; +0: style in the charset now,
+                                      ;     0 = Single (Gothic), 1 = Double
+BORDER_BACKUP                = $9008  ; +8: the Gothic box glyphs, 8 bytes
+                                      ;     each, in border_style.asm's
+                                      ;     bs_glyph_codes order
+BORDER_STATE_END             = $9060  ; BORDER_BACKUP + 11 glyphs * 8, by
+                                      ; hand (see CONFIG_FILE_SIZE)
+
 ; config_settings' layout -- byte offsets into the block, shared by the
 ; client (keymap.asm), the overlays and the 128 client (keymap_128.asm
 ; keeps the same layout after its own keymap_table).
@@ -168,7 +195,13 @@ CFG_DATA_DRIVE       = 1      ; +1: the data drive (session logs and
                               ;     files and TADA64.CFG stay on the
                               ;     drive it was loaded from); 0 = none
                               ;     chosen yet, use that drive
-CONFIG_SETTINGS_SIZE = 8      ; +2..+7 reserved, zero
+CFG_BORDER_STYLE     = 2      ; +2: Video Settings' Border style, 0 =
+                              ;     Single, 1 = Double (C64 only -- the
+                              ;     128 keeps the byte but never reads
+                              ;     it); was reserved/zero before
+                              ;     2026-10-02, so older files read as
+                              ;     Single and CONFIG_VERSION stays 1
+CONFIG_SETTINGS_SIZE = 8      ; +3..+7 reserved, zero
 
 ; TADA64.CFG's whole size: keymap_table (keymap.asm's KEYMAP_TABLE_SIZE,
 ; 432) + the settings block. What keymap_menu.asm's and drive_menu.asm's

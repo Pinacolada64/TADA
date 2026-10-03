@@ -118,7 +118,8 @@ keymap_table:
 config_settings:
         byte CONFIG_VERSION          ; CFG_VERSION
         byte 0                       ; CFG_DATA_DRIVE: none chosen yet
-        area (CONFIG_SETTINGS_SIZE-2), 0
+        byte 0                       ; CFG_BORDER_STYLE: Single
+        area (CONFIG_SETTINGS_SIZE-3), 0
 
 ; --- Built-in default keymap ---
 ; Matches this scheme's original home before the dispatch rework
@@ -355,6 +356,12 @@ config_validate_clear:
         lda #0
         sta config_settings+CFG_DATA_DRIVE
 config_validate_version:
+        lda config_settings+CFG_BORDER_STYLE
+        cmp #2                    ; 0 Single / 1 Double -- anything else
+        bcc config_validate_style_ok ; reads as Single
+        lda #0
+        sta config_settings+CFG_BORDER_STYLE
+config_validate_style_ok:
         lda #CONFIG_VERSION
         sta config_settings+CFG_VERSION
         rts

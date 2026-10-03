@@ -390,6 +390,12 @@ start:
                                   ; comment in keyboard_rollover.asm
         jsr init_irq             ; install the IRQ dispatcher (sid_play +
                                   ; round-robin task table)
+        lda config_settings+CFG_BORDER_STYLE
+        jsr set_border_style     ; TADA64.CFG's Border style (border_
+                                  ; style.asm) -- not before here: the
+                                  ; swap runs through run_under_io,
+                                  ; which needs SwiftLink's NMI handler
+                                  ; installed and the ACIA set up
 
         ; tell the player RUN/STOP can give up on connecting (see
         ; wait_for_connect). The message sets its own colors, so save
@@ -738,12 +744,14 @@ usl_pad:
 ; $0351 and $0352-$0358) precisely so one copy loop populates both; see
 ; PROTO_TABLE's own comment.
 init_jump_table:
-        ldx #49                  ; 50 bytes: 14 jmp entries (42) + 8
-                                    ; proto bytes -- bumped from 34/35
-                                    ; when JT_CURSOR_HIDE/JT_UPDATE_
-                                    ; CURSOR were added, and from 40/41
-                                    ; for JT_GET_CURSOR/JT_SET_CURSOR/
-                                    ; JT_CLEAR_SCREEN
+        ldx #56                  ; 57 bytes: 15 jmp entries (45) + 8
+                                    ; proto bytes + the 4 pointer bytes
+                                    ; JT_SET_BORDER_STYLE sits behind --
+                                    ; bumped from 34/35 when JT_CURSOR_
+                                    ; HIDE/JT_UPDATE_CURSOR were added,
+                                    ; from 40/41 for JT_GET_CURSOR/
+                                    ; JT_SET_CURSOR/JT_CLEAR_SCREEN, and
+                                    ; from 49/50 for JT_SET_BORDER_STYLE
 init_jump_table_loop:
         lda jump_table_template,x
         sta JT_BASE,x
@@ -1153,8 +1161,78 @@ switch_to_bank3_with_charset:
         lda #$80
         sta KERNAL_MODE
 
+        ; --- 5. Back up the Gothic box glyphs for Border style ---
+        ; Now, while gothic_charset's source image is still intact (it
+        ; becomes the screen backup at the first popup) -- see border_
+        ; style.asm. Also resets BORDER_CUR_STYLE to Single, which a soft
+        ; reset would otherwise leave describing the previous run.
+        jsr bs_backup_gothic
+
         cli
         rts
+
+; --- run_under_io: jsr .X/.Y (lo/hi) with $d000-$dfff banked to RAM ---
+; For anything that needs the charset in the RAM behind $d000 after boot
+; (border_style.asm's set_border_style, the Border style glyph swap) --
+; switch_to_bank3_with_charset's own $01 trick isn't safe any more
+; once SwiftLink is up: its receive NMI can't be masked by SEI, and
+; nmi_handler reads SL_STATUS/SL_DATA at $de01/$de00, which with I/O
+; banked out is plain RAM -- a byte arriving mid-copy would leave the
+; real ACIA unread (no further NMI edges ever) and stuff junk into
+; rx_buf. So for the duration:
+;   - SL_CMD_HOLD: RTS deasserted (the far end stops sending) and the
+;     ACIA's receive IRQ off (no NMI even if one more byte lands);
+;   - the RAM copy of the NMI vector ($fffa, what the CPU fetches while
+;     the KERNAL ROM is banked out too) points at an rti, so a RESTORE
+;     keypress in the window is just dropped;
+; and afterward any byte that did land is buffered by hand, the same
+; way nmi_handler would have, before RTS goes back to what rts_state
+; says. The called routine runs with all RAM mapped: it may not touch
+; I/O or call the KERNAL. Only .A/.X/.Y are clobbered; the I flag is
+; restored as found.
+run_under_io:
+        stx rui_call+1
+        sty rui_call+2
+        php
+        sei
+        lda #SL_CMD_HOLD
+        sta SL_COMMAND
+        lda #<rui_nmi_rti         ; KERNAL ROM is mapped here, so these
+        sta $fffa                 ; writes land in the RAM underneath
+        lda #>rui_nmi_rti
+        sta $fffb
+        lda $01
+        sta rui_saved_01
+        and #%11111000            ; LORAM/HIRAM/CHAREN = 0: all RAM (same
+        sta $01                   ; as CHARGEN_RAM_CONFIG, tape bits kept)
+rui_call:
+        jsr $ffff
+        lda rui_saved_01
+        sta $01
+        lda SL_STATUS
+        and #SL_RDRF
+        beq rui_resume            ; nothing arrived while held
+        lda SL_DATA
+        ldx rx_head
+        sta rx_buf,x
+        inc rx_head
+rui_resume:
+        lda #SL_CMD_INIT          ; back to RTS asserted ...
+        ldx rts_state
+        bne rui_set_cmd
+        lda #SL_CMD_RTS_OFF       ; ... unless nmi_handler had paused it
+rui_set_cmd:
+        sta SL_COMMAND
+        plp
+        rts
+
+rui_nmi_rti:
+        rti
+
+rui_saved_01:
+        byte 0
+
+{include:border_style.asm}
 
 ; --- flip_screen_buffer: atomically swap which 1K page the VIC displays ---
 ; Input: .A = the buffer's ABSOLUTE high byte to make the new front
@@ -1862,6 +1940,13 @@ jump_table_template:
                                      ; constants.asm's own comment
         jmp so_set_cursor         ; JT_SET_CURSOR -- same reasoning
         jmp so_ctl_clear          ; JT_CLEAR_SCREEN -- same reasoning
+        byte 0, 0, 0, 0           ; KEYMAP_TABLE_PTR/CONFIG_SETTINGS_PTR
+                                     ; -- placeholders only: init_keymap
+                                     ; (always after init_jump_table)
+                                     ; writes the real pointers
+        jmp set_border_style      ; JT_SET_BORDER_STYLE -- config_menu.
+                                     ; asm's Border style; see
+                                     ; constants.asm's own comment
 
 ; --- Load the petscii_editor overlay module and hand control to it ---
 ; Called from handle_recv_byte_canvas_confirm once a real canvas stream

@@ -44,6 +44,10 @@ SL_CMD_RTS_OFF = $01     ; DTR low, RTS *high* (deasserted) -- see
                           ; is what makes VICE's ACIA core disable
                           ; its RX alarm and genuinely stop draining
                           ; the TCP socket, per aciacore.c.
+SL_CMD_HOLD    = $03     ; DTR low, RTS high, RxD IRQ *off* -- see
+                          ; tada-client.asm's run_under_io: no new
+                          ; bytes asked for, and no receive NMI
+                          ; for one that arrives anyway
 
 ; ACIA control register: 8-bit, 1 stop, internal clock, baud rate in the
 ; low nibble. SwiftLink's crystal (not the stock C64 clock) makes these

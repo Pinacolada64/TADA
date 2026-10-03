@@ -40,7 +40,7 @@ petscii_editor.prg: petscii_editor_pp.asm
 config_menu_pp.asm: config_menu.asm
 	$(PREPROCESSOR) config_menu.asm
 
-config_menu.prg: config_menu_pp.asm
+config_menu.prg: config_menu_pp.asm constants.asm
 	$(C64LIST) config_menu_pp.asm -prg:config_menu -sym -ovr
 
 help_menu_pp.asm: help_menu.asm
@@ -213,6 +213,9 @@ vice: all $(TARGET).d64
 # client. No filename collisions: the 128 client loads no overlays and
 # keeps its own TADA128.CFG, separate from the C64 client's TADA64.CFG.
 $(TARGET).d64: $(TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg keymap_menu.prg drive_menu.prg $(TARGET128).prg
+	@# Fail if an overlay has grown into the Border style backup
+	@# (constants.asm's BORDER_STATE), above every module's image.
+	python3 ./check_overlay_margin.py --modules $(MODULES:=.prg)
 	rm -f $(TARGET).d64
 	c1541 -format "tada,00" d64 $(TARGET).d64
 	c1541 $(TARGET).d64 -write $(TARGET).prg "tada-client"
@@ -260,6 +263,9 @@ $(DEBUG_TARGET).prg: $(DEBUG_TARGET)_pp.asm
 	$(C64LIST) $(DEBUG_TARGET)_pp.asm -prg:$(DEBUG_TARGET) -sym -ovr -def:keymap_debug
 
 $(DEBUG_TARGET).d64: $(DEBUG_TARGET).prg petscii_editor.prg config_menu.prg help_menu.prg keymap_menu.prg drive_menu.prg $(TARGET128).prg
+	@# Fail if an overlay has grown into the Border style backup
+	@# (constants.asm's BORDER_STATE), above every module's image.
+	python3 ./check_overlay_margin.py --modules $(MODULES:=.prg)
 	rm -f $(DEBUG_TARGET).d64
 	c1541 -format "tada,00" d64 $(DEBUG_TARGET).d64
 	c1541 $(DEBUG_TARGET).d64 -write $(DEBUG_TARGET).prg "tada-client"
