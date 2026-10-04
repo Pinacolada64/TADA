@@ -12,66 +12,21 @@ Sections: Open PRs → Merged PRs (newest first).
 
 ## Open PRs
 
-#### [#64](https://github.com/Pinacolada64/TADA/pull/64) `feature/border-style` → `feature/drive-scan` — C64 client: Video Settings Border style (Single/Double)
-- **Tip:** `867691a` (3 code commits, plus merges of `feature/drive-scan`). Stacked on #62
-  (builds on its POPUP_SCREEN fix, drive picker and `config_settings` block); merge
-  after #62 — GitHub retargets it to `master` once `feature/drive-scan` is gone.
-- `555a04e` — new Border style field in `CONFIG.MNU`: CRSR left/right bar picks Single
-  (resident Gothic box glyphs) or Double (CP437 double lines), redefining the 11 box
-  screen codes in the charset itself, so every box on screen changes live; RUN/STOP
-  reverts. Resident `run_under_io` banks I/O out NMI-safely for the glyph copy (ACIA
-  receive IRQ off with RTS deasserted, RAM NMI vector → `rti`, a pending byte drained
-  by hand).
-- `d5153f4` — saved in `TADA64.CFG`: `config_settings` byte +2 = `CFG_BORDER_STYLE`
-  (was reserved/zero, so old files read as Single; `CONFIG_VERSION` stays 1). The swap
-  moved resident (`border_style.asm`, `JT_SET_BORDER_STYLE` `$c036`) so boot reapplies
-  a saved Double; the Gothic glyphs are backed up at boot to `BORDER_BACKUP` in overlay
-  RAM at `$9000`, above every module (`check_overlay_margin.py --modules` guards it).
-  RETURN saves the file only when the style changed; status row reports the outcome.
-- `867691a` — `CONFIG.MNU`'s SCRATCH command letter as `$53`: `{alpha:alt}` had made it
-  `$D3`, so a save over an existing `TADA64.CFG` failed with 63, FILE EXISTS (same bug
-  fixed for the other menus on #62, `2706566`).
-- Tested: `vice_border_style_test.py` (x64sc + SwiftLink over IP232 to a fake server in
-  the script, two boots from one disk) 34/34, including a text burst sent mid-swap
-  printing intact and the saved style reapplied at the second boot. **Real hardware
-  untested.**
-
-#### [#62](https://github.com/Pinacolada64/TADA/pull/62) `feature/drive-scan` → `master` — C64/C128 clients: drive detection, build number on startup status line
-- **Tip:** `2706566` (6 code commits on top of `master`, plus this file's #62 entries).
-- `09eab00` — serial bus drive detection: new shared `disk.asm` (`probe_device`,
-  `scan_serial_bus`, `select_drive`, hang-proof `read_error_channel`) in both clients
-  and `keymap_menu.asm`; every overlay LOAD and keymap LOAD/SAVE goes through
-  `select_drive`, so no drive gives DEVICE NOT PRESENT instead of a hang. Fixes
-  `scratch_keymap_file` leaving file 15 open (CLOSE takes .A, not .X).
-- `5667995` — C64: `gothic_charset` stored in `BACKUP_CHARS`/`BACKUP_COLORS` (read once
-  at boot, before any popup saves the screen), ~2K resident space back;
-  `check_overlay_margin.py` updated to match.
-- `dd20338` — build number on both clients' startup status line
-  ("build 42, 2026-Oct-01 13:02:56") via c64list `{buildrev:}` and per-client
-  `.buildrev` counters (shared `build_rev.asm`); the C128 shows it until the first key,
-  with a `[key]` tag.
-- `d9919cd` — `disk.asm` fix: `read_error_channel`'s no-device `bmi` needed +135 bytes
-  and c64list silently assembled it as a branch into its own operand (C64 `$15e8`,
-  C128 `$4fdc`); now `bpl` over a `jmp`. Found by `check_branch_targets.py`.
-- `5bac04c` — drive picker + overlay fix, the 2026-10-01 work committed 10/2:
-  `DRIVE.MNU` (F5; `drive_menu_body.asm`, shared with the 128 client, wrapped by
-  `drive_menu.asm`) lists the drives on the bus with their model (`drive_id.asm`, M-R
-  lookup) under a CRSR up/down highlight bar, RETURN saves the data drive.
-  `TADA64.CFG`/`TADA128.CFG` gain an 8-byte `config_settings` block after
-  `keymap_table` (`CFG_DATA_DRIVE`), reached by overlays through
-  `CONFIG_SETTINGS_PTR` (`$c034`). `POPUP_SCREEN` (`$c400`): the C64 overlays had
-  poked their popups at `$0400`, which the client stopped displaying with PR #61's
-  double-buffered screen. New VICE tests: `vice_drive_id_test.py`,
-  `vice_drive_menu_test.py`, `vice_drive_picker_live_test.py`,
-  `vice128_drive_picker_test.py`.
-- `2706566` — SCRATCH command letter as `$53` in `keymap_menu.asm`, `keymap_menu_128.asm`
-  and `drive_menu_body.asm`: `{alpha:alt}` (for the config file's `$C1`-`$DA` filename
-  letters) had turned the `S` of `"S0:"` into `$D3`, so the old file was never
-  scratched and every save after a disk's first failed with 63, FILE EXISTS. Found via
-  #64's Border style save.
-- Tested in VICE (true drive emulation: stock/JiffyDOS, no drives, C128 1571+1581;
-  `vice128_keymap_test.py` 9/9; build number live on both). **Real hardware, C128
-  80-column, and C128 connected-to-server build message still untested.**
+#### [#65](https://github.com/Pinacolada64/TADA/pull/65) `fix/gothic-reverse-digits` → `master` — C64 client: fix reverse-video digits and arrows in the Gothic charset
+- **Tip:** `a8ce90b` (2 commits on top of `master`, plus this file's #65 entry).
+- `d67aa46` — `gothic-charset.asm` `$B8`/`$B9`: f.antic1 had a reverse **9** in the
+  reverse-**8** slot, so the drive picker's highlight bar (`ORA #$80`) turned "8" into
+  "9" ("1581" → "1591"); its reverse 9 also sat a pixel right of the normal one. Both
+  are now exact inverses of `$38`/`$39`, so `$B0`-`$B9` all match their digits.
+- `a8ce90b` — `$E0`/`$E1`: still f.antic1's reversed fillers (a notched block, a
+  right-half block) from before the 2026-08-22 down/right arrow patch at `$60`/`$61`;
+  now exact inverses of those arrows, matching up/left (`$1E`/`$9E`, `$1F`/`$9F`).
+- Left as-is: `$00`/`$07`/`$0C`/`$21` differ slightly from their reverse glyphs in the
+  original font (style differences, not a wrong character).
+- Tested: every glyph in the built `tada-client.prg`'s charset checked against its
+  `$80+` partner; `make -B d64` clean (7× 0 errors, overlay/128 layout checks pass).
+  The C128 client doesn't use this charset. **Not yet checked visually in VICE or on
+  hardware.**
 
 ---
 
@@ -87,6 +42,8 @@ Sections: Open PRs → Merged PRs (newest first).
 
 | PR | Merge commit | Branch | Title |
 |----|--------------|--------|-------|
+| [#62](https://github.com/Pinacolada64/TADA/pull/62) | `d52786e` | `feature/drive-scan` | C64/C128 clients: serial-bus drive detection (shared `disk.asm`: `probe_device`, `scan_serial_bus`, `select_drive`, hang-proof `read_error_channel`), so no drive gives DEVICE NOT PRESENT instead of a hang; `DRIVE.MNU` drive picker (F5) with model lookup (`drive_id.asm`) and a saved data drive (`config_settings` block, `CFG_DATA_DRIVE`); `POPUP_SCREEN` fix for the C64 overlays; build number on both clients' startup status line; SCRATCH `$D3` → `$53` fix (63, FILE EXISTS on re-save). Carried #64. VICE suites pass; **real hardware, C128 80-column untested.** |
+| [#64](https://github.com/Pinacolada64/TADA/pull/64) | `1760a96` (via #62) | `feature/border-style` | C64 Video Settings Border style: Single (Gothic box glyphs) or Double (CP437 double lines), swapped live in the charset by resident `border_style.asm` (`run_under_io` banks I/O out NMI-safely); saved in `TADA64.CFG` byte +2 and reapplied at boot. `vice_border_style_test.py` 34/34. Merged into `feature/drive-scan`, reached master with #62. |
 | [#63](https://github.com/Pinacolada64/TADA/pull/63) | `fe9423e` | `feature/128-40col-vdc-scrollback` | C128 client: 40-column scrollback in VDC RAM. `vdc_detect_ram` (Fred's 8563 DRAM-size test: R28 bit 4, `$55`/`$AA` at `$4200`, does `$4300` echo?) sizes the ring: 64K → 614 rows at `$4000`, 16K → 179 rows at `$0800`. New `vic_screen.asm`: `vic_putc` draws/scrolls 40-column dialogue itself (no CHROUT window), CRSR and Page Up/Down scroll back as in 80 columns. VICE suites pass both layouts; **64K confirmed on a real metal-case C128DCR**; 16K on a flat 128 still untested (VICE 3.8 can't: bug #1981). |
 | [#50](https://github.com/Pinacolada64/TADA/pull/50) | `d64bf82` | `fix/switch-consistency` | `#<switch>` consistency: `board edit` accepted alongside `board #edit`; `map.py`/`teleport.py` on `parse_args()`'s switch/positional split; `news`/`banner` admin sub-actions `#`-only (`news #post`, `banner #list`, ...) with a "needs a '#'" hint for the bare form. Master merged in first (`50bfeac`): 7 hunks against #51/#52's help-text rework, kept master's `\|command\|` text with the `#` spellings. |
 | [#61](https://github.com/Pinacolada64/TADA/pull/61) | `f0092cf` | `128-client-swiftlink` | The whole C64/C128 client stack in one merge (91 commits): C64 help popup (`feature/help-popup`), Keymap Editor (#53), KERNAL-free screen output + two-row input area + lost-lines fix + Hourglass clock (`feature/kernal-free-screen`); the native C128 client (#58 and earlier), its 80-column VDC output with scrollback and built-in Keymap Editor (`KEYMAP128.CFG`, Alt, Page Up/Down on Alt + grey arrows, #59), and SwiftLink play. All C64/x128 VICE suites pass; **real-hardware tests still pending** for both clients. |
