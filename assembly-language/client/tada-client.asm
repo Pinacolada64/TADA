@@ -37,6 +37,15 @@
 ; live $028d modifier byte -- hex_digits/print_hex_byte helpers, etc).
 {undef: debug}
 
+; Build revision tracker (Ryan's ask, 2026-10-01): c64list reads the
+; decimal number in tada-client.buildrev into the parser variable
+; __BuildRev, and after every error-free assemble writes it back
+; incremented by one -- so each successful `make build` stamps the next
+; number. Shown on the boot status message (build_msg). The file must
+; hold digits only -- no newline. `make debug-d64` assembles this same
+; source too, so it bumps the same counter.
+{buildrev:tada-client.buildrev}
+
 ; SwiftLink ACIA registers/constants -- moved to swiftlink.asm (2026-08-24)
 ; alongside the routines that use them, since {const:} is
 ; macro_preprocessor.py's own textual substitution (resolved only within
@@ -381,6 +390,12 @@ start:
                                   ; comment in keyboard_rollover.asm
         jsr init_irq             ; install the IRQ dispatcher (sid_play +
                                   ; round-robin task table)
+        lda config_settings+CFG_BORDER_STYLE
+        jsr set_border_style     ; TADA64.CFG's Border style (border_
+                                  ; style.asm) -- not before here: the
+                                  ; swap runs through run_under_io,
+                                  ; which needs SwiftLink's NMI handler
+                                  ; installed and the ACIA set up
 
         ; tell the player RUN/STOP can give up on connecting (see
         ; wait_for_connect). The message sets its own colors, so save
@@ -643,6 +658,7 @@ init_screen:
         jsr so_ctl_clear          ; CLR: blank the screen, home the cursor
         jsr update_status_line
         jsr redraw_status_row     ; blank reverse bar, queue empty so far
+        jsr strip_build_rev_zeros ; "build 00042" -> "build 42"
         jsr status_push_reset     ; build-date/time message, its own
         ldx #<build_msg           ; batch -- shows immediately (status_
         ldy #>build_msg           ; push_buf's "first message of a fresh
@@ -728,12 +744,14 @@ usl_pad:
 ; $0351 and $0352-$0358) precisely so one copy loop populates both; see
 ; PROTO_TABLE's own comment.
 init_jump_table:
-        ldx #49                  ; 50 bytes: 14 jmp entries (42) + 8
-                                    ; proto bytes -- bumped from 34/35
-                                    ; when JT_CURSOR_HIDE/JT_UPDATE_
-                                    ; CURSOR were added, and from 40/41
-                                    ; for JT_GET_CURSOR/JT_SET_CURSOR/
-                                    ; JT_CLEAR_SCREEN
+        ldx #56                  ; 57 bytes: 15 jmp entries (45) + 8
+                                    ; proto bytes + the 4 pointer bytes
+                                    ; JT_SET_BORDER_STYLE sits behind --
+                                    ; bumped from 34/35 when JT_CURSOR_
+                                    ; HIDE/JT_UPDATE_CURSOR were added,
+                                    ; from 40/41 for JT_GET_CURSOR/
+                                    ; JT_SET_CURSOR/JT_CLEAR_SCREEN, and
+                                    ; from 49/50 for JT_SET_BORDER_STYLE
 init_jump_table_loop:
         lda jump_table_template,x
         sta JT_BASE,x
@@ -1143,8 +1161,78 @@ switch_to_bank3_with_charset:
         lda #$80
         sta KERNAL_MODE
 
+        ; --- 5. Back up the Gothic box glyphs for Border style ---
+        ; Now, while gothic_charset's source image is still intact (it
+        ; becomes the screen backup at the first popup) -- see border_
+        ; style.asm. Also resets BORDER_CUR_STYLE to Single, which a soft
+        ; reset would otherwise leave describing the previous run.
+        jsr bs_backup_gothic
+
         cli
         rts
+
+; --- run_under_io: jsr .X/.Y (lo/hi) with $d000-$dfff banked to RAM ---
+; For anything that needs the charset in the RAM behind $d000 after boot
+; (border_style.asm's set_border_style, the Border style glyph swap) --
+; switch_to_bank3_with_charset's own $01 trick isn't safe any more
+; once SwiftLink is up: its receive NMI can't be masked by SEI, and
+; nmi_handler reads SL_STATUS/SL_DATA at $de01/$de00, which with I/O
+; banked out is plain RAM -- a byte arriving mid-copy would leave the
+; real ACIA unread (no further NMI edges ever) and stuff junk into
+; rx_buf. So for the duration:
+;   - SL_CMD_HOLD: RTS deasserted (the far end stops sending) and the
+;     ACIA's receive IRQ off (no NMI even if one more byte lands);
+;   - the RAM copy of the NMI vector ($fffa, what the CPU fetches while
+;     the KERNAL ROM is banked out too) points at an rti, so a RESTORE
+;     keypress in the window is just dropped;
+; and afterward any byte that did land is buffered by hand, the same
+; way nmi_handler would have, before RTS goes back to what rts_state
+; says. The called routine runs with all RAM mapped: it may not touch
+; I/O or call the KERNAL. Only .A/.X/.Y are clobbered; the I flag is
+; restored as found.
+run_under_io:
+        stx rui_call+1
+        sty rui_call+2
+        php
+        sei
+        lda #SL_CMD_HOLD
+        sta SL_COMMAND
+        lda #<rui_nmi_rti         ; KERNAL ROM is mapped here, so these
+        sta $fffa                 ; writes land in the RAM underneath
+        lda #>rui_nmi_rti
+        sta $fffb
+        lda $01
+        sta rui_saved_01
+        and #%11111000            ; LORAM/HIRAM/CHAREN = 0: all RAM (same
+        sta $01                   ; as CHARGEN_RAM_CONFIG, tape bits kept)
+rui_call:
+        jsr $ffff
+        lda rui_saved_01
+        sta $01
+        lda SL_STATUS
+        and #SL_RDRF
+        beq rui_resume            ; nothing arrived while held
+        lda SL_DATA
+        ldx rx_head
+        sta rx_buf,x
+        inc rx_head
+rui_resume:
+        lda #SL_CMD_INIT          ; back to RTS asserted ...
+        ldx rts_state
+        bne rui_set_cmd
+        lda #SL_CMD_RTS_OFF       ; ... unless nmi_handler had paused it
+rui_set_cmd:
+        sta SL_COMMAND
+        plp
+        rts
+
+rui_nmi_rti:
+        rti
+
+rui_saved_01:
+        byte 0
+
+{include:border_style.asm}
 
 ; --- flip_screen_buffer: atomically swap which 1K page the VIC displays ---
 ; Input: .A = the buffer's ABSOLUTE high byte to make the new front
@@ -1805,23 +1893,9 @@ clock_recv_idx:
 clock_remaining:
         byte 0
 
-; --- Build-date/time status message -- shown at boot as its own batch
-; (status_push_buf's "first message of a fresh batch" behavior displays
-; it immediately) until the first real event (e.g. a SID stream) pushes
-; its own batch and replaces it. {alpha:pokealt} makes this `ascii`
-; literal emit real screen codes at assembly time -- required since
-; redraw_status_row pokes queue content straight into SCREEN_RAM rather
-; than going through CHROUT's own PETSCII->screencode conversion. Reset
-; to {alpha:normal} right after so this doesn't leak into anything below
-; that uses plain `ascii`.
-{alpha:pokealt}
-build_msg:
-        ascii "build "
-        ascii {usedef:__BuildDate}
-        ascii " "
-        ascii {usedef:__BuildTime}
-        byte 0
-{alpha:normal}
+; Build-date/time status message (build_msg, strip_build_rev_zeros) --
+; shared with client-128.asm, see build_rev.asm.
+{include:build_rev.asm}
 
 ; .a = new cursor_blink_mask value -- see JT_SET_BLINK_MASK's own comment.
 set_blink_mask:
@@ -1866,6 +1940,13 @@ jump_table_template:
                                      ; constants.asm's own comment
         jmp so_set_cursor         ; JT_SET_CURSOR -- same reasoning
         jmp so_ctl_clear          ; JT_CLEAR_SCREEN -- same reasoning
+        byte 0, 0, 0, 0           ; KEYMAP_TABLE_PTR/CONFIG_SETTINGS_PTR
+                                     ; -- placeholders only: init_keymap
+                                     ; (always after init_jump_table)
+                                     ; writes the real pointers
+        jmp set_border_style      ; JT_SET_BORDER_STYLE -- config_menu.
+                                     ; asm's Border style; see
+                                     ; constants.asm's own comment
 
 ; --- Load the petscii_editor overlay module and hand control to it ---
 ; Called from handle_recv_byte_canvas_confirm once a real canvas stream
@@ -1890,6 +1971,9 @@ jump_table_template:
 ; nothing is lost during the load's real wall-clock time. The module
 ; picks up that data itself via JT_SL_RECV once it's running.
 load_petscii_editor:
+        jsr select_drive         ; disk.asm: the client's drive if it's
+        bcs load_overlay_no_drive ; still there, else the first one on
+                                  ; the bus -- none at all aborts here
         lda #10                  ; length of "PETSCII.ED" below
         ldx #<petscii_editor_filename
         ldy #>petscii_editor_filename
@@ -1922,6 +2006,8 @@ load_petscii_editor:
 ; routine's own comment for the full reasoning (shared here rather than
 ; repeated).
 load_config_menu:
+        jsr select_drive         ; see load_petscii_editor
+        bcs load_overlay_no_drive
         lda #10                  ; length of "CONFIG.MNU" below
         ldx #<config_menu_filename
         ldy #>config_menu_filename
@@ -1940,6 +2026,8 @@ load_config_menu:
 ; petscii_editor's own comment for the full reasoning (shared here rather
 ; than repeated).
 load_help_menu:
+        jsr select_drive         ; see load_petscii_editor
+        bcs load_overlay_no_drive
         lda #8                   ; length of "HELP.MNU" below
         ldx #<help_menu_filename
         ldy #>help_menu_filename
@@ -1963,20 +2051,15 @@ setlfs_current_drive:
         ldy #1                   ; secondary address 1
         jmp KERNAL_SETLFS        ; its rts returns to our caller
 
-; .X = the drive to use for any disk I/O: CURRENT_DRIVE, or 8 if that's
-; below 8. Clobbers .A, so call it BEFORE loading .A with the file
-; number. Also called directly by keymap.asm ({include:}d, so this is an
-; ordinary global label there) for its own KEYMAP.CFG load and command-
-; channel OPENs, whose file/secondary addresses differ from
-; setlfs_current_drive's.
-current_drive_to_x:
-        lda CURRENT_DRIVE
-        cmp #8
-        bcs current_drive_ok
-        lda #8
-current_drive_ok:
-        tax
-        rts
+; current_drive_to_x (.X = the drive to use for any disk I/O) moved to
+; disk.asm, {include:}d below, along with select_drive/read_error_
+; channel -- shared there with keymap_menu.asm and client-128.asm.
+
+; select_drive found no drive on the serial bus at all -- don't attempt
+; the LOAD; report it as the KERNAL's own DEVICE NOT PRESENT (5).
+load_overlay_no_drive:
+        lda #5
+        ; fall through
 
 ; LOAD failed (either overlay module) -- report the KERNAL error number
 ; and hand control back to the ordinary prompt loop instead of jumping
@@ -2042,6 +2125,11 @@ help_menu_filename:
 ; the _pp.asm file, not the raw source).
 {include:keymap_pp.asm}
 
+; --- Disk drives: bus scan, drive selection, error channel ---
+; disk.asm -- raw, no _pp.asm (no {const:}s of its own). Shared with
+; keymap_menu.asm and client-128.asm; see its header.
+{include:disk.asm}
+
 ; --- Keyboard rollover scan (replaces stock scan inside irq_handler) ---
 ; Split into its own file, keyboard_rollover.asm -- see that file's own
 ; header for the full picture (why blink logic was deliberately left
@@ -2053,10 +2141,6 @@ help_menu_filename:
 
 {include:screen-handler_pp.asm}
 {include:screen-output_pp.asm}
-
-; gothic_charset -- no macro-preprocessor directives, so (like
-; constants.asm) included directly, not via a _pp.asm preprocessed copy.
-{include:gothic-charset.asm}
 
 ; --- Blinking input cursor ---
 ; GETIN-driven input (unlike CHRIN) never engages the KERNAL's own
@@ -3332,8 +3416,21 @@ SID_BUF:
 ; resident copy of these 2000 bytes exists rather than each module
 ; (petscii_editor.asm's help screen, a future config menu, ...)
 ; allocating its own.
+;
+; These 2000 bytes start out holding gothic_charset's 2048 bytes of
+; glyph data instead of zeros (Ryan's ask, 2026-10-01: get the charset's
+; 2K back). The charset is only ever read once, by switch_to_bank3_with_
+; charset -- the very first call at start: -- which copies it into the
+; RAM under $d000 where the VIC reads it; nothing touches these buffers
+; until a popup's JT_SAVE_SCREEN, long after that, and restore_screen
+; only ever puts back what save_screen wrote. Saves 2000 bytes of
+; resident space (and as much of the .prg) over a separate zero-filled
+; pair. Keep both of these the LAST thing in the program: the region
+; runs 48 bytes past BACKUP_COLORS' end (2048 vs 2000), and
+; check_overlay_margin.py measures the resident end from backup_chars.
+;
+; gothic_charset -- no macro-preprocessor directives, so (like
+; constants.asm) included directly, not via a _pp.asm preprocessed copy.
 BACKUP_CHARS:
-        area 1000, 0
-
-BACKUP_COLORS:
-        area 1000, 0
+{include:gothic-charset.asm}
+BACKUP_COLORS = BACKUP_CHARS + 1000

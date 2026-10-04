@@ -211,10 +211,14 @@ def run(size: int) -> None:
               and word('vsb_limit') == cfg['limit']
               and banner[0] == BANNER_TOP
               and size_line in banner
-              and decode(status).startswith('TADA -- Commodore 128')
+              # the normal status text, or the build number, which
+              # holds the row as a status_override until the first key
+              # (client-128.asm's show_build_msg, from PR #62)
+              and decode(status).startswith(('TADA -- Commodore 128', 'build '))
               and all(b & 0x80 for b in status)
               and word('vsb_count') == 0,
-              f'banner {banner} limit {word("vsb_limit")}')
+              f'banner {banner} limit {word("vsb_limit")} '
+              f'status |{decode(status)}|')
         fill = [line_text(n) for n in range(1, 61)]
         output = banner + fill        # every dialogue row, in order
 

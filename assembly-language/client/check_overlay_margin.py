@@ -1,21 +1,48 @@
 #!/usr/bin/env python3
 """Fail the build if the resident client has grown into OVERLAY_BUF.
 
-BACKUP_COLORS (1000 bytes) is the last floating label before the overlay
-area; see tada-client.asm's OVERLAY_BUF comment for why this collision
-keeps recurring as the resident program grows.
+BACKUP_CHARS is the last floating label before the overlay area: the
+2048 bytes of gothic_charset's glyph data, which double as the 2000-byte
+BACKUP_CHARS/BACKUP_COLORS screen backup once the boot copy is done (see
+tada-client.asm's BACKUP_CHARS comment). See tada-client.asm's
+OVERLAY_BUF comment for why this collision keeps recurring as the
+resident program grows.
 """
 import re
 import sys
 from pathlib import Path
 
+# --modules a.prg b.prg ...: instead, check that every overlay module's
+# image ends below BORDER_STATE (constants.asm) -- the Border style
+# glyph backup (border_style.asm) kept in overlay RAM above every
+# module, so overlays loading at OVERLAY_BUF can't overwrite it.
+if sys.argv[1:2] == ['--modules']:
+    consts = Path('constants.asm').read_text()
+    border_state = int(re.search(r'^BORDER_STATE\s+=\s+\$([0-9a-f]+)',
+                                 consts, re.I | re.M).group(1), 16)
+    bad = False
+    for prg in sys.argv[2:]:
+        data = Path(prg).read_bytes()
+        load = data[0] | data[1] << 8
+        end = load + len(data) - 2
+        print(f'{prg}: ${load:04x}-${end - 1:04x}, '
+              f'{border_state - end} bytes below BORDER_STATE ${border_state:04x}')
+        if end > border_state:
+            print(f'ERROR: {prg} overlaps BORDER_STATE -- move it (and '
+                  "BORDER_STATE_END) higher; see constants.asm's comment")
+            bad = True
+    sys.exit(1 if bad else 0)
+
 sym_file = Path(sys.argv[1] if len(sys.argv) > 1 else 'tada-client_pp.sym')
 syms = {m.group(1): int(m.group(2), 16)
         for m in re.finditer(r'(\S+)\s+=\s+\$([0-9a-f]+)', sym_file.read_text())}
-end = syms['backup_colors'] + 1000
+end = syms['backup_chars'] + 2048          # gothic_charset's full size
+if syms['gothic_charset'] != syms['backup_chars']:
+    sys.exit('ERROR: gothic_charset must start at BACKUP_CHARS -- see '
+             "tada-client.asm's BACKUP_CHARS comment")
 overlay_buf = syms['overlay_buf']
 print(f'resident end ${end:04x}, OVERLAY_BUF ${overlay_buf:04x}, '
       f'margin {overlay_buf - end} bytes')
 if end > overlay_buf:
-    sys.exit('ERROR: BACKUP_COLORS overlaps OVERLAY_BUF -- raise OVERLAY_BUF '
+    sys.exit('ERROR: BACKUP_CHARS/gothic_charset overlaps OVERLAY_BUF -- raise OVERLAY_BUF '
              'and every overlay module\'s orig to match')

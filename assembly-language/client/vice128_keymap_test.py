@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """x128 scenario for the Keymap Editor built into client-128.asm.
 
-Runs client-128.prg from a scratch .d64 on drive 8 (so KEYMAP.CFG really
+Runs client-128.prg from a scratch .d64 on drive 8 (so TADA128.CFG really
 goes through KERNAL SAVE/LOAD) and checks memory -- VDC RAM through the
 monitor's "bank vdc", VIC screen/color RAM, the client's own variables --
 rather than screenshots:
   A  boot (80 columns): $FF00 = $0e, F1-F8 reprogrammed to $85-$8c, the
      CTRL decode pointer ($0344) moved to the patched RAM copy, default
-     keymap in keymap_table (no KEYMAP128.CFG yet), including Page Up/
-     Page Down = ALT + grey CRSR (key numbers 83/84) in slots 15-16
+     keymap in keymap_table (no TADA128.CFG yet), including Page Up/
+     Page Down = ALT + grey CRSR (key numbers 83/84) in slots 16-17
+     (after the drive picker's F5 in slot 6 -- 2026-10-01)
   B  F7 (delivered the way the editor hands out an F-key string: $d1/$d2)
      opens the popup; the IRQ copies it onto the VDC at columns 20-59,
      dialogue greyed, status row blanked around it; the Keymap Editor
@@ -23,7 +24,7 @@ rather than screenshots:
   G  a macro slot (poked into keymap_table, trigger key number 10) types
      "look" and submits it via the back-arrow marker (the matrix match is
      faked by patching "cmp $d4" to "cmp #10")
-  H  'S' in the popup saves KEYMAP128.CFG; a fresh boot LOADs it back
+  H  'S' in the popup saves TADA128.CFG; a fresh boot LOADs it back
      (the macro slot survives), and the file is on the disk
   I  40 columns: same disk, F7 opens the popup on the real screen with
      the rest greyed, RUN/STOP puts screen and colors back
@@ -154,7 +155,7 @@ def press_f7() -> None:
 def boot(mode: str, disk: Path) -> subprocess.Popen:
     # The .prg is injected (like the other 128 tests); autostarting the
     # .d64 itself sometimes never typed its LOAD at all. The disk stays on
-    # drive 8 for KEYMAP.CFG -- the client falls back to device 8 when $ba
+    # drive 8 for TADA128.CFG -- the client falls back to device 8 when $ba
     # isn't a disk drive.
     p = subprocess.Popen(
         ['x128', mode, '-VDC16KB', '-8', str(disk), '-remotemonitor',
@@ -194,7 +195,7 @@ subprocess.run(['c1541', '-format', 'kmtest,01', 'd64', str(disk), '-write',
 vice = boot('-80col', disk)
 try:
     # A
-    table = dump('default', S['keymap_table'], 27 * 6)
+    table = dump('default', S['keymap_table'], 27 * 7)
     ctrl = dump('default', 0x0344, 2)
     check('A boot: MMU $0e, F-keys, CTRL table, default keymap',
           byte_at(0xff00) == 0x0e
@@ -204,13 +205,15 @@ try:
           and (ctrl[0] | ctrl[1] << 8) == S['km_ctrl_table']
           and dump('default', S['km_ctrl_table'] + 2, 6)[0] == 0x1d
           and table[0:3] == bytes([4, 0x1d, 1]) and table[135:138] == bytes([0, 0x88, 5])
-          and dump('default', S['keymap_table'] + 27 * 15, 3) == bytes([8, 83, 6])
-          and dump('default', S['keymap_table'] + 27 * 16, 3) == bytes([8, 84, 7]))
+          and table[162:165] == bytes([0, 0x87, 6])          # F5: drive picker
+          and dump('default', S['keymap_table'] + 27 * 16, 3) == bytes([8, 83, 7])
+          and dump('default', S['keymap_table'] + 27 * 17, 3) == bytes([8, 84, 8]))
 
     # B
     press_f7()
-    listed = [decode(vic(r)) for r in range(5, 16)]
+    listed = [decode(vic(r)) for r in range(5, 17)]
     page_rows = [t for t in listed if 'Page' in t]
+    drive_rows = [t for t in listed if 'Drive Picker' in t]
     check('B F7 opens the popup, presented at VDC columns 20-59, rest grey',
           byte_at(S['km_present_on']) == 1
           and decode(vdc(5, 20, 40)).strip().startswith(']')
@@ -219,8 +222,9 @@ try:
           and all(a == ALT | GREY_VDC for a in vdc_attr(0))
           and all(c == 0xa0 for c in vdc(23, 0, 20))
           and len(page_rows) == 2
-          and all('Alt+' in t for t in page_rows),
-          f'{page_rows}')
+          and all('Alt+' in t for t in page_rows)
+          and len(drive_rows) == 1 and 'F5' in drive_rows[0],
+          f'{page_rows} {drive_rows}')
 
     # C
     keys(bytes([0x11]), settle=1.5)
@@ -270,8 +274,8 @@ try:
           f'cpos {word_left}, {home}, {word_right}')
 
     # G
-    slot6 = S['keymap_table'] + 27 * 6
-    poke(slot6, 0, 10, 0xff, *b'LOOK', 0x5f, 0)
+    slot7 = S['keymap_table'] + 27 * 7  # the first macro slot
+    poke(slot7, 0, 10, 0xff, *b'LOOK', 0x5f, 0)
     at = S['km_scan_macro'] + 5         # cmp $d4 (c5 d4)
     orig = dump('default', at, 2)
     poke(at, 0xc9, 10)
@@ -291,14 +295,19 @@ try:
             break
         time.sleep(1)
     time.sleep(2)
+    # Detach before quitting: VICE keeps true-drive-emulated tracks in
+    # memory and writes them back to the .d64 on detach -- a plain
+    # terminate could leave TADA128.CFG as an unclosed *PRG with no data
+    # (seen 2026-10-01 in vice_drive_menu_test.py).
+    mon(['detach 8']); time.sleep(1)
     vice.terminate(); time.sleep(2)
     listing = subprocess.run(['c1541', str(disk), '-list'],
                              capture_output=True, text=True).stdout
     vice = boot('-80col', disk)
-    reloaded = dump('default', slot6, 9)
-    check('H save, then a fresh boot LOADs the macro back from KEYMAP128.CFG',
+    reloaded = dump('default', slot7, 9)
+    check('H save, then a fresh boot LOADs the macro back from TADA128.CFG',
           saved_status.startswith('Saved keymap')
-          and 'keymap128.cfg' in listing.lower()
+          and 'tada128.cfg' in listing.lower()
           and reloaded == bytes([0, 10, 0xff, *b'LOOK', 0x5f, 0]),
           f'|{saved_status}| {reloaded.hex()}')
     vice.terminate(); time.sleep(2)

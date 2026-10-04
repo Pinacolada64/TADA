@@ -21,7 +21,7 @@
 ; instead of a fixed address), navigate with CRSR UP/DOWN, capture a
 ; new combo for a nav slot with RETURN (key_capture_combo -- rejects a
 ; combo already bound elsewhere), and either Save (KERNAL SAVE
-; keymap_table back to KEYMAP.CFG) or Cancel. A macro-text sub-editor
+; keymap_table back to TADA64.CFG) or Cancel. A macro-text sub-editor
 ; (RETURN on a macro slot), clearing a slot (DEL), and preset loading
 ; (P) are follow-up work, not yet in this file.
 {include:constants.asm}
@@ -43,7 +43,7 @@ BOX_ROWS    = 21               ; rows 2-22 -- clear of STATUS_ROW(23)/
 ; keymap.asm's own file-header comment). Must be kept in sync by hand
 ; if either changes; confirmed no simpler option exists the same way
 ; OVERLAY_BUF's own comment documents for that constant.
-MAX_BINDINGS   = 15        ; keymap.asm's own MAX_BINDINGS comment
+MAX_BINDINGS   = 16        ; keymap.asm's own MAX_BINDINGS comment
                              ; explains the 5 nav functions (word-left,
                              ; word-right, home via CRSR-UP, home via
                              ; the real CLR/HOME key, end) + the
@@ -71,7 +71,7 @@ BINDING_SIZE   = 3 + MACRO_TEXT_LEN
 HOME_MERGE_ROW = 2
 
 ; --- Two-screen split (Ryan's ask, 2026-09-18): the list is now one of
-; two pages, "Keymap Editor" (the 5 nav rows above) and "Macro Editor"
+; two pages, "Keymap Editor" (the 6 nav rows above) and "Macro Editor"
 ; (the remaining macro slots), selected via a header row shown above
 ; row 0 -- CRSR-UP past row 0 moves focus onto the header (header_
 ; focused=1); CRSR-LEFT/RIGHT while there toggle active_page and
@@ -84,9 +84,10 @@ HOME_MERGE_ROW = 2
 ; of the two, used as draw_list's fixed loop bound so switching to a
 ; shorter page still blanks whatever the longer page left on screen
 ; (see draw_list's own comment).
-NAV_SLOT_COUNT = 6
-NAV_ROWS       = HOME_MERGE_ROW + 3   ; word-left, word-right, home
-                                         ; (merged), end, open-editor = 5
+NAV_SLOT_COUNT = 7          ; + the drive picker's F5 slot (2026-10-01)
+NAV_ROWS       = HOME_MERGE_ROW + 4   ; word-left, word-right, home
+                                         ; (merged), end, open-editor,
+                                         ; drive picker = 6
 MACRO_ROWS     = MAX_BINDINGS - NAV_SLOT_COUNT   ; 9
 PAGE_ROWS_MAX  = MACRO_ROWS
 
@@ -111,6 +112,7 @@ ACTION_WORD_RIGHT  = 2
 ACTION_HOME        = 3
 ACTION_END         = 4
 ACTION_OPEN_EDITOR = 5
+ACTION_OPEN_DRIVES = 6
 ACTION_MACRO       = 255
 
 ; SFDX ($cb, keyboard_rollover.asm) "key-number" values for RETURN and
@@ -138,7 +140,7 @@ KEY_NUM_RUNSTOP = 63
 ; runs; nothing else touches the status row's raw bytes during a
 ; keymap-editor visit (status_service isn't polled from any of this
 ; file's own loops), so there's no live rotation/clock to fight with.
-STATUS_ROW_SCREEN = SCREEN_RAM + 920
+STATUS_ROW_SCREEN = POPUP_SCREEN + 920
 KM_STATUS_ROW     = 23          ; STATUS_ROW_SCREEN's row, for JT_SET_CURSOR
 
 ; $3800 (was $3000 briefly, $2900 before that, until 2026-09-28) -- see tada-client.asm's OVERLAY_BUF comment (moved here
@@ -178,15 +180,16 @@ module_start:
                                        ; no visible popup on screen.
         jsr JT_SAVE_SCREEN
 
-        ; keymap_table_end_lo/hi = KEYMAP_TABLE_PTR + KEYMAP_TABLE_SIZE
-        ; -- key_save's own comment explains why this is computed once,
-        ; here, rather than inline at the SAVE call site.
+        ; keymap_table_end_lo/hi = KEYMAP_TABLE_PTR + CONFIG_FILE_SIZE
+        ; (the table plus the settings block after it) -- key_save's own
+        ; comment explains why this is computed once, here, rather than
+        ; inline at the SAVE call site.
         lda KEYMAP_TABLE_PTR
         clc
-        adc #<KEYMAP_TABLE_SIZE
+        adc #<CONFIG_FILE_SIZE
         sta keymap_table_end_lo
         lda KEYMAP_TABLE_PTR+1
-        adc #>KEYMAP_TABLE_SIZE
+        adc #>CONFIG_FILE_SIZE
         sta keymap_table_end_hi
 
         ; Snapshot keymap_table before anything in this visit can
@@ -1140,9 +1143,9 @@ key_clear_macro:
         ldy #>kcm_confirm_msg2
         stx poke_src_lo
         sty poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+19)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+19)*40)
         sta poke_dst_hi
         jsr poke_line
 kcm_wait:
@@ -1519,9 +1522,9 @@ ucd_copy_loop:
         ldy #>capture_live_row
         stx poke_src_lo
         sty poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+19)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+19)*40)
         sta poke_dst_hi
         jsr poke_line
 ucd_position:
@@ -1613,9 +1616,9 @@ ccd_no_carry:
 draw_message_row:
         stx poke_src_lo
         sty poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+18)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+18)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+18)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+18)*40)
         sta poke_dst_hi
         jmp poke_line
 
@@ -1666,9 +1669,9 @@ dhf_row2:
         stx poke_src_lo               ; draw_message_row only targets
         sty poke_src_hi               ; row 18 -- row 19 needs its own
                                         ; poke_line call here
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+19)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+19)*40)
         sta poke_dst_hi
         jmp poke_line               ; tail call -- its own rts returns
                                      ; straight to our caller
@@ -1686,7 +1689,7 @@ dhf_macro_footer:
         ldy #>row_help2
         jmp dhf_row2
 
-; --- Save: write keymap_table back to KEYMAP.CFG, restore, hand back ---
+; --- Save: write keymap_table back to TADA64.CFG, restore, hand back ---
 ; SCRATCH the old file first, then a plain (no "@0:") SAVE -- Ryan's
 ; call, 2026-09-02: the "@0:" replace-file convention is known to
 ; trigger a real Commodore DOS bug on some drive/ROM combinations
@@ -1696,6 +1699,12 @@ dhf_macro_footer:
 ; makes the SCRATCH fail harmlessly with FILE NOT FOUND -- ignored,
 ; same as read_error_channel ignores it elsewhere.
 key_save:
+        jsr select_drive           ; disk.asm -- no drive on the bus at all:
+        bcc key_save_have_drive    ; don't touch the disk (the edits stay
+        ldx #<keymap_no_drive_msg  ; live for this session, same as a
+        ldy #>keymap_no_drive_msg  ; real Save) and say so
+        jmp key_save_report
+key_save_have_drive:
         jsr scratch_keymap_file
         lda #KEYMAP_FILENAME_LEN
         ldx #<keymap_filename
@@ -1720,9 +1729,24 @@ key_save:
         ldy keymap_table_end_hi
         lda #<scr_ptr_lo
         jsr KERNAL_SAVE
+        rol key_save_failed        ; KERNAL error (carry) -> bit 0
         jsr read_error_channel     ; clear the drive's error LED --
                                      ; same reasoning as init_keymap's
-                                     ; own LOAD-side call in keymap.asm
+                                     ; own LOAD-side call in keymap.asm.
+                                     ; Carry set: the drive reported an
+                                     ; error (26 WRITE PROTECT ON, 72
+                                     ; DISK FULL, ...)
+        rol key_save_failed
+        ldx #<keymap_saved_msg
+        ldy #>keymap_saved_msg
+        lda key_save_failed
+        and #$03
+        beq key_save_report
+        ldx #<keymap_save_failed_msg
+        ldy #>keymap_save_failed_msg
+key_save_report:
+        stx key_save_msg           ; JT_RESTORE_SCREEN doesn't promise to
+        sty key_save_msg+1         ; keep X/Y
         jsr JT_RESTORE_SCREEN      ; must happen BEFORE the status message
                                      ; below, not after -- JT_RESTORE_
                                      ; SCREEN repaints the WHOLE screen
@@ -1735,9 +1759,9 @@ key_save:
                                      ; confirmed live 2026-09-18 to
                                      ; silently stomp the new message
                                      ; right back to the stale one
-        ldx #<keymap_saved_msg
-        ldy #>keymap_saved_msg
-        jsr push_keymap_status_msg ; "Saved keymap." -- via JT_STATUS_
+        ldx key_save_msg
+        ldy key_save_msg+1
+        jsr push_keymap_status_msg ; "Saved keymap." etc -- via JT_STATUS_
                                      ; PUSH_RESET/JT_BUILD_STATUS_LINE,
                                      ; not a direct call: this file is a
                                      ; separate standalone .prg, unlike
@@ -1770,7 +1794,7 @@ push_keymap_status_msg:
         jmp JT_BUILD_STATUS_LINE  ; tail call -- its own rts returns
                                     ; straight to key_save/key_cancel
 
-; --- scratch_keymap_file: SCRATCH any existing KEYMAP.CFG before the
+; --- scratch_keymap_file: SCRATCH any existing TADA64.CFG before the
 ; SAVE in key_save above. Sent as a DOS command string ("S0:...") on
 ; the command channel (secondary address 15), same channel
 ; read_error_channel drains -- so this deliberately does NOT call
@@ -1788,9 +1812,11 @@ scratch_keymap_file:
         ldy #15
         jsr KERNAL_SETLFS
         jsr KERNAL_OPEN
-        ldx #15
-        jsr KERNAL_CLOSE
-        rts
+        lda #15                    ; CLOSE takes the file number in .A --
+        jmp KERNAL_CLOSE           ; this was `ldx #15`, which left file 15
+                                   ; open (read_error_channel's own OPEN 15
+                                   ; then failed "file open"; the old copy
+                                   ; ignored that and read through it)
 
 ; --- Cancel: restore keymap_table from module_start's own snapshot,
 ; then hand back without touching disk. key_capture_combo writes
@@ -1822,28 +1848,10 @@ key_cancel:
                                      ; can't go through the normal
                                      ; wait-for-server-data resume path
 
-; --- read_error_channel: drain the drive's command/error channel ---
-; Own copy, not shared with keymap.asm (separate assembly) -- see that
-; file's own read_error_channel for the full comment on why this
-; matters (a real 1541's ERROR LED otherwise stays lit/blinking).
-read_error_channel:
-        lda #0
-        jsr KERNAL_SETNAM
-        jsr current_drive_to_x
-        lda #15
-        ldy #15
-        jsr KERNAL_SETLFS
-        jsr KERNAL_OPEN
-        ldx #15
-        jsr KERNAL_CHKIN
-read_error_channel_loop:
-        jsr KERNAL_CHRIN
-        jsr KERNAL_READST
-        and #$40
-        beq read_error_channel_loop
-        jsr KERNAL_CLRCHN
-        lda #15
-        jmp KERNAL_CLOSE
+; read_error_channel, select_drive and current_drive_to_x: disk.asm's,
+; {include:}d here -- this overlay is a separate assembly, so it carries
+; its own copy of that file rather than reaching the resident one.
+{include:disk.asm}
 
 ; KERNAL routines this file needs, local {const:} -- see keymap.asm's
 ; own copy of this exact block for why (a separate assembly, doesn't
@@ -1853,31 +1861,6 @@ read_error_channel_loop:
 {const: KERNAL_SAVE   $ffd8}
 {const: KERNAL_OPEN   $ffc0}
 {const: KERNAL_CLOSE  $ffc3}
-{const: KERNAL_CHKIN  $ffc6}
-{const: KERNAL_CLRCHN $ffcc}
-{const: KERNAL_CHRIN  $ffcf}
-{const: KERNAL_READST $ffb7}
-
-; KERNAL's FA (current device number) byte -- own copy of tada-client.
-; asm's CURRENT_DRIVE, same reason as the KERNAL block above. Still the
-; drive the client was loaded from by the time this overlay runs (every
-; disk operation since boot, including this overlay's own LOAD, went to
-; that same drive).
-{const: CURRENT_DRIVE $ba}
-
-; .X = drive for this module's SAVE/SCRATCH/error-channel OPENs: own
-; copy of tada-client.asm's current_drive_to_x (separate assembly --
-; the resident routine isn't reachable except through a JT_* entry,
-; not worth adding for 7 bytes). Falls back to 8 if CURRENT_DRIVE is
-; below 8. Clobbers .A -- call before loading the file number.
-current_drive_to_x:
-        lda CURRENT_DRIVE
-        cmp #8
-        bcs current_drive_ok
-        lda #8
-current_drive_ok:
-        tax
-        rts
 
 ; Zero page -- own copy, not shared with tada-client.asm's scr_ptr_lo/
 ; hi (separate assembly, doesn't {include:} anything from that file --
@@ -1905,9 +1888,9 @@ draw_popup:
         sta poke_src_lo
         lda #>top_border
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+0)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+0)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+0)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+0)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -1922,9 +1905,9 @@ draw_popup:
         sta poke_src_lo
         lda #>row_blank
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+2)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+2)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+2)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+2)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -1978,9 +1961,9 @@ draw_popup_blank_list:
         sta poke_src_lo
         lda #>row_help1
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+18)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+18)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+18)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+18)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -1988,9 +1971,9 @@ draw_popup_blank_list:
         sta poke_src_lo
         lda #>row_help2
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+19)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+19)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -1998,9 +1981,9 @@ draw_popup_blank_list:
         sta poke_src_lo
         lda #>bottom_border
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+20)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+20)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+20)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+20)*40)
         sta poke_dst_hi
         jmp poke_line
 
@@ -2100,7 +2083,7 @@ dt_color_done:
         ldy #0
 dt_left_border:
         lda row_blank,y
-        sta SCREEN_RAM+(BOX_TOP_ROW+1)*40,y
+        sta POPUP_SCREEN+(BOX_TOP_ROW+1)*40,y
         iny
         cpy #5
         bne dt_left_border
@@ -2108,14 +2091,14 @@ dt_middle:
         ldx #0
 dt_middle_loop:
         lda title_scratch,x
-        sta SCREEN_RAM+(BOX_TOP_ROW+1)*40,y
+        sta POPUP_SCREEN+(BOX_TOP_ROW+1)*40,y
         iny
         inx
         cpx #30
         bne dt_middle_loop
 dt_right_border:
         lda row_blank,y
-        sta SCREEN_RAM+(BOX_TOP_ROW+1)*40,y
+        sta POPUP_SCREEN+(BOX_TOP_ROW+1)*40,y
         iny
         cpy #40
         bne dt_right_border
@@ -2148,9 +2131,9 @@ dt_columns_macro:
 dt_columns_poke:
         stx poke_src_lo
         sty poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+3)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+3)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+3)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+3)*40)
         sta poke_dst_hi
         jmp poke_line                ; tail call -- its own rts returns
                                      ; straight to our caller
@@ -2518,11 +2501,18 @@ dbr_try_end:
         jsr copy_name12
         jmp dbr_combo
 dbr_try_open_editor:
-        ; whatever's left over is ACTION_OPEN_EDITOR -- nothing else is
-        ; valid (ACTION_EMPTY/ACTION_MACRO both took an earlier exit,
-        ; above)
+        cmp #ACTION_OPEN_EDITOR
+        bne dbr_try_open_drives
         ldx #<name_open_editor
         ldy #>name_open_editor
+        jsr copy_name12
+        jmp dbr_combo
+dbr_try_open_drives:
+        ; whatever's left over is ACTION_OPEN_DRIVES -- nothing else is
+        ; valid (ACTION_EMPTY/ACTION_MACRO both took an earlier exit,
+        ; above)
+        ldx #<name_open_drives
+        ldy #>name_open_drives
         jsr copy_name12
 dbr_combo:
         jsr describe_combo
@@ -2972,10 +2962,10 @@ set_screen_line_local:
         tax
         lda row_offsets,x
         clc
-        adc #<SCREEN_RAM
+        adc #<POPUP_SCREEN
         sta scr_ptr_lo
         lda row_offsets+1,x
-        adc #>SCREEN_RAM
+        adc #>POPUP_SCREEN
         sta scr_ptr_hi
         rts
 
@@ -3111,7 +3101,10 @@ keymap_table_end_hi:
 ; depth instead of leaking it.
 module_entry_sp:
         byte 0
-KEYMAP_TABLE_SIZE = 405           ; MAX_BINDINGS(15) * BINDING_SIZE(27)
+KEYMAP_TABLE_SIZE = 432           ; MAX_BINDINGS(16) * BINDING_SIZE(27)
+; key_save writes CONFIG_FILE_SIZE (constants.asm) bytes instead: this
+; table plus the config_settings block after it (keymap.asm), so saving
+; the keymap keeps the data drive and other settings in TADA64.CFG.
 
 ; --- backup_keymap_table / restore_keymap_table: bulk-copy
 ; KEYMAP_TABLE_SIZE (405) bytes between the resident keymap_table (via
@@ -3188,7 +3181,7 @@ kt_copy_remaining_hi:
 
 ; This module's own copy of keymap_table, taken/restored around a
 ; popup visit -- NOT persisted anywhere itself (only the resident
-; keymap_table, via key_save, ever gets written to KEYMAP.CFG).
+; keymap_table, via key_save, ever gets written to TADA64.CFG).
 keymap_table_backup:
         area KEYMAP_TABLE_SIZE, $00
 
@@ -3217,6 +3210,8 @@ name_end:
         ascii "Line End    "
 name_open_editor:
         ascii "Open Editor "
+name_open_drives:
+        ascii "Drive Picker"
 {alpha:normal}
 
 ; NUL-terminated modifier-prefix/key-name fragments -- describe_combo
@@ -3408,24 +3403,28 @@ bottom_border:
         area 30, $40
         byte $7d, $20,$20,$20,$20
 
-; "S0:KEYMAP.CFG" and "KEYMAP.CFG" share one copy of the filename text
+; "S0:TADA64.CFG" and "TADA64.CFG" share one copy of the filename text
 ; -- keymap_filename points partway into keymap_scratch_command's own
-; bytes ("S0:" + "KEYMAP.CFG" back to back), so key_save's plain SAVE
+; bytes ("S0:" + "TADA64.CFG" back to back), so key_save's plain SAVE
 ; and scratch_keymap_file's SCRATCH command both read out of the same
-; "KEYMAP.CFG" bytes rather than duplicating them (Ryan's idea,
+; "TADA64.CFG" bytes rather than duplicating them (Ryan's idea,
 ; 2026-09-02). Lengths are assemble-time label-difference constants,
 ; not hand-counted -- hand-counting is exactly what produced the
-; off-by-one this replaced (the old "@0:KEYMAP.CFG" code had `lda #14`
+; off-by-one this replaced (the old "@0:TADA64.CFG" code had `lda #14`
 ; for a 13-byte string). {alpha:alt} for the $C1-$DA uppercase-letter
 ; range a real disk directory needs (see keymap.asm's own
-; filename-block comment for the full reasoning); "S0:" is plain
-; ASCII/PETSCII punctuation, unaffected by alpha:alt either way (that
-; mode only remaps letters).
+; filename-block comment for the full reasoning). The "S" of "S0:" is a
+; letter too, though, and alpha:alt turned it into $D3, which DOS
+; doesn't take as SCRATCH: with a TADA64.CFG already on the disk the
+; old file stayed and the SAVE after it failed with 63, FILE EXISTS
+; (found 2026-10-02 -- see config_menu.asm's cm_scratch_command). A raw
+; byte $53 bypasses alpha mode.
 {alpha:alt}
 keymap_scratch_command:
-        ascii "S0:"
+        byte $53                  ; 'S' (SCRATCH) as DOS wants it
+        ascii "0:"
 keymap_filename:
-        ascii "KEYMAP.CFG"
+        ascii "TADA64.CFG"
 keymap_filename_end:
 {alpha:normal}
 KEYMAP_SCRATCH_LEN = keymap_filename_end - keymap_scratch_command  ; 13
@@ -3443,7 +3442,18 @@ keymap_saved_msg:
 keymap_aborted_msg:
         ascii "Aborted."
         byte 0
+keymap_no_drive_msg:
+        ascii "No drive: keymap not saved."
+        byte 0
+keymap_save_failed_msg:
+        ascii "Disk error: keymap not saved."
+        byte 0
 {alpha:normal}
+
+; key_save's: which message to show, and its two failure bits (SAVE's
+; own carry, then read_error_channel's)
+key_save_msg:      word 0
+key_save_failed:   byte 0
 
 ; Empty status-row "message" -- module_start pushes this to blank out
 ; keymap.asm's own "Opening keymap editor..." once this popup is fully
