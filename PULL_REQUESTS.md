@@ -12,6 +12,29 @@ Sections: Open PRs → Merged PRs (newest first).
 
 ## Open PRs
 
+#### [#66](https://github.com/Pinacolada64/TADA/pull/66) `feature/tileset` → `master` — Tileset: memory-map design, art converter, and a scrolling C64 tile demo
+- **Tip:** `26f3e63` (1 commit on top of `master`, merged with `master` at `0ffb7be`, plus
+  this file's #66 entry). Nothing here is part of the client build.
+- `TILESET_MEMORY_MAP.md` — design for 16x16 multicolor RPG tiles (2x2 chars) on the
+  VIC screen on both machines (C128: 40-column), with the editor as a loadable module
+  (C64 `OVERLAY_BUF` below `BORDER_STATE`; C128 over the history ring). Covers tile
+  charset at `$e000` under the KERNAL (CPU writes need no `$01` banking, so no NMI-vector
+  risk), sprites at `$cc00`/`$f000`, `$d018` values, raster split timing, and the CIA
+  tick (not the SwiftLink NMI) as the split's real jitter risk.
+- `tiles/tile_convert.py` — PNG 16x16 tiles → C64 multicolor chars: pixel-pair color
+  matching, shared `$d021/$d022/$d023` search, `--under` ground baking for layered art,
+  `--remap`/`--colors` overrides. `tiles/make_demo_map.py` + `demo_map.json` compose a
+  map from stamps into one deduplicated charset (80x48-char meadow = 195 chars).
+- `tiles/tile_demo.asm` — standalone demo: cursor keys scroll the map; rows 0-22 multicolor
+  tiles, row 23 a solid `$a0` divider hiding the charset switch, row 24 a ROM-lowercase
+  status line; raster IRQs at lines 235/251. `tiles/.gitattributes` marks `*.bin` binary
+  (color RAM bytes `$0a`/`$0d` vs. `* text=auto`).
+- Art: ArMM1998's "Zelda-like Tilesets and Sprites" (OpenGameArt, CC0); the pack isn't
+  checked in, the generated demo data is.
+- Tested: `vice_tile_demo_test.py` 14/14 in x64sc (screen + color RAM vs. map data,
+  scrolling, clamping, quit). **Real hardware untested; split not yet tested under
+  SwiftLink traffic.**
+
 #### [#64](https://github.com/Pinacolada64/TADA/pull/64) `feature/border-style` → `feature/drive-scan` — C64 client: Video Settings Border style (Single/Double)
 - **Tip:** `867691a` (3 code commits, plus merges of `feature/drive-scan`). Stacked on #62
   (builds on its POPUP_SCREEN fix, drive picker and `config_settings` block); merge
