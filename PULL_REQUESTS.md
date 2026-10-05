@@ -6,27 +6,13 @@ and/or tip commit), name, and a short summary of what the change adds or fixes.
 - **PR data** comes from GitHub (`gh pr list --state all`); it is independent of
   which local branch this file lives on.
 
-Sections: Open PRs → Merged PRs (newest first).
+Sections: Open PRs → Feature branches (no PR) → Direct commits to master → Merged PRs (newest first).
 
 ---
 
 ## Open PRs
 
-#### [#65](https://github.com/Pinacolada64/TADA/pull/65) `fix/gothic-reverse-digits` → `master` — C64 client: fix reverse-video digits and arrows in the Gothic charset
-- **Tip:** `a8ce90b` (2 commits on top of `master`, plus this file's #65 entry).
-- `d67aa46` — `gothic-charset.asm` `$B8`/`$B9`: f.antic1 had a reverse **9** in the
-  reverse-**8** slot, so the drive picker's highlight bar (`ORA #$80`) turned "8" into
-  "9" ("1581" → "1591"); its reverse 9 also sat a pixel right of the normal one. Both
-  are now exact inverses of `$38`/`$39`, so `$B0`-`$B9` all match their digits.
-- `a8ce90b` — `$E0`/`$E1`: still f.antic1's reversed fillers (a notched block, a
-  right-half block) from before the 2026-08-22 down/right arrow patch at `$60`/`$61`;
-  now exact inverses of those arrows, matching up/left (`$1E`/`$9E`, `$1F`/`$9F`).
-- Left as-is: `$00`/`$07`/`$0C`/`$21` differ slightly from their reverse glyphs in the
-  original font (style differences, not a wrong character).
-- Tested: every glyph in the built `tada-client.prg`'s charset checked against its
-  `$80+` partner; `make -B d64` clean (7× 0 errors, overlay/128 layout checks pass).
-  The C128 client doesn't use this charset. **Not yet checked visually in VICE or on
-  hardware.**
+_(none)_
 
 ---
 
@@ -38,10 +24,19 @@ Sections: Open PRs → Merged PRs (newest first).
 
 ---
 
+## Direct commits to master (no PR)
+
+| Commit | Summary |
+|--------|---------|
+| `7ba59db` | Help text markup. New `\|heading\|` token, a fixed alias for yellow on ANSI and PETSCII, the color of help section titles; `_heading()` now emits it, so prose like "your \|heading\|Usage\|reset\| line" or "see Notes below" matches the heading it points at. Line editor `.h` Examples blocks are now headerless two-column tables (command column at its natural width, 2-space gap, explanations wrap under their own column). Unescaped `\|token\|` fixed in `.h h` and the `.j` usage message; the `commandline` help topic now explains `\|` between choices and wraps its command examples in `\|command\|` instead of backticks. Documented in the `colors` topic and `.h colors`. |
+
+---
+
 ## Merged PRs
 
 | PR | Merge commit | Branch | Title |
 |----|--------------|--------|-------|
+| [#65](https://github.com/Pinacolada64/TADA/pull/65) | `2869b2c` | `fix/gothic-reverse-digits` | C64 client Gothic charset: reverse-video `$B8`/`$B9` were a reverse **9** in the **8** slot (the drive picker's highlight turned "1581" into "1591"), now exact inverses of `$38`/`$39`; `$E0`/`$E1` now inverses of the down/right arrows at `$60`/`$61`. Every glyph checked against its `$80+` partner in the built `.prg`; **not yet checked visually in VICE or on hardware.** |
 | [#62](https://github.com/Pinacolada64/TADA/pull/62) | `d52786e` | `feature/drive-scan` | C64/C128 clients: serial-bus drive detection (shared `disk.asm`: `probe_device`, `scan_serial_bus`, `select_drive`, hang-proof `read_error_channel`), so no drive gives DEVICE NOT PRESENT instead of a hang; `DRIVE.MNU` drive picker (F5) with model lookup (`drive_id.asm`) and a saved data drive (`config_settings` block, `CFG_DATA_DRIVE`); `POPUP_SCREEN` fix for the C64 overlays; build number on both clients' startup status line; SCRATCH `$D3` → `$53` fix (63, FILE EXISTS on re-save). Carried #64. VICE suites pass; **real hardware, C128 80-column untested.** |
 | [#64](https://github.com/Pinacolada64/TADA/pull/64) | `1760a96` (via #62) | `feature/border-style` | C64 Video Settings Border style: Single (Gothic box glyphs) or Double (CP437 double lines), swapped live in the charset by resident `border_style.asm` (`run_under_io` banks I/O out NMI-safely); saved in `TADA64.CFG` byte +2 and reapplied at boot. `vice_border_style_test.py` 34/34. Merged into `feature/drive-scan`, reached master with #62. |
 | [#63](https://github.com/Pinacolada64/TADA/pull/63) | `fe9423e` | `feature/128-40col-vdc-scrollback` | C128 client: 40-column scrollback in VDC RAM. `vdc_detect_ram` (Fred's 8563 DRAM-size test: R28 bit 4, `$55`/`$AA` at `$4200`, does `$4300` echo?) sizes the ring: 64K → 614 rows at `$4000`, 16K → 179 rows at `$0800`. New `vic_screen.asm`: `vic_putc` draws/scrolls 40-column dialogue itself (no CHROUT window), CRSR and Page Up/Down scroll back as in 80 columns. VICE suites pass both layouts; **64K confirmed on a real metal-case C128DCR**; 16K on a flat 128 still untested (VICE 3.8 can't: bug #1981). |
