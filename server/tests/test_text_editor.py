@@ -980,6 +980,41 @@ class TestHelp(unittest.IsolatedAsyncioTestCase):
         with self.assertNoLogs('root', level='WARNING'):
             ansi_encode(text, reset_color='\x1b[39m', command_color='\x1b[36m')
 
+    def test_no_command_help_leaves_unescaped_tokens(self):
+        """Same check as the colors topic's, across every DotCommand's
+        help_text -- '.h h' once said 'the |token| color markup' bare."""
+        from formatting import ansi_encode
+        editor = Editor(_make_ctx([]), [])
+        for cmd in editor.dot_command_table + editor.privileged_commands:
+            with self.subTest(command=cmd.command_key):
+                text = '\n'.join(_format_help_text(cmd.help_text))
+                with self.assertNoLogs('root', level='WARNING'):
+                    ansi_encode(text, reset_color='\x1b[39m', command_color='\x1b[36m')
+
+    def test_examples_render_as_tight_two_column_table(self):
+        """Examples: lines become a headerless table: the explanation
+        column starts 2 spaces past the widest command, whatever the
+        hand-authored spacing was, and nothing is padded with trailing
+        spaces out to the screen edge."""
+        help_text = ("Intro.\n\n"
+                     "Examples:\n"
+                     "  |command|.x|reset|          Short one\n"
+                     "  |command|.x 1-3|reset|  Longer command")
+        lines = _format_help_text(help_text, screen_width=40)
+        self.assertEqual(lines[2], '|heading|Examples:|reset|')
+        self.assertEqual(lines[3:], [
+            '  |command|.x|reset|      Short one',
+            '  |command|.x 1-3|reset|  Longer command',
+        ])
+
+    def test_examples_wrap_under_explanation_column(self):
+        lines = _format_help_text(
+            "Examples:\n  |command|.x|reset|  " + 'word ' * 12, screen_width=30)
+        self.assertGreater(len(lines), 2)
+        self.assertTrue(all(len(line) <= 30 or '|' in line for line in lines))
+        self.assertTrue(lines[2].startswith(' ' * 6 + 'word'))
+        self.assertTrue(lines[1].startswith('  |command|.x|reset|  word'))
+
 
 class TestVersionAndScale(unittest.IsolatedAsyncioTestCase):
     async def test_version(self):

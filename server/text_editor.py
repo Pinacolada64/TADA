@@ -442,7 +442,7 @@ class Editor:
                           "  |command|.f 2-5|reset|  Search only lines 2-5"),
             DotCommand('h', 'Help!', DefaultLineRange.NONE, CommandFlags.ACCEPT_CHARACTER, _cmd_help,
                 help_text="Show this list, or |command|.h <letter>|reset| for details on "
-                          "one command. |command|.h colors|reset| explains the |token| "
+                          "one command. |command|.h colors|reset| explains the ||token|| "
                           "color markup used throughout this help."),
             DotCommand('i', 'Insert', DefaultLineRange.NONE, CommandFlags.ACCEPT_NUMBERS, _cmd_insert,
                 help_text="Insert new lines before a given line number, shifting "
@@ -995,7 +995,7 @@ async def _cmd_justify(editor: 'Editor', arg: str) -> Optional[str]:
     "un-expand" since expand is never baked into .text to begin with."""
     parts = arg.strip().split(maxsplit=1)
     if not parts:
-        await editor.ctx.send('Usage: .j <l|c|r|e|p|i|u> [[range]]')
+        await editor.ctx.send('Usage: .j <l||c||r||e||p||i||u> [[range]]')
         return None
     mode = _JUSTIFY_LETTERS.get(parts[0][:1].lower())
     if mode is None:
@@ -1267,6 +1267,8 @@ _COLOR_TOPIC_TEXT = (
     "wraps command syntax in your own Command color, kept separate from "
     "||reset||'s Text color and highlight_color so commands read apart "
     "from [bracketed] emphasis.\n\n"
+    "||heading||...||reset|| is the fixed yellow of section headings like "
+    "|heading|Examples:|reset| below.\n\n"
     "Examples:\n"
     "  |red|Warning!|reset|   Colors 'Warning!' red, then resets\n"
     "  |command|.h h|reset|   Colors '.h h' in your command color"
@@ -1293,7 +1295,7 @@ async def _cmd_help(editor: 'Editor', arg: str) -> Optional[str]:
         return None
 
     if arg.lower() in _COLOR_TOPIC_ALIASES:
-        out = ['|cyan|Colors|reset|', ''] + _format_help_text(_COLOR_TOPIC_TEXT)
+        out = ['|cyan|Colors|reset|', ''] + _format_help_text(_COLOR_TOPIC_TEXT, editor.screen_width)
         await editor.ctx.send(out)
         return None
 
@@ -1302,19 +1304,19 @@ async def _cmd_help(editor: 'Editor', arg: str) -> Optional[str]:
         await editor.ctx.send(f'Unknown command: .{arg}')
         return None
     out = [_format_help_line(match.command_key, match.command_text, editor.screen_width), '']
-    out += _format_help_text(match.help_text)
+    out += _format_help_text(match.help_text, editor.screen_width)
     await editor.ctx.send(out)
     return None
 
 
-def _format_help_text(help_text: str) -> List[str]:
+def _format_help_text(help_text: str, screen_width: int = 80) -> List[str]:
     """Split a DotCommand's help_text into display lines: paragraphs
     (separated by a blank line in the source) get their own soft line
     breaks collapsed into one flowing line -- they're wrapped to fit
     this source file, not a player's screen, and ctx.send() word-wraps
-    to the actual screen width on its own. An "Examples:" block is left
-    exactly as authored (one example per line) instead, since those line
-    breaks are deliberate, not source-wrapping."""
+    to the actual screen width on its own. An "Examples:" block keeps
+    one example per line (those line breaks are deliberate, not
+    source-wrapping), laid out by _format_examples_table()."""
     if not help_text:
         return ['(no help available)']
     out: List[str] = []
@@ -1322,10 +1324,42 @@ def _format_help_text(help_text: str) -> List[str]:
         if i > 0:
             out.append('')
         if paragraph.lstrip().startswith('Examples:'):
-            out.extend(paragraph.split('\n'))
+            heading, *examples = paragraph.split('\n')
+            # Same |heading| color commands/help.py's own section titles
+            # get, so '.h' pages match the main game's HELP pages.
+            out.append(f'|heading|{heading.strip()}|reset|')
+            out.extend(_format_examples_table(examples, screen_width))
         else:
             out.append(' '.join(paragraph.split()))
     return out
+
+
+def _format_examples_table(examples: List[str], screen_width: int) -> List[str]:
+    """Lay out an Examples: block's '<command>  <explanation>' lines
+    (authored with 2+ spaces between the two) as a headerless,
+    borderless two-column table, same convention as commands/board/
+    reply.py's _menu_options_lines() -- so the gap between command and
+    explanation is just the table's own padding instead of hand-counted
+    spaces, and a long explanation wraps under its own column rather
+    than back under the command. The command column is capped at its
+    natural width; otherwise Table hands it a proportional share of any
+    spare screen width and the gap grows right back."""
+    from table import Column, Table, _visible_len
+    rows = [re.split(r'\s{2,}', line.strip(), maxsplit=1) for line in examples if line.strip()]
+    rows = [row + [''] * (2 - len(row)) for row in rows]
+    command_width = max((_visible_len(cmd) for cmd, _ in rows), default=1)
+    # padding=2: borderless, that's the whole gap between the columns --
+    # 1 lets an example like '.e j 3 " - " Join...' run together on a
+    # terminal with no color to set the command apart.
+    t = Table(headers=[Column('', max_width=command_width), ''], show_header=False,
+              border=False, padding=2)
+    for row in rows:
+        t.add_row(row)
+    # 2-space indent, matching how the Examples were laid out by hand.
+    # rstrip(): Table pads the last column out to the full width, and a
+    # line exactly filling the screen can trigger a terminal's own
+    # auto-wrap into a phantom blank row.
+    return [('  ' + line).rstrip() for line in t.render(width=screen_width - 2)]
 
 
 # ---------------------------------------------------------------------------

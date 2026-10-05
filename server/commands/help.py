@@ -41,7 +41,7 @@ log = logging.getLogger(__name__)
 
 def _heading(text: str) -> str:
     """Section headings and titles: 'Usage:', category names, etc."""
-    return f'|yellow|{text}|reset|'
+    return f'|heading|{text}|reset|'
 
 
 def _rule(text: str) -> str:
@@ -303,17 +303,26 @@ register_topic(
             "A token starting with '#' is a switch instead: a flag or "
             "sub-option that changes how the command behaves, rather than "
             "data the command acts on. Switches are usually specific to "
-            "the command they're used with -- `groups #add friends Alice`, "
-            "`ban #view`, `wa #hide` -- so check a command's own `help "
-            "<command>` for what its switches do.\n\n"
-            "In a command's own Usage line, angle brackets and square "
-            "brackets mean two different things: <name> marks a "
-            "required placeholder -- type your own value there, not "
+            "the command they're used with -- |command|groups #add friends "
+            "Alice|reset|, |command|ban #view|reset|, |command|wa #hide|reset| "
+            "-- so check a command's own |command|help <command>|reset| for "
+            "what its switches do.\n\n"
+            "In a command's own |heading|Usage|reset| line, angle "
+            "brackets and square brackets mean two different things: "
+            "<name> marks a required placeholder -- type your own value there, not "
             "the brackets themselves -- while [[name]] marks something "
             "optional you can leave out entirely. 'page <name[[,name2]]>"
             "=<message>' means: name is required, a second comma-"
             "separated name is optional, and so is everything after it "
-            "up to the message."
+            "up to the message.\n\n"
+            # A bare '|' only renders literally while it can't pair up
+            # into a |token| -- 'on|off' is safe, but a 3-way 'a|b|c'
+            # needs 'a||b||c' (the ||b|| escape), same as text_editor.py's
+            # '.j <l||c||r||e||p||i||u>' usage message.
+            "A '|' between choices means pick exactly one of them: "
+            "'say #split [[on|off]]' takes either 'on' or 'off' (or "
+            "neither, since it's in square brackets). Type just the word "
+            "you want, never the '|' itself."
         ),
         category=HelpCategory.CONCEPT,
         usage=[
@@ -321,6 +330,7 @@ register_topic(
             ("<command> #<switch>",    "A '#'-prefixed flag: changes command behavior."),
             ("<required>",             "Angle brackets: type your own value here, not the brackets."),
             ("[optional]",             "Square brackets: this part can be left out."),
+            ("<this|that>",            "A '|' separates choices: type exactly one of them."),
         ],
         examples=[
             ("page Alice=Hello",        "Page (send a message to a player in a different room) "
@@ -447,7 +457,7 @@ register_topic(
             "Every weapon belongs to one of six classes, and each class is "
             "naturally suited to certain monster sizes -- READY's "
             "\"Best targets\" line translates this into plain English for "
-            "whatever weapon you're about to ready (see Notes below for "
+            "whatever weapon you're about to ready (see |heading|Notes|reset| below for "
             "the full table).\n\n"
             "Fighting a monster your weapon class favors raises your hit "
             "threshold (easier to hit); fighting outside it lowers that "
@@ -694,6 +704,8 @@ register_topic(
         usage=[
             ("||color||some text||reset||", "Colors 'some text'; 'reset' returns to normal after it."),
             ("||command||some text||reset||", "Colors 'some text' in *your* command color (PREFS 'C')."),
+            ("||heading||some text||reset||", "Colors 'some text' like a help section heading "
+                                            "(|heading|Usage:|reset|, |heading|Notes:|reset|)."),
             ("||tab||",                     "A tab -- a real Tab character or simulated spaces, per PREFS 'K'."),
             ("||tab:5||",                   "A count after the code repeats it -- five tabs in a row here."),
             ("||code||...||code||",         "Doubled pipes: show raw ||code|| syntax literally instead of applying it."),
@@ -712,7 +724,9 @@ register_topic(
             "ANSI terminals also get magenta, light_cyan, light_yellow, "
             "light_white, bold, and dim.",
             "'reset' and 'command' aren't fixed colors -- they resolve to "
-            "your own PREFS 'C' Colors choices (Text and Command).",
+            "your own PREFS 'C' Colors choices (Text and Command). "
+            "'heading' is always yellow, the color of these help pages' "
+            "own section headings.",
             "A misspelled or unsupported code (e.g. ||glorp||) is left "
             "as plain text rather than breaking the rest of the line.",
         ],

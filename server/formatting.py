@@ -202,6 +202,11 @@ PETSCII_CONTROL_CODES: dict[str, int] = {
                       # fallback when no PETSCIICodec.command_color override
                       # is in play (e.g. a player pref -- see petscii_encode()'s
                       # command_color param).
+    'heading': 158,  # alias for yellow -- |heading| markup, the same color
+                      # commands/help.py's _heading() gives section titles
+                      # ('Usage:', 'Examples:'), so prose naming a section
+                      # can match the heading it points at. Fixed for now,
+                      # not a PREFS choice the way |command| is.
 
     # Cursor movement
     'cursor_up': 145,
@@ -634,6 +639,8 @@ ANSI_COLOR_CODES: dict[str, str] = {
     # |command| markup's hardcoded fallback when no ANSICodec.command_color
     # override is in play -- see ansi_encode()'s command_color param.
     'command': Fore.CYAN if _COLORAMA_AVAILABLE else '',
+    # |heading| markup -- see PETSCII_CONTROL_CODES['heading'].
+    'heading': Fore.YELLOW if _COLORAMA_AVAILABLE else '',
 }
 
 
