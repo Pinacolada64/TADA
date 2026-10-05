@@ -57,9 +57,13 @@ NAMES = ['black', 'white', 'red', 'cyan', 'purple', 'green', 'blue', 'yellow',
 TRANSPARENT = None
 TILE = 16
 # Tile slots the doc reserves: 8 (chars $20-$23) stays blank so char $20
-# reads as a space in both charsets; 63 (chars $fc-$ff) is the editor's
-# cursor frame.
-RESERVED_SLOTS = {8, 63}
+# reads as a space in both charsets; 40 (chars $a0-$a3) holds the split's
+# divider: char $a0 is solid ($ff bytes), like the ROM font's reverse
+# space, so a row of it in color 0 is solid black in either charset and
+# either mode, hiding the exact moment the raster IRQ switches charsets
+# (see tile_demo.asm); 63 (chars $fc-$ff) is the editor's cursor frame.
+RESERVED_SLOTS = {8, 40, 63}
+DIVIDER_CHAR = 0xa0
 TRIPLE_CANDIDATES = 10      # search triples among the N most-used colors
 
 
@@ -315,6 +319,7 @@ def cmd_tileset(args):
 
     charset = bytearray(2048)
     colors = bytearray([8] * 256)             # MC flag set, color 0
+    charset[DIVIDER_CHAR * 8:DIVIDER_CHAR * 8 + 8] = b'\xff' * 8
     grids, uniq_chars = {}, set()
     for slot, quad in zip(slots, quads):
         for i, rows in enumerate(quad):

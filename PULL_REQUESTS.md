@@ -12,6 +12,25 @@ Sections: Open PRs → Merged PRs (newest first).
 
 ## Open PRs
 
+#### [#67](https://github.com/Pinacolada64/TADA/pull/67) `feature/tile-editor` → `feature/tileset` — Tile editor: edit a tileset's pixels and colors on the C64
+- **Tip:** `4da4e47` (1 commit on top of `feature/tileset`, plus this file's #67 entry).
+  Stacked on #66; merge after it -- GitHub retargets this to `master` once
+  `feature/tileset` is gone.
+- `4da4e47` -- `tiles/tile_editor.asm`: standalone C64 editor, same bank-3 map and tile/text
+  split as `tile_demo.asm` (split at line 115). Rows 0-7: all 64 tiles + the selected tile
+  repeated 3x4; row 8: divider with a white bar under the selection; rows 9-24: the tile
+  zoomed 8x16 (fat pixel = 2x1 solid cells) + a ROM-font panel. Keys: CRSR, SPACE plot,
+  1-4 pen, E pick, F1/F3/F5 shared colors, F7 char color, +/- tile, C/V copy/paste,
+  U undo/redo, S/L save/load `TILESET`, Q quit. Working copy in RAM, written through to
+  `$e000`; loads land in `$4000` and are checked first; tiles 8 and 40 locked.
+  `tiles/tileset_file.py` packs/unpacks the 2310-byte `TILESET` format (`TS` + v1, charset,
+  per-char colors, bg/mc1/mc2). `tile_convert.py` now reserves tile 40 with `$a0` solid
+  (the split's divider char). `make run-editor` boots `tile_editor.d64`.
+- Tested: `vice_tile_editor_test.py` in x64sc (drawing vs. Python decode, plot/undo/redo,
+  colors, tile select, reserved tiles, copy/paste, save `00, ok`, load, quit, disk file =
+  memory): 3 of 4 runs clean; the first had the cursor start at x=3, not reproduced since.
+  **Real hardware untested.**
+
 #### [#66](https://github.com/Pinacolada64/TADA/pull/66) `feature/tileset` → `master` — Tileset: memory-map design, art converter, and a scrolling C64 tile demo
 - **Tip:** `26f3e63` (1 commit on top of `master`, merged with `master` at `0ffb7be`, plus
   this file's #66 entry). Nothing here is part of the client build.

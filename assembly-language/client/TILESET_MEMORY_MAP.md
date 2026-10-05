@@ -123,9 +123,10 @@ Reserved slots (proposed):
 | Chars | Tile # | Reserved for |
 |---|---|---|
 | `$20-$23` | 8 | Blank tile. Char `$20` must stay blank so a space row reads the same in both charsets (the divider row, below) |
+| `$a0-$a3` | 40 | Divider: char `$a0` solid (`$ff` bytes), like the ROM font's reverse space, so a row of it in color 0 is solid black in both charsets and both modes (added 2026-10-03 with the editor) |
 | `$fc-$ff` | 63 | Cursor / selection-frame tile for the editor |
 
-That leaves **62 user tiles per charset** (124 using both `$e000` and
+That leaves **61 user tiles per charset** (122 using both `$e000` and
 `$e800`).
 
 ### Color (multicolor -- decided)
@@ -446,6 +447,45 @@ with CIA1's timer IRQ off and SCNKEY called from the line-251 IRQ.
 (screen + color RAM), scrolling, clamping and quit: 14/14 pass in
 x64sc. Full redraw per step, so fast scrolling can tear a little: the
 redraw races the beam, and color RAM can't be double-buffered.
+
+**Tile editor, 2026-10-03: `tiles/tile_editor.asm`** (`make run-editor` in
+`tiles/`, which boots `tile_editor.d64`: the editor plus a `TILESET`
+file). Standalone for now; the client's loadable editor can grow out of
+it. Same bank-3 map and split as the demo, with the split moved up to
+line 115:
+
+```
+rows 0-7   palette: tile t at col (t%16)*2, row (t/16)*2  | cols 34-39:
+           (tile charset, multicolor)                      | tile repeated 3x4
+row 8      divider ($a0, color 0), white under the selected tile
+rows 9-24  zoomed tile, fat pixel = 2x1 solid cells       | panel + messages
+           (ROM lowercase font, hires, black bg)           | (cols 18-39)
+```
+
+Keys: CRSR move, SPACE plot, 1-4 pen, E pick, F1/F3/F5 shared colors, F7
+char color of the quarter under the cursor, +/- tile, C/V copy/paste a
+tile, U undo/redo (one level: the last change's tile + shared colors),
+S/L save/load `TILESET` on the current drive (`$ba`, 8 if unset), Q quit.
+
+- **`TILESET` file** (`tiles/tileset_file.py` packs/unpacks it): `TS` +
+  version 1, 2048-byte charset (tile t = chars 4t..4t+3), 256 color RAM
+  values (`8 | color`), then bg/mc1/mc2: 2310 bytes, saved as a PRG.
+  Loads are relocated into `$4000` and checked (size, magic) before they
+  replace the working copy.
+- **Working copy in normal RAM, write-through to `$e000`**, as planned
+  above: the VIC copy under the KERNAL can be written but not read back
+  without banking.
+- **Reserved tiles:** 8 (blank, char `$20`) and 40 (divider, char `$a0`
+  solid) can't be edited. The divider's reservation is new:
+  `tile_convert.py` now keeps tile 40 free and writes `$a0` solid, so
+  every tileset carries the split's divider char (the demo's
+  `make_demo_map.py` already did this for its own charset).
+- Tested: `vice_tile_editor_test.py` in x64sc, booting the `.d64`:
+  drawing (palette, divider, zoomed grid against the tileset decoded in
+  Python), plot / undo / redo, char and shared colors, tile select +
+  preview, reserved-tile refusal, copy/paste, save (drive status `00,
+  ok`), load after further edits, quit, and the file on the disk image
+  matching memory.
 
 Next step: a **raster-split stress demo** (in the
 style of `tada_screen_blit_test.asm`) with tiles above, text below, and
