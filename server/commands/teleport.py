@@ -406,8 +406,11 @@ class TeleportCommand(Command):
             else:
                 await ctx.send(f'{mname} looks puzzled as you fade from view.')
 
+        # An on-duty helpstaffer shows as "Name [Helpstaff]" to onlookers.
+        from commands.helpstaff import tagged_name
+        shown = tagged_name(ctx.player)
         await ctx.send('You disappear in a flash of light.')
-        await ctx.send_room(f'{name} disappears in a flash of light.', exclude_self=True)
+        await ctx.send_room(f'{shown} disappears in a flash of light.', exclude_self=True)
         ctx.client.room        = dest
         ctx.player.map_room    = dest
         if level is not None and level != old_level:
@@ -422,7 +425,7 @@ class TeleportCommand(Command):
         log.info('%s teleported from level %s room %s to level %s room %s',
                   name, old_level, old_room, level if level is not None else old_level, dest)
         await ctx.send('You appear in a flash of light.')
-        await ctx.send_room(f'{name} appears in a flash of light.', exclude_self=True)
+        await ctx.send_room(f'{shown} appears in a flash of light.', exclude_self=True)
 
         # If the destination is the actual guild HQ door, trigger the HQ
         # session the same way movement.py does when walking into it --

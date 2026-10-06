@@ -42,12 +42,15 @@ Checks:
   G  #list shows the open request
   H  #cancel withdraws it, the staffer is told, #list is empty again
   I  #accept: the staffer is told it's heading over and lands in the
-     player's room; the player sees the arrival and "has arrived to help
-     you"; a second #accept finds it no longer open
+     player's room; the player sees "<staffer> [Helpstaff] appears in a
+     flash of light." and "has arrived to help you", and LOOK lists
+     "<staffer> [Helpstaff] is here."; a second #accept finds it no
+     longer open
   J  a request whose player disconnects is dropped from #list
-  K  #off: off duty, and #show is empty again
-  L  (throwaway mode) the staffer's save has HELPSTAFF off and the
-     player's room
+  K  #off: off duty, #show is empty again, and (throwaway mode) the
+     watcher's LOOK shows the staffer without the tag
+  L  (throwaway mode) the staffer's save has HELPSTAFF off and botwatch's
+     room (where K's last #accept took it)
 
 Usage:
     .venv/bin/python tools/bot_helpstaff.py [--port 34194] [--keep-dir]
@@ -401,10 +404,16 @@ async def scenario(host: str, port: int, staff: Bot, newbie: Bot,
           and (has(said, 'You appear in a flash of light.')
                or has(said, "You're already with")),
           joined(said)[:200])
-    check('I the player sees the staffer arrive',
-          has(newbie_saw, f'{s} has arrived to help you.')
+    check('I the player sees the staffer arrive, tagged [Helpstaff]',
+          (has(newbie_saw, f'{s} has arrived to help you.')
+           and has(newbie_saw, f'{s} [Helpstaff] appears in a flash of light.'))
           or has(newbie_saw, f'{s} is here to help you.'),
           joined(newbie_saw))
+    seen = await newbie.run('look')
+    check('I the player\'s LOOK lists the staffer as [Helpstaff]',
+          has(seen, f'{s} [Helpstaff] is here') or has(seen, f'{s} [Helpstaff] are here')
+          or has(seen, f'{s} [Helpstaff],') or has(seen, f'{s} [Helpstaff] and'),
+          joined(seen)[:200])
     again = await staff.run(f'helpstaff #accept {n}')
     check('I a second #accept finds it no longer open',
           has(again, 'That request is no longer open.'), joined(again))
@@ -428,6 +437,17 @@ async def scenario(host: str, port: int, staff: Bot, newbie: Bot,
           has(said, 'You are now off helpstaff duty.')
           and has(shown, 'No one is on helpstaff duty'),
           f'{joined(said)!r} | {joined(shown)!r}')
+    if watch:
+        # Get the staffer into botwatch's room (41) the helpstaff way:
+        # back on duty, botwatch asks, the staffer accepts, then goes off
+        # duty before botwatch LOOKs.
+        await staff.run('helpstaff #on')
+        await ask(watch, staff, 'Over here!')
+        await staff.run(f'helpstaff #accept {watch.name}')
+        await staff.run('helpstaff #off')
+        seen = await watch.run('look')
+        check('K once off duty, the staffer shows without the tag',
+              has(seen, s) and not has(seen, '[Helpstaff]'), joined(seen)[:200])
 
     for b in (staff, watch):
         if b:
@@ -472,8 +492,8 @@ def main() -> int:
             server.terminate()
             server.wait(timeout=10)
         data = saved(save_dir, 'botstaff')
-        check(f'L the staffer\'s save has HELPSTAFF off and room {NEWBIE_ROOM}',
-              not saved_flag(data, 'Helpstaff') and data.get('map_room') == NEWBIE_ROOM,
+        check(f'L the staffer\'s save has HELPSTAFF off and room {STAFF_ROOM}',
+              not saved_flag(data, 'Helpstaff') and data.get('map_room') == STAFF_ROOM,
               f"Helpstaff={saved_flag(data, 'Helpstaff')} map_room={data.get('map_room')}")
         (save_dir / 'bot_helpstaff.log').write_text('\n'.join(transcript) + '\n')
         if args.keep_dir:

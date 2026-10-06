@@ -62,6 +62,25 @@ def _find_client_by_name(server, name: str):
     return None
 
 
+# Doubled brackets: formatting.py's highlight_brackets() turns a single
+# [word] into highlighted 'word' with the brackets dropped; [[word]] is
+# its escape for a literal [word].
+HELPSTAFF_TAG = '[[Helpstaff]]'
+
+
+def tagged_name(player) -> str:
+    """The player's name with a '[Helpstaff]' tag while they're on duty,
+    for what *other* players see of them: simple_server.py's "X is here"
+    list and teleport.py's "X appears in a flash of light." lines."""
+    name = getattr(player, 'name', None) or 'someone'
+    try:
+        if player is not None and player.query_flag(PlayerFlags.HELPSTAFF):
+            return f'{name} {HELPSTAFF_TAG}'
+    except Exception:
+        pass
+    return name
+
+
 def _pending(server) -> dict:
     """Server.pending_help_requests, created on first use for servers
     (or test doubles) built without it."""

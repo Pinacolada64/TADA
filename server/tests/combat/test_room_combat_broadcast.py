@@ -109,8 +109,19 @@ class TestRoomCombatBroadcast:
 
     def test_unconscious_bystander_tagged_in_room_listing(self, server):
         unconscious = _client('Loser')
-        unconscious.ctx.player.query_flag.return_value = True
+        from flags import PlayerFlags
+        unconscious.ctx.player.query_flag.side_effect = lambda f: f == PlayerFlags.UNCONSCIOUS
         server.clients = {'a': unconscious}
         server.active_combats = {}
         lines = server._describe_room(_viewer_client())
         assert any('Loser (Unconscious) is here' in line for line in lines)
+
+    def test_on_duty_helpstaffer_tagged_in_room_listing(self, server):
+        # commands/helpstaff.py: on-duty staff show as "Name [Helpstaff]".
+        from flags import PlayerFlags
+        staffer = _client('Sam')
+        staffer.ctx.player.query_flag.side_effect = lambda f: f == PlayerFlags.HELPSTAFF
+        server.clients = {'a': staffer}
+        server.active_combats = {}
+        lines = server._describe_room(_viewer_client())
+        assert any('Sam [[Helpstaff]] is here' in line for line in lines)

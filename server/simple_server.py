@@ -1172,11 +1172,17 @@ class Server:
                 # SPUR.DUEL2.S ply.loc: a duel loser's name gets an
                 # "(Unconscious)" tag in room listings until they wake up
                 # at next login (logon_events/unconscious_wake.py).
+                # commands/helpstaff.py: an on-duty helpstaffer is tagged
+                # "[Helpstaff]" so players can see who to ask.
                 from flags import PlayerFlags
-                display_names = [
-                    f'{n} (Unconscious)' if p is not None and p.query_flag(PlayerFlags.UNCONSCIOUS) else n
-                    for n, p in bystanders
-                ]
+                from commands.helpstaff import HELPSTAFF_TAG
+                display_names = []
+                for n, p in bystanders:
+                    if p is not None and p.query_flag(PlayerFlags.HELPSTAFF):
+                        n = f'{n} {HELPSTAFF_TAG}'
+                    if p is not None and p.query_flag(PlayerFlags.UNCONSCIOUS):
+                        n = f'{n} (Unconscious)'
+                    display_names.append(n)
                 tail += ['', list_players_in_room(display_names)]
                 # Each bystander's personal quote (SPUR.MAIN.S:398's
                 # gosub ply.loc7, shown right under "X is here" there);

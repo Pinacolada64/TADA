@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from commands.base_command import CommandResult, Mode
-from commands.helpstaff import HelpstaffCommand
+from commands.helpstaff import HelpstaffCommand, tagged_name
 from flags import PlayerFlags
 
 
@@ -395,6 +395,15 @@ class TestHelpstaffManagement(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 # Command metadata
 # ---------------------------------------------------------------------------
+
+class TestHelpstaffTag(unittest.TestCase):
+
+    def test_on_duty_staffer_is_tagged(self):
+        self.assertEqual(tagged_name(make_player('Sam', available=True)), 'Sam [[Helpstaff]]')
+
+    def test_off_duty_player_is_not_tagged(self):
+        self.assertEqual(tagged_name(make_player('Newbie')), 'Newbie')
+
 
 class TestHelpstaffMeta(unittest.TestCase):
 
