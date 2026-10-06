@@ -19,6 +19,9 @@ class PlayerFlags(StrEnum):
     DUNGEON_MASTER = "Dungeon Master"
     # speaker on a chat channel or in an amphitheater (public chat room):
     ORATOR = "Orator"
+    # on helpstaff duty: notified of, and can accept, 'helpstaff' requests
+    # (commands/helpstaff.py):
+    HELPSTAFF = "Helpstaff"
     # guild stuff:
     GUILD_AUTODUEL = "Guild AutoDuel"
     GUILD_FOLLOW_MODE = "Guild Follow Mode"
@@ -80,6 +83,7 @@ new_player_default_flags = [
     # a level lower than Admin, different permissions to be determined:
     (PlayerFlags.DUNGEON_MASTER, FlagDisplayTypes.YESNO, False),
     (PlayerFlags.ORATOR, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.HELPSTAFF, FlagDisplayTypes.ONOFF, False),
     # guild stuff:
     (PlayerFlags.GUILD_AUTODUEL, FlagDisplayTypes.ONOFF, False),
     (PlayerFlags.GUILD_FOLLOW_MODE, FlagDisplayTypes.ONOFF, False),

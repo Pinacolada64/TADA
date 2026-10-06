@@ -188,6 +188,8 @@ class Server:
         self.port         = port
         self.petscii_port = petscii_port
         self.clients: dict = {}   # addr -> Client
+        # commands/helpstaff.py: requester name -> what they need help with
+        self.pending_help_requests: dict = {}
         self.server         = None   # set in start(): the JSON asyncio.Server
         self.petscii_server = None   # set in start(): the PETSCII asyncio.Server
 
@@ -427,6 +429,11 @@ class Server:
             # SPUR.DUEL.S's "dropped" label (a lost carrier goes straight
             # to hell2 -- the same consequences as being defeated fairly).
             player = getattr(ctx, 'player', None)
+            # commands/helpstaff.py: a requester who leaves can't be helped,
+            # so drop their open request rather than let a staffer accept it.
+            pending_help = getattr(self, 'pending_help_requests', None)
+            if pending_help and getattr(player, 'name', None) in pending_help:
+                del pending_help[player.name]
             active_duel = getattr(player, 'active_duel', None)
             if active_duel is not None:
                 try:

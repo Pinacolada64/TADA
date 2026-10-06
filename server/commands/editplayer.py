@@ -1829,6 +1829,7 @@ def _flags_menu(ctx) -> Menu:
             PlayerFlags.ARCHITECT,
             PlayerFlags.DUNGEON_MASTER,
             PlayerFlags.ORATOR,
+            PlayerFlags.HELPSTAFF,
             PlayerFlags.GUILD_AUTODUEL,
             PlayerFlags.GUILD_FOLLOW_MODE,
             PlayerFlags.GUILD_MEMBER,

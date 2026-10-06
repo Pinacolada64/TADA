@@ -2,9 +2,8 @@
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from commands.base_command import Mode
+from commands.base_command import CommandResult, Mode
 from commands.helpstaff import HelpstaffCommand
-from commands.new_player import CREATION_ROOM
 from flags import PlayerFlags
 
 
@@ -12,7 +11,7 @@ from flags import PlayerFlags
 # Helpers
 # ---------------------------------------------------------------------------
 
-def make_player(name: str, *, available: bool = False,
+def make_player(name: str, *, available: bool = False, admin: bool = False,
                  map_level: int = 1, map_room: int = 10) -> MagicMock:
     p = MagicMock()
     p.name = name
@@ -20,11 +19,10 @@ def make_player(name: str, *, available: bool = False,
     p.map_room = map_room
     p.unsaved_changes = False
 
-    def _query_flag(flag):
-        if flag == PlayerFlags.HELPSTAFF_AVAILABLE:
-            return available
-        return False
-    p.query_flag.side_effect = _query_flag
+    flags = {PlayerFlags.HELPSTAFF: available, PlayerFlags.ADMIN: admin}
+    p.query_flag.side_effect = lambda flag: flags.get(flag, False)
+    p.set_flag.side_effect   = lambda flag: flags.__setitem__(flag, True)
+    p.clear_flag.side_effect = lambda flag: flags.__setitem__(flag, False)
     return p
 
 
@@ -79,7 +77,7 @@ class TestHelpstaffRequest(unittest.IsolatedAsyncioTestCase):
     async def test_request_relayed_to_available_staffer(self):
         staffer   = make_client(make_player('Sam', available=True))
         requester = make_client(make_player('Newbie'),
-                                 virtual_location='Creating a character')
+                                 virtual_location='Reading mail')
         make_server(staffer, requester)
         requester.ctx.prompt = AsyncMock(return_value='How do I fight?')
 
@@ -93,7 +91,7 @@ class TestHelpstaffRequest(unittest.IsolatedAsyncioTestCase):
         sent_to_staffer = _sent_text(staffer.ctx)
         self.assertIn('Newbie needs help', sent_to_staffer)
         self.assertIn('How do I fight?', sent_to_staffer)
-        self.assertIn('Creating a character', sent_to_staffer)
+        self.assertIn('Reading mail', sent_to_staffer)
         self.assertIn('Sam', _sent_text(requester.ctx))
 
     async def test_empty_response_cancels(self):
@@ -143,21 +141,60 @@ class TestHelpstaffAccept(unittest.IsolatedAsyncioTestCase):
         self.assertIs(call.args[0], staffer.ctx)
         self.assertEqual(call.args[1], 42)
         self.assertEqual(call.kwargs.get('level'), 3)
-        self.assertIn('on the way', _sent_text(requester.ctx).lower())
+        self.assertIn('arrived to help', _sent_text(requester.ctx).lower())
 
     @patch('commands.teleport.TeleportCommand._teleport', new_callable=AsyncMock)
-    async def test_accept_for_virtual_location_routes_to_creation_room(self, mock_teleport):
-        staffer   = make_client(make_player('Sam', available=True))
-        requester = make_client(make_player('Newbie'),
-                                 virtual_location='Creating a character')
+    async def test_accept_for_virtual_location_routes_to_real_room(self, mock_teleport):
+        # Inside a virtual area (bar, mail, ...) the requester still has a
+        # real room under them; the staffer lands there.
+        staffer   = make_client(make_player('Sam', available=True), room=99)
+        requester = make_client(make_player('Newbie', map_level=2),
+                                 virtual_location='Reading mail', room=17)
         make_server(staffer, requester)
         requester.ctx.server.pending_help_requests['Newbie'] = 'How do I fight?'
 
         await HelpstaffCommand().execute(staffer.ctx, 'accept', 'Newbie')
 
         call = mock_teleport.await_args
-        self.assertEqual(call.args[1], CREATION_ROOM)
-        self.assertEqual(call.kwargs.get('level'), 1)
+        self.assertEqual(call.args[1], 17)
+        self.assertEqual(call.kwargs.get('level'), 2)
+
+    @patch('commands.teleport.TeleportCommand._teleport', new_callable=AsyncMock)
+    async def test_blocked_teleport_reopens_request(self, mock_teleport):
+        mock_teleport.return_value = CommandResult.fail('The teleport is blocked!',
+                                                        error='teleport_blocked')
+        staffer   = make_client(make_player('Sam', available=True), room=99)
+        requester = make_client(make_player('Newbie'), room=42)
+        make_server(staffer, requester)
+        requester.ctx.server.pending_help_requests['Newbie'] = 'help'
+
+        result = await HelpstaffCommand().execute(staffer.ctx, 'accept', 'Newbie')
+
+        self.assertFalse(result.success)
+        self.assertEqual(staffer.ctx.server.pending_help_requests.get('Newbie'), 'help')
+        self.assertNotIn('arrived', _sent_text(requester.ctx).lower())
+        self.assertIn('still open', _sent_text(staffer.ctx))
+
+    @patch('commands.teleport.TeleportCommand._teleport', new_callable=AsyncMock)
+    async def test_accept_same_room_skips_teleport(self, mock_teleport):
+        staffer   = make_client(make_player('Sam', available=True), room=42)
+        requester = make_client(make_player('Newbie'), room=42)
+        make_server(staffer, requester)
+        requester.ctx.server.pending_help_requests['Newbie'] = 'help'
+
+        result = await HelpstaffCommand().execute(staffer.ctx, 'accept', 'Newbie')
+
+        self.assertTrue(result.success)
+        mock_teleport.assert_not_awaited()
+        self.assertIn('here to help', _sent_text(requester.ctx))
+
+    async def test_cannot_accept_own_request(self):
+        sam = make_client(make_player('Sam', available=True))
+        make_server(sam)
+        sam.ctx.server.pending_help_requests['Sam'] = 'help'
+        result = await HelpstaffCommand().execute(sam.ctx, 'accept', 'sam')
+        self.assertFalse(result.success)
+        self.assertIn('Sam', sam.ctx.server.pending_help_requests)
 
     async def test_non_staffer_cannot_accept(self):
         staffer   = make_client(make_player('Sam', available=False))
@@ -180,9 +217,9 @@ class TestHelpstaffAccept(unittest.IsolatedAsyncioTestCase):
 
     @patch('commands.teleport.TeleportCommand._teleport', new_callable=AsyncMock)
     async def test_second_staffer_accept_after_claim_fails(self, mock_teleport):
-        sam       = make_client(make_player('Sam', available=True))
-        tara      = make_client(make_player('Tara', available=True))
-        requester = make_client(make_player('Newbie'))
+        sam       = make_client(make_player('Sam', available=True), room=1)
+        tara      = make_client(make_player('Tara', available=True), room=2)
+        requester = make_client(make_player('Newbie'), room=42)
         make_server(sam, tara, requester)
         requester.ctx.server.pending_help_requests['Newbie'] = 'help'
 
@@ -194,6 +231,12 @@ class TestHelpstaffAccept(unittest.IsolatedAsyncioTestCase):
         self.assertIn('no longer open', _sent_text(tara.ctx).lower())
         self.assertIn('claimed by Sam', _sent_text(tara.ctx))
         mock_teleport.assert_awaited_once()
+
+    async def test_decline_unknown_request_fails(self):
+        staffer = make_client(make_player('Sam', available=True))
+        make_server(staffer)
+        result = await HelpstaffCommand().execute(staffer.ctx, 'decline', 'Nobody')
+        self.assertFalse(result.success)
 
     async def test_decline_leaves_request_open(self):
         staffer   = make_client(make_player('Sam', available=True))
@@ -214,6 +257,100 @@ class TestHelpstaffAccept(unittest.IsolatedAsyncioTestCase):
 
 
 # ---------------------------------------------------------------------------
+# list / cancel / on / off
+# ---------------------------------------------------------------------------
+
+class TestHelpstaffManagement(unittest.IsolatedAsyncioTestCase):
+
+    async def test_request_replaces_earlier_request(self):
+        staffer   = make_client(make_player('Sam', available=True))
+        requester = make_client(make_player('Newbie'))
+        make_server(staffer, requester)
+        requester.ctx.server.pending_help_requests['newbie'] = 'old'
+        requester.ctx.prompt = AsyncMock(return_value='new')
+
+        await HelpstaffCommand().execute(requester.ctx)
+
+        self.assertEqual(requester.ctx.server.pending_help_requests, {'Newbie': 'new'})
+
+    async def test_staffer_does_not_relay_to_self(self):
+        sam = make_client(make_player('Sam', available=True))
+        make_server(sam)
+        result = await HelpstaffCommand().execute(sam.ctx)
+        self.assertTrue(result.success)
+        self.assertIn('No staff are currently available', _sent_text(sam.ctx))
+
+    async def test_cancel_withdraws_and_notifies_staff(self):
+        staffer   = make_client(make_player('Sam', available=True))
+        requester = make_client(make_player('Newbie'))
+        make_server(staffer, requester)
+        requester.ctx.server.pending_help_requests['Newbie'] = 'help'
+
+        result = await HelpstaffCommand().execute(requester.ctx, 'cancel')
+
+        self.assertTrue(result.success)
+        self.assertEqual(requester.ctx.server.pending_help_requests, {})
+        self.assertIn('withdrawn', _sent_text(staffer.ctx))
+
+    async def test_cancel_without_request_fails(self):
+        requester = make_client(make_player('Newbie'))
+        make_server(requester)
+        result = await HelpstaffCommand().execute(requester.ctx, 'cancel')
+        self.assertFalse(result.success)
+
+    async def test_list_shows_open_requests(self):
+        staffer   = make_client(make_player('Sam', available=True))
+        requester = make_client(make_player('Newbie'), virtual_location='Reading mail')
+        make_server(staffer, requester)
+        staffer.ctx.server.pending_help_requests['Newbie'] = 'Where is the bar?'
+
+        result = await HelpstaffCommand().execute(staffer.ctx, 'list')
+
+        self.assertTrue(result.success)
+        text = _sent_text(staffer.ctx)
+        self.assertIn('Newbie (Reading mail): Where is the bar?', text)
+
+    async def test_list_requires_staffer(self):
+        player = make_client(make_player('Newbie'))
+        make_server(player)
+        result = await HelpstaffCommand().execute(player.ctx, 'list')
+        self.assertFalse(result.success)
+
+    async def test_admin_can_go_on_duty(self):
+        admin = make_client(make_player('Ryan', admin=True))
+        make_server(admin)
+        admin.ctx.server.pending_help_requests['Newbie'] = 'help'
+
+        result = await HelpstaffCommand().execute(admin.ctx, 'on')
+
+        self.assertTrue(result.success)
+        self.assertTrue(admin.ctx.player.query_flag(PlayerFlags.HELPSTAFF))
+        self.assertIn('1 open request', _sent_text(admin.ctx))
+
+    async def test_plain_player_cannot_go_on_duty(self):
+        player = make_client(make_player('Newbie'))
+        make_server(player)
+        result = await HelpstaffCommand().execute(player.ctx, 'on')
+        self.assertFalse(result.success)
+        self.assertFalse(player.ctx.player.query_flag(PlayerFlags.HELPSTAFF))
+
+    async def test_staffer_can_go_off_duty(self):
+        # Marked helpstaff via editplayer without being Admin/DM: can
+        # still step off duty themselves.
+        staffer = make_client(make_player('Sam', available=True))
+        make_server(staffer)
+        result = await HelpstaffCommand().execute(staffer.ctx, 'off')
+        self.assertTrue(result.success)
+        self.assertFalse(staffer.ctx.player.query_flag(PlayerFlags.HELPSTAFF))
+
+    async def test_unknown_option_fails(self):
+        player = make_client(make_player('Newbie'))
+        make_server(player)
+        result = await HelpstaffCommand().execute(player.ctx, 'bogus')
+        self.assertFalse(result.success)
+
+
+# ---------------------------------------------------------------------------
 # Command metadata
 # ---------------------------------------------------------------------------
 
@@ -222,11 +359,11 @@ class TestHelpstaffMeta(unittest.TestCase):
     def test_name(self):
         self.assertEqual(HelpstaffCommand.name, 'helpstaff')
 
-    def test_reachable_mid_login(self):
-        # The motivating case: a player still mid character-creation
-        # (Mode.LOGIN) can still ask for help.
-        self.assertIn(Mode.LOGIN, HelpstaffCommand.modes)
-        self.assertIn(Mode.GAME, HelpstaffCommand.modes)
+    def test_game_mode_only(self):
+        # Character creation runs inside ctx.prompt() (no command
+        # dispatch) and pre-login players are all "Generic Name", so
+        # Mode.LOGIN can't usefully reach it -- see the module docstring.
+        self.assertEqual(HelpstaffCommand.modes, {Mode.GAME})
 
     def test_has_help(self):
         self.assertIsNotNone(HelpstaffCommand.help)
