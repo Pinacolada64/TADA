@@ -457,7 +457,7 @@ class GiveCommand(Command):
                         await ctx.send(notice)
                 await ctx.send(f'{ally.name} stows the {iname}.')
                 if not player.is_expert:
-                    await ctx.send(f'(READY it to have {ally.name} wield it.)')
+                    await ctx.send(f'(|command|READY|reset| it to have {ally.name} wield it.)')
                 await ctx.send_room(
                     f'{pself} gives the {iname} to {ally.name}.',
                     exclude_self=True)
@@ -480,7 +480,7 @@ class GiveCommand(Command):
                 if weapon is None:
                     await ctx.send(f'{ally.name} has no weapon readied to load {iname} into.')
                     if not player.is_expert:
-                        await ctx.send(f'(READY a weapon for {ally.name} first.)')
+                        await ctx.send(f'(|command|READY|reset| a weapon for {ally.name} first.)')
                     return CommandResult.ok()
                 wname_upper = (getattr(weapon, 'name', '') or '').upper()
                 reason = ammo_load_error(weapon, flags)

@@ -322,7 +322,12 @@ class Server:
             # in-memory room.monster mutation from a prior session is gone.
             from encounters.dwarf import DWARF_LEVEL, MONSTER_NUMBER
             room = self.game_map.get_room(DWARF_LEVEL, current_room())
-            if room is not None:
+            if room is not None and getattr(room, 'monster', 0) not in (0, MONSTER_NUMBER):
+                # Someone else got there first this boot (e.g. the wild
+                # horse, placed just before this) -- move him on rather
+                # than overwrite it.
+                relocate(self.game_map)
+            elif room is not None:
                 room.monster = MONSTER_NUMBER
 
     # -----------------------------------------------------------------------
@@ -428,6 +433,15 @@ class Server:
                     await active_duel.forfeit(player)
                 except Exception:
                     logging.exception('%s: failed to forfeit duel on disconnect', addr)
+            # SPUR.LOGON.S:384's LOGON.STAY: a FOLLOW ME leader logging off
+            # (any exit path) drops carried guildmates here and releases
+            # live ones; a live follower's leader is told they're gone.
+            if player is not None:
+                try:
+                    import guild_follow
+                    await guild_follow.drop_off_on_logoff(ctx)
+                except Exception:
+                    logging.exception('%s: failed guild-follow drop-off on disconnect', addr)
             # Belt-and-suspenders save for any exit path that *isn't* a
             # clean quit (an uncaught exception/CancelledError anywhere in
             # _login()/_game_loop(), a raw socket error, etc.) -- those
@@ -678,12 +692,12 @@ class Server:
             await ctx.send(*banner)
         await ctx.send(
             '',
-            "Type 'connect <username> <password>' to log in.",
-            "Type 'connect guest' to look around as a guest.",
-            "Type 'new' to create a new character.",
-            "Type 'who' to see who is online.",
-            "Type 'prefs' to set terminal type, colors, and other display preferences.",
-            "Type 'help' for help, 'help about' to learn what this is, or 'quit' to leave.",
+            "Type |command|connect <username> <password>|reset| to log in.",
+            "Type |command|connect guest|reset| to look around as a guest.",
+            "Type |command|new|reset| to create a new character.",
+            "Type |command|who|reset| to see who is online.",
+            "Type |command|prefs|reset| to set terminal type, colors, and other display preferences.",
+            "Type |command|help|reset| for help, |command|help about|reset| to learn what this is, or |command|quit|reset| to leave.",
             '',
         )
 
@@ -703,7 +717,7 @@ class Server:
 
             if not result.success and result.error == 'unknown_command':
                 available = sorted(
-                    f"'{name}'" for name, cmd in processor.get_all_commands().items()
+                    f"|command|{name}|reset|" for name, cmd in processor.get_all_commands().items()
                     if cmd.is_available_in(processor.current_mode)
                 )
                 await ctx.send(
@@ -816,7 +830,7 @@ class Server:
 
             if not result.success and result.error == 'unknown_command':
                 await ctx.send(f"Unknown command '{raw.strip().split()[0]}'. "
-                               "Type 'help' for a list.")
+                               "Type |command|help|reset| for a list.")
                 await self._maybe_offer_help(ctx)
             elif not result.success and result.error == 'command_error':
                 # An uncaught exception in the command itself (see
@@ -887,9 +901,9 @@ class Server:
         from formatting import titled_box
         tip_lines = titled_box(
             ctx, 'Need a Hand?',
-            "Having trouble finding a command? Try 'help' for the full "
-            "list, 'help #search <word>' to look something up by "
-            "keyword, or 'help #summary' for one-line descriptions of "
+            "Having trouble finding a command? Try |command|help|reset| for the full "
+            "list, |command|help #search <word>|reset| to look something up by "
+            "keyword, or |command|help #summary|reset| for one-line descriptions of "
             "everything.",
             frame_color='green', text_color='white', title_color='purple',
         )
@@ -1116,9 +1130,13 @@ class Server:
         # "X is here" list, so someone walking in immediately sees a fight
         # already in progress.
         try:
+            # Same level too, not just the same room number -- see
+            # room_notices.location_of().
+            from room_notices import location_of
+            here = (level, room_no, location_of(client)[2])
             others = []
             for addr, c in self.clients.items():
-                if c is client or getattr(c, 'room', None) != room_no:
+                if c is client or location_of(c) != here:
                     continue
                 if getattr(c, 'virtual_location', None):
                     continue
@@ -1281,13 +1299,58 @@ class Server:
         from spells.charm import try_charm_join_offer
         await try_charm_join_offer(ctx, level=level, room_no=room_no)
 
+        # Tell the room being left which way the player went, and (below)
+        # the room reached where they came from -- see room_notices.py.
+        # The departure has to go out before the move and the arrival
+        # after (both go by the mover's *current* room).
+        #
+        # A FOLLOW ME leader (guild_follow.py) moves as one group with the
+        # followers: the rooms hear "Rulan leaves north, with Frodo and Sam
+        # following." / "Rulan arrives from the south, with ...", plus
+        # "Rulan carries Bilbo, who is unconscious." for anyone carried;
+        # the leader reads "You leave north, with ...". Followers aren't
+        # sent those -- they get "You follow Rulan north." and the new room
+        # once the leader is in it (show_followers). They're moved first,
+        # silently, so the leader's own view of the new room lists them.
+        import guild_follow
+        from room_notices import (arrival_line, carry_line, departure_line,
+                                  group_arrival_line, group_departure_line,
+                                  leader_departure_line, notify, notify_except,
+                                  you_carry_line)
+        group = guild_follow.gather_group(ctx, from_level=level, from_room=int(room_no))
+        await guild_follow.lose_track(ctx, group)
+        if group:
+            for line in (leader_departure_line(direction, group.following),
+                         you_carry_line(group.unconscious)):
+                if line:
+                    await ctx.send(line)
+            await notify_except(ctx, [group_departure_line(ctx.player, direction, group.following),
+                                      carry_line(ctx.player, group.unconscious)],
+                                group.clients)
+        else:
+            await notify(ctx, departure_line(ctx.player, direction))
+        guild_follow.relocate_followers(ctx, group, from_room=int(room_no),
+                                        to_level=target_level, to_room=int(dest))
+
+        async def announce_arrival():
+            if group:
+                await notify_except(ctx, [group_arrival_line(ctx.player, direction, group.following),
+                                          carry_line(ctx.player, group.unconscious)],
+                                    group.clients)
+            else:
+                await notify(ctx, arrival_line(ctx.player, direction))
+
         if target_level != level:
             await self._teleport_to(ctx, target_level, int(dest), message_number=message_number)
+            await announce_arrival()
+            await guild_follow.show_followers(ctx, group, direction)
             return
 
         ctx.client.room = int(dest)
         ctx.player.map_room = int(dest)
         ctx.player.unsaved_changes = True
+        await announce_arrival()
+        await guild_follow.show_followers(ctx, group, direction)
         from visited_rooms import mark_visited
         mark_visited(ctx.player, level, int(dest))
         logging.debug('EXIT moved to room=%r', dest)
@@ -1507,9 +1570,13 @@ class Server:
         player.food       = 20
         player.drink      = 20
 
-        # Respawn at room 1.
+        # Respawn at room 1 -- the room left and the room reached hear about
+        # it (room_notices.py).
+        from room_notices import notify, who
+        await notify(ctx, f"{who(player)}'s body fades away.")
         player.map_room   = 1
         ctx.client.room   = 1
+        await notify(ctx, f'{who(player)} staggers in, confused but alive.')
         # GuestPlayer has no map_level (or anything else persistence-related)
         # -- confirmed via audit 2026-08-19 that this crashed the whole
         # connection for any guest who died in combat, same bug class as

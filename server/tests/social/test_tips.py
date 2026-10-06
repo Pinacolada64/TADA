@@ -176,6 +176,42 @@ class TestFormatTipBoxColor(unittest.TestCase):
         self.assertTrue(result.endswith(f'{codec.highlight_off()} wisely.'))
 
 
+class TestFormatTipBoxTokens(unittest.TestCase):
+    """format_tip_box() expands tips.json's %-tokens (%n, %r, ...) against
+    the viewing player via tada_utilities.substitute_tokens()."""
+
+    def _ctx(self, gender):
+        from base_classes import Gender
+        ctx = MagicMock()
+        ctx.player = _FakePlayer()
+        ctx.player.name = 'Arthur' if gender == 'm' else 'Guinevere'
+        ctx.player.gender = Gender.MALE if gender == 'm' else Gender.FEMALE
+        return ctx
+
+    def _body(self, box):
+        return ' '.join(box)
+
+    def test_name_and_reflexive_pronoun_expand(self):
+        from tips import format_tip_box
+        box = format_tip_box(self._ctx('f'), '%n will defend %r.', 1, 1)
+        body = self._body(box)
+        self.assertIn('Guinevere', body)
+        self.assertIn('herself', body)
+        self.assertNotIn('%', body)
+
+    def test_possessive_follows_players_gender(self):
+        from tips import format_tip_box
+        box = format_tip_box(self._ctx('m'), 'Know what %p weapons are.', 1, 1)
+        self.assertIn('his weapons', self._body(box))
+
+    def test_real_tips_leave_no_unexpanded_tokens(self):
+        from tips import format_tip_box
+        ctx = self._ctx('f')
+        for tip in load_tips():
+            body = self._body(format_tip_box(ctx, tip, 1, 1))
+            self.assertNotRegex(body, r'%[nsopPrcey]', tip)
+
+
 class TestLoginTipLines(unittest.TestCase):
     def _ctx(self, **kwargs):
         ctx = MagicMock()

@@ -33,8 +33,18 @@
 {const: CHARSET_UPPER_LOWER $17}
 
 ; Comment out to strip all {ifdef:debug}...{endif} diagnostic output
-; (the <XX>/[XX] read_line trace, hex_digits/print_hex_byte helpers, etc).
+; (the <XX>/[XX]/{MM} read_line trace -- raw GETIN byte, buffer length,
+; live $028d modifier byte -- hex_digits/print_hex_byte helpers, etc).
 {undef: debug}
+
+; Build revision tracker (Ryan's ask, 2026-10-01): c64list reads the
+; decimal number in tada-client.buildrev into the parser variable
+; __BuildRev, and after every error-free assemble writes it back
+; incremented by one -- so each successful `make build` stamps the next
+; number. Shown on the boot status message (build_msg). The file must
+; hold digits only -- no newline. `make debug-d64` assembles this same
+; source too, so it bumps the same counter.
+{buildrev:tada-client.buildrev}
 
 ; SwiftLink ACIA registers/constants -- moved to swiftlink.asm (2026-08-24)
 ; alongside the routines that use them, since {const:} is
@@ -110,13 +120,59 @@
                                         ; encode_apply_for_player()),
                                         ; no popup involved
 
+; Help/keys/credits popup stream marker -- same idea/reasoning as
+; DISPLAY_STREAM_CONFIRM above, own distinct confirm byte so
+; handle_recv_byte_confirm can tell this apart from every other stream.
+; Matches commands/help_menu.py (server side) exactly. Unlike the display-
+; settings popup, help_menu.asm never sends anything back (nothing to
+; save) -- there's no HELP_STREAM_CANCEL byte, closing the popup just
+; jumps straight to JT_RESUME.
+{const: HELP_STREAM_CONFIRM $08}   ; unused C64 control code -- opens the
+                                     ; help_menu.asm popup (help/keys/
+                                     ; credits pages, player flips between
+                                     ; them locally with CRSR LEFT/RIGHT)
+
+; Hourglass clock stream marker -- same idea/reasoning as APPLY_STREAM_
+; CONFIRM above: consumed inline (no overlay), body is the player's
+; formatted time-of-day as PETSCII text (0 bytes = hide the clock),
+; painted right-aligned on the status row by redraw_status_row_to. Sent
+; with every prompt while PlayerFlags.HOURGLASS is on, in place of the
+; old "[hh:mm] " prompt prefix. Matches commands/c64_display.py's
+; encode_clock() (server side) exactly.
+{const: CLOCK_STREAM_CONFIRM $0b}   ; unused C64 control code -- see
+                                      ; SID_STREAM_CONFIRM's own comment
+
 ; KERNAL routines used by load_petscii_editor/load_config_menu to LOAD an
 ; overlay module from disk on demand (see load_petscii_editor's own
 ; comment for why this is a separate on-disk module rather than resident
-; code).
-{const: KERNAL_SETNAM $ffbd}
-{const: KERNAL_SETLFS $ffba}
-{const: KERNAL_LOAD    $ffd5}
+; code). Plain `=`, not {const:} -- keymap.asm's own init_keymap/load_
+; keymap_menu ({include:}'d, see keymap_table's own comment) need these
+; too, and {const:} is a per-file macro_preprocessor.py text
+; substitution invisible to a separately-preprocessed included file --
+; same reasoning as KERNAL_PLOT just below.
+KERNAL_SETNAM = $ffbd
+KERNAL_SETLFS = $ffba
+KERNAL_LOAD   = $ffd5
+
+; KERNAL's FA (current device number) zero-page byte: the last device
+; SETLFS was given -- after a plain `LOAD"TADA-CLIENT",9`, still 9 when
+; this program starts running. setlfs_current_drive reads it so the
+; overlay LOADs come from whichever drive the client itself was loaded
+; from, instead of assuming device 8.
+{const: CURRENT_DRIVE $ba}
+
+; KERNAL keyboard buffer: NDX ($c6) = number of keys waiting, KEYD
+; ($0277, 10 bytes) = the keys themselves, oldest first. Read directly by
+; wait_for_connect to spot RUN/STOP without consuming other keys.
+{const: KBD_NDX $c6}
+; KERNAL's current text color (COLOR) -- what CHROUT colors new
+; characters with; the $05/$9f etc. color codes just change this byte.
+{const: KERNAL_COLOR $0286}
+{const: KBD_BUF $0277}
+; KERNAL's MODE flag: bit 7 set disables the SHIFT+C= charset toggle
+; (what CHR$(8) sets, CHR$(9) clears) -- see switch_to_bank3_with_
+; charset's step 4.
+{const: KERNAL_MODE $0291}
 
 ; KERNAL_PLOT is X=row, Y=column (carry set = read current position into
 ; X/Y, carry clear = set position from X/Y) -- NOT the commonly-cited
@@ -131,15 +187,69 @@
 ; `=` is a real c64list symbol, resolved globally across {include:}s.
 KERNAL_PLOT = $fff0
 
-; Where the petscii_editor overlay module loads and runs. Chosen well
-; clear of both this resident program's own growth (currently topping
-; out well under $1000 -- see tada-client-vice-labels after a build for
-; the exact current top) and the screen/color RAM/KERNAL-adjacent low
-; page usage below -- leaves the module ~32K of contiguous RAM up to
-; $9fff (BASIC ROM, banked in throughout per this client's design, starts
-; at $a000) to work with, far more than a 2000-byte canvas buffer plus
-; editor code needs.
-{const: OVERLAY_BUF $2000}
+; Where every loadable overlay module (petscii_editor.asm, config_menu.
+; asm, help_menu.asm, keymap_menu.asm) loads and runs. Moved here
+; 2026-08-25 after a real, live-reproduced bug: BACKUP_CHARS/BACKUP_
+; COLORS (below, the shared screen-backup pair JT_SAVE_SCREEN/JT_
+; RESTORE_SCREEN use) sit right below wherever OVERLAY_BUF starts, and
+; BACKUP_COLORS' own 1000-byte backup-copy loop (run by save_screen,
+; called as literally the first instruction of every overlay's
+; module_start) writes straight through into OVERLAY_BUF, corrupting
+; the start of the overlay's own just-loaded, currently-executing code
+; the instant that jsr returns.
+;
+; **This bug recurred 2026-09-02** (keymap_menu.asm's first live test,
+; caught via the VICE monitor: OVERLAY_BUF found full of COLOR_RAM-
+; range garbage bytes moments after JSR JT_SAVE_SCREEN, PC wandering
+; off into a JAM within a few hundred cycles). Root cause: BACKUP_CHARS/
+; BACKUP_COLORS are plain sequential labels (`area 1000, 0` each, no
+; fixed address), not `=` constants -- their real addresses drift
+; upward every time something is added to the resident program earlier
+; in the file. The original fix moved OVERLAY_BUF from $2000 to $2100,
+; leaving 49 bytes of margin past BACKUP_COLORS' then-current end
+; ($20cf); ordinary resident-program growth since then (nothing to do
+; with keymap_menu.asm) pushed BACKUP_COLORS' end to $24d0, erasing
+; that margin and then some -- 976 bytes of silent overlap by the time
+; this was caught. A fixed hardcoded value here is fundamentally
+; fragile against floating labels below it; the real fix is a
+; SIGNIFICANTLY bigger margin so ordinary future growth can't reach it
+; again unnoticed, not just re-measuring the current gap.
+;
+; $2900 leaves ~1.3KB of headroom past BACKUP_COLORS' current end
+; ($24d0) -- every overlay module's own `orig $2100` was updated to
+; `orig $2900` to match (they don't {include:} this constant, see
+; load_petscii_editor's own comment for why the embedded-load-address
+; convention doesn't need them to -- which also means this margin has
+; to be re-checked by hand again if BACKUP_CHARS/BACKUP_COLORS ever
+; move further, same as before). Still leaves the module a comfortable
+; stretch of contiguous RAM up to $9fff (BASIC ROM, banked in
+; throughout per this client's design, starts at $a000) to work with.
+;
+; Plain `=`, not {const:} -- keymap.asm's own load_keymap_menu
+; ({include:}'d, see keymap_table's own comment) needs this too, same
+; KERNAL_PLOT/KERNAL_SETNAM-style reasoning as those. The overlay
+; modules themselves (petscii_editor.asm/config_menu.asm/help_menu.asm/
+; keymap_menu.asm) still don't {include:} it -- they're separate
+; standalone .prg assemblies with their own hardcoded `orig $2900`, not
+; part of this compilation unit at all (see load_petscii_editor's own
+; comment on the embedded-load-address convention that makes that safe).
+;
+; **Recurred again 2026-09-28**: BACKUP_COLORS' end had crept to $28d0
+; (48 bytes of margin left), and ~110 bytes of new keyboard code pushed
+; rx_buf's page alignment from $1f00 to $2000 -- everything after it
+; moved up a whole page, putting BACKUP_COLORS' end at $29d0, 208 bytes
+; into the overlay area. Moved to $3000 (~1.5KB of headroom again), and
+; the Makefile's $(TARGET).prg rule now fails the build outright if
+; BACKUP_COLORS ever reaches OVERLAY_BUF, instead of leaving it to be
+; re-checked by hand. Every overlay module's `orig` must still match.
+;
+; **Moved again 2026-09-28**, same day, by the check_overlay_margin.py
+; guard above doing its job: merging master into feature/keymap-editor
+; brought in master's double-buffered scroll/PROMPT_ROW/popup-
+; transparency code, pushing BACKUP_COLORS' end to $31d0 -- 464 bytes
+; into the overlay area. Moved to $3800 (~1.5KB of headroom again);
+; the biggest overlay (keymap_menu, ~4.8KB) still ends well under $a000.
+OVERLAY_BUF = $3800
 
 ; Fixed low-page jump table the petscii_editor overlay (and any future
 ; loadable module) calls through instead of depending on this resident
@@ -226,7 +336,6 @@ KERNAL_PLOT = $fff0
         rx_head     = $f9       ; NMI receive ring buffer: next write index
         rx_tail     = $fa       ; NMI receive ring buffer: next read index
 
-        QTSW        = $d4       ; KERNAL quote-mode switch (212 decimal)
 
 ; sid_wr/sid_rd/sid_mode/sid_active/sid_remaining_lo/sid_remaining_hi are
 ; deliberately NOT zero page (see their `byte 0` definitions in the Data
@@ -269,11 +378,36 @@ start:
         jsr init_screen
         jsr init_jump_table      ; populate JT_SL_SEND/JT_SL_RECV/JT_RESUME
                                   ; before anything could need them
+        jsr init_keymap          ; load a saved keymap from disk (or fall
+                                  ; back to the built-in default) before
+                                  ; read_line's first poll -- purely local
+                                  ; disk I/O, unrelated to SwiftLink, so
+                                  ; it runs ahead of the network setup below
         jsr init_nmi             ; install our receive handler before the
         jsr init_swiftlink       ; ACIA is told to start raising NMIs on it
         jsr init_sid             ; silence the SID chip, clear playback state
+        jsr kr_init              ; CTRL+CRSR decode fix -- see its own
+                                  ; comment in keyboard_rollover.asm
         jsr init_irq             ; install the IRQ dispatcher (sid_play +
                                   ; round-robin task table)
+        lda config_settings+CFG_BORDER_STYLE
+        jsr set_border_style     ; TADA64.CFG's Border style (border_
+                                  ; style.asm) -- not before here: the
+                                  ; swap runs through run_under_io,
+                                  ; which needs SwiftLink's NMI handler
+                                  ; installed and the ACIA set up
+
+        ; tell the player RUN/STOP can give up on connecting (see
+        ; wait_for_connect). The message sets its own colors, so save
+        ; the KERNAL's current text color and put it back afterward --
+        ; otherwise the server's first output would come out white.
+        lda KERNAL_COLOR
+        pha
+        lda #<stop_hint_msg
+        ldy #>stop_hint_msg
+        jsr print_msg
+        pla
+        sta KERNAL_COLOR
 
         ; delay to let ACIA settle
         ldx #$ff
@@ -283,7 +417,13 @@ start:
         dex
         bne <@
 
-        ; wait for server to send negotiation menu, display it.
+        ; wait for server to send negotiation menu, display it -- unless
+        ; RUN/STOP gives up first (see wait_for_connect), in which case
+        ; drop into offline mode instead of blocking here forever
+        jsr wait_for_connect
+        bcc start_connected
+        jmp go_offline
+start_connected:
         ; prompt_relocate_enabled stays 0 through this specific call --
         ; the raw SwiftLink negotiation exchange isn't a real interactive
         ; game prompt (nothing here waits for player input the way a
@@ -323,6 +463,116 @@ prompt_loop:
         jsr send_line            ; ship it, CR-terminated
         jmp prompt_loop
 
+; --- resume_local: JT_RESUME_LOCAL's real target (see constants.asm's
+; own comment on why this exists alongside JT_RESUME) -- prompt_loop's
+; OWN body minus the leading wait_for_data call, NOT a bare `jmp read_
+; line`. Real bug caught live 2026-09-22 (Ryan's report: after Save or
+; Cancel closes the keymap popup, the NEXT typed command's first RETURN
+; is silently swallowed -- "the cursor sits there blinking until I hit
+; Return again"). Root cause: keymap_dispatch's own ACTION_OPEN_EDITOR
+; case reaches load_keymap_menu via `jmp`, not `jsr` ("never returns
+; here" by design, matching JT_RESUME's own contract) -- so the JSR-
+; keymap_dispatch call frame from read_line_not_return is STILL sitting
+; on the stack, unwound, underneath module_entry_sp's own snapshot.
+; JT_RESUME (jmp prompt_loop) never notices, since prompt_loop is a
+; flat loop with no RTS of its own to go wrong. But a bare `jmp read_
+; line` for JT_RESUME_LOCAL relies on read_line_done's OWN rts to find
+; its way back to send_line -- and that rts pops the STALE keymap_
+; dispatch return address sitting on top of the restored stack instead,
+; landing back inside read_line_not_return's own dispatch tail rather
+; than send_line. send_line silently never runs; the typed line sits in
+; linebuf, still there for the NEXT real RETURN press (now reached via
+; the correct, un-stale path) to finally send -- exactly the "type a
+; command, first Return is silently eaten, second Return sends it"
+; symptom. Fix: jsr (not jmp) read_line here pushes a FRESH return
+; address on top of whatever module_entry_sp's restore left buried
+; below it, so read_line_done's rts always finds ITS OWN correct
+; target regardless of that older, now-permanently-unreachable frame
+; (harmless dead stack space, not a leak that grows -- module_entry_sp
+; is recaptured fresh on every popup visit, never compounding).
+resume_local:
+        jsr input_area_reset     ; bare prompt back in the input area --
+                                  ; read_line starts from an empty line
+        jsr read_line
+        jsr send_line
+        jmp prompt_loop
+
+; --- wait_for_connect: block for the server's first byte, or RUN/STOP ---
+; Output: carry clear = a byte is waiting in rx_buf (left there, not
+;         consumed -- wait_for_data picks it up as usual)
+;         carry set = RUN/STOP was pressed, give up on connecting
+; Only used for the very first wait in start:, not wait_for_data in
+; general -- once connected, RUN/STOP stays an ordinary key. Ryan's ask
+; 2026-09-28: be able to try the local-only popups (F7's keymap editor)
+; on real hardware with no network for the modem to join, instead of
+; sitting on "Connecting..." until power-off.
+; RUN/STOP is detected as its decoded $03 in the KERNAL keyboard buffer
+; (kr_scan hands every keypress to the stock decode routine, which
+; still fills $0277 -- see keyboard_rollover.asm), scanned in place
+; rather than via GETIN so the buffer isn't disturbed unless it's
+; actually there. The whole buffer is scanned, not just its head, so a
+; stray key typed ahead of RUN/STOP doesn't mask it.
+wait_for_connect:
+        lda rx_tail
+        cmp rx_head
+        bne wait_for_connect_data  ; head != tail: server's first byte is in
+        ldx KBD_NDX
+        beq wait_for_connect       ; keyboard buffer empty
+wait_for_connect_scan:
+        dex
+        lda KBD_BUF,x
+        cmp #$03                   ; RUN/STOP
+        beq wait_for_connect_stop
+        cpx #0
+        bne wait_for_connect_scan
+        jmp wait_for_connect
+wait_for_connect_stop:
+        lda #0
+        sta KBD_NDX                ; flush -- nothing typed so far means anything
+        sec
+        rts
+wait_for_connect_data:
+        clc
+        rts
+
+; --- go_offline: RUN/STOP aborted the initial connect ---
+; Says so, swaps the status line's "Connecting..." for "Offline", then
+; runs the ordinary prompt_loop with wait_for_data/send_line both
+; short-circuited by the offline flag (see their own guards) -- so
+; read_line, and everything it dispatches locally (F7 -> keymap editor,
+; which resumes via JT_RESUME/JT_RESUME_LOCAL back into prompt_loop/
+; resume_local), all still work, but nothing ever blocks on the ACIA:
+; wait_for_data would wait forever for a server that isn't there, and
+; sl_send could spin on SL_TDRE if the modem isn't asserting CTS.
+go_offline:
+        lda #1
+        sta offline
+        lda #<status_msg_offline
+        sta usl_src+1
+        lda #>status_msg_offline
+        sta usl_src+2
+        jsr update_status_line
+        lda #<offline_msg
+        ldy #>offline_msg
+        jsr print_msg
+        jmp prompt_loop
+
+; --- print_msg: term_chrout a null-terminated string ---
+; Input: .A/.Y = string address lo/hi (max 255 bytes). term_chrout
+; itself preserves X/Y, so Y is safe as the index across the loop.
+print_msg:
+        sta print_msg_src+1
+        sty print_msg_src+2
+        ldy #0
+print_msg_src:
+        lda $ffff,y                ; operand patched above
+        beq print_msg_done
+        jsr term_chrout
+        iny
+        bne print_msg_src
+print_msg_done:
+        rts
+
 ; --- Wait for data from server ---
 ; Blocks until at least one byte arrives, displays every byte as it
 ; comes in, then keeps draining until a 16-bit idle-poll countdown
@@ -348,6 +598,11 @@ prompt_loop:
 ; 6551 has a single-byte receive register, no FIFO), which showed up as
 ; the first few characters of each chunk going missing.
 wait_for_data:
+        lda offline
+        beq wait_for_data_online
+        rts                       ; offline -- no server to wait for, see
+                                  ; go_offline
+wait_for_data_online:
         lda #0
         sta sid_background        ; foreground context -- diagnostics may print
 wait_for_data_first:
@@ -392,10 +647,18 @@ init_screen:
         lda #VIC_BLACK
         sta VIC_BORDER
         sta VIC_BACKGROUND
-        lda #$93                ; PETSCII clear screen
-        jsr CHROUT
+        lda #1
+        sta $cc                   ; BLNSW: keep the stock IRQ's KERNAL
+                                   ; cursor blink off -- it toggles the
+                                   ; cell at PNT/PNTR, which nothing
+                                   ; keeps current now that
+                                   ; screen-output.asm draws the screen
+        lda KERNAL_COLOR
+        sta status_color          ; before so_ctl_clear paints the bar
+        jsr so_ctl_clear          ; CLR: blank the screen, home the cursor
         jsr update_status_line
         jsr redraw_status_row     ; blank reverse bar, queue empty so far
+        jsr strip_build_rev_zeros ; "build 00042" -> "build 42"
         jsr status_push_reset     ; build-date/time message, its own
         ldx #<build_msg           ; batch -- shows immediately (status_
         ldy #>build_msg           ; push_buf's "first message of a fresh
@@ -452,7 +715,9 @@ update_status_line:
         jsr set_screen_line
         ldy #0
 usl_copy:
-        lda status_msg,y
+usl_src:
+        lda status_msg,y          ; operand repointed to status_msg_offline
+                                  ; by go_offline
         beq usl_pad
         sta (scr_ptr_lo),y
         iny
@@ -479,7 +744,14 @@ usl_pad:
 ; $0351 and $0352-$0358) precisely so one copy loop populates both; see
 ; PROTO_TABLE's own comment.
 init_jump_table:
-        ldx #24
+        ldx #56                  ; 57 bytes: 15 jmp entries (45) + 8
+                                    ; proto bytes + the 4 pointer bytes
+                                    ; JT_SET_BORDER_STYLE sits behind --
+                                    ; bumped from 34/35 when JT_CURSOR_
+                                    ; HIDE/JT_UPDATE_CURSOR were added,
+                                    ; from 40/41 for JT_GET_CURSOR/
+                                    ; JT_SET_CURSOR/JT_CLEAR_SCREEN, and
+                                    ; from 49/50 for JT_SET_BORDER_STYLE
 init_jump_table_loop:
         lda jump_table_template,x
         sta JT_BASE,x
@@ -680,7 +952,9 @@ copy_remaining_hi:
 ; double buffering) had it do. Self-contained (own inline loop, own
 ; ccc_chunk_remaining countdown) rather than built from copy_block, same
 ; reasoning as that routine's own single-range design.
-; Caller sets copy_src_lo/hi + copy_dst_lo/hi before calling.
+; Caller sets copy_src_lo/hi + copy_dst_lo/hi + copy_remaining_lo/hi
+; before calling (the length used to be fixed at DIALOGUE_SHIFT_BYTES;
+; it's the current dialogue area's size now -- see term_scroll_advance).
 COLOR_CHUNK_BYTES = 220           ; 880 / 4
 copy_color_chunked:
         lda copy_src_lo
@@ -691,10 +965,6 @@ copy_color_chunked:
         sta ccc_store+1
         lda copy_dst_hi
         sta ccc_store+2
-        lda #<DIALOGUE_SHIFT_BYTES
-        sta copy_remaining_lo
-        lda #>DIALOGUE_SHIFT_BYTES
-        sta copy_remaining_hi
 ccc_next_chunk:
         jsr wait_vblank
         lda #COLOR_CHUNK_BYTES
@@ -719,7 +989,7 @@ ccc_dec_lo:
         dec copy_remaining_lo
         lda copy_remaining_lo
         ora copy_remaining_hi
-        beq ccc_done               ; whole 880-byte copy finished
+        beq ccc_done               ; whole copy finished
         dec ccc_chunk_remaining
         bne ccc_loop                ; more bytes left in this chunk
         jmp ccc_next_chunk          ; chunk done -- wait for the next vblank
@@ -878,8 +1148,91 @@ switch_to_bank3_with_charset:
         sta front_hi
         sta HIBASE
 
+        ; --- 4. Lock out the KERNAL's SHIFT+C= charset toggle ---
+        ; MODE ($0291) bit 7 set = same as PRINT CHR$(8). Stock $EB48
+        ; (reached via kr_keylog whenever SHFLAG == 3, i.e. SHIFT+C= held)
+        ; otherwise does `$d018 EOR #$02` -- on a stock C64 that swaps
+        ; the ROM's two character sets, but here it flips char-ptr slot
+        ; 2 ($d000, gothic_charset) to slot 3 ($d800, COLOR_RAM's
+        ; address, not glyph data): every character becomes stripes
+        ; until $d018 is manually re-poked to VIC_D018_INIT. gothic_
+        ; charset is the only charset there is, so there's nothing
+        ; valid for that toggle to switch to.
+        lda #$80
+        sta KERNAL_MODE
+
+        ; --- 5. Back up the Gothic box glyphs for Border style ---
+        ; Now, while gothic_charset's source image is still intact (it
+        ; becomes the screen backup at the first popup) -- see border_
+        ; style.asm. Also resets BORDER_CUR_STYLE to Single, which a soft
+        ; reset would otherwise leave describing the previous run.
+        jsr bs_backup_gothic
+
         cli
         rts
+
+; --- run_under_io: jsr .X/.Y (lo/hi) with $d000-$dfff banked to RAM ---
+; For anything that needs the charset in the RAM behind $d000 after boot
+; (border_style.asm's set_border_style, the Border style glyph swap) --
+; switch_to_bank3_with_charset's own $01 trick isn't safe any more
+; once SwiftLink is up: its receive NMI can't be masked by SEI, and
+; nmi_handler reads SL_STATUS/SL_DATA at $de01/$de00, which with I/O
+; banked out is plain RAM -- a byte arriving mid-copy would leave the
+; real ACIA unread (no further NMI edges ever) and stuff junk into
+; rx_buf. So for the duration:
+;   - SL_CMD_HOLD: RTS deasserted (the far end stops sending) and the
+;     ACIA's receive IRQ off (no NMI even if one more byte lands);
+;   - the RAM copy of the NMI vector ($fffa, what the CPU fetches while
+;     the KERNAL ROM is banked out too) points at an rti, so a RESTORE
+;     keypress in the window is just dropped;
+; and afterward any byte that did land is buffered by hand, the same
+; way nmi_handler would have, before RTS goes back to what rts_state
+; says. The called routine runs with all RAM mapped: it may not touch
+; I/O or call the KERNAL. Only .A/.X/.Y are clobbered; the I flag is
+; restored as found.
+run_under_io:
+        stx rui_call+1
+        sty rui_call+2
+        php
+        sei
+        lda #SL_CMD_HOLD
+        sta SL_COMMAND
+        lda #<rui_nmi_rti         ; KERNAL ROM is mapped here, so these
+        sta $fffa                 ; writes land in the RAM underneath
+        lda #>rui_nmi_rti
+        sta $fffb
+        lda $01
+        sta rui_saved_01
+        and #%11111000            ; LORAM/HIRAM/CHAREN = 0: all RAM (same
+        sta $01                   ; as CHARGEN_RAM_CONFIG, tape bits kept)
+rui_call:
+        jsr $ffff
+        lda rui_saved_01
+        sta $01
+        lda SL_STATUS
+        and #SL_RDRF
+        beq rui_resume            ; nothing arrived while held
+        lda SL_DATA
+        ldx rx_head
+        sta rx_buf,x
+        inc rx_head
+rui_resume:
+        lda #SL_CMD_INIT          ; back to RTS asserted ...
+        ldx rts_state
+        bne rui_set_cmd
+        lda #SL_CMD_RTS_OFF       ; ... unless nmi_handler had paused it
+rui_set_cmd:
+        sta SL_COMMAND
+        plp
+        rts
+
+rui_nmi_rti:
+        rti
+
+rui_saved_01:
+        byte 0
+
+{include:border_style.asm}
 
 ; --- flip_screen_buffer: atomically swap which 1K page the VIC displays ---
 ; Input: .A = the buffer's ABSOLUTE high byte to make the new front
@@ -958,133 +1311,10 @@ ensure_buffer_a_front:
 ensure_buffer_a_front_rts:
         rts
 
-; --- term_chrout: drop-in CHROUT replacement for dialogue text ---
-; Use instead of a bare `jsr CHROUT` for anything that can legitimately
-; advance the cursor a row at a time -- display_char (incoming server
-; text) and read_line_store's typed-char echo. Preserves the caller's
-; X/Y across the entire call, restored right before every exit --
-; confirmed live this matters, not just defensive box-checking:
-; term_scroll_advance uses Y freely as its own loop counter, and CHROUT
-; itself is already documented elsewhere in this file as not reliably
-; preserving X (see read_line's own comment). A caller that uses X/Y as
-; its own loop index across a run of term_chrout calls (e.g. printing a
-; string char-by-char) would otherwise get that index silently
-; clobbered by whichever branch fires here.
-; PROMPT_ROW (24) is the TRUE last physical row -- unlike STATUS_ROW
-; (23), a character that needs a new row while sitting there triggers
-; KERNAL's OWN real whole-screen scroll DURING the CHROUT call itself,
-; not after. That can't be caught post-hoc the way STATUS_ROW is: by
-; the time term_chrout reads $d6 back, KERNAL's scroll already ran and
-; already reset the cursor to a perfectly normal-looking row 24 (same
-; as it always leaves it after any scroll) -- nothing about that read
-; distinguishes "a real KERNAL scroll just corrupted STATUS_ROW" from
-; "ordinary printing, still on row 24, nothing happened". Confirmed live
-; 2026-08-20: ordinary text continuing to print after relocate_prompt_
-; to_row24 parked the cursor there (an unanswered/still-arriving
-; response following what looked like, but wasn't reliably, a genuine
-; prompt) corrupted STATUS_ROW exactly this way, and the post-hoc check
-; alone never caught it.
-;
-; So this checks BEFORE calling CHROUT: if already on PROMPT_ROW and
-; this character would need a new row (a CR, or filling the last
-; column), redirect through term_scroll_advance FIRST -- landing safely
-; at DIALOGUE_LAST_ROW instead of letting KERNAL scroll from row 24 at
-; all. Ordinary text that overflows PROMPT_ROW genuinely belongs back
-; in the normal scrolling dialogue area above STATUS_ROW anyway; only
-; the player's own current input belongs pinned at PROMPT_ROW itself.
-term_chrout:
-        stx term_saved_x
-        sty term_saved_y
-        pha
-        ldx $d6
-        cpx #PROMPT_ROW
-        bne term_chrout_plain
-        cmp #$0d
-        beq term_chrout_prevent_cr
-        ldx $d3
-        cpx #39                     ; about to fill the last column?
-        bne term_chrout_plain
-        ; wrap case: this character would fill PROMPT_ROW's last column,
-        ; and KERNAL's own advance-in-preparation-for-the-next-character
-        ; would need row 25 -- shift first, THEN print this character at
-        ; the now-current (DIALOGUE_LAST_ROW) position, which has a
-        ; full fresh 40 columns to receive it safely.
-        jsr term_scroll_advance
-        jmp term_chrout_plain
-term_chrout_prevent_cr:
-        ; CR has no glyph of its own -- term_scroll_advance's shift +
-        ; reposition-to-DIALOGUE_LAST_ROW-col0 already IS everything a
-        ; CR should do; nothing left to hand to CHROUT.
-        jsr term_scroll_advance
-        pla
-        jmp term_chrout_rts
-term_chrout_plain:
-        pla
-        jsr CHROUT
-        ldx $d6                    ; TBLX -- physical cursor row
-        cpx #STATUS_ROW
-        bne term_chrout_rts        ; exact match only -- NOT bcc/"< 23".
-                                     ; Safe to be this precise now that
-                                     ; PROMPT_ROW (24) is a real,
-                                     ; deliberately-PLOTted-to position
-                                     ; text can legitimately sit at and
-                                     ; keep printing from (relocate_
-                                     ; prompt_to_row24) -- bcc would
-                                     ; wrongly fire term_scroll_advance
-                                     ; on every character printed there.
-                                     ; Behaviorally identical to the old
-                                     ; bcc for rows 0-22 (X was never >23
-                                     ; under the old model, so "< 23" and
-                                     ; "== 23" only ever differed for a
-                                     ; row that couldn't occur yet).
-        jsr term_scroll_advance
-term_chrout_rts:
-        ldx term_saved_x
-        ldy term_saved_y
-        rts
-
-term_saved_x:
-        byte 0
-term_saved_y:
-        byte 0
-
-; --- term_cursor_left / term_cursor_right: single-step relative cursor
-; move ($9d/$1d) that skips over STATUS_ROW instead of landing on it,
-; without triggering a scroll -- there's no new content here, just
-; navigation within already-displayed text (arrow-key movement, the
-; single step-back after a DEL, redraw_tail's own step-back). Same
-; principle as screen-handler.asm's async_step_back/async_blank (see
-; their own comment for the full reasoning); those two loop internally
-; and stay as their own inline copies since they were already verified
-; working, but any OTHER single-step $9d/$1d call site should use these
-; instead of a bare CHROUT -- confirmed live 2026-08-20 that missing
-; this class of call site is exactly what let a single stray character
-; land in STATUS_ROW with no correction at all.
-term_cursor_left:
-        lda #$9d
-        jsr CHROUT
-        ldx $d6
-        cpx #STATUS_ROW
-        bne term_cursor_left_rts
-        ldx #DIALOGUE_LAST_ROW
-        ldy #39
-        clc
-        jsr KERNAL_PLOT
-term_cursor_left_rts:
-        rts
-
-term_cursor_right:
-        lda #$1d
-        jsr CHROUT
-        ldx $d6
-        cpx #STATUS_ROW
-        bne term_cursor_right_rts
-        ldx #24
-        ldy #0
-        clc
-        jsr KERNAL_PLOT
-term_cursor_right_rts:
-        rts
+; --- term_chrout / term_cursor_left / term_cursor_right ---
+; Moved to screen-output.asm (2026-09-28), which now owns the cursor and
+; draws every character itself instead of going through KERNAL CHROUT/
+; PLOT -- see that file's header comment for why.
 
 ; --- wait_vblank: busy-wait until the raster beam reaches line 250 ---
 ; Comfortably past the visible area on both PAL (312 lines/frame) and
@@ -1144,7 +1374,19 @@ tsa_back_is_b:
 tsa_back_known:
         sta back_hi
 
-        ; --- 1. Shift glyphs: front rows 1-22 -> back rows 0-21 ---
+        ; tsa_shift = dlg_last_row * 40 -- the dialogue area's size less
+        ; one row, i.e. how many bytes move up (880 normally, less while
+        ; the input area has grown -- see screen-output.asm)
+        lda dlg_last_row
+        asl
+        tax
+        lda row_offsets,x
+        sta tsa_shift_lo
+        lda row_offsets+1,x
+        sta tsa_shift_hi
+
+        ; --- 1. Shift glyphs: front rows 1..dlg_last_row -> back rows
+        ; 0..dlg_last_row-1 ---
         lda #<ROW_BYTES
         sta copy_src_lo
         lda front_hi
@@ -1153,20 +1395,19 @@ tsa_back_known:
         sta copy_dst_lo
         lda back_hi
         sta copy_dst_hi
-        lda #<DIALOGUE_SHIFT_BYTES
+        lda tsa_shift_lo
         sta copy_remaining_lo
-        lda #>DIALOGUE_SHIFT_BYTES
+        lda tsa_shift_hi
         sta copy_remaining_hi
         jsr copy_block
 
-        ; --- 2. Blank back buffer's fresh row 22 ---
-        ; scr_ptr = back_hi:00 + 880 ($0370) -- direct arithmetic since
-        ; DIALOGUE_LAST_ROW is a fixed compile-time row here.
-        lda #<880
+        ; --- 2. Blank back buffer's fresh last dialogue row ---
+        ; scr_ptr = back_hi:00 + dlg_last_row*40 (== tsa_shift)
+        lda tsa_shift_lo
         sta scr_ptr_lo
         lda back_hi
         clc
-        adc #>880
+        adc tsa_shift_hi
         sta scr_ptr_hi
         ldy #0
         lda #$20
@@ -1176,28 +1417,40 @@ tsa_blank:
         cpy #40
         bne tsa_blank
 
-        ; --- 3. Mirror PROMPT_ROW, front -> back (via copy_block -- reads
-        ; and writes two DIFFERENT buffers at once, so a single scr_ptr_
-        ; lo/hi indirect pointer can't do this, unlike step 2's blank) ---
-        lda #<PROMPT_ROW_OFFSET
+        ; --- 3. Mirror the input area (sbar_row+1..24), front -> back
+        ; (via copy_block -- reads and writes two DIFFERENT buffers at
+        ; once, so a single scr_ptr_lo/hi indirect pointer can't do this,
+        ; unlike step 2's blank) ---
+        lda sbar_row
+        clc
+        adc #1
+        asl
+        tax
+        lda row_offsets,x
         sta copy_src_lo
-        lda front_hi
-        clc
-        adc #>PROMPT_ROW_OFFSET
-        sta copy_src_hi
-        lda #<PROMPT_ROW_OFFSET
         sta copy_dst_lo
-        lda back_hi
+        lda row_offsets+1,x
+        pha
         clc
-        adc #>PROMPT_ROW_OFFSET
+        adc front_hi
+        sta copy_src_hi
+        pla
+        pha
+        clc
+        adc back_hi
         sta copy_dst_hi
-        lda #<ROW_BYTES
+        sec
+        lda #<1000
+        sbc copy_src_lo
         sta copy_remaining_lo
-        lda #>ROW_BYTES
+        pla
+        sta tsa_tmp
+        lda #>1000
+        sbc tsa_tmp
         sta copy_remaining_hi
         jsr copy_block
 
-        ; --- 4. Stamp back buffer's STATUS_ROW before it's ever shown ---
+        ; --- 4. Stamp back buffer's status bar before it's ever shown ---
         lda back_hi
         jsr redraw_status_row_to
 
@@ -1210,17 +1463,27 @@ tsa_blank:
         sta copy_dst_lo
         lda #>COLOR_RAM
         sta copy_dst_hi
+        lda tsa_shift_lo
+        sta copy_remaining_lo
+        lda tsa_shift_hi
+        sta copy_remaining_hi
         jsr copy_color_chunked
 
         ; --- 6. Flip: back becomes front, atomically ---
         jsr wait_vblank
         lda back_hi
         jsr flip_screen_buffer
-        ldx #DIALOGUE_LAST_ROW      ; KERNAL_PLOT: X=row, Y=col
+
+        ldx dlg_last_row            ; fresh last dialogue row, col 0
         ldy #0
-        clc
-        jsr KERNAL_PLOT
-        rts
+        jmp so_set_cursor
+
+tsa_shift_lo:
+        byte 0
+tsa_shift_hi:
+        byte 0
+tsa_tmp:
+        byte 0
 
 
 ; ============================================================
@@ -1248,6 +1511,18 @@ STATUS_QUEUE_MAX     = 4
 STATUS_SLOT_LEN      = 40       ; 39 visible chars max + null terminator
 STATUS_ROTATE_JIFFIES_LO = $2c  ; 300 jiffies (~5s @ ~60Hz), low byte
 STATUS_ROTATE_JIFFIES_HI = $01  ; 300 jiffies, high byte
+; A single queued message (the common case -- keymap editor's "Saved
+; keymap."/"Aborted.", etc.) never met status_service's own count>=2
+; rotate gate, so it just sat on STATUS_ROW forever, stale, long after
+; whatever it described was over (Ryan's ask, 2026-09-22, after already
+; finding it stuck showing "Aborted." from an earlier keymap-editor
+; Cancel during unrelated later gameplay). Reuses the SAME $a2/$a1-
+; jiffy-delta timing status_service/status_rotate already use, just a
+; longer threshold and a "clear" action instead of "rotate to next" --
+; long enough to actually read the message, short enough not to feel
+; permanently stuck.
+STATUS_CLEAR_JIFFIES_LO = $84   ; 900 jiffies (~15s @ ~60Hz), low byte
+STATUS_CLEAR_JIFFIES_HI = $03   ; 900 jiffies, high byte
 
 status_build_from_table:
         stx scr_ptr_lo
@@ -1341,18 +1616,29 @@ status_slot_addr:
         rts
 
 ; Called from sid_service_background every read_line poll iteration.
+; count==0: nothing queued, nothing to do. count==1: no rotation target,
+; but now checked against the LONGER clear timeout (status_clear, below)
+; so a lone message doesn't sit there forever. count>=2: original
+; rotate-to-next-message timing, unchanged.
 status_service:
         lda status_queue_count
+        beq status_service_rts
+        jsr status_calc_elapsed     ; status_elapsed_lo/hi = jiffies
+                                       ; since status_rotate_last_lo/hi
+        lda status_queue_count
         cmp #2
-        bcc status_service_rts    ; 0 or 1 messages queued -- nothing to
-                                    ; rotate to
-        lda $a2
-        sec
-        sbc status_rotate_last_lo
-        sta status_elapsed_lo
-        lda $a1
-        sbc status_rotate_last_hi
-        sta status_elapsed_hi
+        bcs status_service_check_rotate
+        lda status_elapsed_hi
+        cmp #STATUS_CLEAR_JIFFIES_HI
+        bcc status_service_rts
+        bne status_service_clear_due
+        lda status_elapsed_lo
+        cmp #STATUS_CLEAR_JIFFIES_LO
+        bcc status_service_rts
+status_service_clear_due:
+        jsr status_clear
+        jmp status_service_rts
+status_service_check_rotate:
         lda status_elapsed_hi
         cmp #STATUS_ROTATE_JIFFIES_HI
         bcc status_service_rts
@@ -1363,6 +1649,20 @@ status_service:
 status_service_due:
         jsr status_rotate
 status_service_rts:
+        rts
+
+; .a/.  -> status_elapsed_lo/hi = jiffies elapsed since status_rotate_
+; last_lo/hi (the timestamp status_push_buf/status_rotate/status_clear
+; all stamp whenever STATUS_ROW was last actually redrawn). Shared by
+; both the rotate and clear timing checks in status_service above.
+status_calc_elapsed:
+        lda $a2
+        sec
+        sbc status_rotate_last_lo
+        sta status_elapsed_lo
+        lda $a1
+        sbc status_rotate_last_hi
+        sta status_elapsed_hi
         rts
 
 status_elapsed_lo:
@@ -1385,6 +1685,16 @@ status_rotate_redraw:
         sta status_rotate_last_hi
         rts
 
+; --- status_clear: the lone-message timeout's own action -- reset the
+; queue to empty and repaint STATUS_ROW blank (redraw_status_row's own
+; count==0 path already does exactly that). No status_rotate_last_lo/hi
+; update needed afterward: status_service's own count==0 check (above)
+; skips straight past both timing branches until something is pushed
+; again, at which point status_push_buf re-stamps it itself.
+status_clear:
+        jsr status_push_reset
+        jmp redraw_status_row       ; tail call
+
 ; --- redraw_status_row: repaint the CURRENT FRONT buffer's STATUS_ROW ---
 ; Thin wrapper over redraw_status_row_to for the common case (every call
 ; site except term_scroll_advance's own back-buffer pre-paint doesn't
@@ -1398,10 +1708,13 @@ redraw_status_row:
 ; Needed because term_scroll_advance must paint the BACK buffer's status
 ; row (the one about to become front) BEFORE flipping, not whichever
 ; buffer happens to be front at the moment it's called. Self-modifies
-; only the high byte of each STA operand's absolute address
-; (STATUS_ROW_OFFSET's low byte, $98, is identical in both buffers since
-; both are 1K-aligned; only the page differs) -- target_hi = buffer_hi +
-; 3, since STATUS_ROW_OFFSET (920, $0398) contributes high byte $03.
+; each STA operand's full address: buffer_hi:00 + sbar_row*40 -- the
+; status bar's row moves while the input area has grown (see screen-
+; output.asm), so it's no longer a fixed STATUS_ROW_OFFSET. Also paints
+; the row's COLOR_RAM with status_color: rows 21-22 can hold dialogue
+; colors when the bar moves onto them, whereas row 23's color RAM used to
+; just keep whatever init left there (COLOR_RAM is shared by both
+; buffers, so painting it for the back buffer is harmless).
 ; Otherwise unchanged from the single-buffer version: reverse video,
 ; padded to 40 columns, pure raw pokes (queue content is pre-encoded
 ; real screen codes already, same convention update_status_line uses for
@@ -1411,18 +1724,52 @@ redraw_status_row:
 ; convention is one shared transient pointer, not a second dedicated
 ; zero-page pair for something this narrow.
 redraw_status_row_to:
+        sta rsrt_buf_hi
+        lda sbar_row
+        asl
+        tax
+        lda row_offsets,x
+        sta rsrt_store+1
+        sta rsrt_pad_store+1
+        sta rsrt_clock_store+1
+        sta rsrt_color_store+1
+        lda row_offsets+1,x
+        pha
         clc
-        adc #>STATUS_ROW_OFFSET
+        adc rsrt_buf_hi
         sta rsrt_store+2
         sta rsrt_pad_store+2
-        sta rsrt_blank_store+2
+        sta rsrt_clock_store+2
+        pla
+        clc
+        adc #>COLOR_RAM
+        sta rsrt_color_store+2
+        ldy #39
+        lda status_color
+rsrt_color_loop:
+rsrt_color_store:
+        sta $ffff,y
+        dey
+        bpl rsrt_color_loop
+        ; Hourglass clock (clock_len bytes, 0 = none) owns the row's
+        ; right end: the message stops one column short of it (a gap)
+        ; and padding stops where it starts. With no clock these reduce
+        ; to the old fixed 39/40.
+        lda #39
+        sec
+        sbc clock_len
+        sta rsrt_msg_limit
+        lda #40
+        sec
+        sbc clock_len
+        sta rsrt_clock_col
         lda status_queue_count
         beq rsrt_blank
         lda status_queue_read
         jsr status_slot_addr        ; scr_ptr_lo/hi = &status_queue[read]
         ldy #0
 rsrt_copy:
-        cpy #39
+        cpy rsrt_msg_limit
         bcs rsrt_pad
         lda (scr_ptr_lo),y
         beq rsrt_pad
@@ -1434,24 +1781,41 @@ rsrt_store:
 rsrt_pad:
         lda #$a0                    ; reverse-video space
 rsrt_pad_loop:
-        cpy #40
-        bcs rsrt_rts
+        cpy rsrt_clock_col
+        bcs rsrt_clock
 rsrt_pad_store:
         sta STATUS_ROW_OFFSET,y
         iny
         jmp rsrt_pad_loop
+rsrt_clock:
+        ldx #0
+rsrt_clock_loop:
+        cpy #40
+        bcs rsrt_rts
+        lda clock_buf,x
+        ora #$80                    ; reverse video, same as the message
+rsrt_clock_store:
+        sta STATUS_ROW_OFFSET,y
+        inx
+        iny
+        jmp rsrt_clock_loop
 rsrt_rts:
         rts
 rsrt_blank:
-        ldy #0
-        lda #$a0
-rsrt_blank_loop:
-rsrt_blank_store:
-        sta STATUS_ROW_OFFSET,y
-        iny
-        cpy #40
-        bne rsrt_blank_loop
-        rts
+        ldy #0                      ; nothing queued: all padding (plus
+        jmp rsrt_pad                ; the clock, if any)
+
+rsrt_buf_hi:
+        byte 0
+rsrt_msg_limit:
+        byte 0
+rsrt_clock_col:
+        byte 0
+; The status bar's color -- the text color in effect at boot (init_
+; screen), which is what row 23's color RAM always held before the bar
+; could move.
+status_color:
+        byte 0
 
 status_build_buf:
         area STATUS_SLOT_LEN, 0
@@ -1483,27 +1847,64 @@ status_rotate_last_lo:
 status_rotate_last_hi:
         byte 0
 
-; --- Build-date/time status message -- shown at boot as its own batch
-; (status_push_buf's "first message of a fresh batch" behavior displays
-; it immediately) until the first real event (e.g. a SID stream) pushes
-; its own batch and replaces it. {alpha:pokealt} makes this `ascii`
-; literal emit real screen codes at assembly time -- required since
-; redraw_status_row pokes queue content straight into SCREEN_RAM rather
-; than going through CHROUT's own PETSCII->screencode conversion. Reset
-; to {alpha:normal} right after so this doesn't leak into anything below
-; that uses plain `ascii`.
-{alpha:pokealt}
-build_msg:
-        ascii "build "
-        ascii {usedef:__BuildDate}
-        ascii " "
-        ascii {usedef:__BuildTime}
+; --- clock_recv: body of a CLOCK_STREAM_CONFIRM stream (see that const's
+; own comment) -- 16-bit length (high byte ignored, the server never
+; sends more than CLOCK_MAX), then that many PETSCII bytes of formatted
+; time. Stores them as screen codes in clock_buf (anything past
+; CLOCK_MAX is read and dropped, so the stream stays in sync) and
+; repaints the status row. Reads through apply_recv_byte for the same
+; misfire-can't-hang reasoning as handle_recv_byte_apply_confirm; a
+; timeout just leaves the previous clock in place.
+CLOCK_MAX = 12
+clock_recv:
+        jsr apply_recv_byte         ; length, low byte
+        bcc clock_recv_rts
+        sta clock_remaining
+        jsr apply_recv_byte         ; length, high byte (ignored)
+        bcc clock_recv_rts
+        lda #0
+        sta clock_recv_idx
+clock_recv_loop:
+        lda clock_remaining
+        beq clock_recv_done
+        dec clock_remaining
+        jsr apply_recv_byte
+        bcc clock_recv_rts
+        ldx clock_recv_idx
+        cpx #CLOCK_MAX
+        bcs clock_recv_loop         ; over-long: drain and drop
+        jsr so_petscii_to_screen
+        sta clock_buf,x
+        inc clock_recv_idx
+        jmp clock_recv_loop
+clock_recv_done:
+        lda clock_recv_idx
+        sta clock_len
+        jmp redraw_status_row       ; tail call
+clock_recv_rts:
+        rts
+
+clock_buf:
+        area CLOCK_MAX, 0
+clock_len:
+        byte 0                      ; 0 = no clock shown (hourglass off)
+clock_recv_idx:
         byte 0
-{alpha:normal}
+clock_remaining:
+        byte 0
+
+; Build-date/time status message (build_msg, strip_build_rev_zeros) --
+; shared with client-128.asm, see build_rev.asm.
+{include:build_rev.asm}
 
 ; .a = new cursor_blink_mask value -- see JT_SET_BLINK_MASK's own comment.
 set_blink_mask:
         sta cursor_blink_mask
+        lda #0
+        sta cursor_blink_ticks   ; force an immediate reload/toggle at the
+                                  ; new speed next update_cursor call, rather
+                                  ; than finishing out the old speed's
+                                  ; leftover countdown first
         rts
 
 jump_table_template:
@@ -1515,7 +1916,37 @@ jump_table_template:
         jmp set_blink_mask
         byte SID_STREAM_START, SID_STREAM_CONFIRM, CANVAS_STREAM_CONFIRM
         byte CANVAS_STREAM_CANCEL, DISPLAY_STREAM_CONFIRM
-        byte DISPLAY_STREAM_CANCEL, APPLY_STREAM_CONFIRM
+        byte DISPLAY_STREAM_CANCEL, APPLY_STREAM_CONFIRM, HELP_STREAM_CONFIRM
+        jmp resume_local           ; JT_RESUME_LOCAL -- read_line then
+                                     ; send_line then loop, NOT a bare
+                                     ; `jmp read_line` -- see resume_
+                                     ; local's own comment for the real
+                                     ; swallowed-first-RETURN bug this
+                                     ; fixes, and constants.asm's own
+                                     ; comment on why this entry exists
+                                     ; alongside JT_RESUME
+        jmp status_push_reset     ; JT_STATUS_PUSH_RESET -- see
+                                     ; constants.asm's own comment; lets
+                                     ; keymap_menu.asm push its own Save/
+                                     ; Cancel status messages
+        jmp build_status_line     ; JT_BUILD_STATUS_LINE -- same reasoning
+        jmp cursor_hide           ; JT_CURSOR_HIDE -- lets keymap_menu.asm
+                                     ; blink a real cursor during its own
+                                     ; capture-wait; see constants.asm's
+                                     ; own comment
+        jmp update_cursor         ; JT_UPDATE_CURSOR -- same reasoning
+        jmp so_get_cursor         ; JT_GET_CURSOR -- screen-output.asm's
+                                     ; own cursor, for overlays; see
+                                     ; constants.asm's own comment
+        jmp so_set_cursor         ; JT_SET_CURSOR -- same reasoning
+        jmp so_ctl_clear          ; JT_CLEAR_SCREEN -- same reasoning
+        byte 0, 0, 0, 0           ; KEYMAP_TABLE_PTR/CONFIG_SETTINGS_PTR
+                                     ; -- placeholders only: init_keymap
+                                     ; (always after init_jump_table)
+                                     ; writes the real pointers
+        jmp set_border_style      ; JT_SET_BORDER_STYLE -- config_menu.
+                                     ; asm's Border style; see
+                                     ; constants.asm's own comment
 
 ; --- Load the petscii_editor overlay module and hand control to it ---
 ; Called from handle_recv_byte_canvas_confirm once a real canvas stream
@@ -1526,11 +1957,12 @@ jump_table_template:
 ; code+buffers sitting in memory the whole time -- it's only loaded when
 ; a "banner edit" session actually starts.
 ;
-; Uses LOAD "...",8,1 (secondary address 1: use the address embedded in
-; the file's own 2-byte header, i.e. OVERLAY_BUF, same convention as a
-; normal `LOAD"program",8,1`) rather than passing an explicit target
-; address, so the module's own assembly is the single source of truth
-; for where it lives.
+; Uses LOAD "...",<drive>,1 (secondary address 1: use the address
+; embedded in the file's own 2-byte header, i.e. OVERLAY_BUF, same
+; convention as a normal `LOAD"program",8,1`) rather than passing an
+; explicit target address, so the module's own assembly is the single
+; source of truth for where it lives. <drive> is whichever device the
+; client itself was loaded from -- see setlfs_current_drive.
 ;
 ; The rest of this stream (the 16-bit length prefix + 2000-byte canvas
 ; body) is still arriving over SwiftLink while the disk LOAD runs --
@@ -1539,15 +1971,14 @@ jump_table_template:
 ; nothing is lost during the load's real wall-clock time. The module
 ; picks up that data itself via JT_SL_RECV once it's running.
 load_petscii_editor:
+        jsr select_drive         ; disk.asm: the client's drive if it's
+        bcs load_overlay_no_drive ; still there, else the first one on
+                                  ; the bus -- none at all aborts here
         lda #10                  ; length of "PETSCII.ED" below
         ldx #<petscii_editor_filename
         ldy #>petscii_editor_filename
         jsr KERNAL_SETNAM
-        lda #1                   ; file number (arbitrary, unused after LOAD)
-        ldx #8                   ; device 8
-        ldy #1                   ; secondary address 1 -- use the file's
-                                  ; own embedded load address
-        jsr KERNAL_SETLFS
+        jsr setlfs_current_drive ; file #1, drive from CURRENT_DRIVE, SA 1
         lda #0                   ; ignored when SA=1, but LOAD still wants A=0
         jsr KERNAL_LOAD
         bcs load_overlay_error   ; carry set -- .a holds the KERNAL
@@ -1570,24 +2001,65 @@ load_petscii_editor:
 
 ; --- Load the config_menu overlay module and hand control to it ---
 ; Called from handle_recv_byte_display_confirm once a real display-
-; settings stream is confirmed starting. Same LOAD "...",8,1 (secondary
+; settings stream is confirmed starting. Same LOAD "...",<drive>,1 (secondary
 ; address 1) convention as load_petscii_editor above -- see that
 ; routine's own comment for the full reasoning (shared here rather than
 ; repeated).
 load_config_menu:
+        jsr select_drive         ; see load_petscii_editor
+        bcs load_overlay_no_drive
         lda #10                  ; length of "CONFIG.MNU" below
         ldx #<config_menu_filename
         ldy #>config_menu_filename
         jsr KERNAL_SETNAM
-        lda #1
-        ldx #8
-        ldy #1
-        jsr KERNAL_SETLFS
+        jsr setlfs_current_drive
         lda #0
         jsr KERNAL_LOAD
         bcs load_overlay_error
         jsr ensure_buffer_a_front ; see load_petscii_editor's own comment
         jmp OVERLAY_BUF
+
+; --- Load the help_menu overlay module and hand control to it ---
+; Called from handle_recv_byte_help_confirm once a real help/keys/credits
+; stream is confirmed starting. Same LOAD "...",<drive>,1 (secondary address 1)
+; convention as load_petscii_editor/load_config_menu above -- see load_
+; petscii_editor's own comment for the full reasoning (shared here rather
+; than repeated).
+load_help_menu:
+        jsr select_drive         ; see load_petscii_editor
+        bcs load_overlay_no_drive
+        lda #8                   ; length of "HELP.MNU" below
+        ldx #<help_menu_filename
+        ldy #>help_menu_filename
+        jsr KERNAL_SETNAM
+        jsr setlfs_current_drive
+        lda #0
+        jsr KERNAL_LOAD
+        bcs load_overlay_error
+        jmp OVERLAY_BUF
+
+; SETLFS for an overlay LOAD: file #1 (arbitrary, unused after LOAD),
+; the drive the client was loaded from (CURRENT_DRIVE), secondary address
+; 1 -- use the file's own embedded load address. Falls back to device 8
+; if CURRENT_DRIVE is below 8 (0-7 are keyboard/tape/RS-232/screen/
+; printers, never a disk drive -- e.g. the client was started some way
+; that never touched a drive), so LOAD is never aimed at a non-disk
+; device -- see current_drive_to_x just below.
+setlfs_current_drive:
+        jsr current_drive_to_x
+        lda #1                   ; file number
+        ldy #1                   ; secondary address 1
+        jmp KERNAL_SETLFS        ; its rts returns to our caller
+
+; current_drive_to_x (.X = the drive to use for any disk I/O) moved to
+; disk.asm, {include:}d below, along with select_drive/read_error_
+; channel -- shared there with keymap_menu.asm and client-128.asm.
+
+; select_drive found no drive on the serial bus at all -- don't attempt
+; the LOAD; report it as the KERNAL's own DEVICE NOT PRESENT (5).
+load_overlay_no_drive:
+        lda #5
+        ; fall through
 
 ; LOAD failed (either overlay module) -- report the KERNAL error number
 ; and hand control back to the ordinary prompt loop instead of jumping
@@ -1641,15 +2113,34 @@ petscii_editor_filename:
         ascii "PETSCII.ED"
 config_menu_filename:
         ascii "CONFIG.MNU"
+help_menu_filename:
+        ascii "HELP.MNU"
 {alpha:normal}
+
+; --- Keymap (rebindable input-line functions + macros) ---
+; Split into its own file, keymap.asm -- see that file's own header for
+; the full picture. init_keymap/keymap_table/load_keymap_menu/etc all
+; live there now; this {include:} is what pulls them into this same
+; compilation unit (see the Makefile's SPLIT_MODULES for why it names
+; the _pp.asm file, not the raw source).
+{include:keymap_pp.asm}
+
+; --- Disk drives: bus scan, drive selection, error channel ---
+; disk.asm -- raw, no _pp.asm (no {const:}s of its own). Shared with
+; keymap_menu.asm and client-128.asm; see its header.
+{include:disk.asm}
+
+; --- Keyboard rollover scan (replaces stock scan inside irq_handler) ---
+; Split into its own file, keyboard_rollover.asm -- see that file's own
+; header for the full picture (why blink logic was deliberately left
+; out, zero-page usage verified against this codebase's own past
+; collision history). kr_scan is called from irq_handler above.
+{include:keyboard_rollover_pp.asm}
 
 {include:sid_streaming.asm}
 
 {include:screen-handler_pp.asm}
-
-; gothic_charset -- no macro-preprocessor directives, so (like
-; constants.asm) included directly, not via a _pp.asm preprocessed copy.
-{include:gothic-charset.asm}
+{include:screen-output_pp.asm}
 
 ; --- Blinking input cursor ---
 ; GETIN-driven input (unlike CHRIN) never engages the KERNAL's own
@@ -1666,31 +2157,52 @@ config_menu_filename:
 ; overwrote whatever real character was already sitting there -- the
 ; cursor was destroying buffer contents just by blinking over them.
 ; Instead, cursor_toggle flips the reverse-video bit (bit 7) of
-; whatever screen code is actually under the cursor right now, read via
-; the KERNAL's own PNT/PNTR zero-page vars ($d1/$d2 = pointer to the
-; start of the current screen line, $d3 = cursor column within it) --
-; the same pair the KERNAL's own cursor blink IRQ routine uses. These
-; stay in sync via CHROUT's normal screen-editor bookkeeping regardless
-; of this client's custom IRQ handler, since IRQ only affects blink
-; timing/STOP-key scanning here, not CHROUT's own screen writes. EOR
+; whatever screen code is actually under the cursor right now, at
+; screen-output.asm's own crsr_row/crsr_col (2026-09-28 -- this used to
+; read the KERNAL's PNT/PNTR, $d1/$d2 + $d3, back when CHROUT drew the
+; screen and kept those in sync). EOR
 ; #$80 (not a plain ORA) so a show/hide pair is always a clean round
 ; trip no matter what the underlying character was, including if it
 ; already happened to be a reverse-video glyph.
 cursor_phase:
         byte 0                   ; 0 = currently erased, 1 = currently drawn
 
-; Which single bit of $a2 update_cursor tests -- one bit set picks a
-; blink speed (higher bit = slower, since it takes longer for a
-; higher/slower-changing bit to flip): $08 fast, $10 normal (the
+; Which single value cursor_blink_ticks reloads to on every toggle --
+; also doubles as a blink-speed selector: $08 fast, $10 normal (the
 ; original hardcoded default), $20 slow, $40 very slow. $00 is a
 ; reserved sentinel meaning "solid, no blink" (speed 5) -- see
 ; update_cursor's own comment. Must match commands/c64_display.py's
 ; BLINK_SPEED_MASKS (speed# 1-5 -> mask) and config_menu.asm's own copy
 ; of that table exactly. Set by config_menu.asm's Video Settings popup
 ; when the player picks a speed and applies it live; stays at the
-; default otherwise.
+; default otherwise. Named "_mask" for history/wire-protocol reasons
+; (it used to be AND-ed against a bit of the free-running jiffy clock,
+; see cursor_blink_ticks's own comment for why that changed) -- the
+; numeric values themselves didn't need to change, only how
+; update_cursor uses them.
 cursor_blink_mask:
         byte $10
+
+; Countdown reload from cursor_blink_mask, decremented by
+; irq_task_cursor_blink (the IRQ round-robin task, see irq_task_table)
+; every tick. update_cursor (called from read_line_loop, mainline
+; context) toggles the cursor exactly when this hits 0, then reloads it
+; from cursor_blink_mask -- reusing that byte's existing numeric value
+; directly as the tick count is not a coincidence: bit N of a free-
+; running counter (the old design's mechanism) is 0 for 2^N ticks then
+; 1 for 2^N ticks, the same square wave a decrement-to-zero-and-reload
+; counter with reload=2^N produces, and $08/$10/$20/$40 are exactly
+; 2^3/2^4/2^5/2^6. Kept as a lightweight IRQ-decremented counter (never
+; touching CHROUT/PLOT or the PNT/PNTR pointers cursor_toggle reads)
+; rather than calling update_cursor's actual toggle from IRQ context --
+; the KERNAL screen editor doesn't update PNT/PNTR atomically with
+; respect to interrupts, so a toggle firing mid-CHROUT elsewhere in the
+; client could flip the wrong on-screen byte. Same design as
+; client-128.asm's blinkctr/irq_task_cursor_blink -- ported back here
+; deliberately for parity across both clients, not independently
+; invented twice.
+cursor_blink_ticks:
+        byte 0
 
 rts_state:
         byte 1                   ; 1 = RTS currently asserted (ready), 0 = deasserted
@@ -1700,17 +2212,18 @@ x_save:
 y_save:
         byte 0                   ; scratch for preserving .Y across update_cursor/CHROUT calls
 
-; Call once per read_line poll iteration. Only touches the screen on a
-; phase transition, so it doesn't flicker while sitting in one state.
+; Called directly from read_line_loop every poll iteration (mainline
+; context, same as before this file grew an IRQ task table at all) --
+; only irq_task_cursor_blink's lightweight tick-down runs from IRQ, see
+; cursor_blink_ticks's own comment for why. Only touches the screen on
+; a phase transition, so it doesn't flicker while sitting in one state.
 ; cursor_blink_mask == $00 is a reserved sentinel meaning "solid, no
 ; blink at all" (blink speed 5 -- Ryan's ask: some screen-reader/
 ; accessibility software, e.g. Gadget, doesn't get along with a
-; blinking cursor). AND-ing against a real speed's mask (`$08`/`$10`/
-; `$20`/`$40`, each a single bit) is what makes a 0 mask meaningless as
-; "always show" on its own -- `$a2 AND $00` is always 0, which without
-; this special case would read as "always erased", the opposite of
-; solid. So: mask 0 skips the AND/blink logic entirely and just leaves
-; the cursor drawn once it's on, never toggling it back off.
+; blinking cursor) -- checked first and skips the tick-countdown
+; entirely, since cursor_blink_ticks is never reloaded/consulted in
+; solid mode (irq_task_cursor_blink's own beq-on-zero guard means an
+; always-0 counter just never decrements either, harmless either way).
 update_cursor:
         lda cursor_blink_mask
         bne update_cursor_blink
@@ -1721,34 +2234,20 @@ update_cursor:
         sta cursor_phase
         rts
 update_cursor_blink:
-        lda $a2
-        and cursor_blink_mask
-        beq cursor_want_off
-        lda cursor_phase
-        bne update_cursor_done   ; already on
+        lda cursor_blink_ticks
+        bne update_cursor_done   ; not time yet -- irq_task_cursor_blink is
+                                  ; ticking this down in the background
+        lda cursor_blink_mask
+        sta cursor_blink_ticks   ; reload for the next half-period
         jsr cursor_toggle
-        lda #1
-        sta cursor_phase
-        rts
-cursor_want_off:
         lda cursor_phase
-        beq update_cursor_done   ; already off
-        jsr cursor_toggle
-        lda #0
+        eor #1
         sta cursor_phase
 update_cursor_done:
         rts
 
-; Flip the reverse-video bit of the screen code currently under the
-; cursor, in place. Doesn't move the screen cursor or call CHROUT at
-; all, so the real character underneath survives regardless of how many
-; times this fires.
-cursor_toggle:
-        ldy $d3                  ; PNTR -- cursor column within current line
-        lda ($d1),y               ; PNT -- on-screen char code under cursor
-        eor #$80
-        sta ($d1),y
-        rts
+; cursor_toggle lives in screen-output.asm now (it reads that file's
+; own crsr_row/crsr_col instead of the KERNAL's PNT/PNTR).
 
 ; Force the cursor to the "erased" state right before a real keystroke
 ; is handled, whatever phase update_cursor last left it in. Safe to
@@ -1782,7 +2281,11 @@ read_line_loop:
 
 ;       stx x_save
         sty y_save
-        jsr update_cursor        ; blink the cursor while waiting for a key
+        jsr update_cursor         ; blink the cursor while waiting for a key
+                                   ; -- irq_task_cursor_blink only ticks the
+                                   ; countdown in the background, this is
+                                   ; still what actually toggles it, see
+                                   ; cursor_blink_ticks's own comment
         jsr sid_service_background ; keep draining an in-progress SID stream
                                     ; while the player types -- see its own
                                     ; comment
@@ -1805,7 +2308,24 @@ read_line_loop:
         pla
 
         ; TEMP diagnostic: print every raw byte GETIN returns as <XX>,
-        ; and the current buffer length as [XX], right before dispatch.
+        ; the current buffer length as [XX], and the live SHIFT/
+        ; Commodore/CTRL modifier byte ($028d, same one keymap_dispatch
+        ; itself reads) as {MM}, right before dispatch. The {MM} field
+        ; added 2026-09-22 -- Ryan's live report that CTRL+CRSR-LEFT/UP
+        ; "didn't do anything" and this trace's own <XX>/[XX] "didn't
+        ; show anything different" between plain and CTRL+ cursor
+        ; presses turned out to be expected, not a clue: GETIN's own
+        ; decoded byte for a cursor key doesn't change when a modifier
+        ; is ALSO held (keymap_dispatch's own comment on this same
+        ; fact), so <XX> alone can never distinguish plain CRSR-LEFT
+        ; from CTRL+CRSR-LEFT -- only $028d can. {MM} shows exactly
+        ; what keymap_dispatch would have seen, e.g. $04 for CTRL, $00
+        ; for nothing held, letting a live comparison of physical Ctrl
+        ; vs Tab (VICE's Symbolic/Positional keymaps swap which one
+        ; lands on the C64's real CTRL vs Commodore key -- see
+        ; keymap_default's own 2026-08-24 note) show directly which
+        ; key VICE is actually reporting as CTRL, without needing a
+        ; monitor session at all.
 {ifdef: debug}
         pha
         lda #'<'
@@ -1821,6 +2341,19 @@ read_line_loop:
         jsr print_hex_byte
         lda #']'
         jsr term_chrout
+        lda #$7b                 ; '{' -- can't use a quoted literal here,
+        jsr term_chrout           ; c64list's own macro syntax reserves
+                                    ; '{' and misparses `#'{'` as the
+                                    ; start of a directive (confirmed
+                                    ; live 2026-09-22: "{ could not be
+                                    ; encoded" assembler error)
+        lda $028d
+        jsr print_hex_byte
+        lda #$7d                 ; '}' -- same reasoning, for symmetry
+        jsr term_chrout           ; with the opening brace above (this
+                                    ; one alone assembled fine, but a
+                                    ; matched pair reads clearer than
+                                    ; one quoted and one numeric)
         pla
 {endif}
 
@@ -1839,6 +2372,53 @@ read_line_loop:
         bne read_line_not_return
         jmp read_line_done
 read_line_not_return:
+
+        ; --- Keymap dispatch ---
+        ; F7 (unshifted, $88) opens the Keymap Editor popup -- used to
+        ; be a hardcoded special case checked right here, ahead of
+        ; keymap_dispatch below; now it's just ACTION_OPEN_EDITOR, a
+        ; real (and rebindable) keymap_table entry like everything else
+        ; (Ryan's ask, 2026-09-02) -- see keymap_default's own comment.
+        ; keymap_dispatch_run's ACTION_OPEN_EDITOR branch jumps straight
+        ; into load_keymap_menu, entirely locally -- no server round
+        ; trip at all, unlike Video Settings/Help (DISPLAY_STREAM_
+        ; CONFIRM/HELP_STREAM_CONFIRM), since neither the nav-function
+        ; rebinds, macro text, nor which key opens the editor mean
+        ; anything to the server.
+        ; Handles word-left/right (CTRL+CRSR-LEFT/DOWN by default) and
+        ; home/end (plain CRSR-UP/DOWN by default) via keymap_table --
+        ; see keymap.asm's own comment on keymap_dispatch and
+        ; keymap_default. A match here handles the key itself and loops
+        ; back; a miss (e.g. DEL, INST, plain CRSR-LEFT/RIGHT -- none of
+        ; those are in the default keymap at all) falls through to the
+        ; ordinary dispatch below, .A restored to the real typed byte
+        ; either way. This used to be a hardcoded cmp/$028d chain
+        ; directly in this file (CRSR UP/DOWN, CTRL+CRSR-LEFT/DOWN);
+        ; replaced by this table-driven version 2026-09-02 once it was
+        ; confirmed correct live (both a real login-prompt retest and a
+        ; direct synthetic check of every case -- see keymap_dispatch's
+        ; own commit history for the two real bugs that surfaced and
+        ; got fixed along the way). See keymap_default's own comment
+        ; for the historical CTRL+cursor/VICE-GTK caveat that used to
+        ; live here.
+        jsr keymap_dispatch
+        bcc read_line_not_keymap
+        lda keymap_macro_submit    ; set by keymap_insert_macro when the
+        beq read_line_dispatch_loop ; matched macro's own text contained
+                                      ; the back-arrow auto-submit marker
+                                      ; ($5f -- Ryan's ask, 2026-09-22,
+                                      ; see that routine's own header
+                                      ; comment in keymap.asm)
+        lda #0
+        sta keymap_macro_submit     ; clear for the next macro/keystroke
+        jmp read_line_done          ; same stack depth a real RETURN
+                                      ; reaching read_line_done normally
+                                      ; would use -- read_line_not_return
+                                      ; is reached by a plain branch, not
+                                      ; a nested jsr, from read_line_loop
+read_line_dispatch_loop:
+        jmp read_line_loop
+read_line_not_keymap:
 
         cmp #$14                 ; DEL (PETSCII backspace)?
         beq read_line_del
@@ -1918,6 +2498,99 @@ read_line_right_move:
         jsr term_cursor_right
         jmp read_line_loop
 
+; --- read_line_word_left / read_line_word_right: CTRL+CRSR-LEFT/CTRL+
+; CRSR-DOWN word-jump (see read_line_not_return's own comment). Plain
+; callable subroutines (rts-ending), called via jsr then jmp read_line_
+; loop -- same safe shape exkey/jmpkey uses on the 128 client's own
+; dispatch, not the trickier stack-unwind its return: handler needs
+; (not needed here since these don't skip any enclosing frame, just
+; move the cursor and return normally).
+;
+; Both peek at the character about to be stepped over BEFORE deciding
+; to move, rather than moving first and checking after -- keeps the
+; loop symmetric and avoids an extra out-of-bounds read at cursor_pos
+; 0/linelen (the entry/top-of-loop bounds check always runs first).
+read_line_word_left:
+        lda cursor_pos
+        beq read_line_word_left_rts     ; already at start -- nothing left
+read_line_word_left_spaces:
+        lda cursor_pos
+        beq read_line_word_left_rts
+        ldx cursor_pos
+        lda linebuf-1,x                 ; char immediately before cursor_pos
+        cmp #' '
+        bne read_line_word_left_word    ; found real text -- skip the word now
+        dec cursor_pos
+        jsr term_cursor_left
+        jmp read_line_word_left_spaces
+read_line_word_left_word:
+        lda cursor_pos
+        beq read_line_word_left_rts
+        ldx cursor_pos
+        lda linebuf-1,x
+        cmp #' '
+        beq read_line_word_left_rts     ; that's the boundary -- stop here,
+                                          ; cursor_pos is now at the word's
+                                          ; own first character
+        dec cursor_pos
+        jsr term_cursor_left
+        jmp read_line_word_left_word
+read_line_word_left_rts:
+        rts
+
+read_line_word_right:
+        lda cursor_pos
+        cmp linelen
+        beq read_line_word_right_rts    ; already at end
+read_line_word_right_word:
+        lda cursor_pos
+        cmp linelen
+        beq read_line_word_right_rts
+        ldx cursor_pos
+        lda linebuf,x                   ; char at cursor_pos, about to be
+                                          ; stepped over
+        cmp #' '
+        beq read_line_word_right_spaces ; found the word's trailing space
+        inc cursor_pos
+        jsr term_cursor_right
+        jmp read_line_word_right_word
+read_line_word_right_spaces:
+        lda cursor_pos
+        cmp linelen
+        beq read_line_word_right_rts
+        ldx cursor_pos
+        lda linebuf,x
+        cmp #' '
+        bne read_line_word_right_rts    ; found the next word's first char
+        inc cursor_pos
+        jsr term_cursor_right
+        jmp read_line_word_right_spaces
+read_line_word_right_rts:
+        rts
+
+; --- read_line_home / read_line_end: CRSR UP -> start of line, CRSR
+; DOWN (without CTRL) -> end of line -- see read_line_not_return's own
+; comment. Plain callable subroutines (rts-ending), same jsr-then-jmp-
+; read_line_loop shape as read_line_word_left/right above.
+read_line_home:
+        lda cursor_pos
+        beq read_line_home_rts
+        dec cursor_pos
+        jsr term_cursor_left
+        jmp read_line_home
+read_line_home_rts:
+        rts
+
+read_line_end:
+        lda cursor_pos
+        cmp linelen
+        beq read_line_end_rts
+        inc cursor_pos
+        jsr term_cursor_right
+        jmp read_line_end
+read_line_end_rts:
+        rts
+
 read_line_store:
         pha                       ; stash the typed char across the shift below
         lda linelen
@@ -1949,16 +2622,6 @@ read_line_store_shift_done:
                                    ; term_chrout, not a bare CHROUT, so a
                                    ; long line wrapping near the bottom of
                                    ; the screen can't scroll past STATUS_ROW
-
-        ; Echoing a literal '"' through CHROUT toggles the KERNAL's quote
-        ; mode (same as typing one in a normal BASIC line) -- once on, it
-        ; makes subsequent CHROUT control codes (our cursor blink's
-        ; reverse-on/off/cursor-left) display as literal reverse-video
-        ; glyphs instead of being interpreted, showing up as garbage
-        ; around the blinking cursor. Force it back off unconditionally
-        ; after every echoed character rather than only after a '"'.
-        lda #0
-        sta QTSW
 
         lda linelen               ; was this an insert (tail follows the
         cmp cursor_pos            ; cursor) rather than a plain append?
@@ -2017,8 +2680,16 @@ read_line_done:
         ldx linelen
         lda #0
         sta linebuf,x            ; null-terminate right at the real length
+        lda input_in_area
+        beq read_line_done_echo
+        jsr commit_input_line    ; prompt pinned in the input area: write
+                                  ; "prompt + line" into the dialogue
+                                  ; history instead (see its comment)
+        jmp read_line_done_echoed
+read_line_done_echo:
         lda #$0d
         jsr term_chrout          ; echo the newline locally
+read_line_done_echoed:
         ; TEMP diagnostic: show how many characters read_line actually
         ; captured. Remove once the character-loss bug is confirmed fixed.
 {ifdef: debug}
@@ -2064,6 +2735,12 @@ print_hex_byte:                  ; .A = byte to print in hex
 ; not CRLF, so only $0d goes out after the line, matching the negotiation
 ; response above ("lda #'4'" / "lda #$0d").
 send_line:
+        lda offline
+        beq send_line_online
+        lda #<not_connected_msg   ; offline -- say so instead of sending
+        ldy #>not_connected_msg   ; (see go_offline)
+        jmp print_msg
+send_line_online:
         ldx #0
 send_line_loop:
         lda linebuf,x
@@ -2078,40 +2755,15 @@ send_line_term:
 
 ; --- Display character on screen ---
 ; Input: .A = byte received from server
-; Writes directly to screen RAM via pointer, handles CR
-; Routes through term_chrout, not a bare CHROUT, so incoming server text
-; can't scroll past STATUS_ROW -- see that section's own header comment.
-;
-; Resets QTSW (KERNAL quote-mode switch) after every character, same
-; reasoning as read_line_store/reprint_input_line/service_async_idle's
-; own QTSW resets (a literal '"' toggles quote mode, which makes
-; subsequent CHROUT control codes print as literal reverse-video glyphs
-; instead of being interpreted) -- but this is the one call site that
-; was missing it: those three all reset QTSW when RE-displaying already-
-; buffered content, but nothing reset it for incoming server text's
-; *original* display pass. Confirmed live 2026-08-20 this was a real,
-; not just theoretical, gap: ordinary server text (chat messages
-; routinely contain literal quotes) could leave quote mode stuck on
-; indefinitely, silently breaking every control code sent afterward --
-; including async_step_back's own $9d CRSR-LEFT stepping, which stopped
-; actually moving the cursor and instead printed $9d's literal glyph
-; forward, corrupting STATUS_ROW with garbage in a way that looked like
-; a completely different bug (a stray character landing there) until
-; traced back to this.
+; Routes through term_chrout (screen-output.asm), which handles CR,
+; wrapping, colors and scrolling below STATUS_ROW itself.
+; The KERNAL quote-mode (QTSW) resets that used to live here, and in
+; read_line_store/reprint_input_line/relocate_prompt_to_row24/
+; service_async_idle/keymap_insert_macro, went away with CHROUT
+; (2026-09-28): term_chrout has no quote mode, so a literal '"' in
+; server text can no longer turn later control codes into glyphs.
 display_char:
-        cmp #$0d                ; carriage return?
-        bne >@
-        lda #$0d
-        jsr term_chrout
-        jmp display_char_qtsw_reset
-@:      jsr term_chrout          ; let KERNAL handle PETSCII->screen code
-                                  ; conversion (term_chrout wraps CHROUT)
-display_char_qtsw_reset:
-        pha
-        lda #0
-        sta QTSW
-        pla
-        rts
+        jmp term_chrout
 
 ; --- Dispatch a byte received from the server: text or SID stream ---
 ; Called from wait_for_data for every byte sl_recv hands back, in place of
@@ -2204,13 +2856,23 @@ handle_recv_byte_maybe_start:
 
 handle_recv_byte_confirm:
         cmp #SID_STREAM_CONFIRM
-        beq handle_recv_byte_start
+        bne handle_recv_byte_not_sid
+        ; jmp, not beq: handle_recv_byte_start sits exactly 128 bytes
+        ; past the branch -- one byte out of range, which c64list
+        ; assembled silently as `beq *+1` (F0 FF), jumping into its own
+        ; operand byte instead of starting the SID stream.
+        jmp handle_recv_byte_start
+handle_recv_byte_not_sid:
         cmp #CANVAS_STREAM_CONFIRM
         beq handle_recv_byte_canvas_confirm
         cmp #DISPLAY_STREAM_CONFIRM
         beq handle_recv_byte_display_confirm
         cmp #APPLY_STREAM_CONFIRM
         beq handle_recv_byte_apply_confirm
+        cmp #HELP_STREAM_CONFIRM
+        beq handle_recv_byte_help_confirm
+        cmp #CLOCK_STREAM_CONFIRM
+        beq handle_recv_byte_clock_confirm
         ; False alarm: the earlier $01 wasn't really a stream start.
         ; Display both the swallowed $01 and this byte as ordinary text
         ; instead of silently treating either as SID framing.
@@ -2242,6 +2904,23 @@ handle_recv_byte_display_confirm:
         lda #0
         sta sid_mode
         jmp load_config_menu
+
+; A real help/keys/credits stream is confirmed -- same reasoning as
+; handle_recv_byte_canvas_confirm above, hands off to help_menu.asm
+; entirely. That module reads the length prefix + 1-byte body (which
+; page to open on) itself once it's loaded and running.
+handle_recv_byte_help_confirm:
+        lda #0
+        sta sid_mode
+        jmp load_help_menu
+
+; A hourglass clock stream is confirmed -- consumed inline by clock_recv
+; (next to the status queue it paints into), same no-overlay approach as
+; handle_recv_byte_apply_confirm below.
+handle_recv_byte_clock_confirm:
+        lda #0
+        sta sid_mode
+        jmp clock_recv
 
 ; A silent-apply stream is confirmed (sent at login/reconnect -- see
 ; commands/connect.py's encode_apply_for_player()). Unlike the canvas/
@@ -2287,6 +2966,8 @@ apply_recv_blink:
                                      ; 0-based index, same convention as
                                      ; config_menu.asm's own blink_masks
         sta cursor_blink_mask
+        lda #0
+        sta cursor_blink_ticks     ; see set_blink_mask's own comment
         rts
 
 ; Gives up on a timed-out apply-confirm byte wait: sid_mode is already 0
@@ -2363,10 +3044,9 @@ handle_recv_byte_start:
         sta sid_byte_count+1
         sta sid_frames_played+0
         sta sid_frames_played+1
-        ; Snapshot the KERNAL jiffy clock ($a0/$a1/$a2, hi/mid/lo -- $a2
-        ; is the fastest-changing byte, same one update_cursor already
-        ; reads) so #stop can print real elapsed time alongside
-        ; sid_frames_played, no stopwatch needed.
+        ; Snapshot the KERNAL jiffy clock ($a0/$a1/$a2, hi/mid/lo -- $a2 is
+        ; the fastest-changing byte) so #stop can print real elapsed time
+        ; alongside sid_frames_played, no stopwatch needed.
         lda $a0
         sta sid_jiffy_start0
         lda $a1
@@ -2482,7 +3162,7 @@ init_irq:
         rts
 
 ; --- IRQ handler ---
-; Two tiers, matching ImageBBS's irqhn.asm shape (irq9/irq10 unconditional
+; Three tiers, matching ImageBBS's irqhn.asm shape (irq9/irq10 unconditional
 ; + irqtbl/irq0 round-robin), repurposed for this client's own jobs:
 ;   1. sid_play runs every single tick, unconditionally -- playback tempo
 ;      must never depend on how many other jobs are registered.
@@ -2490,10 +3170,26 @@ init_irq:
 ;      latency-tolerant background work (currently just a placeholder
 ;      heartbeat; future candidates: a SwiftLink TX queue pump, since
 ;      sl_send today busy-waits on TDRE rather than being interrupt-driven).
+;   3. kr_scan (keyboard_rollover.asm) replaces the stock keyboard scan
+;      that irq_orig used to reach by chaining wholesale to $ea31 -- see
+;      [[project_3_key_rollover_idea]]/[[project_3_key_rollover_keymap_demo]]
+;      in project memory. This does NOT chain to irq_orig anymore: doing
+;      both would double-scan the keyboard (once via kr_scan, once via
+;      the stock scan still living inside $ea31). Instead this jumps
+;      straight to $ea7e, the stock IRQ's own ack-and-return tail (CIA
+;      ICR ack + jiffy clock + STOP-key long-press check + register
+;      restore + rti) -- confirmed byte-identical between stock KERNAL
+;      and this project's JiffyDOS KERNAL via a live VICE monitor read,
+;      2026-09-15, since JiffyDOS only patches disk I/O, not the
+;      keyboard/IRQ chain. irq_orig is still saved by init_irq (kept for
+;      a possible future "restore stock IRQ" path) but is no longer
+;      read here.
 irq_handler:
         jsr sid_play
         jsr irq_dispatch_next
-        jmp (irq_orig)
+        jsr KERNAL_UDTIM
+        jsr kr_scan
+        jmp $ea7e
 
 ; --- Round-robin task dispatcher ---
 ; Advances a self-modified table index by 2 (one word entry) each tick,
@@ -2525,6 +3221,20 @@ irq_task_heartbeat:
         inc irq_heartbeat
         rts
 
+; Round-robin job that paces the blinking input cursor -- only
+; decrements a plain counter byte, never touches CHROUT/PLOT or the
+; PNT/PNTR pointers cursor_toggle reads, so (unlike a task that called
+; update_cursor's actual toggle directly) it's safe to run
+; unconditionally, whether or not read_line is even active right now.
+; See cursor_blink_ticks's own comment. Same design as
+; client-128.asm's irq_task_cursor_blink/blinkctr.
+irq_task_cursor_blink:
+        lda cursor_blink_ticks
+        beq irq_task_cursor_blink_rts
+        dec cursor_blink_ticks
+irq_task_cursor_blink_rts:
+        rts
+
 ; --- Data ---
 
 ; {alpha:poke} -- update_status_line pokes this straight into SCREEN_RAM,
@@ -2543,7 +3253,41 @@ status_msg:
         ascii {usedef:__BuildDate}
         ascii " - Connecting..."
         byte 0
+status_msg_offline:
+        ascii " TADA client "
+        ascii {usedef:__BuildDate}
+        ascii " - Offline"
+        byte 0
 {alpha:normal}
+
+; go_offline/send_line's messages -- plain CHROUT (term_chrout) text, so
+; {alpha:alt} for real mixed-case PETSCII (uppercase letters in $C1-$DA,
+; lowercase in $41-$5A) under the upper/lowercase charset.
+{alpha:alt}
+stop_hint_msg:
+        byte $0d                 ; off row 0 first -- the cursor starts on
+                                  ; the status line after init_screen
+        byte $9f                 ; cyan
+        ascii "Hit "
+        byte $05                 ; white
+        ascii "Stop"
+        byte $9f                 ; cyan
+        ascii " to cancel connecting."
+        byte $0d, 0
+offline_msg:
+        byte $0d
+        ascii "Connect aborted -- working offline."
+        byte $0d
+        ascii "F7 still opens the keymap editor."
+        byte $0d, 0
+not_connected_msg:
+        ascii "Not connected."
+        byte $0d, 0
+{alpha:normal}
+
+offline:
+        byte 0                   ; 1 = RUN/STOP aborted the initial connect
+                                  ; (see go_offline)
 
 linelen:
         byte 0
@@ -2647,7 +3391,8 @@ sid_stream_starts:
 
 irq_task_table:
         word irq_task_heartbeat
-IRQ_TASK_TABLE_LEN = 2          ; entries * 2 -- keep in sync with the table above
+        word irq_task_cursor_blink
+IRQ_TASK_TABLE_LEN = 4          ; entries * 2 -- keep in sync with the table above
 
 align $100      ; align buffers on page boundaries -- c64list wants "$" for
                 ; hex, not "0x" (confirmed against the manual and by
@@ -2671,8 +3416,21 @@ SID_BUF:
 ; resident copy of these 2000 bytes exists rather than each module
 ; (petscii_editor.asm's help screen, a future config menu, ...)
 ; allocating its own.
+;
+; These 2000 bytes start out holding gothic_charset's 2048 bytes of
+; glyph data instead of zeros (Ryan's ask, 2026-10-01: get the charset's
+; 2K back). The charset is only ever read once, by switch_to_bank3_with_
+; charset -- the very first call at start: -- which copies it into the
+; RAM under $d000 where the VIC reads it; nothing touches these buffers
+; until a popup's JT_SAVE_SCREEN, long after that, and restore_screen
+; only ever puts back what save_screen wrote. Saves 2000 bytes of
+; resident space (and as much of the .prg) over a separate zero-filled
+; pair. Keep both of these the LAST thing in the program: the region
+; runs 48 bytes past BACKUP_COLORS' end (2048 vs 2000), and
+; check_overlay_margin.py measures the resident end from backup_chars.
+;
+; gothic_charset -- no macro-preprocessor directives, so (like
+; constants.asm) included directly, not via a _pp.asm preprocessed copy.
 BACKUP_CHARS:
-        area 1000, 0
-
-BACKUP_COLORS:
-        area 1000, 0
+{include:gothic-charset.asm}
+BACKUP_COLORS = BACKUP_CHARS + 1000

@@ -47,7 +47,8 @@ SETTINGS_METADATA: Dict[str, SettingInfo] = {
         'Victory Item',
     ),
     'dwarf_silver': SettingInfo(
-        int, 'Silver The Dwarf (tips.txt) has stolen so far, server-wide. Awarded in full to whoever kills him.',
+        int, "Silver The Dwarf (tips.txt) has stolen so far, server-wide. Awarded in full to "
+        "whoever kills him, then reset to a 500-silver floor (not zero).",
         "Dwarf's Silver",
     ),
     'dwarf_move_interval_minutes': SettingInfo(

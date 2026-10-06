@@ -78,15 +78,16 @@ def _posted_after(posted_at: str, since: datetime.date) -> bool:
 def is_new_since(thread: dict, since: Optional[datetime.date]) -> bool:
     """Whether *thread* has any activity (its own root post, or any
     reply) posted after *since* -- the player's own command_settings.
-    board_last_date threshold (commands/board/board.py's 'board ld'),
-    not tied to login time the way news.py's is_new_since() is.
-    since=None (the threshold has never been set) counts everything as
-    new, matching news.py's own None-since convention.
+    board_last_date threshold (commands/board/board.py's 'ld' listing-
+    prompt command), not tied to login time the way news.py's
+    is_new_since() is. since=None (the threshold has never been set)
+    counts everything as new, matching news.py's own None-since
+    convention.
 
     Deliberately doesn't distinguish *which* replies are new vs. the
-    thread as a whole -- 'board rn' just filters which threads show up;
-    reading one via 'board <id>' still shows the full thread, same
-    simplicity news.py's own is_new_since() settles for."""
+    thread as a whole -- 'rn' just filters which threads show up in the
+    listing; reading one by its number still shows the full thread,
+    same simplicity news.py's own is_new_since() settles for."""
     return new_status(thread, since) is not None
 
 

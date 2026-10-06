@@ -509,6 +509,9 @@ class CastCommand(Command):
 
         spellbook.remove_spell(player, spell)
         player.unsaved_changes = True
+        # Bystanders see the casting itself, whatever comes of it.
+        from room_notices import notify, who
+        await notify(ctx, f'{who(player)} casts {name.title()}!')
 
         cast_chance = int(getattr(spell, 'cast_chance', 0) or 0)
         outcome = _roll_outcome(player, cast_chance)

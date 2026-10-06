@@ -26,6 +26,9 @@ Settings managed here
                       client_settings.colors.highlight_color
   N  News Display     command_settings.news.show_all  (New only / Full directory)
   W  Movement Keys    command_settings.wasd_movement  (Compass / WASD)
+  Y  Say Split        command_settings.say.split      (On / Off) — a ',,'
+                      in a 'say' splits it into a mid-sentence attribution
+                      (commands/say.py)
   T  Client Type      client_settings.screen_columns/screen_rows/translation
                       — presets (C64/C128/TADA client) or a custom size.
                         Available over a real PETSCII connection too (a
@@ -92,7 +95,7 @@ _SETTING_HELP: dict[str, list[str]] = {
         "'-- More --' prompt between pages: Enter for the next page, "
         "B or - to go back a page, [Q] Stop reading early. When off, "
         "everything is sent at once and scrolls by regardless of length. "
-        "Same setting as the standalone 'mp' command.",
+        "Same setting as the standalone |command|mp|reset| command.",
         '',
     ],
     'p': [
@@ -101,7 +104,7 @@ _SETTING_HELP: dict[str, list[str]] = {
         "If enabled, reading a message board thread (BOARD command) "
         "shows one message at a time with a [R]eply/[M]ail poster/<#>/"
         "Enter menu after each, instead of dumping the whole thread at "
-        "once. Same setting as the standalone 'pm' command.",
+        "once. Same setting as the standalone |command|pm|reset| command.",
         '',
     ],
     'c': [
@@ -141,8 +144,18 @@ _SETTING_HELP: dict[str, list[str]] = {
         "Controls what the bare single-letter movement keys mean. "
         "'Compass' (the default) uses n/s/e/w/u/d. 'WASD' uses w/a/s/d "
         "for north/west/south/east instead (u still means Up). Full "
-        "words (north, south, ...) and 'go <direction>' always work "
-        "either way.",
+        "words (north, south, ...) and |command|go <direction>|reset| "
+        "always work either way.",
+        '',
+    ],
+    'y': [
+        '',
+        '|cyan|Say Split|reset|',
+        "If enabled, a ',,' inside a SAY splits the line into a "
+        'mid-sentence attribution instead of one leading quote: '
+        '\'say This is something,,up with which I will not put!\' shows '
+        'as "This is something," you exclaim, "up with which I will not '
+        'put!" instead of "You exclaim, ...". Off by default.',
         '',
     ],
 }
@@ -156,9 +169,10 @@ _COLORS_GRAPHICS_HELP: dict[str, list[str]] = {
     'c': [
         '',
         '|cyan|Colors|reset|',
-        "Sets the text color and highlight color used for |white|[bracketed]"
-        "|reset| text throughout your session, e.g. item names or emphasis "
-        "in messages.",
+        "Sets the text color, highlight color used for |white|[bracketed]"
+        "|reset| text throughout your session (e.g. item names or emphasis "
+        "in messages), and command color used for game-command references "
+        "(e.g. |command|.h h|reset| in help text).",
         '',
     ],
     's': [
@@ -276,7 +290,8 @@ _DATE_TIME_HELP: dict[str, list[str]] = {
     'h': [
         '',
         '|cyan|Hourglass Display|reset|',
-        "Shows the current time in front of your command prompt. Purely "
+        "Shows the current time in front of your command prompt (on the "
+        "right side of the status line, on the C64 client). Purely "
         "a visual clock -- it doesn't yet affect in-game time limits or "
         "control 12-hour (AM/PM) vs 24-hour formatting or timezone.",
         '',
@@ -444,8 +459,10 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
         wasd = getattr(ctx.player.command_settings, 'wasd_movement', False)
         t.add_row(['W', 'Movement Keys',
                    'Inverted T (WASD)' if wasd else 'Compass directions (N/E/S/W)', 'hw'])
+        say_split = getattr(ctx.player.command_settings.say, 'split', False)
+        t.add_row(['Y', 'Say Split', 'On' if say_split else 'Off', 'hy'])
 
-        valid_keys = ['X', 'M', 'P', 'C', 'N', 'T', 'D', 'W']
+        valid_keys = ['X', 'M', 'P', 'C', 'N', 'T', 'D', 'W', 'Y']
         keys_str   = ' '.join(valid_keys)
         return_key = getattr(cs, 'return_key', 'Enter')
         menu = (
@@ -487,6 +504,8 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
                       'format, hourglass clock)'),
                 ('W', 'Toggle Movement Keys (Compass directions / '
                       'Inverted T WASD)'),
+                ('Y', "Toggle Say Split (',,' in a say splits into a "
+                      "mid-sentence attribution)"),
             ]
             help_lines = (
                 ['', '|yellow|PREFS Options|reset|', '']
@@ -554,6 +573,12 @@ async def prefs_menu(ctx, from_new_player: bool = False) -> bool:
             cs3.wasd_movement = not getattr(cs3, 'wasd_movement', False)
             await ctx.send(f"{option}{'|green|Inverted T (WASD)' if cs3.wasd_movement else '|green|Compass directions (N/E/S/W)'}|reset|")
 
+        elif ans == 'y':
+            option = "|white|Say Split: "
+            say_settings = ctx.player.command_settings.say
+            say_settings.split = not getattr(say_settings, 'split', False)
+            await ctx.send(f"{option}{'|green|On' if say_settings.split else '|red|Off'}|reset|")
+
         else:
             await ctx.send(f'Choose {",".join(valid_keys)}, or press {return_key} to save and exit.')
 
@@ -592,11 +617,12 @@ async def _colors_graphics_menu(ctx) -> None:
         colors     = getattr(cs, 'colors', None)
         text_col   = getattr(colors, 'text_color',      'White') if colors else 'White'
         hi_col     = getattr(colors, 'highlight_color', 'Red')   if colors else 'Red'
+        cmd_col    = getattr(colors, 'command_color',   'Cyan')  if colors else 'Cyan'
         border_key = getattr(cs, 'border_style', 'single')
 
         t = Table(headers=['Key', 'Setting', 'Current Value', 'Help'],
                   border_style=border_style_for_ctx(ctx))
-        t.add_row(['C', 'Colors', f'{text_col} text, {hi_col} highlight', 'hc'])
+        t.add_row(['C', 'Colors', f'{text_col} text, {hi_col} highlight, {cmd_col} command', 'hc'])
         from menu_system import MENU_COLOR_PRESETS
         _cur_menu_colors = getattr(cs, 'menu_colors', None)
         menu_colors_name = next(
@@ -622,7 +648,7 @@ async def _colors_graphics_menu(ctx) -> None:
             ['', '|yellow|Colors & Graphics|reset|', '']
             + t.render(width=cs.screen_columns)
             + ['', f"{' '.join(valid_keys)} to change, h<key> for details "
-                   f"(e.g.: h{valid_keys[0].lower()}), {return_key} to return to previous menu"
+                   f"(e.g. h{valid_keys[0].lower()}), {return_key} to go up a menu level"
                 if not ctx.player.is_expert else '', '']
         )
 
@@ -646,7 +672,7 @@ async def _colors_graphics_menu(ctx) -> None:
         elif ans == 'g':
             await _show_graphics_test(ctx)
         else:
-            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to return.')
+            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to go up a menu level.')
 
 
 async def _terminal_menu(ctx) -> None:
@@ -691,7 +717,7 @@ async def _terminal_menu(ctx) -> None:
             ['', '|yellow|Terminal Settings|reset|', '']
             + t.render(width=cs.screen_columns)
             + ['', f"{' '.join(valid_keys)} to change, h<key> for details "
-                   f"(e.g. h{valid_keys[0].lower()}), {return_key} to return", '']
+                   f"(e.g. h{valid_keys[0].lower()}), {return_key} to go up a menu level", '']
         )
 
         raw = await ctx.prompt('terminal settings', preamble_lines=menu)
@@ -713,7 +739,7 @@ async def _terminal_menu(ctx) -> None:
             from commands.c64_display import pick_c64_display
             await pick_c64_display(ctx)
         else:
-            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to return.')
+            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to go up a menu level.')
 
 
 async def _date_time_menu(ctx) -> None:
@@ -750,7 +776,7 @@ async def _date_time_menu(ctx) -> None:
             ['', '|yellow|Date & Time|reset|', '']
             + t.render(width=cs.screen_columns)
             + ['', f"{' '.join(valid_keys)} to change, h<key> for details "
-                   f"(e.g. h{valid_keys[0].lower()}), {return_key} to return", '']
+                   f"(e.g. h{valid_keys[0].lower()}), {return_key} to go up a menu level", '']
         )
 
         raw = await ctx.prompt('date & time', preamble_lines=menu)
@@ -777,7 +803,7 @@ async def _date_time_menu(ctx) -> None:
                 ctx.player.set_flag(PlayerFlags.HOURGLASS)
                 await ctx.send(f'{option}|green|On|reset|')
         else:
-            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to return.')
+            await ctx.send(f'Choose {",".join(valid_keys)}, or {return_key} to go up a menu level.')
 
 
 # ---------------------------------------------------------------------------
@@ -947,7 +973,8 @@ async def _pick_colors(ctx) -> None:
             t.add_row([str(i), cn.value, swatch])
         return t.render(width=cs.screen_columns)
 
-    for attr, label in (('text_color', 'Text'), ('highlight_color', '[bracket] Highlight')):
+    for attr, label in (('text_color', 'Text'), ('highlight_color', '[bracket] Highlight'),
+                        ('command_color', 'Command')):
         current = getattr(colors, attr, None)
         await ctx.send(*(['', f'|yellow|{label} Color|reset| (current: {current}):']
                          + _palette_rows() + ['']))

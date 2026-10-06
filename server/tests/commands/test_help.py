@@ -109,8 +109,8 @@ def _ctx_with_processor(*commands):
 
 class TestColorHelpers(unittest.TestCase):
 
-    def test_heading_is_yellow(self):
-        self.assertEqual(help_mod._heading("Usage:"), "|yellow|Usage:|reset|")
+    def test_heading_uses_heading_token(self):
+        self.assertEqual(help_mod._heading("Usage:"), "|heading|Usage:|reset|")
 
     def test_rule_is_dark_gray(self):
         self.assertEqual(help_mod._rule("---"), "|dark_gray|---|reset|")

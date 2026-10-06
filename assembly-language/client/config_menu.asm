@@ -31,14 +31,50 @@ VIC_BG     = $d021
 ; isn't safe to forward-reference the way this file originally had it --
 ; see this bug's own fix commentary in project memory).
 BOX_TOP_ROW = 6
-BOX_ROWS    = 12
+BOX_ROWS    = 13
+
+; Border style row's highlight bar (row+5): two overlapping 8-column
+; bars, " Single " at screen columns 20-27 and " Double " at 27-34 --
+; they share column 27's space, which is fine since only one is ever
+; shown (that overlap is what fits both, plus the label, in the box's
+; 30-column interior). Same reverse-video bar as drive_menu_body.asm's.
+STYLE_COL_FIRST  = 20         ; first column draw_values repaints
+STYLE_COL_END    = 35         ; one past the last (column 34)
+STYLE_BAR_SINGLE = 20
+STYLE_BAR_DOUBLE = 27
+STYLE_BAR_WIDTH  = 8
+CM_SAVE_PTR      = $fb        ; KERNAL SAVE's zero-page start pointer
+                              ; (drive_menu_body.asm's DM_SAVE_PTR)
+CM_KERNAL_SAVE   = $ffd8
 
 ; SCREEN_RAM/COLOR_RAM/CHROUT/GETIN are macro_preprocessor.py built-ins
 ; (C64_CONSTANTS) -- no {const:} needed for those here.
 
-        orig $2000
+; $3800 (was $3000 briefly, $2900 before that, until 2026-09-28) -- see tada-client.asm's OVERLAY_BUF comment for why (BACKUP_
+; COLORS drifts upward as the resident program grows and has now
+; overlapped this address twice -- help_menu.asm first exposed it,
+; keymap_menu.asm exposed the regression 2026-09-02).
+        orig $3800                ; must match OVERLAY_BUF -- see
+                                  ; tada-client.asm
 
 module_start:
+        tsx                          ; save the real stack depth we were
+        stx module_entry_sp           ; entered at -- config_loop's own
+                                       ; `jsr dispatch_config_key` leaves a
+                                       ; return address pushed for as long
+                                       ; as this popup stays open (dispatch
+                                       ; reaches key_save/key_cancel via a
+                                       ; tail JMP, never an RTS back
+                                       ; through it); key_save/key_cancel
+                                       ; restore this before jumping out
+                                       ; instead of leaking it -- same bug
+                                       ; class found+fixed in keymap_menu.
+                                       ; asm 2026-09-17 (every open/close
+                                       ; permanently leaked 2 bytes of
+                                       ; stack, eventually causing an
+                                       ; unrelated rts elsewhere to pop
+                                       ; the stale address instead of its
+                                       ; own)
         jsr JT_SAVE_SCREEN        ; back up whatever's on screen right now
                                     ; (the caller's own text -- PREFS, most
                                     ; likely) so it can be put back exactly
@@ -64,6 +100,10 @@ recv_blink:
         bcc recv_blink
         sta cur_blink
         sta orig_blink
+
+        jsr border_init           ; back up the Gothic box glyphs (if
+                                    ; not already) and read which style
+                                    ; the charset has now
 
         lda #0
         sta selected_field
@@ -144,14 +184,14 @@ key_field_up:
         dec selected_field
         jmp key_field_done
 kfu_wrap:
-        lda #2
+        lda #3
         sta selected_field
         jmp key_field_done
 
 key_field_down:
         inc selected_field
         lda selected_field
-        cmp #3
+        cmp #4
         bne key_field_done
         lda #0
         sta selected_field
@@ -160,14 +200,17 @@ key_field_done:
         jmp config_loop
 
 ; .a already saved off by the caller's dispatch (not needed here) -- these
-; just look at selected_field to know which of cur_border/cur_bg/cur_blink
-; to touch.
+; just look at selected_field to know which of cur_border/cur_bg/cur_blink/
+; cur_style to touch. Border style doesn't wrap: right moves the bar to
+; Double, left to Single, like the bar's own left-to-right layout.
 key_value_up:
         lda selected_field
         cmp #0
         beq kvu_border
         cmp #1
         beq kvu_bg
+        cmp #3
+        beq kvu_style
         ; blink: 1-5 (5 = solid/no blink), wrap 5->1
         inc cur_blink
         lda cur_blink
@@ -188,6 +231,10 @@ kvu_bg:
         and #$0f
         sta cur_bg
         jmp kv_apply
+kvu_style:
+        lda #1                    ; Double
+        sta cur_style
+        jmp kv_apply
 
 key_value_down:
         lda selected_field
@@ -195,6 +242,8 @@ key_value_down:
         beq kvd_border
         cmp #1
         beq kvd_bg
+        cmp #3
+        beq kvd_style
         ; blink: 1-5 (5 = solid/no blink), wrap 1->5
         lda cur_blink
         cmp #1
@@ -216,13 +265,18 @@ kvd_bg:
         lda cur_bg
         and #$0f
         sta cur_bg
+        jmp kv_apply
+kvd_style:
+        lda #0                    ; Single
+        sta cur_style
 
 kv_apply:
         jsr apply_live
         jsr draw_values
         jmp config_loop
 
-; --- Apply cur_border/cur_bg/cur_blink live (VIC-II POKEs + blink mask) ---
+; --- Apply cur_border/cur_bg/cur_blink/cur_style live (VIC-II POKEs +
+; blink mask + box glyphs) ---
 apply_live:
         lda cur_border
         sta VIC_BORDER
@@ -232,7 +286,28 @@ apply_live:
         lda blink_masks-1,x        ; cur_blink is 1-5 -- -1 makes it a
                                     ; plain 0-based index into blink_masks
         jsr JT_SET_BLINK_MASK
+        jmp apply_style
+
+; --- Border style: Gothic single-line box glyphs vs CP437-style double ---
+; Ryan's ask, 2026-10-02. The glyph swap itself is resident (border_
+; style.asm, through JT_SET_BORDER_STYLE) so a saved style can be put
+; back at boot; this popup only picks one, previews it live (every box
+; on screen, this popup's frame included, switches at once) and, on
+; Save, stores it in TADA64.CFG (save_border_style).
+
+; border_init: pick up whichever style is in the charset now as both
+; cur_style and orig_style (Cancel's revert target).
+border_init:
+        lda BORDER_CUR_STYLE
+        sta cur_style
+        sta orig_style
         rts
+
+; apply_style: put cur_style's glyphs in the charset (a no-op when
+; they're already there -- set_border_style checks).
+apply_style:
+        lda cur_style
+        jmp JT_SET_BORDER_STYLE   ; tail call
 
 ; --- Live-preview cursor: blinks (or holds solid) at cur_blink's rate ---
 ; Ryan's ask: show the actual blink behavior, not just a number, while
@@ -285,9 +360,9 @@ dcu_want_off:
         rts
 
 demo_cursor_toggle:
-        lda SCREEN_RAM+(BOX_TOP_ROW+4)*40+30
+        lda POPUP_SCREEN+(BOX_TOP_ROW+4)*40+30
         eor #$80
-        sta SCREEN_RAM+(BOX_TOP_ROW+4)*40+30
+        sta POPUP_SCREEN+(BOX_TOP_ROW+4)*40+30
         rts
 
 ; --- Save: send the new values back, restore the screen, hand back ---
@@ -306,8 +381,113 @@ key_save:
         jsr JT_SL_SEND
         lda cur_blink
         jsr JT_SL_SEND
-        jsr JT_RESTORE_SCREEN
+        jsr save_border_style      ; -> X/Y = a status message, Y = 0
+        stx cm_msg_ptr             ; for none; after the server's
+        sty cm_msg_ptr+1           ; answer, so it isn't kept waiting
+                                    ; on the disk
+        jsr JT_RESTORE_SCREEN      ; BEFORE the status message -- it
+                                    ; repaints the status row from the
+                                    ; snapshot (see keymap_menu.asm's
+                                    ; key_save comment)
+        ldy cm_msg_ptr+1
+        beq key_save_exit          ; style unchanged: nothing to say
+        ldx cm_msg_ptr
+        jsr JT_STATUS_PUSH_RESET   ; X/Y pass through
+        jsr JT_BUILD_STATUS_LINE
+key_save_exit:
+        ldx module_entry_sp        ; discard this visit's own config_loop/
+        txs                          ; dispatch call depth -- see module_
+                                       ; start's own comment
         jmp JT_RESUME
+
+; --- save_border_style: store cur_style in TADA64.CFG if it changed ---
+; The border/bg/blink values live on the server; the border style lives
+; with the client, in config_settings' CFG_BORDER_STYLE (keymap.asm,
+; found through CONFIG_SETTINGS_PTR), which is saved as part of
+; TADA64.CFG -- Ryan's call, 2026-10-02. Only when the style actually
+; changed, so an ordinary Video Settings save doesn't touch the disk.
+; The file goes to the client's own drive, the same SCRATCH + SAVE as
+; drive_menu_body.asm's dm_save_config. Out: X/Y = the status message,
+; or Y = 0 for none (no message sits in the zero page).
+save_border_style:
+        lda CONFIG_SETTINGS_PTR    ; aim sbs_get/sbs_put at the resident
+        clc                        ; CFG_BORDER_STYLE byte
+        adc #CFG_BORDER_STYLE
+        sta sbs_get+1
+        sta sbs_put+1
+        lda CONFIG_SETTINGS_PTR+1
+        adc #0
+        sta sbs_get+2
+        sta sbs_put+2
+sbs_get:
+        lda $ffff
+        cmp cur_style
+        bne sbs_changed
+        ldy #0
+        rts
+sbs_changed:
+        lda cur_style
+sbs_put:
+        sta $ffff                  ; resident copy first: holds for the
+                                    ; session, and for the next save by
+                                    ; any menu, even if this one fails
+        lda #0
+        sta cm_save_failed
+        jsr select_drive           ; disk.asm -- the client's drive, or
+        bcc sbs_drive              ; the first one on the bus
+        ldx #<style_no_drive_msg
+        ldy #>style_no_drive_msg
+        rts
+sbs_drive:
+        lda #CM_SCRATCH_LEN        ; SCRATCH the old file first, then a
+        ldx #<cm_scratch_command   ; plain SAVE (see keymap_menu.asm's
+        ldy #>cm_scratch_command   ; key_save on why not "@0:")
+        jsr DSK_SETNAM
+        jsr current_drive_to_x
+        lda #DSK_CMD_CHANNEL
+        ldy #DSK_CMD_CHANNEL
+        jsr DSK_SETLFS
+        jsr DSK_OPEN
+        lda #DSK_CMD_CHANNEL       ; CLOSE takes the file number in .A
+        jsr DSK_CLOSE
+        lda #CM_FILENAME_LEN
+        ldx #<cm_filename
+        ldy #>cm_filename
+        jsr DSK_SETNAM
+        jsr current_drive_to_x
+        lda #2
+        ldy #1
+        jsr DSK_SETLFS
+        lda KEYMAP_TABLE_PTR       ; SAVE wants a zero-page pointer to the
+        sta CM_SAVE_PTR            ; start: keymap_table, then the
+        lda KEYMAP_TABLE_PTR+1     ; settings block right after it
+        sta CM_SAVE_PTR+1
+        lda KEYMAP_TABLE_PTR       ; end = start + CONFIG_FILE_SIZE
+        clc
+        adc #<CONFIG_FILE_SIZE
+        tax
+        lda KEYMAP_TABLE_PTR+1
+        adc #>CONFIG_FILE_SIZE
+        tay
+        lda #CM_SAVE_PTR
+        jsr CM_KERNAL_SAVE
+        rol cm_save_failed         ; KERNAL error (carry) -> bit 0
+        jsr read_error_channel     ; the drive's verdict (26 WRITE PROTECT
+        rol cm_save_failed         ; ON, 72 DISK FULL, ...) -- and its LED
+        ldx #<style_saved_msg
+        ldy #>style_saved_msg
+        lda cm_save_failed
+        and #$03
+        beq sbs_done
+        ldx #<style_error_msg
+        ldy #>style_error_msg
+sbs_done:
+        rts
+
+cm_msg_ptr:
+        word 0
+cm_save_failed:
+        byte 0
 
 ; --- Cancel: revert the live preview, send a cancel marker, hand back ---
 key_cancel:
@@ -317,6 +497,8 @@ key_cancel:
         sta cur_bg
         lda orig_blink
         sta cur_blink
+        lda orig_style
+        sta cur_style
         jsr apply_live             ; undo whatever was being live-previewed
 
         lda PROTO_STREAM_START
@@ -328,6 +510,8 @@ key_cancel:
         lda #0                    ; len_hi
         jsr JT_SL_SEND
         jsr JT_RESTORE_SCREEN
+        ldx module_entry_sp        ; see key_save's own comment
+        txs
         jmp JT_RESUME
 
 ; --- Draw the static popup box (border/title/labels/help text) ---
@@ -353,9 +537,9 @@ draw_popup:
         sta poke_src_lo
         lda #>top_border
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+0)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+0)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+0)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+0)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -363,9 +547,9 @@ draw_popup:
         sta poke_src_lo
         lda #>row_title
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+1)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+1)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+1)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+1)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -373,9 +557,9 @@ draw_popup:
         sta poke_src_lo
         lda #>row_field1
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+2)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+2)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+2)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+2)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -383,9 +567,9 @@ draw_popup:
         sta poke_src_lo
         lda #>row_field2
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+3)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+3)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+3)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+3)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -393,9 +577,19 @@ draw_popup:
         sta poke_src_lo
         lda #>row_field3
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+4)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+4)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+4)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+4)*40)
+        sta poke_dst_hi
+        jsr poke_line
+
+        lda #<row_field4
+        sta poke_src_lo
+        lda #>row_field4
+        sta poke_src_hi
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+5)*40)
+        sta poke_dst_lo
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+5)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -403,13 +597,13 @@ draw_popup:
         sta poke_src_lo
         lda #>row_blank
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+5)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+6)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+5)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+6)*40)
         sta poke_dst_hi
         jsr poke_line
 
-        ; row+6 is the dynamic per-field help line -- draw_values (via
+        ; row+7 is the dynamic per-field help line -- draw_values (via
         ; poke_help_line) overwrites its interior immediately after this,
         ; and again on every field/value change, so blank is just its
         ; initial state before that first happens.
@@ -417,9 +611,9 @@ draw_popup:
         sta poke_src_lo
         lda #>row_blank
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+6)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+7)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+6)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+7)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -427,9 +621,9 @@ draw_popup:
         sta poke_src_lo
         lda #>row_blank
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+7)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+8)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+7)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+8)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -437,9 +631,9 @@ draw_popup:
         sta poke_src_lo
         lda #>row_help1
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+8)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+9)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+8)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+9)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -447,9 +641,9 @@ draw_popup:
         sta poke_src_lo
         lda #>row_help2
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+9)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+10)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+9)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+10)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -457,9 +651,9 @@ draw_popup:
         sta poke_src_lo
         lda #>row_help3
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+10)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+11)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+10)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+11)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -467,16 +661,17 @@ draw_popup:
         sta poke_src_lo
         lda #>bottom_border
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+11)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+12)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+11)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+12)*40)
         sta poke_dst_hi
         jmp poke_line
 
 ; --- Draw the dynamic parts: field-selection marker + numeric values ---
 ; Column 5 of each field row (the space right after the box's left '|')
 ; carries the '>' marker for whichever field is selected, ' ' otherwise.
-; Column 32 of each field row carries the value as two decimal digits.
+; Column 32 of each numeric field row carries the value as two decimal
+; digits; the border style row carries its Single/Double highlight bar.
 draw_values:
         lda selected_field
         cmp #0
@@ -486,7 +681,7 @@ draw_values:
 dv_border_off:
         lda blank_char
 dv_border_store:
-        sta SCREEN_RAM+(BOX_TOP_ROW+2)*40+5
+        sta POPUP_SCREEN+(BOX_TOP_ROW+2)*40+5
 
         lda selected_field
         cmp #1
@@ -496,7 +691,7 @@ dv_border_store:
 dv_bg_off:
         lda blank_char
 dv_bg_store:
-        sta SCREEN_RAM+(BOX_TOP_ROW+3)*40+5
+        sta POPUP_SCREEN+(BOX_TOP_ROW+3)*40+5
 
         lda selected_field
         cmp #2
@@ -506,33 +701,67 @@ dv_bg_store:
 dv_blink_off:
         lda blank_char
 dv_blink_store:
-        sta SCREEN_RAM+(BOX_TOP_ROW+4)*40+5
+        sta POPUP_SCREEN+(BOX_TOP_ROW+4)*40+5
+
+        lda selected_field
+        cmp #3
+        bne dv_style_off
+        lda marker_char
+        jmp dv_style_store
+dv_style_off:
+        lda blank_char
+dv_style_store:
+        sta POPUP_SCREEN+(BOX_TOP_ROW+5)*40+5
+
+        ; style bar: repaint the choices plain, then reverse cur_style's
+        ldx #STYLE_COL_FIRST
+dv_style_plain:
+        lda row_field4,x
+        sta POPUP_SCREEN+(BOX_TOP_ROW+5)*40,x
+        inx
+        cpx #STYLE_COL_END
+        bne dv_style_plain
+        ldx #STYLE_BAR_SINGLE
+        lda cur_style
+        beq dv_style_bar
+        ldx #STYLE_BAR_DOUBLE
+dv_style_bar:
+        ldy #STYLE_BAR_WIDTH
+dv_style_bar_loop:
+        lda POPUP_SCREEN+(BOX_TOP_ROW+5)*40,x
+        ora #$80                  ; reverse video
+        sta POPUP_SCREEN+(BOX_TOP_ROW+5)*40,x
+        inx
+        dey
+        bne dv_style_bar_loop
 
         lda cur_border
         jsr to_decimal2
         lda digit_tens
-        sta SCREEN_RAM+(BOX_TOP_ROW+2)*40+32
+        sta POPUP_SCREEN+(BOX_TOP_ROW+2)*40+32
         lda digit_ones
-        sta SCREEN_RAM+(BOX_TOP_ROW+2)*40+33
+        sta POPUP_SCREEN+(BOX_TOP_ROW+2)*40+33
 
         lda cur_bg
         jsr to_decimal2
         lda digit_tens
-        sta SCREEN_RAM+(BOX_TOP_ROW+3)*40+32
+        sta POPUP_SCREEN+(BOX_TOP_ROW+3)*40+32
         lda digit_ones
-        sta SCREEN_RAM+(BOX_TOP_ROW+3)*40+33
+        sta POPUP_SCREEN+(BOX_TOP_ROW+3)*40+33
 
         lda cur_blink
         jsr to_decimal2
         lda digit_tens
-        sta SCREEN_RAM+(BOX_TOP_ROW+4)*40+32
+        sta POPUP_SCREEN+(BOX_TOP_ROW+4)*40+32
         lda digit_ones
-        sta SCREEN_RAM+(BOX_TOP_ROW+4)*40+33
+        sta POPUP_SCREEN+(BOX_TOP_ROW+4)*40+33
 
         lda selected_field
         beq dv_help_border
         cmp #1
         beq dv_help_bg
+        cmp #3
+        beq dv_help_style
         lda #<help_blink
         sta poke_src_lo
         lda #>help_blink
@@ -549,8 +778,35 @@ dv_help_bg:
         sta poke_src_lo
         lda #>help_bg
         sta poke_src_hi
+        jmp dv_help_go
+dv_help_style:
+        lda #<help_style
+        sta poke_src_lo
+        lda #>help_style
+        sta poke_src_hi
 dv_help_go:
         jsr poke_help_line
+
+        ; row+10's CRSR-left/right hint: "Choose style" on the border
+        ; style field, "Incr/Decr" on the numeric ones (Ryan's ask)
+        ldx #<help2_value
+        ldy #>help2_value
+        lda selected_field
+        cmp #3
+        bne dv_help2_go
+        ldx #<help2_style
+        ldy #>help2_style
+dv_help2_go:
+        stx dv_help2_load+1
+        sty dv_help2_load+2
+        ldx #0
+dv_help2_loop:
+dv_help2_load:
+        lda $ffff,x
+        sta POPUP_SCREEN+(BOX_TOP_ROW+10)*40+5,x
+        inx
+        cpx #30
+        bne dv_help2_loop
         rts
 
 ; .a = value (0-19 is all this module ever needs -- border/bg are 0-15,
@@ -589,7 +845,7 @@ digit_ones:
 ; some screen-reader/accessibility software, e.g. Gadget, doesn't get
 ; along with a blinking cursor). Must live after `orig $2000` like every
 ; other data table in this module -- a real byte-emitting label placed
-; before `orig $2000` assembles at c64list's own default origin instead,
+; before `orig $2100` assembles at c64list's own default origin instead,
 ; silently producing a .prg whose embedded load address doesn't match
 ; OVERLAY_BUF at all (this exact bug, live 2026-08-15: it built with 0
 ; errors -- just a "Large change in origin" warning -- but KERNAL LOAD
@@ -658,7 +914,7 @@ poke_line_skip:
 
 ; --- Plain untransformed 30-byte copy (dynamic per-field help text) ---
 ; Input: poke_src_lo/hi = source (a help_* table, 30 bytes, no box
-; border bytes). Dest is always fixed (row+6's interior, columns 5-34) --
+; border bytes). Dest is always fixed (row+7's interior, columns 5-34) --
 ; only the source varies, picked by draw_values based on selected_field.
 poke_help_line:
         lda poke_src_lo
@@ -669,7 +925,7 @@ poke_help_line:
 poke_help_loop:
 poke_help_load:
         lda $ffff,x
-        sta SCREEN_RAM+(BOX_TOP_ROW+6)*40+5,x
+        sta POPUP_SCREEN+(BOX_TOP_ROW+7)*40+5,x
         inx
         cpx #30
         bne poke_help_loop
@@ -709,7 +965,8 @@ recv_length_prefix_hi:
 ; comment.)
 
 selected_field:
-        byte 0                    ; 0 = border, 1 = background, 2 = blink
+        byte 0                    ; 0 = border, 1 = background, 2 = blink,
+                                  ; 3 = border style
 cur_border:
         byte 0
 cur_bg:
@@ -721,6 +978,17 @@ orig_border:
 orig_bg:
         byte 0
 orig_blink:
+        byte 0
+cur_style:
+        byte 0                    ; 0 = Single (Gothic), 1 = Double
+orig_style:
+        byte 0
+
+; Real stack depth at module_start's own entry -- see that routine's
+; own comment; key_save/key_cancel restore SP from this right before
+; exiting, discarding this visit's own config_loop/dispatch call depth
+; instead of leaking it.
+module_entry_sp:
         byte 0
 
 ; Single poke-able screen codes for '>' / ' ' -- built via the verified
@@ -783,6 +1051,13 @@ row_field3:
         byte $20,$20,$20,$20, $5d
         ascii "  Cursor blink speed:      00 "
         byte $5d, $20,$20,$20,$20
+; Interior columns 15-29 (screen 20-34) are the style bar's text --
+; draw_values copies them back from here and reverses one bar's worth;
+; see STYLE_COL_FIRST.
+row_field4:
+        byte $20,$20,$20,$20, $5d
+        ascii "  Border style: Single Double "
+        byte $5d, $20,$20,$20,$20
 row_blank:
         byte $20,$20,$20,$20, $5d
         ascii "                              "
@@ -799,6 +1074,26 @@ help_bg:
         ascii "Background color, 0-15        "
 help_blink:
         ascii "1=fastest .. 4=slowest, 5=off "
+help_style:
+        ascii "Single or Double line borders "
+
+; row_help2's interior, swapped in by draw_values per selected_field --
+; same 30 bytes as row_help2's own text, which help2_value repeats.
+help2_value:
+        ascii " Crsr Left/Right: Incr/Decr   "
+help2_style:
+        ascii " Crsr Left/Right: Choose style"
+
+; save_border_style's status-row messages, NUL-terminated
+style_saved_msg:
+        ascii "Border style saved."
+        byte 0
+style_no_drive_msg:
+        ascii "Border style not saved: no drive"
+        byte 0
+style_error_msg:
+        ascii "Border style not saved: disk error"
+        byte 0
 
 row_help1:
         byte $20,$20,$20,$20, $5d
@@ -817,3 +1112,26 @@ bottom_border:
         area 30, $40
         byte $7d, $20,$20,$20,$20
 {alpha:normal}
+
+; "S0:TADA64.CFG" and "TADA64.CFG" share the filename bytes, as in
+; keymap_menu.asm/drive_menu_body.asm. {alpha:alt}: a disk directory's
+; uppercase letters are $C1-$DA (see keymap.asm's filename-block
+; comment) -- but not the command letter: alpha:alt turned "S0:" into
+; $D3 "0:", which DOS doesn't take as SCRATCH, so a TADA64.CFG already
+; on the disk stayed and the SAVE after it failed with 63, FILE EXISTS
+; (found 2026-10-02 by vice_border_style_test.py's second save). A raw
+; byte $53 bypasses alpha mode.
+{alpha:alt}
+cm_scratch_command:
+        byte $53                  ; 'S' (SCRATCH) as DOS wants it
+        ascii "0:"
+cm_filename:
+        ascii "TADA64.CFG"
+cm_filename_end:
+{alpha:normal}
+CM_SCRATCH_LEN  = cm_filename_end - cm_scratch_command  ; 13
+CM_FILENAME_LEN = cm_filename_end - cm_filename         ; 10
+
+; Its own copy of disk.asm (select_drive, current_drive_to_x,
+; read_error_channel), as a standalone .prg must -- same as DRIVE.MNU.
+{include:disk.asm}

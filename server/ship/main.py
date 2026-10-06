@@ -123,7 +123,7 @@ async def _show_menu(ctx: GameContext) -> None:
     for key, label, _ in _MENU:
         lines.append(f'  [{key}] {label}')
     lines += ['  [SALVAGE] Salvage Bay', '  [TR] Transporter',
-              '  [X] Leave the Shop', '']
+              '  [Q] Leave the Shop', '']
     await ctx.send(lines)
 
 
@@ -175,7 +175,10 @@ async def _ship_session(ctx: GameContext, player) -> None:
 
         cmd = full[:1]
 
-        if cmd == 'x':
+        # [Q] leaves, like the Merchant Shoppe (shoppe/main.py) and nearly
+        # every other menu; 'x', the old key, still works. Exact 'q' only,
+        # so a word like 'quote' isn't taken as leaving.
+        if full == 'q' or cmd == 'x':
             await ctx.send('You climb back up through the manhole.')
             break
 
@@ -184,4 +187,4 @@ async def _ship_session(ctx: GameContext, player) -> None:
             await matched(ctx)
         else:
             keys = '/'.join(k for k, _, _ in _MENU)
-            await ctx.send(f'"{raw.strip()}"? ({keys}/SALVAGE/TR/[X] Leave)')
+            await ctx.send(f'"{raw.strip()}"? ({keys}/SALVAGE/TR/[Q] Leave)')

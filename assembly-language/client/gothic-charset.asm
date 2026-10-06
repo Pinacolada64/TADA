@@ -19,6 +19,14 @@
 ; down is a vertical mirror of the font's own up-arrow, right is a horizontal
 ; bit-mirror of its own left-arrow, so weight/style match exactly.
 ;
+; Two reverse-video digits fixed 2026-10-02: 184 ($b8) held a reverse '9'
+; instead of '8' (the drive picker's highlight bar turned "8"/"1581" into
+; "9"/"1591"), and 185 ($b9) sat a pixel off. Both are now exact inverses
+; of $38/$39, so $b0-$b9 all match ORA #$80 of their digit. The reverse
+; arrows 224/225 ($e0/$e1) got the same treatment, so all four arrows
+; reverse cleanly. Other non-inverse pairs from f.antic1 ($00/$07/$0c/
+; $21) are untouched.
+;
 ; Uses C64List's `bits` pseudo op (C64List Users Guide.pdf, monochrome form:
 ; '.' = 0 bit, '*' = 1 bit, one row of 8 per line) instead of raw byte/hex --
 ; Ryan's ask, so each glyph's pixels are directly visible/editable right in
@@ -1872,6 +1880,19 @@ gothic_charset:
         bits ********
 
 ; 184 ($b8)
+; Exact inverse of '8' ($38) -- f.antic1 had a reverse '9' here, so a
+; highlighted 8 showed as 9 (see the header's 2026-10-02 note).
+        bits **...***
+        bits *..*..**
+        bits *..*..**
+        bits **...***
+        bits *..*..**
+        bits *..*..**
+        bits **...***
+        bits ********
+
+; 185 ($b9)
+; Exact inverse of '9' ($39) -- f.antic1's sat one pixel right of it.
         bits *....***
         bits ..**..**
         bits ..**..**
@@ -1879,16 +1900,6 @@ gothic_charset:
         bits ****..**
         bits ..**..**
         bits *....***
-        bits ********
-
-; 185 ($b9)
-        bits **....**
-        bits *..**..*
-        bits *..**..*
-        bits **.....*
-        bits *****..*
-        bits *..**..*
-        bits **....**
         bits ********
 
 ; 186 ($ba)
@@ -2272,24 +2283,27 @@ gothic_charset:
         bits *******.
 
 ; 224 ($e0)
-        bits ********
-        bits ********
-        bits ********
-        bits ********
-        bits ********
-        bits *..**..*
-        bits *..**..*
+; Exact inverse of the down-arrow ($60) -- f.antic1's filler here was
+; left over from before the 2026-08-22 arrow patch.
+        bits ***..***
+        bits ***..***
+        bits ***..***
+        bits ***..***
+        bits *......*
         bits **....**
+        bits ***..***
+        bits ********
 
 ; 225 ($e1)
-        bits ....****
-        bits ....****
-        bits ....****
-        bits ....****
-        bits ....****
-        bits ....****
-        bits ....****
-        bits ....****
+; Exact inverse of the right-arrow ($61), likewise.
+        bits ********
+        bits ****.***
+        bits ****..**
+        bits .......*
+        bits .......*
+        bits ****..**
+        bits ****.***
+        bits ********
 
 ; 226 ($e2)
         bits ********

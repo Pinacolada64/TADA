@@ -194,7 +194,7 @@ class ConfigCommand(Command):
                     "Type more of the name to narrow it down."
                 )
                 return CommandResult.fail('Ambiguous setting.', error='ambiguous_key')
-            await ctx.send(f"Unknown setting '{typed}'. Use CONFIG with no arguments to list them all.")
+            await ctx.send(f"Unknown setting '{typed}'. Use |command|CONFIG|reset| with no arguments to list them all.")
             return CommandResult.fail('Unknown setting.', error='unknown_key')
 
         if len(positional) == 1:

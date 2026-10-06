@@ -41,6 +41,7 @@ class _FakeCtx:
     def __init__(self, responses, player, room=1, active_combats=None):
         self._q = list(responses)
         self.sent: list = []
+        self.room_said: list = []
         self.player = player
         self.client = SimpleNamespace(room=room)
         self.server = SimpleNamespace(active_combats=active_combats or {})
@@ -52,8 +53,8 @@ class _FakeCtx:
             else:
                 self.sent.append(a)
 
-    async def send_room(self, *args, **kwargs):
-        pass
+    async def send_room(self, line, exclude_self=False):
+        self.room_said.append(line)   # room_notices' lines for bystanders
 
     async def prompt(self, prompt_text: str = '', preamble_lines=None):
         if preamble_lines:
@@ -143,6 +144,8 @@ class TestStatSpells(unittest.IsolatedAsyncioTestCase):
             await _cast_first_known_spell(ctx)
         self.assertEqual(player.stats[PlayerStat.STR], 13)
         self.assertIn('Spell successful!', ctx._flat())
+        self.assertEqual(len(ctx.room_said), 1)
+        self.assertTrue(ctx.room_said[0].startswith(f'{ctx.player.name} casts '), ctx.room_said)
 
     async def test_intelligence_success_uses_spurs_exact_smart_line(self):
         player = _new_player(PlayerClass.FIGHTER, intelligence=20)

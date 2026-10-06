@@ -193,7 +193,7 @@ class ReadyCommand(Command):
                                "be readied -- plus any weapons your allies are carrying "
                                "-- and lets you pick one."),
             ('ready sword',   'Naming a weapon (a partial match works) readies it '
-                               'directly -- "ready sword" wields whatever you\'re '
+                               'directly -- |command|ready sword|reset| wields whatever you\'re '
                                'carrying with "sword" in its name.'),
             ('ready alan',    "Allies don't ready GIVEn weapons on their own. Pick an "
                                "ally's weapon from the READY list (or name the ally / "

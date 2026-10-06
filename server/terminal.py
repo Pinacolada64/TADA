@@ -213,6 +213,12 @@ class TerminalColors:
         self.highlight_color: ColorName = ColorName.RED
         self.normal_color: ColorName = ColorName.WHITE
         self.background_color: ColorName = ColorName.BLACK
+        # |command| markup color (text_editor.py's game-command references,
+        # e.g. '.h h') -- separate from highlight_color so command syntax
+        # can be told apart from [bracket]-highlighted entities/emphasis.
+        # Defaults to cyan; editable via PREFS 'C' -> 'C' Colors, same
+        # picker as text_color/highlight_color.
+        self.command_color: ColorName = ColorName.CYAN
 
     def to_dict(self) -> dict:
         return {
@@ -221,13 +227,14 @@ class TerminalColors:
             'highlight_color':  self.highlight_color.name,
             'normal_color':     self.normal_color.name,
             'background_color': self.background_color.name,
+            'command_color':    self.command_color.name,
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> 'TerminalColors':
         instance = cls()
         for key in ('text_color', 'border_color', 'highlight_color',
-                    'normal_color', 'background_color'):
+                    'normal_color', 'background_color', 'command_color'):
             # isinstance guard, not just try/except KeyError: a save file
             # from before ClientSettings had a real to_dict() dumped enum
             # members via a generic __dict__ fallback -- a dict of the
@@ -304,11 +311,27 @@ class ClientSettings:
     # which encodes it to bytes in place of the class's hardcoded default
     # -- only has real bearing there, since ANSI/plain clients receive
     # every line as a separate JSON array element with no terminator byte
-    # for this to control. Defaults to CR, not LF: tada-client.asm's
-    # term_chrout only advances a screen row on $0D (CR) -- a real C64
-    # that never visits PREFS 'L' would otherwise get LF bytes its own
-    # line-advance routine doesn't recognize, and never scroll to a new
-    # line. Found live: real hardware was receiving nothing but LF's.
+    # for this to control. Defaults to CR (Commodore's own line ending),
+    # not LF -- confirmed live 2026-08-24: a brand-new PETSCII connection
+    # goes through simple_server._negotiate_terminal()'s pre-negotiation
+    # 40/80-column menu (network_context.py's PETSCIINetworkContext,
+    # instantiated fresh for every connection) before any client-type
+    # preset or PREFS 'L' choice has ever been applied, so this bare
+    # dataclass default is what actually goes out for that very first
+    # menu. LF there produces exactly the symptom found: a real
+    # Commodore screen editor doesn't treat LF as a newline at all, so
+    # every line of that menu ran together on-screen. _line_ending_bytes()
+    # already has fallback-to-CR logic for an unset/falsy value, but
+    # this field is never actually unset (a dataclass field always has
+    # this default), so that fallback never engaged -- LF was reaching
+    # PETSCIINetworkContext as a real, deliberate-looking choice every
+    # time. ANSI/JSON clients are genuinely unaffected either way, per
+    # the comment above.
+    # Separately, tada-client.asm's term_chrout only advances a screen
+    # row on $0D (CR) -- a real C64 that never visits PREFS 'L' would
+    # otherwise get LF bytes its own line-advance routine doesn't
+    # recognize, and never scroll to a new line. Found live: real
+    # hardware was receiving nothing but LF's.
     line_ending: str = LineEnding.CR
     # Set automatically as a side effect of picking a client type (PREFS
     # 'T') -- true for the Commodore 128, TADA/ANSI, and Custom presets

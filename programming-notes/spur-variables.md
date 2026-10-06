@@ -142,17 +142,17 @@ same style, so the reference stays authoritative.
   only appears once a sigil has been added; `cln.ally` strips everything
   from `|` onward before display. Sigils seen so far (same sigil means
   the same thing whether the ally was bought from Fat Olaf, trained at
-  the Allys Guild, or lassoed/equipped at Jake's Stable):
+  the Allies' Guild, or lassoed/equipped at Jake's Stable):
 
   | Sigil | Meaning |
   |---|---|
   | `=` | MOUNT (only settable via LASSO) |
   | `@` | SADDLED (Jake's Stable: USE Saddle on a mount) |
-  | `$` | ARMORED (Jake's Stable Horse Armor, or Allys Guild Armor training — same sigil either way) |
-  | `!` | ELITE / Discipline trained (Allys Guild), or "trained mount" (Jake's Stable Train Horse — same sigil, same underlying flag) |
-  | `&` | TRACKING trained (Allys Guild; refused for MOUNT) |
-  | `%` | COMBAT trained (Allys Guild) |
-  | `#N` | Body Build level 1-8 (Allys Guild; N is a digit; `cln.ally` reads N and multiplies by 3 — matches the Allys Guild's "+3 STR per level" wording) |
+  | `$` | ARMORED (Jake's Stable Horse Armor, or Allies' Guild Armor training — same sigil either way) |
+  | `!` | ELITE / Discipline trained (Allies' Guild), or "trained mount" (Jake's Stable Train Horse — same sigil, same underlying flag) |
+  | `&` | TRACKING trained (Allies' Guild; refused for MOUNT) |
+  | `%` | COMBAT trained (Allies' Guild) |
+  | `#N` | Body Build level 1-8 (Allies' Guild; N is a digit; `cln.ally` reads N and multiplies by 3 — matches the Allies' Guild's "+3 STR per level" wording) |
   | `(` | GOOD alignment |
   | `)` | EVIL alignment |
   | `>xx` | GOD (xx = message # from the MESSAGES file, printed when the ally is first found; also flags that the party may not hold two gods/goddesses at once — `SPUR.MISC2.S:no.fem`) |
@@ -817,7 +817,17 @@ Related file-path variables, not in the original drive-specifier block:
   | `SS` | Salvage computer used |
   | `TR+` | Transporter used |
 
-- **`yt$`** — Characters following, `*` if none
+- **`yt$`** — Characters following, `*` if none. FOLLOW ME's (`SPUR.MISC5.S`
+  `come`) carried-follower list: `*`-delimited entries shaped
+  `<status letter><name>=<3-digit user id>` (status `C`/`D`/`E` =
+  unconscious, carried via `come.e`), appended by `come.f`. Drained by
+  `SPUR.MISC4.S`'s `stay.b` (STAY, and automatically as `LOGON.STAY` on
+  logoff), which rewrites each follower's `spur.users` level/room and
+  stores the leader's name in `misc.data` record 250 for their next
+  logon's "You followed <name>..." line. Also counted by `SPUR.DUEL.S`'s
+  `follow` guild-support loop and listed by `SPUR.SUB.S`'s `pr.guild`.
+  Capped at 210 chars (`come.d`). Python port: `guild_follow.py`
+  (`Player.carried_followers`).
 - **`yw` / `yx` / `yy` / `yz` (Bar modules only)** — 2-D map coordinates
   in `SPUR.BAR.S`, a completely separate overlay from every other
   meaning of these letters listed elsewhere in this file: `yw`=column,

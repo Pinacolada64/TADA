@@ -271,6 +271,10 @@ class Player:
         self.map_room = kwargs.get('map_room', 1)  # cr (current room)
         from visited_rooms import mark_visited
         mark_visited(self, self.map_level, self.map_room)
+        # FOLLOW ME (guild_follow.py): who last led this character here
+        # while they were logged off -- SPUR misc.data record 250, "*" when
+        # unset. Shown once at login, then cleared.
+        self.followed_leader_name = kwargs.get('followed_leader_name', None)
         self.moves_made = kwargs.get('moves_made')
         # tracks how many moves made during the game session to calculate experience points awarded at quit:
         self.moves_today = kwargs.get('moves_today', 0)
@@ -1120,7 +1124,8 @@ class Player:
             # Exclude session-only attributes that hold live objects and are not restored on load.
             _SESSION_ONLY = {'readied_weapon', 'storm_servant_bonus', 'skill_potion_bonus', 'compass_active',
                              'pending_pages',
-                             'pending_duel_challenge', 'active_duel', '_weapons_data'}
+                             'pending_duel_challenge', 'active_duel', '_weapons_data',
+                             'guild_following', 'carried_followers'}
             data_out = {k: v for k, v in self.__dict__.items() if k not in _SESSION_ONLY}
             data_out['party'] = self.party.to_json()
             from inventory import Inventory
@@ -1251,6 +1256,14 @@ class Player:
                         setattr(self, k, int(data[k]) if data[k] is not None else data[k])
                     except Exception:
                         setattr(self, k, data[k])
+
+            # followed_leader_name -- a string, so kept out of simple_keys'
+            # int() cast. Written into an *offline* player's file by
+            # guild_follow.py's STAY/logoff drop-off (SPUR misc.data record
+            # 250), shown once and cleared by commands/connect.py's login
+            # status block ("You followed <name> to your current location").
+            if isinstance(data.get('followed_leader_name'), str):
+                self.followed_leader_name = data['followed_leader_name']
 
             # poisoned/diseased -- kept out of simple_keys above because that
             # loop's int(data[k]) cast would turn True/False into 1/0 rather

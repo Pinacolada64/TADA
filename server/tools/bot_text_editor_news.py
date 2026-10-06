@@ -106,7 +106,7 @@ async def main(host: str, port: int, user: str, password: str) -> None:
     ])
 
     await _run_script(writer, reader, [
-        ('news post', 'game'),
+        ('news #post', 'game'),
         ('Per-viewer rendering test', 'game'),   # title
         ('permanent', 'game'),                   # lifetime
         ('Plain top line.', 'game'),

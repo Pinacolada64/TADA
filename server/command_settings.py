@@ -37,10 +37,11 @@ class BoardSettings:
     """board.py / commands/board.py preferences.
 
     last_date: ISO date string ('YYYY-MM-DD') marking the player's own
-    "read new messages" threshold -- only 'board ld' moves this forward,
-    'board rn' just reads against whatever's currently set and never
-    advances it on its own. None means never set -- board.is_new_since()
-    treats that as "everything is new".
+    "read new messages" threshold -- only 'ld' (typed at the board
+    listing's own prompt) moves this forward, 'rn' just reads against
+    whatever's currently set and never advances it on its own. None
+    means never set -- board.is_new_since() treats that as "everything
+    is new".
     """
     last_date: Optional[str] = None
 
@@ -80,18 +81,85 @@ class TeleportSettings:
 
 
 @dataclass
+class SaySettings:
+    """commands/say.py preferences.
+
+    split: False (default) shows the whole line as one quote. True: a
+    ',,' in the text splits it into a mid-sentence attribution, e.g.
+    'say This is something,,up with which I will not put!' becomes
+    '"This is something," you exclaim, "up with which I will not put!"'
+
+    verb: None (default) picks the verb from trailing punctuation (says/
+    asks/exclaims/mutters). Set via 'say #verb=<word>' to always use that
+    word instead (e.g. verb='grumble' -> 'Rulan grumbles, "..."');
+    'say #verb=off' (or '#verb=' / '#verb=none') clears it back to
+    punctuation-based selection. 'say #verb' (bare) previews the current
+    verb without broadcasting anything.
+    """
+    split: bool = False
+    verb: Optional[str] = None
+
+
+@dataclass
+class PageSettings:
+    """commands/page.py preferences, namespaced as command_settings.page.
+
+    haven: True blocks ALL incoming pages ('page #haven' / 'page #unhaven').
+
+    ignored_pagers: names blocked from paging this player ('page #ignore
+    <name>' / 'page #unignore <name>'); stored with original casing,
+    compared case-insensitively.
+
+    last_paged: the other party in your most recent page exchange, for the
+    'page #reply' / 'page #r' target token -- set both when you send a page
+    and when you receive one. Original casing; None until the first page
+    either way.
+
+    history: 'page #last' recent-recipient log -- a list of
+    {'name': str, 'at': isoformat-str} dicts, most recent first, de-duped
+    by name, capped at 10 (commands/messaging.py's record_message_target()
+    / render_last_history()).
+
+    last_limit: how many lines 'page #last' shows, 1..10 ('page #last N'
+    sets it).
+    """
+    haven: bool = False
+    ignored_pagers: list = field(default_factory=list)
+    last_paged: Optional[str] = None
+    history: list = field(default_factory=list)
+    last_limit: int = 5
+
+
+@dataclass
+class WhisperSettings:
+    """commands/whisper.py preferences, namespaced as command_settings.whisper.
+
+    last_whispered: the other party in your most recent whisper exchange,
+    for the 'whisper #reply' / 'whisper #r' target token -- set both when
+    you send a whisper and when you receive one. Original casing; None
+    until the first whisper either way.
+
+    history / last_limit: as PageSettings, but for 'whisper #last'.
+    """
+    last_whispered: Optional[str] = None
+    history: list = field(default_factory=list)
+    last_limit: int = 5
+
+
+@dataclass
 class CommandSettings:
     """Player-controlled command preferences."""
     whereat_hidden: bool = False
     # Named groups for whisper/page: group_name (lower) → list of player names
     groups: dict = field(default_factory=dict)
-    # PAGE command preferences (commands/page.py)
-    # True: block ALL incoming pages ('page #haven' / 'page #unhaven').
-    haven: bool = False
-    # Names blocked from paging this player ('page #ignore <name>' /
-    # 'page #unignore <name>'); stored with original casing, compared
-    # case-insensitively.
-    ignored_pagers: list = field(default_factory=list)
+    # PAGE command preferences: haven, ignored_pagers, #reply target,
+    # #last history/limit (commands/page.py). Was a set of flat
+    # CommandSettings fields (haven, ignored_pagers) -- from_dict() still
+    # reads those from older save files.
+    page: PageSettings = field(default_factory=PageSettings)
+    # WHISPER command preferences: #reply target, #last history/limit
+    # (commands/whisper.py).
+    whisper: WhisperSettings = field(default_factory=WhisperSettings)
     # Tip-of-the-day cycling/display preference (commands/tips.py, tips.py)
     tips: TipsSettings = field(default_factory=TipsSettings)
     # Threaded message board preferences (board.py, commands/board.py)
@@ -103,6 +171,9 @@ class CommandSettings:
     # False (default): bare movement letters are n/s/e/w (compass).
     # True: w/a/s/d instead, mapped to north/west/south/east (commands/movement.py).
     wasd_movement: bool = False
+    # 'say' preferences: comma-split dialogue attribution, custom verb
+    # override (commands/say.py)
+    say: SaySettings = field(default_factory=SaySettings)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -114,6 +185,9 @@ class CommandSettings:
         board_data = known.pop('board', None)
         news_data = known.pop('news', None)
         teleport_data = known.pop('teleport', None)
+        say_data = known.pop('say', None)
+        page_data = known.pop('page', None)
+        whisper_data = known.pop('whisper', None)
         instance = cls(**known)
         if isinstance(tips_data, dict):
             instance.tips = TipsSettings(**{
@@ -137,4 +211,30 @@ class CommandSettings:
             instance.teleport = TeleportSettings(
                 destinations={k: tuple(v) for k, v in destinations.items()}
             )
+        if isinstance(say_data, dict):
+            instance.say = SaySettings(**{
+                k: v for k, v in say_data.items()
+                if k in SaySettings.__dataclass_fields__
+            })
+        if isinstance(page_data, dict):
+            instance.page = PageSettings(**{
+                k: v for k, v in page_data.items()
+                if k in PageSettings.__dataclass_fields__
+            })
+        else:
+            # Back-compat: 'haven' and 'ignored_pagers' used to be flat
+            # CommandSettings fields before the command_settings.page
+            # namespace existed -- fold an older save file's values in.
+            legacy = {}
+            if 'haven' in data:
+                legacy['haven'] = data['haven']
+            if 'ignored_pagers' in data:
+                legacy['ignored_pagers'] = list(data['ignored_pagers'] or [])
+            if legacy:
+                instance.page = PageSettings(**legacy)
+        if isinstance(whisper_data, dict):
+            instance.whisper = WhisperSettings(**{
+                k: v for k, v in whisper_data.items()
+                if k in WhisperSettings.__dataclass_fields__
+            })
         return instance

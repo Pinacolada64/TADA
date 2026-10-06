@@ -167,5 +167,33 @@ class TestReverseVideoTokens(unittest.TestCase):
         self.assertNotEqual(plain, reversed_space)
 
 
+
+class TestHeadingToken(unittest.TestCase):
+    """|heading| -- a fixed alias for yellow, the color commands/help.py's
+    _heading() gives section titles, so help prose can name a section
+    ('your |heading|Usage|reset| line') in the same color as the real
+    'Usage:' heading below it."""
+
+    def test_ansi_heading_is_yellow(self):
+        from formatting import ANSI_COLOR_CODES
+        self.assertEqual(ANSI_COLOR_CODES['heading'], ANSI_COLOR_CODES['yellow'])
+        with self.assertNoLogs('root', level='WARNING'):
+            self.assertIn(ANSI_COLOR_CODES['yellow'], ansi_encode('|heading|Usage|reset|'))
+
+    def test_petscii_heading_is_yellow(self):
+        from formatting import PETSCII_CONTROL_CODES, petscii_encode
+        self.assertEqual(PETSCII_CONTROL_CODES['heading'], PETSCII_CONTROL_CODES['yellow'])
+        with self.assertNoLogs('root', level='WARNING'):
+            self.assertIn(bytes([PETSCII_CONTROL_CODES['yellow']]),
+                          petscii_encode('|heading|Usage|reset|'))
+
+    def test_plain_strips_heading(self):
+        from formatting import plain_encode
+        self.assertEqual(plain_encode('|heading|Usage|reset|'), 'Usage')
+
+    def test_escaped_heading_renders_literally(self):
+        self.assertEqual(ansi_encode('||heading||'), '|heading|')
+
+
 if __name__ == '__main__':
     unittest.main()
