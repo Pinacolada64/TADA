@@ -27,4 +27,12 @@ KM_MOD_MASK                  = 15
 CONFIG_VERSION       = 1
 CFG_VERSION          = 0
 CFG_DATA_DRIVE       = 1
+; +2 is the C64's CFG_BORDER_STYLE -- kept, never read here. The two
+; after it are 128-only (Video Settings in 80 columns, video_menu_128.asm;
+; reserved/zero in TADA64.CFG): the input cursor, 0 = Soft (input_
+; editor.asm's reverse video -- also what older TADA128.CFG files hold),
+; 1 = the VDC's Block cursor, 2 = its Line; and that cursor's blink, 0 =
+; Slow (the editor's own default), 1 = Fast, 2 = Solid.
+CFG_VDC_SHAPE        = 3
+CFG_VDC_FLASH        = 4
 CONFIG_SETTINGS_SIZE = 8

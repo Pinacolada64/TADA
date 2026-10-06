@@ -190,14 +190,15 @@ VDC RAM (16K, stock flat 128): `$0000` screen, `$0800` attributes,
 (1840 bytes each), `$2000` character set. Every attribute sits `$0800`
 above its character, both in the live screen and in the save area.
 
-Main RAM: history ring of 150 rows x (80 chars + 80 attributes), bank 0
-`$6000-$8EDF` (chars) and `$9000-$BEDF` (attributes) -- RAM under the
+Main RAM: history ring of 140 rows x (80 chars + 80 attributes), bank 0
+`$6800-$93BF` (chars) and `$9400-$BFBF` (attributes) -- RAM under the
 BASIC ROMs (Guide figure 7-5). It started as 200 rows at `$4000`, back
 when only the copy loops switched `$FF00` to `$0E`; since the Keymap
 Editor moved in (below), the client runs with `$FF00` = `$0E` the whole
 time, the program extends past `$4000`, and the ring moved up to make
-room. `check_128_layout.py` (run by the build) fails if the program
-reaches `$6000`.
+room -- 150 rows at `$6000` until the Video Settings popup (2026-10-05)
+pushed the program past that, then 140 at `$6800`. `check_128_layout.py`
+(run by the build) fails if the program reaches `$6800`.
 
 ### Output, history and the scrollback view
 
@@ -334,7 +335,7 @@ also overruns the ring).
 - Since 40-column scrollback arrived, a keymap binding on plain CRSR
   UP/DOWN (the defaults' Home/End) is shadowed in 40 columns too, as it
   already was in 80.
-- The bank-0 RAM ring 80 columns uses (`$6000-$BEDF`) sits idle in 40
+- The bank-0 RAM ring 80 columns uses (`$6800-$BFBF`) sits idle in 40
   columns; it could add another 300 40-column rows if ever wanted.
 
 ## Keymap Editor -- built 2026-09-29
@@ -378,7 +379,8 @@ picker (F5, action 6), 7-15 macros, 16-17 Page Up/Page Down (actions
 7/8). Slots 0-15 match the C64's `TADA64.CFG` layout, but the files are
 separate. After the table comes an 8-byte settings block
 (`config_settings`: a version byte, then the data drive the picker
-chose, 0 = none yet; the rest reserved), so the file is 494 bytes plus
+chose, 0 = none yet; +2 the C64's border style, unused here; +3/+4 the
+VDC cursor shape and blink Video Settings chose; the rest reserved), so the file is 494 bytes plus
 the load address. Modifier bits: SHIFT 1,
 C= 2, CTRL 4, ALT 8. Nav keys are GETIN bytes; macro triggers and the
 page keys are matrix key numbers (`$D4`), captured by the popup's
@@ -522,18 +524,107 @@ mid-line case. `make vice128` now attaches the same emulated cartridge
 
 ### Not done yet
 
-- A 128 Video Settings popup (and Help, canvas editor, SID playback).
+- Help, canvas editor, SID playback (Video Settings is done -- see its
+  own section below).
 - The login-time apply is untested live: guests don't get one, and the
   test has no saved account. Needs a real login.
 - No disconnect/carrier detection, same as the C64 client.
-- Disk I/O while online (Keymap Editor Save) with SwiftLink NMIs live
-  hasn't been tried -- the C64 client needed the server quiet during
-  KERNAL LOAD; the 128's fast serial may be pickier still. Pausing the
-  ACIA (RTS off, RX IRQ off) around the KERNAL call would be the fix.
+- Disk I/O while online with SwiftLink NMIs live hangs the serial bus
+  (found 2026-10-05, Video Settings -- see its section). Every online
+  bus access now runs between `swiftlink.asm`'s `sl_hold` (RTS off, RX
+  IRQ off) and `sl_release` (buffer any byte that landed, RTS back per
+  `rts_state`): Video Settings' save, the Keymap Editor's save, and the
+  drive picker's bus scan and save. `vice128_disk_io_hold_test.py`
+  stresses the last two with a second guest talking throughout: with
+  `EMPTY_DRIVE=1 BURST=1` a build without the hold hung in round 2
+  (drive picker, PC `$E3B1`); with it, 24 rounds passed. A popup open
+  for more than a second or two is mostly safe anyway -- nothing drains
+  `rx_buf` meanwhile, so RTS flow control stops the traffic -- which is
+  why a save made right after opening is the risky one. Boot's
+  `init_keymap` LOAD runs before SwiftLink starts, so it needs none. The
+  C64 client's overlays don't hold the line for their saves either --
+  not looked at.
 - Server text is displayed as-is in 40 columns (KERNAL CHROUT, quote
   mode cleared per byte) -- a server ESC-T/ESC-B would redefine the
   window. Only the Commodore 128 Client Type preset's ESC-Y/ESC-Z are
   expected today.
+
+## Video Settings -- built 2026-10-05
+
+`video_menu_128.asm`, built in. The server's display stream (PREFS ->
+Terminal Settings -> V) used to get a cancel and a note; now
+`frame_byte` keeps its body in `vs_body` and `frame_finish` jumps to
+`vs_open`. Not `config_menu.asm` built in: the fields depend on the
+screen, so the popup looks at `screen_mode`:
+
+| 40 columns (VIC-II) | 80 columns (VDC) |
+|---|---|
+| Border color | Background color (R26, low nibble) |
+| Background color | Cursor blink speed |
+| Cursor blink speed | Cursor: Soft / Block / Line |
+| | Flash: Slow / Fast / Solid |
+
+No Border style row: that's the C64's Gothic-charset glyph swap, and
+this client runs the ROM charset. The VDC has no border.
+
+Invisible text guard (`vs_bg_clash`): Background skips any color that
+would show the same as the dialogue's current text color (`vdlg_color`
+/ `dlg_attr`) or the input line's (`$F1`), compared as RGBI in 80
+columns; at most two of sixteen are ever skipped. `apply_settings`
+leaves the background alone at login for the same reason -- the server
+stores one set for both clients, so a color chosen on a C64 can arrive
+here. The box is drawn in the dialogue's text color, not white, so it
+stays readable on any background that's allowed.
+
+Border, background and blink speed go back to the server as on the C64
+-- one set per player, so the 80-column background is the same VIC-II
+color number, shown as its `dlg_vdc_colors` RGBI color (what the login
+apply already did). The reply echoes every body byte received, edited
+or not: `c64_display.py` rejects a reply of a different length, and the
+status line color work (2026-10-05) makes the body 4 bytes.
+
+Cursor and Flash are client-side (`TADA128.CFG` +3/+4, saved on RETURN
+when they changed). Soft is `input_editor.asm`'s reverse-video cursor;
+Block and Line are the 8563's own cursor. Values are the editor ROM's
+(read from `kernal-318020-05.bin`): it keeps the 80-column cursor mode
+in `$0A2B` and writes it to R10 at `$CD91`; it boots as `$60` (blink
+1/32, from scan line 0), ESC-S (block) clears the start line, ESC-U
+(underline) makes it 7, ESC-E clears the blink bits, ESC-F sets `$60`
+again. So Block = start 0, Line = start 7, Slow = `$60`, Fast = `$40`
+(1/16), Solid = `$00`; R11 is left alone, as those escapes leave it.
+The editor only turns its VDC cursor on/off in its own keyboard-wait
+loop (`$C25x`), which this client never runs, so a cursor placed here
+stays put. `input_editor.asm`'s `cursor:` calls `vs_editor_cursor`
+first: in 80 columns with Block/Line it puts the VDC cursor (R14/R15) on
+the input cell and the editor just polls for keys instead of blinking
+its own. `JT_SAVE_SCREEN` turns it off for every popup; the editor puts
+it back.
+
+Live preview: colors, blink speed, and in 80 columns the VDC cursor
+itself, on the blink row's demo cell (VDC `$0302`). The popup draws on
+the VIC screen like the other built-in popups and the IRQ presents it
+on the VDC, so the preview's own VDC register writes run with
+interrupts off -- an IRQ register select between ours and our data
+write would misdirect the byte.
+
+Room for it came out of the 80-column history ring: 150 rows at `$6000`
+became 140 at `$6800`.
+
+`vice128_video_settings_test.py` drives it against a real server in
+both modes (R10/R14/R15/R26 read through the monitor's `io d600`).
+
+### Not done yet
+
+- A Status line color row, once that work (`status_color`) is on master
+  -- the byte already round-trips.
+- Its `TADA128.CFG` save holds the SwiftLink (`swiftlink.asm`'s
+  `sl_hold`/`sl_release`: RTS off, receive IRQ off) for the KERNAL
+  calls -- without it, x128 hung for good two runs in five at
+  `$E3A4-$E3AC` (the serial routine's untimed wait on CLK), since the
+  server's answer to the popup's reply arrives as NMIs mid-transfer.
+  This test's drive has no disk; `vice128_disk_io_hold_test.py` covers
+  real writes for the other two popups.
+- Real hardware: the 8563's cursor shapes and rates on Ryan's 128DCR.
 
 ## Open questions
 

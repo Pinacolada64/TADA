@@ -1750,7 +1750,12 @@ dhf_macro_footer:
 ; SCRATCH-then-SAVE pair. A first-ever save (file doesn't exist yet)
 ; makes the SCRATCH fail harmlessly with FILE NOT FOUND -- ignored,
 ; same as read_error_channel ignores it elsewhere.
+;
+; The SwiftLink is held (swiftlink.asm's sl_hold) from the first bus
+; access to key_save_report: serial-bus I/O with receive NMIs live can
+; hang the 128 for good -- see sl_hold's comment.
 key_save:
+        jsr sl_hold
         jsr select_drive           ; disk.asm -- no drive on the bus at all:
         bcc key_save_have_drive    ; don't touch the disk (the edits stay
         ldx #<keymap_no_drive_msg  ; live for this session, same as a
@@ -1797,6 +1802,7 @@ key_save_have_drive:
         ldx #<keymap_save_failed_msg
         ldy #>keymap_save_failed_msg
 key_save_report:
+        jsr sl_release             ; keeps X/Y
         stx key_save_msg           ; JT_RESTORE_SCREEN doesn't promise to
         sty key_save_msg+1         ; keep X/Y
         jsr JT_RESTORE_SCREEN      ; must happen BEFORE the status message

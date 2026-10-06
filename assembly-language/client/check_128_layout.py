@@ -7,13 +7,13 @@ $4000-$bfff -- so everything an interrupt can reach must sit below
 $4000. The file keeps all of that above `main_loop_sp` (the last label
 before the Keymap Editor include); this checks that label is below
 $4000. It also checks the program ends before the scrollback history
-ring at $6000 (vdc_screen.asm's HIST_CHARS_HI).
+ring at $6800 (vdc_screen.asm's HIST_CHARS_HI).
 
 Usage: check_128_layout.py client-128.prg client-128_pp.sym
 """
 import re, sys
 
-IRQ_LIMIT, HIST_START = 0x4000, 0x6000
+IRQ_LIMIT, HIST_START = 0x4000, 0x6800
 prg = open(sys.argv[1], 'rb').read()
 end = (prg[0] | prg[1] << 8) + len(prg) - 2
 syms = {}

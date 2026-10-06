@@ -135,7 +135,8 @@ init_keymap_rts:
         rts
 
 ; --- config_validate: a data drive outside 8-30 goes back to 0 ("none
-; chosen"), and the version byte is restamped -- see keymap.asm's. ---
+; chosen"), a VDC cursor shape or blink past 2 back to 0 (Soft, Slow),
+; and the version byte is restamped -- see keymap.asm's. ---
 config_validate:
         lda config_settings+CFG_DATA_DRIVE
         beq config_validate_version
@@ -147,6 +148,18 @@ config_validate_clear:
         lda #0
         sta config_settings+CFG_DATA_DRIVE
 config_validate_version:
+        lda config_settings+CFG_VDC_SHAPE
+        cmp #3
+        bcc config_validate_flash
+        lda #0
+        sta config_settings+CFG_VDC_SHAPE
+config_validate_flash:
+        lda config_settings+CFG_VDC_FLASH
+        cmp #3
+        bcc config_validate_stamp
+        lda #0
+        sta config_settings+CFG_VDC_FLASH
+config_validate_stamp:
         lda #CONFIG_VERSION
         sta config_settings+CFG_VERSION
         rts

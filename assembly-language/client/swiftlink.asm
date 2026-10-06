@@ -224,3 +224,58 @@ sl_recv_rts_done:
 sl_recv_empty:
         clc
         rts
+
+{ifdef: c128}
+; --- sl_hold / sl_release: keep the server quiet across KERNAL serial-
+; bus I/O (disk saves, the drive picker's bus scan). 128 only, for now.
+;
+; Disk I/O with receive NMIs live hangs the 128: x128 stuck for good two
+; runs in five (2026-10-05, Video Settings' TADA128.CFG save) at $E3A4-
+; $E3AC, the KERNAL serial routine's wait on the bus CLK line ($DD00),
+; which has no timeout -- an NMI mid-transfer stretches the bit timing
+; past what the drive tolerates, and SEI can't mask an NMI. The server
+; answering something the client just sent makes that likely, but any
+; traffic (chat, the Hourglass clock) can land in the window.
+;
+; sl_hold is tada-client.asm's run_under_io hold: SL_CMD_HOLD deasserts
+; RTS, so the server stops sending, and turns the receive IRQ off, so
+; even a byte already on its way raises no NMI. sl_release buffers by
+; hand a byte that did land, as nmi_handler would have, and puts RTS
+; back the way rts_state says (off if nmi_handler had paused it). Both
+; preserve A, X, Y and the flags, so a caller can wrap code without
+; reshuffling registers -- carry included, for routines that report
+; through it. ---
+sl_hold:
+        pha
+        lda #SL_CMD_HOLD
+        sta SL_COMMAND
+        pla
+        rts
+
+sl_release:
+        php
+        pha
+        stx sl_release_x
+        sei
+        lda SL_STATUS
+        and #SL_RDRF
+        beq sl_release_cmd        ; nothing arrived while held
+        lda SL_DATA
+        ldx rx_head
+        sta rx_buf,x
+        inc rx_head
+sl_release_cmd:
+        lda #SL_CMD_RTS_OFF       ; RTS stays off if nmi_handler had
+        ldx rts_state             ; paused it ...
+        beq sl_release_set
+        lda #SL_CMD_INIT          ; ... otherwise back to asserted
+sl_release_set:
+        sta SL_COMMAND
+        ldx sl_release_x
+        pla
+        plp                       ; the I flag too, as found
+        rts
+
+sl_release_x:
+        byte 0
+{endif}

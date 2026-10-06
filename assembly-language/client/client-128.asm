@@ -22,7 +22,7 @@
 ; The 80-column (VDC) path (2026-09-29) keeps the same row layout but
 ; draws dialogue itself -- vdc.asm (8563 register/block-copy/fill
 ; primitives, modeled on the editor ROM's own $CDCC/$C40D/$C4A5) and
-; vdc_screen.asm (dialogue output with block-copy scrolling, a 150-row
+; vdc_screen.asm (dialogue output with block-copy scrolling, a 140-row
 ; scrollback history in bank 0 RAM under BASIC, CRSR UP/DOWN to view
 ; it). The input row still goes through input_editor.asm's KERNAL
 ; PLOT/CHROUT, which the editor points at the VDC in 80 columns.
@@ -45,8 +45,9 @@
 ; (editor_idle_hook) that shows server text as it arrives, even mid-
 ; line. recv_byte parses the server's framed streams (STREAM_START +
 ; confirm + 16-bit length + body): the Hourglass clock and the login-
-; time color/blink apply are handled, the popup streams (Video
-; Settings, Help, the canvas editor) and SID music are skipped, with a
+; time color/blink apply are handled, Video Settings opens this
+; client's own popup (video_menu_128.asm, 2026-10-05), the other popup
+; streams (Help, the canvas editor) and SID music are skipped, with a
 ; cancel reply where the server waits for one. So the "Still no
 ; SwiftLink" below is history now.
 ;
@@ -102,7 +103,7 @@
 ; MMU configuration for the whole run: bank 0 RAM at $4000-$bfff (BASIC
 ; ROM out), I/O and the KERNAL in -- Compute's 128 Programmer's Guide
 ; figure 7-5. The Keymap Editor (keymap_menu.asm, built in) pushes the
-; program past $4000, and the scrollback history lives in $6000-$bfff.
+; program past $4000, and the scrollback history lives in $6800-$bfbf.
 ; Checked against the ROMs 2026-09-29 before relying on it: the editor
 ; ($C000-$CFFF) never writes $FF00, and the KERNAL only does so in
 ; save/restore pairs (INDFET/INDSTA for LOAD/SAVE, DMA, the IRQ/NMI/BRK
@@ -711,14 +712,24 @@ frame_begin_rts:
         rts
 
 ; .A = one body byte. Clock: to clock_putc. Apply: the first three bytes
-; (border, background, blink speed) into apply_buf. Anything else:
-; dropped.
+; (border, background, blink speed) into apply_buf. Video Settings: the
+; first VS_BODY_MAX into video_menu_128.asm's vs_body, apply_idx
+; counting them. Anything else: dropped.
 frame_byte:
         ldx frame_type
         cpx #CLOCK_STREAM_CONFIRM
         bne frame_byte_not_clock
         jmp clock_putc
 frame_byte_not_clock:
+        cpx #DISPLAY_STREAM_CONFIRM
+        bne frame_byte_not_display
+        ldx apply_idx
+        cpx #VS_BODY_MAX
+        bcs frame_byte_rts
+        sta vs_body,x
+        inc apply_idx
+        rts
+frame_byte_not_display:
         cpx #APPLY_STREAM_CONFIRM
         bne frame_byte_rts
         ldx apply_idx
@@ -729,13 +740,15 @@ frame_byte_not_clock:
 frame_byte_rts:
         rts
 
-; The whole frame is in. Video Settings and the canvas editor leave the
-; server waiting for the popup's reply (commands/c64_display.py's
-; pick_c64_display reads a 4-byte header; petscii_editor/canvas.py's
-; cancel is STREAM_START+STREAM_CANCEL+00+00), so they get a cancel --
-; and, with Help, a note in the dialogue, since this client has none of
-; those popups yet. SID music is skipped silently: the server's own
-; status text already says what's playing.
+; The whole frame is in. Video Settings opens video_menu_128.asm's popup
+; (vs_open never returns -- it leaves through JT_RESUME, like the Keymap
+; Editor) if the body has at least border, background and blink speed;
+; a shorter one gets a cancel. The canvas editor leaves the server
+; waiting for the popup's reply too (petscii_editor/canvas.py's cancel is
+; STREAM_START+STREAM_CANCEL+00+00), so it gets a cancel -- and, with
+; Help, a note in the dialogue, since this client has neither popup yet.
+; SID music is skipped silently: the server's own status text already
+; says what's playing.
 frame_finish:
         lda #0
         sta rx_state
@@ -750,6 +763,11 @@ frame_finish_not_clock:
 frame_finish_not_apply:
         cmp #DISPLAY_STREAM_CONFIRM
         bne frame_finish_not_display
+        lda apply_idx
+        cmp #3
+        bcc frame_finish_display_short
+        jmp vs_open
+frame_finish_display_short:
         lda #DISPLAY_STREAM_CANCEL
         jsr send_stream_cancel
         jmp frame_finish_note
@@ -788,7 +806,10 @@ send_stream_cancel:
 ; kept) takes the RGBI color the editor itself shows for that VIC-II
 ; color (vdc_screen.asm's dlg_vdc_colors). Blink speed indexes the same
 ; mask table as tada-client.asm's apply_recv_blink; out of range = left
-; alone. ---
+; alone. A background the text would vanish on (video_menu_128.asm's
+; vs_bg_clash -- the server keeps one set for both clients, so a color
+; picked on a C64 with other text colors can arrive here) is left alone
+; too. ---
 VDC_R_BACKGROUND = $1a
 apply_settings:
         lda apply_idx
@@ -799,9 +820,14 @@ apply_settings:
         lda apply_buf
         sta $d020
         lda apply_buf+1
+        jsr vs_bg_clash
+        bcs apply_settings_blink
         sta $d021
         jmp apply_settings_blink
 apply_settings_vdc:
+        lda apply_buf+1
+        jsr vs_bg_clash
+        bcs apply_settings_blink
         ldx #VDC_R_BACKGROUND
         jsr vdc_read_reg
         and #$f0
@@ -1816,3 +1842,6 @@ main_loop_sp:
 ; drive_menu_body.asm's header)
 {include:drive_id.asm}
 {include:drive_menu_body_pp.asm}
+; Video Settings (PREFS -> Terminal Settings -> V): this client's own
+; popup, VIC-II or VDC settings by screen, plus the VDC hardware cursor
+{include:video_menu_128.asm}

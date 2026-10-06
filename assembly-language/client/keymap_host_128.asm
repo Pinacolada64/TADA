@@ -82,6 +82,9 @@ JT_SAVE_SCREEN:
         jmp km_fill_1000
 
 km_save_vdc:
+        jsr vs_cursor_off           ; the input row's VDC cursor, if Video
+                                    ; Settings turned it on (video_menu_
+                                    ; 128.asm) -- the editor puts it back
         jsr sb_exit                 ; the popup always opens on the live view
         jsr sb_save_live            ; dialogue rows 0-22 -> VDC $1000
         lda #0                      ; grey the dialogue: its attributes only,

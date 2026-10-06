@@ -137,6 +137,11 @@ getstr:
         jsr drwstr      ; display string
 
 cursor:
+        jsr vs_editor_cursor ; client-128.asm (video_menu_128.asm): carry
+        bcs gekey_solid ; set = the VDC's own hardware cursor is on this
+                        ; cell (80 columns, Block/Line chosen in Video
+                        ; Settings) -- no reverse-video cursor to blink,
+                        ; just poll for keys
         jsr rvson       ; reverse on
 gets10:
         lda cursor_blink_mask  ; 0 = solid (no periodic redraw/re-reverse

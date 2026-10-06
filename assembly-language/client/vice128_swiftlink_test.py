@@ -18,8 +18,10 @@ vice128`). 80 columns first, reading VDC RAM through the remote monitor
   D  "k" + RETURN: history reads "main > look", room text follows
   E  "keys" (Help popup stream): skipped with the client's note, the
      prompt comes back
-  F  prefs -> t -> v (Video Settings stream): the client's cancel reply
-     unblocks the server ("Video settings unchanged.")
+  F  prefs -> t -> v (Video Settings stream): the popup opens
+     (video_menu_128.asm -- vice128_video_settings_test.py covers it
+     properly); RUN/STOP's cancel reply unblocks the server ("Video
+     settings unchanged.")
 Then 40 columns (SCREEN_RAM):
   G  menu answered "4", login prompt on the input row, status row intact
   H  "connect guest" + "look": echo and room text in the rows 0-22
@@ -40,7 +42,7 @@ PRG = CLIENT / 'client-128.prg'
 MON = 6542
 PETSCII, JSON = 35165, 35164
 KEYD, NDX = 0x034a, 0xd0
-HIST_CHARS, HIST_BYTES = 0x6000, 150 * 80   # vdc_screen.asm's history ring
+HIST_CHARS, HIST_BYTES = 0x6800, 140 * 80   # vdc_screen.asm's history ring
 
 
 def mon(cmds):
@@ -93,7 +95,7 @@ def screen(cols: int) -> list:
 
 def history() -> list:
     d = dump('ram', HIST_CHARS, HIST_BYTES)
-    return [decode(d[r * 80:(r + 1) * 80]) for r in range(150)]
+    return [decode(d[r * 80:(r + 1) * 80]) for r in range(140)]
 
 
 def keys(codes: bytes) -> None:
@@ -236,9 +238,11 @@ try:
 
     type_line('prefs', 4)
     type_line('t', 4)
-    type_line('v', 5)
+    type_line('v', 4)
+    keys(b'\x03')                        # RUN/STOP: cancel the popup
+    time.sleep(3)
     s = screen(80)
-    check('F Video Settings stream: cancel reply, server carries on',
+    check('F Video Settings stream: popup, RUN/STOP cancels, server carries on',
           has(s + history(), 'Video settings unchanged.')
           and s[24] == 'terminal settings >',
           f'|{s[24]}|')
