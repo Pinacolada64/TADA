@@ -12,7 +12,9 @@ Sections: Open PRs → Feature branches (no PR) → Direct commits to master →
 
 ## Open PRs
 
-_(none)_
+| PR | Branch | Tip | Summary |
+|----|--------|-----|---------|
+| [#68](https://github.com/Pinacolada64/TADA/pull/68) | `feature/c128-video-settings` | `767aaf6` | C128 client: its own Video Settings popup (`video_menu_128.asm`), fields by screen -- 40 col border/background/blink; 80 col VDC background, blink, and the 8563 hardware cursor (Cursor Soft/Block/Line, Flash Slow/Fast/Solid, editor ROM's own ESC-S/U/E/F values, `TADA128.CFG` +3/+4); live preview; invisible-text guard (background skips the text colors; login apply too). `swiftlink.asm` `sl_hold`/`sl_release` around Video Settings', the Keymap Editor's and the drive picker's serial-bus I/O -- SwiftLink NMIs mid-transfer hung x128 at `$E3A4-$E3B4` (stress test: unfixed build hung in round 2, fixed passed 24). 80-col history 150 rows @`$6000` -> 140 @`$6800`. x128 suites pass; **real hardware untested.** |
 
 ---
 
