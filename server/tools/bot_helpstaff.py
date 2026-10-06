@@ -45,7 +45,10 @@ Checks:
      player's room; the player sees "<staffer> [Helpstaff] appears in a
      flash of light." and "has arrived to help you", and LOOK lists
      "<staffer> [Helpstaff] is here."; a second #accept finds it no
-     longer open
+     longer open. If a tough monster in the staffer's room blocks the
+     teleport (Freeze Adventurer; seen in --live mode, where the staffer
+     starts wherever its account was left), I instead checks that the
+     request reopened, skips the arrival checks, and cancels it.
   J  a request whose player disconnects is dropped from #list
   K  #off: off duty, #show is empty again, and (throwaway mode) the
      watcher's LOOK shows the staffer without the tag
@@ -399,27 +402,37 @@ async def scenario(host: str, port: int, staff: Bot, newbie: Bot,
     said = await staff.run(f'helpstaff #accept {n}')
     newbie_saw = await newbie.settle()
     newbie_saw = newbie.lines[newbie_mark:]
-    check('I the staffer heads over and appears',
-          has(said, f'Heading to {n} (Can you show me around?).')
-          and (has(said, 'You appear in a flash of light.')
-               or has(said, "You're already with")),
-          joined(said)[:200])
-    check('I the player sees the staffer arrive, tagged [Helpstaff]',
-          (has(newbie_saw, f'{s} has arrived to help you.')
-           and has(newbie_saw, f'{s} [Helpstaff] appears in a flash of light.'))
-          or has(newbie_saw, f'{s} is here to help you.'),
-          joined(newbie_saw))
-    seen = await newbie.run('look')
-    check('I the player\'s LOOK lists the staffer as [Helpstaff]',
-          has(seen, f'{s} [Helpstaff] is here') or has(seen, f'{s} [Helpstaff] are here')
-          or has(seen, f'{s} [Helpstaff],') or has(seen, f'{s} [Helpstaff] and'),
-          joined(seen)[:200])
-    again = await staff.run(f'helpstaff #accept {n}')
-    check('I a second #accept finds it no longer open',
-          has(again, 'That request is no longer open.'), joined(again))
-    here = await staff.run('look')
-    check('I the staffer is standing with the player',
-          has(here, n), joined(here)[:200])
+    if has(said, 'The teleport is blocked!'):
+        # --live: the staffer starts wherever its account was left, which
+        # can be next to a tough monster that casts Freeze Adventurer.
+        check('I teleport blocked by a monster in the staffer\'s room: the request reopens',
+              has(said, f"{n}'s request is still open.")
+              and not has(newbie_saw, 'has arrived to help you'),
+              joined(said))
+        log('      (arrival checks skipped: move the staffer away from that monster to run them)')
+        await newbie.run('helpstaff #cancel')
+    else:
+        check('I the staffer heads over and appears',
+              has(said, f'Heading to {n} (Can you show me around?).')
+              and (has(said, 'You appear in a flash of light.')
+                   or has(said, "You're already with")),
+              joined(said)[:200])
+        check('I the player sees the staffer arrive, tagged [Helpstaff]',
+              (has(newbie_saw, f'{s} has arrived to help you.')
+               and has(newbie_saw, f'{s} [Helpstaff] appears in a flash of light.'))
+              or has(newbie_saw, f'{s} is here to help you.'),
+              joined(newbie_saw))
+        seen = await newbie.run('look')
+        check('I the player\'s LOOK lists the staffer as [Helpstaff]',
+              has(seen, f'{s} [Helpstaff] is here') or has(seen, f'{s} [Helpstaff] are here')
+              or has(seen, f'{s} [Helpstaff],') or has(seen, f'{s} [Helpstaff] and'),
+              joined(seen)[:200])
+        again = await staff.run(f'helpstaff #accept {n}')
+        check('I a second #accept finds it no longer open',
+              has(again, 'That request is no longer open.'), joined(again))
+        here = await staff.run('look')
+        check('I the staffer is standing with the player',
+              has(here, n), joined(here)[:200])
 
     log('\n== J: a request whose player disconnects is dropped')
     await ask(newbie, staff, 'One more thing...')
