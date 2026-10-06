@@ -1428,7 +1428,13 @@ class Server:
         active  = getattr(self, 'active_combats', {})
         session = active.get(room_no)
         if session and not session._done.is_set() and ctx in session.attackers:
-            session._remove_attacker(ctx)
+            # Same exit as flee: out of the fight, which ends (and comes out
+            # of active_combats) if they were the last one in it -- a fight
+            # whose leader already left otherwise lingered, leaderless and
+            # unfinished, with nobody to take it over.
+            session._leave_fight(ctx)
+            if session._done.is_set() and active.get(room_no) is session:
+                del active[room_no]
 
     def _hidden_exit_target(self, room, direction: str, level: int) -> int | None:
         """Guess a hidden_exit_east/west flag's target room via +/-1 adjacency.
@@ -1620,6 +1626,9 @@ class Server:
         """Save player state and clean up on quit or disconnect."""
         logging.debug('ENTER hp=%r', getattr(ctx.player, 'hit_points', '?'))
         player = ctx.player
+        # Out of any fight they'd joined as a bystander (a leader's own
+        # round loop already took them out on disconnect).
+        self._leave_combat_on_move(ctx, getattr(ctx.client, 'room', None))
         if player and not isinstance(player, GuestPlayer):
             try:
                 # Sync room from client to player as a safety net in case any

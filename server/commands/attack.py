@@ -111,7 +111,10 @@ class AttackCommand(Command):
                     await ctx.send(f'There is no "{" ".join(args)}" here — only '
                                     f'{monster_display_name(session.monster)}.')
                     return CommandResult.fail(error='no_match')
-            await session.join(ctx)
+            # One bystander swing -- or the lead, if the fight's leader has
+            # left it (see combat.engine.join_or_lead()).
+            from combat.engine import join_or_lead
+            await join_or_lead(ctx, session)
             return CommandResult.ok()
 
         # Find the monster in this room
