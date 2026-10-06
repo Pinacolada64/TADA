@@ -200,42 +200,45 @@ class TestExpandGroups(unittest.TestCase):
 
 class TestFindOnline(unittest.TestCase):
 
+    def _run(self, ctx, target_names, **kwargs):
+        return asyncio.run(find_online(ctx, target_names, **kwargs))
+
     def test_finds_player(self):
         ctx, server = _setup_sender()
         alice_ctx   = _add_player(server, 'Alice')
-        found, not_found = find_online(ctx, ['Alice'])
+        found, not_found = self._run(ctx, ['Alice'])
         self.assertIn(alice_ctx, found)
         self.assertEqual(not_found, [])
 
     def test_not_found(self):
         ctx, server = _setup_sender()
-        found, not_found = find_online(ctx, ['Ghost'])
+        found, not_found = self._run(ctx, ['Ghost'])
         self.assertEqual(found, [])
         self.assertEqual(not_found, ['Ghost'])
 
     def test_excludes_self(self):
         ctx, server = _setup_sender('Rulan')
-        found, not_found = find_online(ctx, ['Rulan'])
+        found, not_found = self._run(ctx, ['Rulan'])
         self.assertEqual(found, [])
         self.assertIn('Rulan', not_found)
 
     def test_case_insensitive(self):
         ctx, server = _setup_sender()
         alice_ctx   = _add_player(server, 'Alice')
-        found, _    = find_online(ctx, ['alice'])
+        found, _    = self._run(ctx, ['alice'])
         self.assertIn(alice_ctx, found)
 
     def test_deduplicates(self):
         ctx, server = _setup_sender()
         alice_ctx   = _add_player(server, 'Alice')
-        found, _    = find_online(ctx, ['Alice', 'Alice'])
+        found, _    = self._run(ctx, ['Alice', 'Alice'])
         self.assertEqual(found.count(alice_ctx), 1)
 
     def test_same_room_only_true(self):
         ctx, server  = _setup_sender(room=1)
         _add_player(server, 'Nearby', room=1)
         _add_player(server, 'Faraway', room=2)
-        found, _     = find_online(ctx, ['Nearby', 'Faraway'], same_room_only=True)
+        found, _     = self._run(ctx, ['Nearby', 'Faraway'], same_room_only=True)
         names = [f.player.name for f in found]
         self.assertIn('Nearby', names)
         self.assertNotIn('Faraway', names)
@@ -243,8 +246,24 @@ class TestFindOnline(unittest.TestCase):
     def test_same_room_only_false(self):
         ctx, server = _setup_sender(room=1)
         _add_player(server, 'Faraway', room=2)
-        found, _    = find_online(ctx, ['Faraway'], same_room_only=False)
+        found, _    = self._run(ctx, ['Faraway'], same_room_only=False)
         self.assertEqual(len(found), 1)
+
+    def test_unique_substring_match(self):
+        ctx, server = _setup_sender()
+        alice_ctx   = _add_player(server, 'Alexandria')
+        found, not_found = self._run(ctx, ['alex'])
+        self.assertIn(alice_ctx, found)
+        self.assertEqual(not_found, [])
+
+    def test_ambiguous_substring_match(self):
+        ctx, server = _setup_sender()
+        _add_player(server, 'Bobby')
+        _add_player(server, 'Bobette')
+        found, not_found = self._run(ctx, ['bob'])
+        self.assertEqual(found, [])
+        self.assertEqual(not_found, [])
+        self.assertIn('matches more than one', ctx.sent_text())
 
 
 # ---------------------------------------------------------------------------

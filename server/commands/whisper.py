@@ -71,7 +71,10 @@ class WhisperCommand(Command):
                                                     "long ago.  '#last 5' also saves 5 as "
                                                     'the number of entries to show (1-10).'),
         ],
-        notes = ['Target must be in the same room.  Use [page] for cross-room messages.'],
+        notes = [
+            'A name only needs to be a partial match against who is in the room.',
+            'Target must be in the same room.  Use [page] for cross-room messages.',
+        ],
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
@@ -138,7 +141,7 @@ class WhisperCommand(Command):
         if not target_names:
             return CommandResult.ok()
 
-        found_ctxs, not_found = find_online(ctx, target_names, same_room_only=True)
+        found_ctxs, not_found = await find_online(ctx, target_names, same_room_only=True)
         for n in not_found:
             await ctx.send(f'{n} is not here.')
 

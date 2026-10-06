@@ -158,12 +158,20 @@ def expand_groups(player, targets: list[str]) -> tuple[list[str], list[str]]:
     return expanded, unknown
 
 
-def find_online(ctx, target_names: list[str], *,
+async def find_online(ctx, target_names: list[str], *,
                 same_room_only: bool = False) -> tuple[list, list]:
     """Resolve target names to live GameContext objects.
 
     Returns (found_ctxs, not_found_names).
     - Names matched case-insensitively against online players (excluding self).
+    - An exact match wins outright; otherwise falls back to a substring
+      match (same "partial match" convention as GET/READY/DROP/READ's item
+      lookups, see commands/get.py's `target in name.lower()`). A unique
+      substring match resolves silently; an ambiguous one sends its own
+      "matches more than one" line naming the candidates and is treated
+      as neither found nor not_found, so callers' own not_found handling
+      (page.py's mail offer, whisper.py's "is not here") doesn't also
+      fire for it.
     - Each ctx appears at most once even if the same name is listed twice.
     - If same_room_only=True, only clients in ctx.client's room are searched.
     """
@@ -193,6 +201,17 @@ def find_online(ctx, target_names: list[str], *,
             if id(tctx) not in seen:
                 seen.add(id(tctx))
                 found.append(tctx)
+            continue
+
+        substring_matches = [n for n in online if key in n]
+        if len(substring_matches) == 1:
+            tctx = online[substring_matches[0]]
+            if id(tctx) not in seen:
+                seen.add(id(tctx))
+                found.append(tctx)
+        elif len(substring_matches) > 1:
+            candidates = ', '.join(online[n].player.name for n in substring_matches)
+            await ctx.send(f'"{name}" matches more than one player: {candidates}.')
         else:
             not_found.append(name)
 

@@ -424,7 +424,7 @@ class MailCommand(Command):
         commands/page.py uses) so they don't have to wait until their
         next login to notice it. Doesn't affect delivery either way;
         MAIL always writes to the mailbox regardless of online status."""
-        online_ctxs, _ = find_online(ctx, targets)
+        online_ctxs, _ = await find_online(ctx, targets)
 
         for name in targets:
             mail_store.add_message(name, ctx.player.name, body)

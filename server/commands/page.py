@@ -4,7 +4,10 @@ Syntax:
   page <targets>=<message>   send a page (targets: comma/space-delimited
                               names, quote names with spaces, #groupname
                               to address a saved group -- see
-                              commands/groups.py)
+                              commands/groups.py; a name also matches by
+                              substring against who's online, same as
+                              GET/READY on items -- see find_online() in
+                              commands/messaging.py)
   page #ignore <name>        block <name> from paging you
   page #unignore <name>      remove that block
   page #haven                block ALL incoming pages
@@ -104,6 +107,7 @@ class PageCommand(Command):
                                                  "until you type |command|page #unhaven|reset|."),
         ],
         notes = [
+            'A name only needs to be a partial match against who is online.',
             'Use [whisper] to restrict delivery to players in your room.',
             'If a target is offline, you will be offered to leave the message as mail.',
         ],
@@ -220,7 +224,7 @@ class PageCommand(Command):
         if not target_names:
             return CommandResult.ok()
 
-        found_ctxs, not_found = find_online(ctx, target_names)
+        found_ctxs, not_found = await find_online(ctx, target_names)
 
         deliverable = []
         for tctx in found_ctxs:
