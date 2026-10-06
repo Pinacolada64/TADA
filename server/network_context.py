@@ -90,6 +90,15 @@ class BaseContext:
     server-side code that needs server/client access).
     """
 
+    # Set once the player is leaving -- a JSON client's Mode.bye message,
+    # or QUIT confirmed from inside a fight (combat/engine.py). From then
+    # on every prompt() returns None, the same as a dropped connection, so
+    # whatever loop is waiting on input (a fight, a menu, the main command
+    # loop) unwinds and Server._game_loop() reaches _player_quit() to save.
+    # Deliberately a plain class attribute, not annotated: GameContext is a
+    # dataclass, and this shouldn't become one of its fields.
+    closing = False
+
     async def send(self, *lines) -> None:
         """Send lines to the player, paginating automatically if they exceed screen height."""
         raise NotImplementedError
@@ -358,6 +367,9 @@ class GameContext(BaseContext):
         from net_common import from_jsonb
         from formatting import format_player_time
 
+        if self.closing:
+            return None
+
         pending = self._pop_pending_pages()
         if pending:
             preamble_lines = pending + list(preamble_lines or [])
@@ -388,6 +400,14 @@ class GameContext(BaseContext):
             if not raw:
                 return None     # EOF — client disconnected cleanly
             obj = from_jsonb(raw)
+            if isinstance(obj, dict) and obj.get('mode') == 'bye':
+                # The client is leaving (client.py sends this on quit). It
+                # used to be read as an ordinary empty answer -- harmless at
+                # the main prompt (blank input is skipped), but mid-fight a
+                # blank answer means Attack, so a quitting player swung
+                # once more on their way out.
+                self.closing = True
+                return None
             if isinstance(obj, dict):
                 lines = obj.get('lines')
                 if isinstance(lines, list) and lines:
@@ -623,6 +643,8 @@ class PETSCIINetworkContext(GameContext):
         """Send raw PETSCII prompt, read CR-terminated response."""
         import datetime
         from formatting import petscii_encode, format_player_time, codec_for_settings, PETSCIICodec
+        if self.closing:
+            return None
         pending = self._pop_pending_pages()
         if pending:
             preamble_lines = pending + list(preamble_lines or [])

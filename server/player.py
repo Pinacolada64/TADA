@@ -552,6 +552,13 @@ class Player:
         # reconnect.
         self.pending_charm = None
 
+        # A monster that's about to start a fight with this player, queued
+        # by encounters/monster.py's try_monster_encounter() on room entry
+        # and consumed by try_monster_engage() once the room has finished
+        # displaying -- {'level', 'room_no', 'monster_number'} or None.
+        # Session-only (see save()'s _SESSION_ONLY).
+        self.pending_engage = None
+
         # flag whether a save is required:
         self.unsaved_changes: bool = False
 
@@ -1125,7 +1132,7 @@ class Player:
             _SESSION_ONLY = {'readied_weapon', 'storm_servant_bonus', 'skill_potion_bonus', 'compass_active',
                              'pending_pages',
                              'pending_duel_challenge', 'active_duel', '_weapons_data',
-                             'guild_following', 'carried_followers'}
+                             'guild_following', 'carried_followers', 'pending_engage'}
             data_out = {k: v for k, v in self.__dict__.items() if k not in _SESSION_ONLY}
             data_out['party'] = self.party.to_json()
             from inventory import Inventory

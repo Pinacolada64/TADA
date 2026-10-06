@@ -1341,9 +1341,11 @@ class Server:
                 await notify(ctx, arrival_line(ctx.player, direction))
 
         if target_level != level:
-            await self._teleport_to(ctx, target_level, int(dest), message_number=message_number)
+            await self._teleport_to(ctx, target_level, int(dest), message_number=message_number,
+                                    engage=False)
             await announce_arrival()
             await guild_follow.show_followers(ctx, group, direction)
+            await self._monster_engages(ctx)
             return
 
         ctx.client.room = int(dest)
@@ -1376,6 +1378,14 @@ class Server:
         await try_djinn_sighting(ctx)
         from ally_events.starvation import try_encounter as try_ally_starvation
         await try_ally_starvation(ctx)
+        await self._monster_engages(ctx)
+
+    async def _monster_engages(self, ctx: GameContext) -> None:
+        """A hostile monster queued on room entry (encounters/monster.py's
+        try_monster_encounter()) starts its fight -- deliberately the last
+        room-entry step, see try_monster_engage()'s docstring."""
+        from encounters.monster import try_monster_engage
+        await try_monster_engage(ctx)
 
     @staticmethod
     def _room_has_flag(room, flag_prefix: str, direction: str) -> bool:
@@ -1445,13 +1455,17 @@ class Server:
         return None
 
     async def _teleport_to(self, ctx: GameContext, target_level: int, target_room: int,
-                            *, message_number: int | None = None) -> None:
+                            *, message_number: int | None = None, engage: bool = True) -> None:
         """Move the player to a confirmed cross-level hidden-exit destination.
 
         Prints the room's own pre-move message (e.g. level 1 room 89's
         message #18, server/messages.json) if any, then the same "YOU HAVE
         ENTERED <level>!" banner SPUR's travel4 always shows on a level
         change (SPUR.MISC.S:457-464).
+
+        *engage* False defers a hostile monster's attack (_monster_engages())
+        to the caller -- _move() passes it so its own arrival notices print
+        before the fight starts.
         """
         if message_number is not None:
             await send_message(ctx, message_number)
@@ -1492,6 +1506,8 @@ class Server:
         await try_djinn_sighting(ctx)
         from ally_events.starvation import try_encounter as try_ally_starvation
         await try_ally_starvation(ctx)
+        if engage:
+            await self._monster_engages(ctx)
 
     # -----------------------------------------------------------------------
     # Broadcast

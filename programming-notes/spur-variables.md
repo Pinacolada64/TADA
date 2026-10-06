@@ -555,7 +555,12 @@ Related file-path variables, not in the original drive-specifier block:
   `ply.locD` (`vs=cl:vx=cr`, consumed at `SPUR.MAIN.S:379`
   `if (vs=cl) then if (vx=cr) then if (dc$<>"LOOK") then return`).
 - **`vt`** — # of duels per game?
-- **`vu`** — Round counter in combat? / Flag for money owed to Vinny; also
+- **`vu`** — Monster-attack counter in combat: `SPUR.COMBAT.S` `m.attack`
+  opens with `vu=vu+1`, so `vu=1` means "the monster's first swing of
+  this fight" — the gate for missile/pole (and, on skip, mounted) first
+  strike, and for `SPUR.MAIN.S` `travel`'s `if (vu=1) and (vn>0) and
+  (mw>0) print m$" charges!"`. Ported as `CombatSession.
+  _monster_attack_count`. / Flag for money owed to Vinny; also
   your initiative in a duel: `3`=Opponent has initiative, `4`=Neither
   has initiative, `5`=You have initiative.
 - **`vv`** — Civilian/Outlaw flag:
@@ -978,7 +983,12 @@ Related file-path variables, not in the original drive-specifier block:
   in a duel, compared against `vw` — see `vw` above.
 - **`zs`** — Surprise-encounter state, set by `rd.mons` and consumed by
   `SPUR.COMBAT.S` once a fight actually starts:
-  - `999`: `m$` lost sight of you
+  - `999`: `m$` lost sight of you — rolled in `SPUR.MAIN.S` `advent` for a
+    Thief/Assassin (`instr(str$(pc),"68")`, `z=pc*10+5`) or Ring wearer
+    (`z=50`), `if random(100)>z zs=999`; no `m.attack` while set, `travel`
+    lets the player walk past (`if zs<990 ... blocks your way`), cleared
+    by `p.attack`'s `if zs=999 zs=0`. Ported as `combat/engine.py`'s
+    `lost_sight_roll()` / `CombatSession._lost_sight`.
   - `998`: `m$` is surprised (set by `rd.mons`'s surprise roll,
     `SPUR.MISC4.S:94` — the player caught the monster off guard) —
     consumed on the first combat exchange (`SPUR.COMBAT.S:23`

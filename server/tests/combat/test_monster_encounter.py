@@ -87,7 +87,7 @@ class TestTryMonsterEncounterTurfGuardRouting(unittest.IsolatedAsyncioTestCase):
         ctx = _make_ctx(guild=Guild.CLAW, monster_no=67)
         with patch('encounters.monster._try_surprise') as mock_surprise, \
              patch('encounters.monster._try_spontaneous_charm') as mock_charm, \
-             patch('encounters.monster._try_ally_tactical') as mock_tactical:
+             patch('encounters.monster._queue_engage') as mock_tactical:
             await try_monster_encounter(ctx, level=1, room_no=2)
         mock_surprise.assert_not_called()
         mock_charm.assert_not_called()

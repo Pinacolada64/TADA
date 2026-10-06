@@ -1027,8 +1027,14 @@ def flee_attempt(player, monster: dict, monster_is_following: bool = True,
     Can the player escape?
 
     Impassable if room has any of: water (@@), snow (**), no_flee (<<)
-    Monster blocks path if all of: hp > 7, monster is following, not mechanical,
-      random(1-10) < xp_level / 3
+    Monster blocks path if all of: hp > 7, monster is following, tough,
+      not mechanical, random(1-10) < xp_level / 3
+
+    SPUR.COMBAT.S flee (master): `if hp>7 if instr(".",wy$) then if not
+    instr(":",wy$) gosub rnd.10z:if z<(xp/3) print \\m$" BLOCKS THE PATH!"`
+    -- only a 'tough' (wy$ ".") monster ever blocks, with odds that grow
+    with the player's level. The skip branch's copy is harsher (z<xp,
+    plus a DJINN special case); master's is kept here.
     """
     # Impassable room check (SPUR.COMBAT.S:74)
     room_flags = set(getattr(room, 'flags', None) or [])
@@ -1036,12 +1042,16 @@ def flee_attempt(player, monster: dict, monster_is_following: bool = True,
         return FleeResult(escaped=False, impassable_room=True)
 
     hp    = int(getattr(player, 'hit_points', 1) or 1)
-    xp    = 1   # TODO: replace with derived xp_level once levelling exists
-    flags = monster.get('flags', {})
+    # Was a hardcoded `xp = 1` stub ("TODO: replace with derived xp_level
+    # once levelling exists") -- which made random(1-10) < 1/3 impossible,
+    # so no monster could ever block a flee. xp_level exists now.
+    xp    = int(getattr(player, 'xp_level', 1) or 1)
+    flags = monster.get('flags', {}) or {}
 
     if (hp > 7 and monster_is_following
+            and flags.get('tough')
             and not flags.get('mechanical')
-            and random.randint(1, 10) < xp / 3):
+            and random.randint(1, 10) < xp // 3):   # BASIC integer division
         return FleeResult(escaped=False, blocked_by_monster=True)
 
     return FleeResult(escaped=True)
