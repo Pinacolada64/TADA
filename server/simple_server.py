@@ -1065,7 +1065,9 @@ class Server:
                     # Monster fled this player's fight (loud weapon scared it
                     # off) -- SPUR's md==2 "tracks" state.
                     monster_and_seen += ['', f'You see {name} tracks here.']
-                elif mon_num is not None and mon_num in mk:
+                elif mon_num is not None and (
+                        mon_num in mk
+                        or getattr(player, 'slain_here', None) == (level, int(room_no), mon_num)):
                     # Monster is dead for this player
                     if flags.get('mechanical'):
                         monster_and_seen += ['', f'The wrecked remains of {name} lie here.']
@@ -1295,6 +1297,7 @@ class Server:
             return
 
         self._leave_combat_on_move(ctx, room_no)
+        ctx.player.slain_here = None    # a re_animates kill gets back up behind you
 
         from spells.charm import try_charm_join_offer
         await try_charm_join_offer(ctx, level=level, room_no=room_no)
@@ -1469,6 +1472,7 @@ class Server:
         """
         if message_number is not None:
             await send_message(ctx, message_number)
+        ctx.player.slain_here = None    # see _move()
         ctx.player.map_level = target_level
         try:
             ctx.client.map_level = target_level

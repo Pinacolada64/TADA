@@ -379,6 +379,30 @@ def _record_kill(player, monster: dict) -> None:
             player.unsaved_changes = True
 
 
+def monster_gone_for(player, monster_no, *, level: int, room_no) -> Optional[str]:
+    """Is the room's monster *monster_no* already dealt with, for *player*?
+    Returns 'dead', 'fled' or 'charmed', or None if it's still there to
+    fight. room.monster is shared, but whether it's dead is per player
+    (dead_monsters etc.), so ATTACK/LURK must check this before opening a
+    fresh CombatSession -- each session fights its own full-HP copy.
+
+    'dead' also covers a re_animates kill in this same room visit
+    (player.slain_here): those never go into dead_monsters (see
+    _record_kill()), but SPUR still shows "YOU SEE A DEAD m$" (md=1) until
+    the player leaves; it re-animates on re-entry (rd.mons runs again).
+    """
+    if monster_no is None:
+        return None
+    if (monster_no in (getattr(player, 'dead_monsters', None) or [])
+            or getattr(player, 'slain_here', None) == (int(level), int(room_no), monster_no)):
+        return 'dead'
+    if monster_no in (getattr(player, 'fled_monsters', None) or []):
+        return 'fled'
+    if monster_no in (getattr(player, 'charmed_monsters', None) or []):
+        return 'charmed'
+    return None
+
+
 def _record_flee(player, monster: dict) -> None:
     """Mark a monster scared off by a loud weapon as tracks-only for this
     player -- SPUR's md==2 state (SPUR.COMBAT.S scare subroutine). Per-player,
@@ -2224,8 +2248,17 @@ class CombatSession:
         # self.attackers (e.g. a grenade thrown at another room's fight via
         # commands/use.py) -- credited exactly once either way, since
         # _record_kill no longer dedupes (each kill is its own log entry).
+        mid = self.monster.get('number') or self.monster.get('id_number') or self.monster.get('id')
         for b_ctx in credited:
             _record_kill(b_ctx.player, self.monster)
+            # Dead for this player until they leave the room, re_animates or
+            # not (see monster_gone_for()) -- without this, a bystander's
+            # ATTACK landing just after the kill opened a second, fresh
+            # full-HP fight against the same monster (tools/
+            # bot_epic_battle.py documented the race and worked around it).
+            if mid is not None and self.room_no is not None:
+                b_ctx.player.slain_here = (int(getattr(b_ctx.player, 'map_level', 1) or 1),
+                                           int(self.room_no), mid)
             if b_ctx is ctx:
                 continue
             Mname = monster_display_name(self.monster, capitalize=True)
