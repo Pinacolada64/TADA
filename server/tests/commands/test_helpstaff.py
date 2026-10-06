@@ -343,6 +343,31 @@ class TestHelpstaffManagement(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result.success)
         self.assertFalse(staffer.ctx.player.query_flag(PlayerFlags.HELPSTAFF))
 
+    async def test_show_lists_on_duty_staff(self):
+        tara   = make_client(make_player('Tara', available=True))
+        sam    = make_client(make_player('Sam', available=True))
+        newbie = make_client(make_player('Newbie'))
+        make_server(tara, sam, newbie)
+
+        result = await HelpstaffCommand().execute(newbie.ctx, '#show')
+
+        self.assertTrue(result.success)
+        self.assertIn('On helpstaff duty: Sam, Tara', _sent_text(newbie.ctx))
+        newbie.ctx.prompt.assert_not_awaited()
+
+    async def test_show_with_nobody_on_duty(self):
+        newbie = make_client(make_player('Newbie'))
+        make_server(newbie)
+        result = await HelpstaffCommand().execute(newbie.ctx, '#show')
+        self.assertTrue(result.success)
+        self.assertIn('No one is on helpstaff duty', _sent_text(newbie.ctx))
+
+    async def test_unknown_switch_fails(self):
+        player = make_client(make_player('Newbie'))
+        make_server(player)
+        result = await HelpstaffCommand().execute(player.ctx, '#bogus')
+        self.assertFalse(result.success)
+
     async def test_unknown_option_fails(self):
         player = make_client(make_player('Newbie'))
         make_server(player)

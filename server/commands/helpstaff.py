@@ -3,6 +3,7 @@
 Usage:  helpstaff                  ask what you need, relayed to every
                                     player currently marked available
                                     (PlayerFlags.HELPSTAFF)
+        helpstaff #show            list who's on helpstaff duty right now
         helpstaff cancel           withdraw your own open request
         helpstaff list             (staffer) show every open request
         helpstaff accept <name>    (staffer) claim <name>'s request and
@@ -97,6 +98,7 @@ class HelpstaffCommand(Command):
         category = HelpCategory.COMMUNICATION,
         usage    = [
             ('helpstaff',                'Ask for help; describes what you need.'),
+            ('helpstaff #show',          "Show who's on helpstaff duty right now."),
             ('helpstaff cancel',         'Withdraw your open request.'),
             ('helpstaff list',           '(staffer) Show every open request.'),
             ('helpstaff accept <name>',  "(staffer) Claim <name>'s request and go help."),
@@ -115,8 +117,15 @@ class HelpstaffCommand(Command):
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
-        positional, _switches = self.parse_args(*args)
+        positional, switches = self.parse_args(*args)
         sub = positional[0].lower() if positional else ''
+
+        if switches:
+            if switches[0] == '#show':
+                return await self._show(ctx)
+            await ctx.send(f"Unknown option '{switches[0]}'. "
+                           f"See |command|help helpstaff|reset|.")
+            return CommandResult.fail('Unknown option.', error='bad_option')
 
         if sub in ('accept', 'decline'):
             target = ' '.join(positional[1:]).strip()
@@ -182,6 +191,17 @@ class HelpstaffCommand(Command):
         else:
             await ctx.send(f'Your request has been sent to {len(names)} helpstaffers.')
         return CommandResult.ok('Request sent.')
+
+    async def _show(self, ctx: GameContext) -> CommandResult:
+        """'helpstaff #show' -- who's on duty, for anyone to check before
+        (or instead of) asking."""
+        names = sorted((_player_of(c).name for c in _available_staffers(ctx)),
+                       key=str.lower)
+        if not names:
+            await ctx.send('No one is on helpstaff duty right now.')
+        else:
+            await ctx.send(f"On helpstaff duty: {', '.join(names)}")
+        return CommandResult.ok('Shown.')
 
     async def _cancel(self, ctx: GameContext) -> CommandResult:
         pending = _pending(ctx.server)
