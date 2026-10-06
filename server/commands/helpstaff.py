@@ -4,13 +4,13 @@ Usage:  helpstaff                  ask what you need, relayed to every
                                     player currently marked available
                                     (PlayerFlags.HELPSTAFF)
         helpstaff #show            list who's on helpstaff duty right now
-        helpstaff cancel           withdraw your own open request
-        helpstaff list             (staffer) show every open request
-        helpstaff accept <name>    (staffer) claim <name>'s request and
+        helpstaff #cancel          withdraw your own open request
+        helpstaff #list            (staffer) show every open request
+        helpstaff #accept <name>   (staffer) claim <name>'s request and
                                     teleport to them
-        helpstaff decline <name>   (staffer) pass on <name>'s request,
+        helpstaff #decline <name>  (staffer) pass on <name>'s request,
                                     leaving it open for someone else
-        helpstaff on|off           mark yourself available (Admin/DM
+        helpstaff #on|#off         mark yourself available (Admin/DM
                                     only) or step off duty (anyone)
 
 This is a request/relay/accept flow, not a direct summon-by-name: a plain
@@ -99,12 +99,12 @@ class HelpstaffCommand(Command):
         usage    = [
             ('helpstaff',                'Ask for help; describes what you need.'),
             ('helpstaff #show',          "Show who's on helpstaff duty right now."),
-            ('helpstaff cancel',         'Withdraw your open request.'),
-            ('helpstaff list',           '(staffer) Show every open request.'),
-            ('helpstaff accept <name>',  "(staffer) Claim <name>'s request and go help."),
-            ('helpstaff decline <name>', "(staffer) Pass on <name>'s request."),
-            ('helpstaff on',             '(Admin/DM) Go on helpstaff duty.'),
-            ('helpstaff off',            '(staffer) Go off helpstaff duty.'),
+            ('helpstaff #cancel',         'Withdraw your open request.'),
+            ('helpstaff #list',           '(staffer) Show every open request.'),
+            ('helpstaff #accept <name>',  "(staffer) Claim <name>'s request and go help."),
+            ('helpstaff #decline <name>', "(staffer) Pass on <name>'s request."),
+            ('helpstaff #on',             '(Admin/DM) Go on helpstaff duty.'),
+            ('helpstaff #off',            '(staffer) Go off helpstaff duty.'),
         ],
         notes = [
             'Asking again replaces your earlier request.',
@@ -118,35 +118,35 @@ class HelpstaffCommand(Command):
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
         positional, switches = self.parse_args(*args)
-        sub = positional[0].lower() if positional else ''
+        target = ' '.join(positional).strip()
 
-        if switches:
-            if switches[0] == '#show':
-                return await self._show(ctx)
-            await ctx.send(f"Unknown option '{switches[0]}'. "
-                           f"See |command|help helpstaff|reset|.")
-            return CommandResult.fail('Unknown option.', error='bad_option')
+        if not switches:
+            if positional:
+                await ctx.send(f"Unknown option '{positional[0]}'. "
+                               f"See |command|help helpstaff|reset|.")
+                return CommandResult.fail('Unknown option.', error='bad_option')
+            return await self._request(ctx)
 
-        if sub in ('accept', 'decline'):
-            target = ' '.join(positional[1:]).strip()
+        sub = switches[0]
+        if sub in ('#accept', '#decline'):
             if not target:
                 await ctx.send(f'Usage: |command|helpstaff {sub} <name>|reset|')
                 return CommandResult.fail('Missing name.', error='missing_name')
-            if sub == 'accept':
+            if sub == '#accept':
                 return await self._accept(ctx, target)
             return await self._decline(ctx, target)
-        if sub == 'list':
+        if sub == '#show':
+            return await self._show(ctx)
+        if sub == '#list':
             return await self._list(ctx)
-        if sub == 'cancel':
+        if sub == '#cancel':
             return await self._cancel(ctx)
-        if sub in ('on', 'off'):
-            return await self._duty(ctx, sub == 'on')
-        if sub:
-            await ctx.send(f"Unknown option '{sub}'. "
-                           f"See |command|help helpstaff|reset|.")
-            return CommandResult.fail('Unknown option.', error='bad_option')
+        if sub in ('#on', '#off'):
+            return await self._duty(ctx, sub == '#on')
 
-        return await self._request(ctx)
+        await ctx.send(f"Unknown option '{sub}'. "
+                       f"See |command|help helpstaff|reset|.")
+        return CommandResult.fail('Unknown option.', error='bad_option')
 
     # -- requester side -----------------------------------------------------
 
@@ -182,8 +182,8 @@ class HelpstaffCommand(Command):
             await client.ctx.send(
                 f'|yellow|{requester.name} needs help ({location_label}): '
                 f'{description}|reset|',
-                f'Type |command|helpstaff accept {requester.name}|reset| to go help, '
-                f'or |command|helpstaff decline {requester.name}|reset| to pass.',
+                f'Type |command|helpstaff #accept {requester.name}|reset| to go help, '
+                f'or |command|helpstaff #decline {requester.name}|reset| to pass.',
             )
 
         if len(names) == 1:
@@ -236,7 +236,7 @@ class HelpstaffCommand(Command):
             await ctx.send('You are now on helpstaff duty.')
             if count:
                 await ctx.send(f'{count} open request{"s" if count != 1 else ""} -- '
-                               f'type |command|helpstaff list|reset| to see '
+                               f'type |command|helpstaff #list|reset| to see '
                                f'{"them" if count != 1 else "it"}.')
             return CommandResult.ok('On duty.')
 

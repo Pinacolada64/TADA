@@ -131,7 +131,7 @@ class TestHelpstaffAccept(unittest.IsolatedAsyncioTestCase):
         make_server(staffer, requester)
         requester.ctx.server.pending_help_requests['Newbie'] = 'Where do I go?'
 
-        result = await HelpstaffCommand().execute(staffer.ctx, 'accept', 'Newbie')
+        result = await HelpstaffCommand().execute(staffer.ctx, '#accept', 'Newbie')
 
         self.assertTrue(result.success)
         self.assertNotIn('Newbie', staffer.ctx.server.pending_help_requests)
@@ -153,7 +153,7 @@ class TestHelpstaffAccept(unittest.IsolatedAsyncioTestCase):
         make_server(staffer, requester)
         requester.ctx.server.pending_help_requests['Newbie'] = 'How do I fight?'
 
-        await HelpstaffCommand().execute(staffer.ctx, 'accept', 'Newbie')
+        await HelpstaffCommand().execute(staffer.ctx, '#accept', 'Newbie')
 
         call = mock_teleport.await_args
         self.assertEqual(call.args[1], 17)
@@ -168,7 +168,7 @@ class TestHelpstaffAccept(unittest.IsolatedAsyncioTestCase):
         make_server(staffer, requester)
         requester.ctx.server.pending_help_requests['Newbie'] = 'help'
 
-        result = await HelpstaffCommand().execute(staffer.ctx, 'accept', 'Newbie')
+        result = await HelpstaffCommand().execute(staffer.ctx, '#accept', 'Newbie')
 
         self.assertFalse(result.success)
         self.assertEqual(staffer.ctx.server.pending_help_requests.get('Newbie'), 'help')
@@ -182,7 +182,7 @@ class TestHelpstaffAccept(unittest.IsolatedAsyncioTestCase):
         make_server(staffer, requester)
         requester.ctx.server.pending_help_requests['Newbie'] = 'help'
 
-        result = await HelpstaffCommand().execute(staffer.ctx, 'accept', 'Newbie')
+        result = await HelpstaffCommand().execute(staffer.ctx, '#accept', 'Newbie')
 
         self.assertTrue(result.success)
         mock_teleport.assert_not_awaited()
@@ -192,7 +192,7 @@ class TestHelpstaffAccept(unittest.IsolatedAsyncioTestCase):
         sam = make_client(make_player('Sam', available=True))
         make_server(sam)
         sam.ctx.server.pending_help_requests['Sam'] = 'help'
-        result = await HelpstaffCommand().execute(sam.ctx, 'accept', 'sam')
+        result = await HelpstaffCommand().execute(sam.ctx, '#accept', 'sam')
         self.assertFalse(result.success)
         self.assertIn('Sam', sam.ctx.server.pending_help_requests)
 
@@ -202,7 +202,7 @@ class TestHelpstaffAccept(unittest.IsolatedAsyncioTestCase):
         make_server(staffer, requester)
         staffer.ctx.server.pending_help_requests['Newbie'] = 'help'
 
-        result = await HelpstaffCommand().execute(staffer.ctx, 'accept', 'Newbie')
+        result = await HelpstaffCommand().execute(staffer.ctx, '#accept', 'Newbie')
 
         self.assertFalse(result.success)
         self.assertIn('not marked as available', _sent_text(staffer.ctx).lower())
@@ -211,7 +211,7 @@ class TestHelpstaffAccept(unittest.IsolatedAsyncioTestCase):
     async def test_accept_unknown_request_fails(self):
         staffer = make_client(make_player('Sam', available=True))
         make_server(staffer)
-        result = await HelpstaffCommand().execute(staffer.ctx, 'accept', 'Nobody')
+        result = await HelpstaffCommand().execute(staffer.ctx, '#accept', 'Nobody')
         self.assertFalse(result.success)
         self.assertIn('no longer open', _sent_text(staffer.ctx).lower())
 
@@ -223,8 +223,8 @@ class TestHelpstaffAccept(unittest.IsolatedAsyncioTestCase):
         make_server(sam, tara, requester)
         requester.ctx.server.pending_help_requests['Newbie'] = 'help'
 
-        first  = await HelpstaffCommand().execute(sam.ctx, 'accept', 'Newbie')
-        second = await HelpstaffCommand().execute(tara.ctx, 'accept', 'Newbie')
+        first  = await HelpstaffCommand().execute(sam.ctx, '#accept', 'Newbie')
+        second = await HelpstaffCommand().execute(tara.ctx, '#accept', 'Newbie')
 
         self.assertTrue(first.success)
         self.assertFalse(second.success)
@@ -235,7 +235,7 @@ class TestHelpstaffAccept(unittest.IsolatedAsyncioTestCase):
     async def test_decline_unknown_request_fails(self):
         staffer = make_client(make_player('Sam', available=True))
         make_server(staffer)
-        result = await HelpstaffCommand().execute(staffer.ctx, 'decline', 'Nobody')
+        result = await HelpstaffCommand().execute(staffer.ctx, '#decline', 'Nobody')
         self.assertFalse(result.success)
 
     async def test_decline_leaves_request_open(self):
@@ -244,7 +244,7 @@ class TestHelpstaffAccept(unittest.IsolatedAsyncioTestCase):
         make_server(staffer, requester)
         requester.ctx.server.pending_help_requests['Newbie'] = 'help'
 
-        result = await HelpstaffCommand().execute(staffer.ctx, 'decline', 'Newbie')
+        result = await HelpstaffCommand().execute(staffer.ctx, '#decline', 'Newbie')
 
         self.assertTrue(result.success)
         self.assertIn('Newbie', staffer.ctx.server.pending_help_requests)
@@ -252,7 +252,7 @@ class TestHelpstaffAccept(unittest.IsolatedAsyncioTestCase):
     async def test_accept_missing_name_fails(self):
         staffer = make_client(make_player('Sam', available=True))
         make_server(staffer)
-        result = await HelpstaffCommand().execute(staffer.ctx, 'accept')
+        result = await HelpstaffCommand().execute(staffer.ctx, '#accept')
         self.assertFalse(result.success)
 
 
@@ -286,7 +286,7 @@ class TestHelpstaffManagement(unittest.IsolatedAsyncioTestCase):
         make_server(staffer, requester)
         requester.ctx.server.pending_help_requests['Newbie'] = 'help'
 
-        result = await HelpstaffCommand().execute(requester.ctx, 'cancel')
+        result = await HelpstaffCommand().execute(requester.ctx, '#cancel')
 
         self.assertTrue(result.success)
         self.assertEqual(requester.ctx.server.pending_help_requests, {})
@@ -295,7 +295,7 @@ class TestHelpstaffManagement(unittest.IsolatedAsyncioTestCase):
     async def test_cancel_without_request_fails(self):
         requester = make_client(make_player('Newbie'))
         make_server(requester)
-        result = await HelpstaffCommand().execute(requester.ctx, 'cancel')
+        result = await HelpstaffCommand().execute(requester.ctx, '#cancel')
         self.assertFalse(result.success)
 
     async def test_list_shows_open_requests(self):
@@ -304,7 +304,7 @@ class TestHelpstaffManagement(unittest.IsolatedAsyncioTestCase):
         make_server(staffer, requester)
         staffer.ctx.server.pending_help_requests['Newbie'] = 'Where is the bar?'
 
-        result = await HelpstaffCommand().execute(staffer.ctx, 'list')
+        result = await HelpstaffCommand().execute(staffer.ctx, '#list')
 
         self.assertTrue(result.success)
         text = _sent_text(staffer.ctx)
@@ -313,7 +313,7 @@ class TestHelpstaffManagement(unittest.IsolatedAsyncioTestCase):
     async def test_list_requires_staffer(self):
         player = make_client(make_player('Newbie'))
         make_server(player)
-        result = await HelpstaffCommand().execute(player.ctx, 'list')
+        result = await HelpstaffCommand().execute(player.ctx, '#list')
         self.assertFalse(result.success)
 
     async def test_admin_can_go_on_duty(self):
@@ -321,7 +321,7 @@ class TestHelpstaffManagement(unittest.IsolatedAsyncioTestCase):
         make_server(admin)
         admin.ctx.server.pending_help_requests['Newbie'] = 'help'
 
-        result = await HelpstaffCommand().execute(admin.ctx, 'on')
+        result = await HelpstaffCommand().execute(admin.ctx, '#on')
 
         self.assertTrue(result.success)
         self.assertTrue(admin.ctx.player.query_flag(PlayerFlags.HELPSTAFF))
@@ -330,7 +330,7 @@ class TestHelpstaffManagement(unittest.IsolatedAsyncioTestCase):
     async def test_plain_player_cannot_go_on_duty(self):
         player = make_client(make_player('Newbie'))
         make_server(player)
-        result = await HelpstaffCommand().execute(player.ctx, 'on')
+        result = await HelpstaffCommand().execute(player.ctx, '#on')
         self.assertFalse(result.success)
         self.assertFalse(player.ctx.player.query_flag(PlayerFlags.HELPSTAFF))
 
@@ -339,7 +339,7 @@ class TestHelpstaffManagement(unittest.IsolatedAsyncioTestCase):
         # still step off duty themselves.
         staffer = make_client(make_player('Sam', available=True))
         make_server(staffer)
-        result = await HelpstaffCommand().execute(staffer.ctx, 'off')
+        result = await HelpstaffCommand().execute(staffer.ctx, '#off')
         self.assertTrue(result.success)
         self.assertFalse(staffer.ctx.player.query_flag(PlayerFlags.HELPSTAFF))
 
@@ -367,6 +367,23 @@ class TestHelpstaffManagement(unittest.IsolatedAsyncioTestCase):
         make_server(player)
         result = await HelpstaffCommand().execute(player.ctx, '#bogus')
         self.assertFalse(result.success)
+
+    async def test_bare_word_subcommand_rejected(self):
+        # Subcommands are #switches only; the old bare-word form is an error.
+        staffer = make_client(make_player('Sam', available=True))
+        make_server(staffer)
+        staffer.ctx.server.pending_help_requests['Newbie'] = 'help'
+        result = await HelpstaffCommand().execute(staffer.ctx, 'list')
+        self.assertFalse(result.success)
+        staffer.ctx.prompt.assert_not_awaited()
+
+    async def test_relay_mentions_switch_form(self):
+        staffer   = make_client(make_player('Sam', available=True))
+        requester = make_client(make_player('Newbie'))
+        make_server(staffer, requester)
+        requester.ctx.prompt = AsyncMock(return_value='help')
+        await HelpstaffCommand().execute(requester.ctx)
+        self.assertIn('helpstaff #accept Newbie', _sent_text(staffer.ctx))
 
     async def test_unknown_option_fails(self):
         player = make_client(make_player('Newbie'))
