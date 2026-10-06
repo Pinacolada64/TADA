@@ -496,7 +496,16 @@ def lost_sight_roll(player, monster: dict, *, is_surprise: bool = False) -> bool
 
 
 def _monster_hp(monster: dict) -> int:
-    return int(monster.get('strength') or monster.get('hit_points') or 5)
+    # Not "strength or hit_points or 5": 0 is falsy, so a hit landing the
+    # monster on exactly 0 read back as 5 HP -- it "healed" instead of
+    # dying, and only an overshoot below 0 ever killed it (found by
+    # tests/e2e/test_shared_monster_kill_e2e.py: a 4-HP TROLL took 20-30
+    # blows). Same trap monsters.py's monster_is_alive() already avoids.
+    for key in ('strength', 'hit_points'):
+        value = monster.get(key)
+        if value is not None:
+            return int(value)
+    return 5
 
 
 def _set_monster_hp(monster: dict, hp: int) -> None:
