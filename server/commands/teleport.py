@@ -393,6 +393,12 @@ class TeleportCommand(Command):
         # just looks puzzled. SPUR's own flavor text is ALL-CAPS
         # (screen-hardware artifact); sentence-cased here to match this
         # port's style.
+        #
+        # Port addition, not in SPUR: Admins and Dungeon Masters are
+        # immune to Freeze Adventurer -- the spell is still cast (so the
+        # room sees the same flavor), but it doesn't stop them. Otherwise
+        # staff standing next to a tough monster couldn't answer a
+        # commands/helpstaff.py request or get anywhere by TELEPORT.
         monster = _room_monster(ctx, old_level, old_room)
         if monster is not None:
             from monsters import monster_display_name
@@ -400,7 +406,10 @@ class TeleportCommand(Command):
             mname = monster_display_name(monster, capitalize=True)
             if flags.get('tough') and not flags.get('mechanical'):
                 await ctx.send(f"{mname} casts a 'Freeze Adventurer' spell!")
-                return CommandResult.fail('The teleport is blocked!', error='teleport_blocked')
+                if not (ctx.player.query_flag(PlayerFlags.ADMIN)
+                        or ctx.player.query_flag(PlayerFlags.DUNGEON_MASTER)):
+                    return CommandResult.fail('The teleport is blocked!', error='teleport_blocked')
+                await ctx.send('The spell has no effect on you.')
             if flags.get('mechanical'):
                 await ctx.send(f'Sensors on {mname} goes nuts as you dematerialize!')
             else:
