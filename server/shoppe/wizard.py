@@ -11,7 +11,7 @@ _SPELL_MAX           = 10  # SPUR xs=10 gate
 _SPELL_NON_ADEPT_MAX =  6  # SPUR if pc>2 then if xs>5 goto wiz2b
 
 # SPUR wiz3: non-adepts (Fighter/Paladin/Ranger/Thief/Archer/Assassin/
-# Knight) can actually fail to learn a spell -- gold is already spent by
+# Knight) can actually fail to learn a spell -- silver is already spent by
 # this point (SPUR: `gosub sub.gold` runs before any of this), and a
 # failure grants nothing back. Wizards/Druids (pc<3) skip this roll
 # entirely ("Your calling makes learning simple!"). Never ported until
@@ -43,7 +43,7 @@ SPELLS: list[dict] = [
     {'number':  8, 'name': 'SLAUGHTER',           'effect': 'M', 'magnitude': 4, 'cast_chance': 90, 'price':  100,
      'description': 'High-accuracy monster attack. Less power than KILL, but rarely misses.'},
     {'number':  9, 'name': 'DEPOSIT',             'effect': 'T', 'magnitude': 4, 'cast_chance': 80, 'price':   50,
-     'description': 'Instantly transfers your gold to the bank from anywhere in the dungeon.'},
+     'description': 'Instantly transfers your silver to the bank from anywhere in the dungeon.'},
     {'number': 10, 'name': 'WELL-BEING',          'effect': 'C', 'magnitude': 9, 'cast_chance': 70, 'price':  170,
      'description': 'Improves Constitution, boosting health and stamina.'},
     {'number': 11, 'name': 'BALANCE',             'effect': 'D', 'magnitude': 4, 'cast_chance': 60, 'price':   80,
