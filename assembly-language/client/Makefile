@@ -336,7 +336,7 @@ LAUNCH_VICE128  = x128
 keymap_menu_128_pp.asm: keymap_menu_128.asm constants_128.asm
 	$(PREPROCESSOR) keymap_menu_128.asm
 
-$(TARGET128)_pp.asm: $(TARGET128).asm input_editor.asm vdc.asm vdc_screen.asm vic_screen.asm keymap_host_128.asm keymap_128.asm keymap_menu_128_pp.asm swiftlink.asm disk.asm drive_id.asm drive_menu_body_pp.asm build_rev.asm
+$(TARGET128)_pp.asm: $(TARGET128).asm input_editor.asm vdc.asm vdc_screen.asm vic_screen.asm keymap_host_128.asm keymap_128.asm keymap_menu_128_pp.asm swiftlink.asm disk.asm drive_id.asm drive_menu_body_pp.asm video_menu_128.asm build_rev.asm
 	$(PREPROCESSOR) $(TARGET128).asm
 
 $(TARGET128).prg: $(TARGET128)_pp.asm

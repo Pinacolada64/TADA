@@ -85,7 +85,7 @@ dm_module_start:                  ; first byte of DRIVE.MNU (OVERLAY_BUF)
         sta dm_cfg_get+2
         sta dm_cfg_put+2
         jsr dm_draw_frame
-        jsr dm_scan
+        jsr dm_scan_held
         jsr dm_draw_list
 
 dm_loop:
@@ -164,7 +164,7 @@ dm_key_done:
         rts                       ; back to dm_loop via dm_dispatch's caller
 
 dm_key_rescan:
-        jsr dm_scan
+        jsr dm_scan_held
         jmp dm_key_redraw
 
 ; --- RETURN: make the highlighted drive the data drive, save
@@ -177,7 +177,13 @@ dm_key_choose:
         sta dm_number
 dm_cfg_put:
         sta $ffff                 ; CFG_DATA_DRIVE (dm_module_start aims it)
+{ifdef: c128}
+        jsr sl_hold               ; see dm_scan_held
+{endif}
         jsr dm_save_config        ; -> X/Y = the status message
+{ifdef: c128}
+        jsr sl_release            ; keeps X/Y
+{endif}
         stx dm_msg_ptr            ; JT_RESTORE_SCREEN doesn't promise to
         sty dm_msg_ptr+1          ; keep X/Y
         jsr JT_RESTORE_SCREEN     ; BEFORE the status message -- it
@@ -198,6 +204,19 @@ dm_exit:
         ldx dm_entry_sp           ; drop this visit's dm_loop/dm_dispatch
         txs                       ; depth -- see dm_module_start
         jmp JT_RESUME_LOCAL
+
+; --- dm_scan_held: dm_scan, with the 128's SwiftLink held around it
+; (swiftlink.asm's sl_hold/sl_release) -- probing the bus is serial I/O
+; too, and serial I/O with receive NMIs live can hang the 128 for good
+; (see sl_hold's comment). The C64's DRIVE.MNU just scans. ---
+dm_scan_held:
+{ifdef: c128}
+        jsr sl_hold
+        jsr dm_scan
+        jmp sl_release
+{else}
+        jmp dm_scan
+{endif}
 
 ; --- dm_scan: find the drives and their models ---
 ; drive_list/drive_count from scan_serial_bus (disk.asm); dm_models gets

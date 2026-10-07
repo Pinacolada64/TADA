@@ -28,7 +28,7 @@
 ; every used row when the server clears it) is read back out of VDC RAM
 ; into a ring of HIST_LINES rows in main RAM, characters and attributes
 ; both, so colors survive scrollback. The ring lives in bank 0 under the
-; BASIC ROMs ($6000-$bedf), reached with $FF00 = $0e (I/O and KERNAL
+; BASIC ROMs ($6800-$bfbf), reached with $FF00 = $0e (I/O and KERNAL
 ; still in, BASIC out -- Compute's 128 Programmer's Guide Figure 7-5).
 ; client-128.asm has run with that configuration throughout since the
 ; Keymap Editor moved in (MMU_CLIENT_CONFIG); the copy loops below still
@@ -55,13 +55,16 @@ VDC_STATUS_ROW     = 23          ; client-128.asm's STATUS_ROW
 VDC_ATTR_HI        = $08         ; attribute = character address + $0800
 LIVE_SAVE_HI       = $10         ; save area = live address + $1000
 
-HIST_LINES         = 150         ; rows of history (150 * 80 = 12000 bytes each
-HIST_CHARS_HI      = $60         ; for chars at $6000-$8edf and attributes
-HIST_ATTR_HI       = $30         ; $3000 above them, $9000-$bedf). Was 200
+HIST_LINES         = 140         ; rows of history (140 * 80 = 11200 bytes each
+HIST_CHARS_HI      = $68         ; for chars at $6800-$93bf and attributes
+HIST_ATTR_HI       = $2c         ; $2c00 above them, $9400-$bfbf). Was 200
                                  ; rows at $4000 until the built-in Keymap
-                                 ; Editor pushed the program past $4000;
-                                 ; the code must now end below $6000
-                                 ; (check_128_layout.py)
+                                 ; Editor pushed the program past $4000,
+                                 ; then 150 at $6000 (attributes $3000
+                                 ; above) until the Video Settings popup
+                                 ; (video_menu_128.asm, 2026-10-05) pushed
+                                 ; it past $6000; the code must now end
+                                 ; below $6800 (check_128_layout.py)
 MMU_CR             = $ff00
 MMU_HIST_CONFIG    = $0e         ; bank 0 RAM $4000-$bfff, I/O, KERNAL ROM
 SB_PAGE            = 20          ; lines per Page Up/Page Down
