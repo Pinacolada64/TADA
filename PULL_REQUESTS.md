@@ -12,7 +12,9 @@ Sections: Open PRs → Feature branches (no PR) → Direct commits to master →
 
 ## Open PRs
 
-_(none)_
+| PR | Branch | Tip | Summary |
+|----|--------|-----|---------|
+| [#81](https://github.com/Pinacolada64/TADA/pull/81) | `feature/help-flag-sections` | `7ce8817` | Flag-gated help: new `HelpSection` / `Help.sections` in `commands/help.py`, shown only to viewers holding one of its `PlayerFlags` (or Admins/DMs), heading included. `help helpstaff`: plain players see only `helpstaff`/`#ask`/`#show`/`#cancel`; a **Helpstaff** section (HELPSTAFF flag) holds `#on`/`#off`/`#list`/`#accept`/`#decline`/`#queue`/`#faq`; a plain player's staff switch reads as "Unknown option". All help: a too-long syntax at 40 columns gets its own line with the explanation aligned under it; usage/example syntax in `\|command\|` (PREFS command color). Full suite incl. e2e 5020 passed; `tools/bot_helpstaff.py` 29/29. Open: Admins/DMs see every gated section. |
 
 ---
 
