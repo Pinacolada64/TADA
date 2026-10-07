@@ -181,6 +181,9 @@ Shared infrastructure (not itself a feature demo):
   (query, valid value, out-of-range value).
 - **`bot_victory_playtest.py`** — sets an item victory_type, then
   attempts to win and checks the outcome.
+- **`bot_read_prospecting.py`** — prints the live victory settings, then
+  GETs/READs/DROPs "Prospecting..." (#61, level 3 room 89) to check its
+  config-driven text (PR #78); leaves the book where it was found.
 
 ## Analysis / one-off tooling
 
