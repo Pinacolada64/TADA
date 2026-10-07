@@ -393,6 +393,12 @@ class TeleportCommand(Command):
         # just looks puzzled. SPUR's own flavor text is ALL-CAPS
         # (screen-hardware artifact); sentence-cased here to match this
         # port's style.
+        #
+        # Port addition, not in SPUR: Admins and Dungeon Masters are
+        # immune to Freeze Adventurer -- the spell is still cast (so the
+        # room sees the same flavor), but it doesn't stop them. Otherwise
+        # staff standing next to a tough monster couldn't answer a
+        # commands/helpstaff.py request or get anywhere by TELEPORT.
         monster = _room_monster(ctx, old_level, old_room)
         if monster is not None:
             from monsters import monster_display_name
@@ -400,14 +406,20 @@ class TeleportCommand(Command):
             mname = monster_display_name(monster, capitalize=True)
             if flags.get('tough') and not flags.get('mechanical'):
                 await ctx.send(f"{mname} casts a 'Freeze Adventurer' spell!")
-                return CommandResult.fail('The teleport is blocked!', error='teleport_blocked')
+                if not (ctx.player.query_flag(PlayerFlags.ADMIN)
+                        or ctx.player.query_flag(PlayerFlags.DUNGEON_MASTER)):
+                    return CommandResult.fail('The teleport is blocked!', error='teleport_blocked')
+                await ctx.send('The spell has no effect on you.')
             if flags.get('mechanical'):
                 await ctx.send(f'Sensors on {mname} goes nuts as you dematerialize!')
             else:
                 await ctx.send(f'{mname} looks puzzled as you fade from view.')
 
+        # An on-duty helpstaffer shows as "Name [Helpstaff]" to onlookers.
+        from helpstaff.duty import tagged_name
+        shown = tagged_name(ctx.player, ctx.client)
         await ctx.send('You disappear in a flash of light.')
-        await ctx.send_room(f'{name} disappears in a flash of light.', exclude_self=True)
+        await ctx.send_room(f'{shown} disappears in a flash of light.', exclude_self=True)
         ctx.client.room        = dest
         ctx.player.map_room    = dest
         if level is not None and level != old_level:
@@ -422,7 +434,7 @@ class TeleportCommand(Command):
         log.info('%s teleported from level %s room %s to level %s room %s',
                   name, old_level, old_room, level if level is not None else old_level, dest)
         await ctx.send('You appear in a flash of light.')
-        await ctx.send_room(f'{name} appears in a flash of light.', exclude_self=True)
+        await ctx.send_room(f'{shown} appears in a flash of light.', exclude_self=True)
 
         # If the destination is the actual guild HQ door, trigger the HQ
         # session the same way movement.py does when walking into it --

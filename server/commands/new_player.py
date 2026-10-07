@@ -37,7 +37,6 @@ Design notes
 
 TODOs
 -----
-* summoning help staff for assistance
 * #newbies chat channel
 """
 
@@ -469,7 +468,7 @@ async def _prologue(ctx) -> bool:
         "persona in this world.  Your faithful servant |light_green|Verus|yellow| will assist you.",
         "",
         "If you need help at any point, type |white|'help'|yellow|, |white|'h'|yellow|, or |white|'?'|yellow|.",
-        # TODO: "Type 'helpstaff' to summon a live helper.",
+        "Once you're playing, type |command|helpstaff|yellow| to ask a live helper for a hand.",
         # TODO: "Type 'chat #join newplayers' to join the new-player chat channel.",
         "",
     ]

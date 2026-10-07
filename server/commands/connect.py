@@ -576,6 +576,12 @@ class ConnectCommand(Command):
 
         await ctx.send(login_lines)
 
+        # Helpstaff members: go on duty? review saved questions? (on duty
+        # is per-connection, so every login starts off -- see
+        # logon_events/helpstaff.py and helpstaff/duty.py).
+        from logon_events.helpstaff import helpstaff_checkin
+        await helpstaff_checkin(ctx, player)
+
         # TODO: daily time limit check — if today's play time >= limit, show
         #       "Alas...the sun has set on yet another adventurer..." and disconnect.
         #       Requires tracking eu (elapsed time today) in player data.

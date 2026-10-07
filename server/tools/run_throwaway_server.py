@@ -39,6 +39,17 @@ args = parser.parse_args()
 net_common.run_server_dir = args.dir
 Path(args.dir, 'net').mkdir(parents=True, exist_ok=True)
 
+# mail.py and news.py don't go through run_server_dir: both default to a
+# path relative to the working directory ('run/server/mail',
+# 'run/server/news.json'), so every throwaway instance started from the
+# same checkout used to share one mailbox directory and news file. Point
+# them at this instance's own directory too (both are looked up at call
+# time, so setting the module attributes is enough).
+import mail
+import news
+mail.MAIL_DIR = Path(args.dir) / 'mail'
+news.NEWS_FILE = Path(args.dir) / 'news.json'
+
 logging.basicConfig(level=logging.WARNING, force=True)
 
 from simple_server import Server

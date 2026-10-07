@@ -532,7 +532,8 @@ class TestTeleportFlashMessages(unittest.IsolatedAsyncioTestCase):
 
 def make_monster_ctx(*, monster_flags=None, monster_number=99,
                       dead_monsters=None, charmed_monsters=None,
-                      room_has_monster=True, monster_name='Grendel'):
+                      room_has_monster=True, monster_name='Grendel',
+                      is_admin=True, is_dm=False):
     """Origin room 1 (with an optional monster on it) -> dest room 37,
     for testing _teleport()'s SPUR.MISC3.S cst.shop monster-reaction logic."""
     origin = MagicMock()
@@ -542,7 +543,9 @@ def make_monster_ctx(*, monster_flags=None, monster_number=99,
 
     player = MagicMock()
     player.name = 'TestPlayer'
-    player.query_flag = MagicMock(return_value=True)  # admin
+    from flags import PlayerFlags
+    granted = {PlayerFlags.ADMIN: is_admin, PlayerFlags.DUNGEON_MASTER: is_dm}
+    player.query_flag = MagicMock(side_effect=lambda f: granted.get(f, False))
     player.dead_monsters = dead_monsters or []
     player.charmed_monsters = charmed_monsters or []
 
@@ -603,14 +606,36 @@ class TestTeleportMonsterReaction(unittest.IsolatedAsyncioTestCase):
     behind reacts to the teleport instead of a plain flash of light."""
 
     async def test_tough_monster_blocks_teleport(self):
+        # A plain player can't use TELEPORT itself (Admin/DM only), but
+        # reaches _teleport() through commands/helpstaff.py's #accept when
+        # marked helpstaff without being Admin/DM -- and is still blocked.
         cmd = TeleportCommand()
-        ctx = make_monster_ctx(monster_flags={'tough': True}, monster_name='Grendel')
-        res = await cmd.execute(ctx, '37')
+        ctx = make_monster_ctx(monster_flags={'tough': True}, monster_name='Grendel',
+                               is_admin=False)
+        res = await cmd._teleport(ctx, 37)
         self.assertFalse(res.success)
         self.assertEqual(res.error, 'teleport_blocked')
         self.assertEqual(ctx.client.room, 1)  # no partial teleport
         sent = ' '.join(str(c) for c in ctx.send.await_args_list)
         self.assertIn("Grendel casts a 'Freeze Adventurer' spell!", sent)
+
+    async def test_admin_immune_to_freeze_adventurer(self):
+        cmd = TeleportCommand()
+        ctx = make_monster_ctx(monster_flags={'tough': True}, monster_name='Grendel')
+        res = await cmd.execute(ctx, '37')
+        self.assertTrue(res.success)
+        self.assertEqual(ctx.client.room, 37)
+        sent = ' '.join(str(c) for c in ctx.send.await_args_list)
+        self.assertIn("Grendel casts a 'Freeze Adventurer' spell!", sent)
+        self.assertIn('The spell has no effect on you.', sent)
+
+    async def test_dungeon_master_immune_to_freeze_adventurer(self):
+        cmd = TeleportCommand()
+        ctx = make_monster_ctx(monster_flags={'tough': True}, monster_name='Grendel',
+                               is_admin=False, is_dm=True)
+        res = await cmd.execute(ctx, '37')
+        self.assertTrue(res.success)
+        self.assertEqual(ctx.client.room, 37)
 
     async def test_tough_and_mechanical_does_not_block(self):
         # 'mechanical' overrides 'tough' -- gets the sensors reaction and

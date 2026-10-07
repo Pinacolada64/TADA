@@ -188,6 +188,8 @@ class Server:
         self.port         = port
         self.petscii_port = petscii_port
         self.clients: dict = {}   # addr -> Client
+        # commands/helpstaff.py: requester name -> what they need help with
+        self.pending_help_requests: dict = {}
         self.server         = None   # set in start(): the JSON asyncio.Server
         self.petscii_server = None   # set in start(): the PETSCII asyncio.Server
 
@@ -427,6 +429,11 @@ class Server:
             # SPUR.DUEL.S's "dropped" label (a lost carrier goes straight
             # to hell2 -- the same consequences as being defeated fairly).
             player = getattr(ctx, 'player', None)
+            # commands/helpstaff.py: a requester who leaves can't be helped,
+            # so drop their open request rather than let a staffer accept it.
+            pending_help = getattr(self, 'pending_help_requests', None)
+            if pending_help and getattr(player, 'name', None) in pending_help:
+                del pending_help[player.name]
             active_duel = getattr(player, 'active_duel', None)
             if active_duel is not None:
                 try:
@@ -1135,6 +1142,7 @@ class Server:
             from room_notices import location_of
             here = (level, room_no, location_of(client)[2])
             others = []
+            on_duty_names: set = set()   # helpstaff/duty.py tag, below
             for addr, c in self.clients.items():
                 if c is client or location_of(c) != here:
                     continue
@@ -1151,6 +1159,9 @@ class Server:
                 other_player = getattr(getattr(c, 'ctx', None), 'player', None)
                 name = getattr(other_player, 'name', None) or getattr(c, 'username', None) or 'someone'
                 others.append((name, other_player))
+                from helpstaff.duty import on_duty
+                if on_duty(c):
+                    on_duty_names.add(name)
 
             session = (getattr(self, 'active_combats', {}) or {}).get(room_no)
             fighting = set()
@@ -1165,11 +1176,18 @@ class Server:
                 # SPUR.DUEL2.S ply.loc: a duel loser's name gets an
                 # "(Unconscious)" tag in room listings until they wake up
                 # at next login (logon_events/unconscious_wake.py).
+                # helpstaff/duty.py: an on-duty helpstaffer is tagged
+                # "[Helpstaff]" so players can see who to ask. On duty is
+                # per-connection (client.helpstaff_on_duty), not a flag.
                 from flags import PlayerFlags
-                display_names = [
-                    f'{n} (Unconscious)' if p is not None and p.query_flag(PlayerFlags.UNCONSCIOUS) else n
-                    for n, p in bystanders
-                ]
+                from helpstaff.duty import HELPSTAFF_TAG
+                display_names = []
+                for n, p in bystanders:
+                    if n in on_duty_names:
+                        n = f'{n} {HELPSTAFF_TAG}'
+                    if p is not None and p.query_flag(PlayerFlags.UNCONSCIOUS):
+                        n = f'{n} (Unconscious)'
+                    display_names.append(n)
                 tail += ['', list_players_in_room(display_names)]
                 # Each bystander's personal quote (SPUR.MAIN.S:398's
                 # gosub ply.loc7, shown right under "X is here" there);
