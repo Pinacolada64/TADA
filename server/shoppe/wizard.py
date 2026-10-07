@@ -209,6 +209,14 @@ async def main(ctx: GameContext) -> None:
             return max(1, base * 2 // 3)   # SPUR: q4=q4*2:q4=q4/3
         return base
 
+    def _cast_pct(sp: dict) -> int:
+        """This player's cast % for a catalog spell: its base chance, or
+        their practice-raised one (spellbook.py) if they've cast it."""
+        from types import SimpleNamespace
+        import spellbook
+        return spellbook.cast_chance(
+            ctx.player, SimpleNamespace(id_number=sp['number'], cast_chance=sp['cast_chance']))
+
     def _spell_list_lines() -> list[str]:
         from formatting import border_style_for_ctx
         from table import Table, Column, Align
@@ -217,11 +225,15 @@ async def main(ctx: GameContext) -> None:
         except AttributeError:
             width = 78
 
+        # A Cast column makes the table 42 wide -- past a 40-column C64
+        # screen -- so narrow screens get the cast % from i# instead.
+        show_cast = width >= 60
         t = Table(
             headers=[
                 Column('#',      align=Align.RIGHT,  min_width=2),
                 Column('Name',                       min_width=10),
                 Column('Effect',                     min_width=6),
+                *([Column('Cast', align=Align.RIGHT, min_width=4)] if show_cast else []),
                 Column('Cost',   align=Align.RIGHT,  min_width=4),
             ],
             title='Available Spells  (i# for description)',
@@ -240,6 +252,7 @@ async def main(ctx: GameContext) -> None:
                 str(sp['number']),
                 sp['name'] + tag + known,
                 _EFFECT_LABELS.get(sp['effect'], sp['effect']),
+                *([f"{_cast_pct(sp)}%"] if show_cast else []),
                 f"{price}s",
             ])
         t.set_footer('* Wizard only   † Druid only   ✓ known')
@@ -310,6 +323,7 @@ async def main(ctx: GameContext) -> None:
                     f"  Spell {sp_info['number']}: {sp_info['name']}{known}",
                     f"  Effect  : {_EFFECT_LABELS.get(sp_info['effect'], sp_info['effect'])}",
                     f"  Cost    : {price}s",
+                    f"  Cast    : {_cast_pct(sp_info)}%",
                     f"  {sp_info['description']}",
                     '',
                 ])
