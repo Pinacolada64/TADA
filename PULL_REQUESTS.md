@@ -12,7 +12,9 @@ Sections: Open PRs → Feature branches (no PR) → Direct commits to master →
 
 ## Open PRs
 
-_(none)_
+| PR | Branch | Title |
+|----|--------|-------|
+| [#80](https://github.com/Pinacolada64/TADA/pull/80) | `fix/get-hides-carried-static-items` | GET's item list (`_room_available_items()`, also LOOK/EXAMINE <item>) now hides a static room item the player already carries, category-aware -- SPUR.MAIN.S:244's xi$/xt$ check; the room description already did, so `get prospecting` offered a book LOOK hid. Pickup was already blocked ("You already have"), so display/fidelity only. Dropped copies still listed. 5 new tests; full suite 4995 passed. |
 
 ---
 
