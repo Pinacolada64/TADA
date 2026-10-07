@@ -268,12 +268,53 @@ class TestHelpstaffRequest(_IsolatedStore):
         self.assertNotIn('Newbie', requester.ctx.server.pending_help_requests)
 
     async def test_staffer_does_not_relay_to_self(self):
+        # Staff ask with #ask (a bare HELPSTAFF only shows a reminder).
         sam = make_client(make_player('Sam', member=True), on_duty=True)
         make_server(sam)
         sam.ctx.prompt = AsyncMock(return_value='help')
-        await HelpstaffCommand().execute(sam.ctx)
+        await HelpstaffCommand().execute(sam.ctx, '#ask')
         self.assertEqual(sam.ctx.server.pending_help_requests, {})
         self.assertIsNotNone(help_queue.find('Sam'))
+
+    async def test_bare_helpstaff_from_staff_shows_a_reminder_not_a_question(self):
+        for who in (dict(member=True), dict(admin=True), dict(dm=True)):
+            with self.subTest(**who):
+                staffer = make_client(make_player('Railbender', **who))
+                make_server(staffer)
+                result = await HelpstaffCommand().execute(staffer.ctx)
+                self.assertTrue(result.success)
+                staffer.ctx.prompt.assert_not_awaited()
+                text = _sent_text(staffer.ctx)
+                self.assertIn('You are helpstaff', text)
+                self.assertIn('helpstaff #show', text)
+                self.assertIn('helpstaff #list', text)
+                self.assertIn('helpstaff #ask', text)
+                self.assertIsNone(help_queue.find('Railbender'))
+
+    async def test_bare_helpstaff_from_on_duty_staff_also_reminds(self):
+        sam = make_client(make_player('Sam', member=True), on_duty=True)
+        make_server(sam)
+        await HelpstaffCommand().execute(sam.ctx)
+        sam.ctx.prompt.assert_not_awaited()
+        self.assertIn('You are helpstaff', _sent_text(sam.ctx))
+
+    async def test_ask_lets_staff_ask_and_reaches_another_staffer(self):
+        other = make_client(make_player('Sam', member=True), on_duty=True)
+        asker = make_client(make_player('Railbender', admin=True))
+        make_server(other, asker)
+        asker.ctx.prompt = AsyncMock(return_value='Can someone check room 5?')
+        result = await HelpstaffCommand().execute(asker.ctx, '#ask')
+        self.assertTrue(result.success)
+        self.assertEqual(asker.ctx.server.pending_help_requests.get('Railbender'),
+                         'Can someone check room 5?')
+        self.assertIn('Railbender needs help', _sent_text(other.ctx))
+
+    async def test_ask_works_for_a_plain_player_too(self):
+        newbie = make_client(make_player('Newbie'))
+        make_server(newbie)
+        newbie.ctx.prompt = AsyncMock(return_value='How do I fight?')
+        await HelpstaffCommand().execute(newbie.ctx, '#ask')
+        self.assertEqual(help_queue.find('Newbie')['question'], 'How do I fight?')
 
 
 # ---------------------------------------------------------------------------

@@ -105,6 +105,7 @@ class HelpstaffCommand(Command):
         category = HelpCategory.COMMUNICATION,
         usage    = [
             ('helpstaff',                  'Ask for help; describes what you need.'),
+            ('helpstaff #ask',             'The same -- and how staff ask for help themselves.'),
             ('helpstaff #show',            "Show who's on helpstaff duty right now."),
             ('helpstaff #cancel',          'Withdraw your open or saved question.'),
             ('helpstaff #list',            '(on duty) Show every open request.'),
@@ -123,6 +124,9 @@ class HelpstaffCommand(Command):
             'Answers to saved questions arrive by |command|mail|reset|, from '
             '"<name>, Helpstaff member".',
             '"Staff" means helpstaff members, Admins and Dungeon Masters.',
+            'Staff who type a bare |command|helpstaff|reset| get a reminder of '
+            '|command|helpstaff #show|reset| and |command|helpstaff #list|reset| '
+            'instead -- use |command|helpstaff #ask|reset| to ask for help yourself.',
         ],
         admin_notes = [
             'Mark a player as a helpstaff member from |command|editplayer|reset| '
@@ -141,9 +145,20 @@ class HelpstaffCommand(Command):
                 await ctx.send(f"Unknown option '{positional[0]}'. "
                                f"See |command|help helpstaff|reset|.")
                 return CommandResult.fail('Unknown option.', error='bad_option')
+            # Staff typing a bare HELPSTAFF almost always meant to check on
+            # requests, not ask for help themselves (Ryan, testing as
+            # railbender) -- remind them instead; #ask still asks.
+            if duty.can_go_on_duty(ctx.player):
+                await ctx.send('(You are helpstaff -- did you mean '
+                               '|command|helpstaff #show|reset| or '
+                               '|command|helpstaff #list|reset|? To ask for help '
+                               'yourself, type |command|helpstaff #ask|reset|.)')
+                return CommandResult.ok('Staff reminder shown.')
             return await self._request(ctx)
 
         sub = switches[0]
+        if sub == '#ask':
+            return await self._request(ctx)
         if sub in ('#accept', '#decline'):
             if not target:
                 await ctx.send(f'Usage: |command|helpstaff {sub} <name>|reset|')
