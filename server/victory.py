@@ -100,7 +100,7 @@ def evaluate_victory(player: "Player") -> VictoryResult:
         if item_number and not _carries_item(player, item_number):
             return VictoryResult(False, [
                 "A voice echoes in your ear..",
-                "'Ye does not have the Object I have sought! Ye may not pass!'",
+                "'Ye do not have the Object I have sought! Ye may not pass!'",
             ])
 
     if victory_type in ('silver', 'both'):
