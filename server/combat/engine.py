@@ -1682,6 +1682,12 @@ class CombatSession:
             return
 
         lines = []
+        if getattr(result, 'glow_absorbed', 0):
+            lines.append("|cyan|[Wizard's glow flashes]|reset|")
+            # _apply_monster_damage() (called right after this) spends the
+            # round -- the last one is announced here, ahead of it.
+            if int(getattr(ctx.player, 'wizard_glow', None) or 0) <= 1:
+                lines.append('The shimmering glow around you fades.')
         if result.shield_blocked:
             lines.append(f'Your shield absorbs {result.shield_blocked} damage.')
             if result.shield_destroyed:
@@ -1740,6 +1746,13 @@ class CombatSession:
 
         if not result.hit:
             return
+
+        # Wizard's Glow (commands/cast.py): each blow it turns aside uses
+        # up one of its rounds -- see commands/stats.py's display.
+        if getattr(result, 'glow_absorbed', 0):
+            rounds = int(getattr(player, 'wizard_glow', None) or 0) - 1
+            player.wizard_glow = rounds if rounds > 0 else None
+            player.unsaved_changes = True
 
         # Shield degradation -- writes to the equipped item's own
         # .condition (2026-08-08 durability redesign), not just the flat

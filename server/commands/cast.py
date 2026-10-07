@@ -34,14 +34,31 @@ gold-to-bank transfer (T). Also CONJURE FOOD/CONJURE DRINK (F/K),
 RESURRECT (V), and ENCHANT ARMOR/ENCHANT SHIELD (Y/Z) -- later TADA
 additions, not SPUR-sourced (Y/Z adapted from origin/skip's otherwise-
 unreachable 'enchant' aura sub-effect, see _cast_enchant()), see also
-_cast_conjure()/_cast_resurrect(). Deferred and refused gracefully without
-consuming the spell: level up/down (U/L), teleport-to-shoppe (R), and the
-Aura sub-effects other than BOOTS (DISPEL POISON/APPLE A DAY/DRUID
-HEALTH/WIZARD'S GLOW -- each has a real hook already, just not wired in
-this pass). Deferred but flavor-stubbed (rolls normally, spell IS
-consumed, success text with no mechanical payload, since Ryan asked for
-these two specifically): G (SUMMON SPUR -- no SPUR NPC exists to summon)
-and Aura's BOOTS OF SPEED (no session-countdown clock exists to extend).
+_cast_conjure()/_cast_resurrect(). Deferred but flavor-stubbed (rolls
+normally, spell IS consumed, success text with no mechanical payload,
+since Ryan asked for these two specifically): G (SUMMON SPUR -- no SPUR
+NPC exists to summon) and Aura's BOOTS OF SPEED (no session-countdown
+clock exists to extend).
+
+Second pass (2026-10-06): ELEVATOR UP/DOWN (U/L, SPUR cst.uplv/
+cst.dnlv -- *dungeon* level, SPUR's cl, not XP level), TRANSPORT TO
+SHOPPE (R, cst.shop/cst.shp2), and the remaining Aura sub-effects
+(cst.aura): DISPEL POISON (`*` in SPUR's spell name -> `poison`), APPLE
+A DAY (`@` -> `disease` -- a disease cure, not the slow heal its old
+shoppe/wizard.py description claimed), DRUID HEALTH (dru.hlth) and
+WIZARD'S GLOW (wiz.glw). Two SPUR behaviors ported deliberately:
+
+  - Aura spells have no backfire branch at all -- cst.aura never reads
+    b, so a "backfire" roll (b=2) still lands the aura's normal effect
+    and prints "Spell successful!". Only the up-front fizzle roll (or
+    the aura's own precondition, e.g. "you weren't poisoned") stops one.
+  - Every travel spell refuses (fizzles, spell still consumed) when a
+    Tough ('.') monster is present or the room is flagged no_flee
+    (SPUR's '<<'), matching SPUR's checks ahead of moving cl/cr.
+
+SPUR's generic aura fallthrough (`x=q4/10:tm=mm+x+c2`, a timed
+protective aura) is not ported: every 'A' record in SPUR-data/spells.txt
+is caught by one of the named checks above it, so it's dead as shipped.
 """
 from __future__ import annotations
 
@@ -73,9 +90,24 @@ _STAT_BACKFIRE_FLAVOR = {
     'I': 'a bit dumber',
 }
 
-# Not-yet-wired-in effect types (see module docstring's scope section).
-_DEFERRED_TYPES = {'U', 'L', 'R'}
-_DEFERRED_AURA_NAMES = {'DISPEL POISON', 'APPLE A DAY', 'DRUID HEALTH', "WIZARD'S GLOW"}
+# SPUR's lc ("level count") -- the deepest level an ELEVATOR spell can
+# reach. Level 8 (the Forest of Canolbarth) is a TADA addition with no
+# up/down relationship to SPUR's seven, so the elevator spells fizzle there.
+_SPUR_LEVEL_COUNT = 7
+# SPUR cst.dnlv: `if cl>4 goto spl.fail` -- ELEVATOR DOWN works from
+# levels 1-4 only. cst.uplv: `if cl=6 goto spl.fail` -- never up off the
+# ship level (level 6's Up exit is the win check, see commands/movement.py).
+_ELEVATOR_DOWN_MAX_LEVEL = 4
+_ELEVATOR_UP_BLOCKED_LEVEL = 6
+
+# SPUR dru.hlth: the floors DRUID HEALTH restores HP/STR/EGY/CON to.
+_DRUID_HEALTH_HP    = 25
+_DRUID_HEALTH_FLOOR = 20
+
+# commands/stats.py shows Wizard's Glow as "[n/20 rounds left]"; one
+# round is used up each time the glow turns aside a monster's blow
+# (combat/engine.py's _apply_monster_damage()).
+WIZARD_GLOW_ROUNDS = 20
 
 
 def _stat_enum(effect_type: str):
@@ -355,6 +387,254 @@ def _cast_transfer(player, success: bool) -> tuple[str, str]:
     return 'backfire', 'Spell has backfired. You are now carrying all your silver.'
 
 
+def _room(ctx):
+    game_map = getattr(ctx.server, 'game_map', None)
+    room_no  = getattr(ctx.client, 'room', None)
+    if game_map is None or room_no is None:
+        return None
+    level = int(getattr(ctx.player, 'map_level', 1) or 1)
+    return game_map.get_room(level, int(room_no))
+
+
+def _monster_here(ctx) -> dict | None:
+    """SPUR's mw/m$: the monster being fought, else the room's monster."""
+    from commands.attack import _active_session, _monster_in_room
+    session = _active_session(ctx)
+    if session is not None:
+        return session.monster
+    return _monster_in_room(ctx)
+
+
+def _travel_blocked(ctx) -> bool:
+    """SPUR's shared up-front checks for the ELEVATOR spells: a Tough
+    ('.') monster pins you in place (`if mw then if instr(".",wy$)`), and
+    so does a no_flee room (`if instr("<<",lo$)`)."""
+    monster = _monster_here(ctx)
+    if monster is not None and (monster.get('flags', {}) or {}).get('tough'):
+        return True
+    room = _room(ctx)
+    return 'no_flee' in set(getattr(room, 'flags', None) or [])
+
+
+def _leave_combat(ctx) -> None:
+    """Take the caster out of any fight here, the same way
+    CombatSession.flee() does on a successful escape."""
+    from commands.attack import _active_session
+    session = _active_session(ctx)
+    if session is None:
+        return
+    session._remove_attacker(ctx)
+    if not session.attackers:
+        session._done.set()
+
+
+def _grid_width(rooms: dict) -> int | None:
+    """A SPUR level's map width: room N sits at column (N-1) % W, row
+    (N-1) // W, so a plain south exit goes N -> N+W. Recovered as the
+    most common south-exit delta, the same vote tools/gen_level_maps.py's
+    derive_width() takes. None if there's nothing to vote with."""
+    from collections import Counter
+    votes = Counter()
+    for num, room in rooms.items():
+        dest = (getattr(room, 'exits', None) or {}).get('south')
+        if isinstance(dest, int) and dest > num:
+            votes[dest - num] += 1
+    return votes.most_common(1)[0][0] if votes else None
+
+
+def _landing_room(ctx, level: int, room_no: int) -> int:
+    """SPUR keeps cr across a level change (travel4 only reloads the
+    level), but this port's levels don't share a room layout -- level 4
+    has 44 rooms, level 5 has 373 -- so the same number may not exist
+    on the new level. Then land in the nearest room that does: nearest
+    on the new level's own map grid to where room *room_no* would sit
+    (ties to the lower room number), or nearest by number if the level
+    has no grid to measure on."""
+    game_map = getattr(ctx.server, 'game_map', None)
+    rooms = (getattr(game_map, 'levels', {}) or {}).get(level) or {}
+    if room_no in rooms or not rooms:
+        return room_no if room_no in rooms else 1
+
+    width = _grid_width(rooms)
+    if width is None:
+        return min(rooms, key=lambda n: (abs(n - room_no), n))
+
+    col, row = (room_no - 1) % width, (room_no - 1) // width
+
+    def distance(n: int) -> tuple[int, int]:
+        c, r = (n - 1) % width, (n - 1) // width
+        return (c - col) ** 2 + (r - row) ** 2, n
+
+    return min(rooms, key=distance)
+
+
+def _vanish(ctx, player):
+    """Departure notice + travel: returns the after-message coroutine
+    factory _cast() runs once "Spell successful!" has printed (SPUR moves
+    the player in spl.link, after spl.succ/spl.back print)."""
+    async def go(level: int, room_no: int) -> None:
+        from room_notices import beam_in_line, beam_out_line, notify
+        _leave_combat(ctx)
+        await notify(ctx, beam_out_line(player))
+        await ctx.server._teleport_to(ctx, level, room_no)
+        await notify(ctx, beam_in_line(player))
+    return go
+
+
+def _cast_elevator(ctx, player, effect_type: str, success: bool):
+    """ELEVATOR UP / ELEVATOR DOWN (SPUR cst.uplv / cst.dnlv). Level
+    numbers count downward (level 1 is the top), so UP is cl-1. A
+    backfire sends you the *other* way. Returns None to fizzle."""
+    if _travel_blocked(ctx):
+        return None
+
+    level = int(getattr(player, 'map_level', 1) or 1)
+    if level > _SPUR_LEVEL_COUNT:
+        return None
+    if effect_type == 'L' and level > _ELEVATOR_DOWN_MAX_LEVEL:
+        return None
+    if effect_type == 'U' and level == _ELEVATOR_UP_BLOCKED_LEVEL:
+        return None
+
+    go_up = (effect_type == 'U') == success
+    if go_up:
+        if level == 1:
+            return None
+        target = level - 1
+        flavor = 'You rise straight up through the rock!'
+    else:
+        if level >= _SPUR_LEVEL_COUNT:
+            return None
+        target = level + 1
+        flavor = 'The ground opens beneath your feet and you sink through the rock!'
+
+    room_no = int(getattr(ctx.client, 'room', 1) or 1)
+    landing = _landing_room(ctx, target, room_no)
+    go = _vanish(ctx, player)
+    return ('success' if success else 'backfire'), flavor, lambda: go(target, landing)
+
+
+def _cast_shoppe(ctx, player, success: bool):
+    """TRANSPORT TO SHOPPE (SPUR cst.shop/cst.shp2). Success: room 1 and
+    straight down the elevator (SPUR: cr=1:di=6 into travel3) -- the
+    Merchant Shoppe, or the Ship's Stores on level 6, same split as
+    commands/movement.py's own rc==2 Down exit. A Tough monster freezes
+    you in place first. Backfire: a random room on this level."""
+    from monsters import monster_display_name
+
+    level   = int(getattr(player, 'map_level', 1) or 1)
+    monster = _monster_here(ctx)
+    flags   = (monster.get('flags', {}) or {}) if monster else {}
+    go      = _vanish(ctx, player)
+
+    if not success:
+        game_map = getattr(ctx.server, 'game_map', None)
+        rooms = list((getattr(game_map, 'levels', {}) or {}).get(level, {}) or {})
+        if not rooms:
+            return None
+        target = int(random.choice(rooms))
+        return 'backfire', 'The world spins wildly around you!', lambda: go(level, target)
+
+    lines = []
+    if monster is not None:
+        mname = monster_display_name(monster, capitalize=True)
+        if flags.get('tough') and not flags.get('mechanical'):
+            return 'fizzle', f"{mname} casts a 'Freeze Adventurer' spell!"
+        if flags.get('mechanical'):
+            lines.append(f'Sensors on {monster_display_name(monster)} go nuts as you dematerialize!')
+        else:
+            lines.append(f'{mname} looks puzzled as you fade from view.')
+
+    async def to_shoppe() -> None:
+        from room_notices import beam_out_line, notify
+        from visited_rooms import mark_visited
+        from commands.movement import (_SHIP_LEVEL, _enter_shoppe,
+                                       _enter_ship_stores)
+        _leave_combat(ctx)
+        await notify(ctx, beam_out_line(player))
+        ctx.client.room = 1
+        player.map_room = 1
+        player.unsaved_changes = True
+        mark_visited(player, level, 1)
+        if level == _SHIP_LEVEL:
+            await _enter_ship_stores(ctx)
+        else:
+            await _enter_shoppe(ctx)
+
+    return 'success', '\n'.join(lines), to_shoppe
+
+
+def _cast_aura(ctx, player, name: str):
+    """SPUR cst.aura's named sub-effects. No backfire branch -- see the
+    module docstring -- so outcome is 'success' or None (fizzle, with a
+    reason line sent first by the caller via the 'fizzle' outcome)."""
+    from survival import cure_disease, cure_poison
+
+    upper = name.upper()
+    if upper == 'DISPEL POISON':
+        if not getattr(player, 'poisoned', False):
+            return 'fizzle', "Why? You weren't poisoned!"
+        cure_poison(player)
+        return 'success', 'Poison.. gone!'
+
+    if upper == 'APPLE A DAY':
+        if not getattr(player, 'diseased', False):
+            return 'fizzle', "Why, you don't have a disease!"
+        cure_disease(player)
+        return 'success', 'You feel much better!'
+
+    if upper == 'DRUID HEALTH':
+        return 'success', '\n'.join(_druid_health(player))
+
+    if upper == "WIZARD'S GLOW":
+        if int(getattr(player, 'wizard_glow', None) or 0) > 0:
+            return 'fizzle', 'Spell already in effect!'
+        player.wizard_glow = WIZARD_GLOW_ROUNDS
+        player.unsaved_changes = True
+        return 'success', ('A shimmering glow surrounds you! (-2 damage from '
+                           'monsters, +20 effective shield size in duels)')
+
+    if upper == 'BOOTS OF SPEED':
+        return 'success', 'You feel a fleeting burst of speed.'
+    return None
+
+
+def dissipate_wizard_glow(player) -> bool:
+    """End a Wizard's Glow left over from a previous session -- SPUR's
+    glow lasts one play session (SPUR.LOGON.S:238-240), so
+    commands/connect.py calls this at login. True if one was active."""
+    if int(getattr(player, 'wizard_glow', None) or 0) <= 0:
+        return False
+    player.wizard_glow = None
+    player.unsaved_changes = True
+    return True
+
+
+def _druid_health(player) -> list[str]:
+    """SPUR dru.hlth: top HP back up to 25 and STR/EGY/CON up to 20,
+    then clear poison and disease -- each restored item gets its own line."""
+    from base_classes import PlayerStat
+    from survival import cure_disease, cure_poison
+
+    lines = ['A blue glow surrounds you!']
+    if int(getattr(player, 'hit_points', 0) or 0) < _DRUID_HEALTH_HP:
+        player.hit_points = _DRUID_HEALTH_HP
+        lines.append('Hit points return')
+    for stat, label in ((PlayerStat.STR, 'Strength'), (PlayerStat.EGY, 'Energy'),
+                        (PlayerStat.CON, 'Health')):
+        if player.stats.get(stat, 0) < _DRUID_HEALTH_FLOOR:
+            player.stats[stat] = _DRUID_HEALTH_FLOOR
+            lines.append(f'{label} returns')
+    if getattr(player, 'poisoned', False):
+        cure_poison(player)
+        lines.append('Poison gone!')
+    if getattr(player, 'diseased', False):
+        cure_disease(player)
+        lines.append('Disease gone!')
+    player.unsaved_changes = True
+    return lines
+
+
 async def _cast_monster(ctx, player, magnitude: int, bonus: int, success: bool) -> tuple[str, str] | None:
     """SPUR cst.mons. Requires an active CombatSession (deliberate
     simplification vs. SPUR's "any time a monster's in the room" -- see
@@ -441,6 +721,15 @@ class CastCommand(Command):
             'A failed roll has a further chance to backfire (a worse outcome, '
             'e.g. losing stat points or healing the monster you aimed at) rather '
             'than just fizzling harmlessly.',
+            'Aura spells (DISPEL POISON, APPLE A DAY, DRUID HEALTH, WIZARD\'S '
+            'GLOW) never backfire -- but they fizzle if there\'s nothing for '
+            'them to do, like curing poison when you aren\'t poisoned.',
+            'ELEVATOR UP/DOWN and TRANSPORT TO SHOPPE can\'t carry you away from '
+            'a tough monster, or out of a room you couldn\'t flee. ELEVATOR '
+            'DOWN only works from levels 1-4; a backfire sends you the wrong '
+            'way (or, for TRANSPORT TO SHOPPE, somewhere random on this level).',
+            'WIZARD\'S GLOW absorbs 2 damage from each monster hit for 20 hits, '
+            'adds 20 to your shield in duels, and fades when you log off.',
         ],
     )
 
@@ -488,16 +777,6 @@ class CastCommand(Command):
         magnitude   = int(getattr(spell, 'effect_magnitude', 0) or 0)
         name        = getattr(spell, 'name', 'spell')
 
-        is_deferred = effect_type in _DEFERRED_TYPES or (
-            effect_type == 'A' and name.upper() not in ('BOOTS OF SPEED',)
-        )
-        if is_deferred:
-            await ctx.send(
-                "The Wizard's cave hasn't taught anyone how to unlock this "
-                "spell's power yet."
-            )
-            return
-
         # Monster-damage needs an active fight before the spell (and its
         # one-shot use) is committed -- SPUR: "No monster here!" refuses
         # outright rather than wasting the scroll.
@@ -530,13 +809,21 @@ class CastCommand(Command):
             await ctx.send(_fizzle_lines(player))
             return
 
-        final_outcome, flavor = result
+        final_outcome, flavor = result[0], result[1]
+        after = result[2] if len(result) > 2 else None
         if flavor:
             await ctx.send(flavor)
+        if final_outcome == 'fizzle':
+            # A handler's own refusal (SPUR `goto spl.fail` after its
+            # reason line, e.g. "Spell already in effect!").
+            await ctx.send(_fizzle_lines(player))
+            return
         if final_outcome == 'success':
             await ctx.send('Spell successful!')
         else:
             await ctx.send('Spell backfired!')
+        if after is not None:
+            await after()
 
     async def _dispatch(self, ctx, player, effect_type, name, magnitude, bonus, success):
         if effect_type in _STAT_LETTERS:
@@ -559,9 +846,10 @@ class CastCommand(Command):
                 if success else
                 'Nothing happens. The silence feels almost disappointed.'
             )
-        if effect_type == 'A' and name.upper() == 'BOOTS OF SPEED':
-            return ('success' if success else 'backfire'), (
-                'You feel a fleeting burst of speed.' if success else
-                'Your feet feel unusually heavy.'
-            )
+        if effect_type in ('U', 'L'):
+            return _cast_elevator(ctx, player, effect_type, success)
+        if effect_type == 'R':
+            return _cast_shoppe(ctx, player, success)
+        if effect_type == 'A':
+            return _cast_aura(ctx, player, name)
         return None

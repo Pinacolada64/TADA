@@ -20,10 +20,11 @@ _AP = "'"
 # decremented on login (SPUR.LOGON.S mid$(zu$,7,1): if instr(...,"23")
 # active, else dissipated), not a round count. This port's Player.wizard_
 # glow is already documented as "rounds left, decrement at every turn"
-# (player.py), but nothing actually casts/decrements it yet -- no real
-# spell-casting system exists (see TODO.md's "7/17/26" entry). This max
-# is a placeholder for display purposes until that's built.
-_WIZARD_GLOW_MAX_ROUNDS = 20
+# (player.py). CAST WIZARD'S GLOW (commands/cast.py) now sets it to this
+# max, combat/engine.py spends a round each time it turns aside a
+# monster's blow, and login dissipates it (commands/connect.py) the way
+# SPUR's did.
+from commands.cast import WIZARD_GLOW_ROUNDS as _WIZARD_GLOW_MAX_ROUNDS
 
 
 # ---------------------------------------------------------------------------

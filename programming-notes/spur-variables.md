@@ -518,12 +518,18 @@ Related file-path variables, not in the original drive-specifier block:
   `SPUR.MISC5.S`'s come/follow.
 - **`td`** — Display BBS user stats on top of sysop screen
 - **`tm`** — The move number (in `mm` units) at which the current
-  protective-aura spell (Wizard Glow etc.) expires; `0` = no aura active.
+  protective-aura spell expires; `0` = no aura active.
   `SPUR.MISC3.S:187` (`cst.aura`) sets it to a *future* value of `mm`;
   `SPUR.MAIN.S:226` checks `if (tm<>0) and (tm<mm)` to expire it
   ("The aura protecting you is gone."); `SPUR.MISC.S:63` lets an active
   aura scare off the Thief. Cleared at login. Not the same counter as
-  `mm` — it's only meaningful *relative to* `mm`.
+  `mm` — it's only meaningful *relative to* `mm`. **Not Wizard Glow**
+  (that's `zu$` char 7, see below): `tm` is only set by `cst.aura`'s
+  generic fallthrough (`x=q4/10:tm=mm+x+c2`), and every `A`-type record
+  in `SPUR-data/spells.txt` (BOOTS OF SPEED, DISPELL POISON *, APPLE A
+  DAY @, DRUID HEALTH, WIZARD'S GLOW) is caught by one of the named
+  `instr()` checks above it — so as shipped, nothing ever sets `tm`.
+  Confirmed 2026-10-06 porting the aura spells.
 
 ## U
 
@@ -1044,8 +1050,15 @@ Related file-path variables, not in the original drive-specifier block:
   4. Diseased
   5. Thug attack
   6. Gauntlets worn
-  7. `0`=no spell active? / `1`|`2`=Wraith Master of Spur / `>2`=Wizard
-     Glow spell active
+  7. Wraith Master + Wizard Glow, packed into one digit: `0`=neither,
+     `1`=Wraith Master only, `2`=Wraith Master *and* Glow, `3`=Glow
+     only. `SPUR.MISC3.S:207` `wiz.glw` casts it (`if zw=0 zw=3:else
+     zw=2`, refusing if already `>1`); `SPUR.LOGON.S:238-240` ends it
+     each session ("Your Wizard's Glow spell has dissipated", `2`->`1`,
+     `3`->`0`); `instr(...,"23")` = glow active (`SPUR.COMBAT.S:267`
+     -2 monster damage, `SPUR.DUEL.S:79` +20 duel shield), `"12"` =
+     Wraith King slain (`SPUR.MISC7.S:17`, `SPUR.MISC5.S:215`).
+     Confirmed 2026-10-06.
   8. Amulet of Life
   9. Tut's Treasure — `0`=not examined, `1`=examined
   10. Guild Follow
