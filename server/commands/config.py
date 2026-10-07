@@ -3,7 +3,7 @@
 Wraps config.py's ServerConfig (server_config.json) -- see that module for
 the full rationale behind each setting (SETTINGS_METADATA), including
 which come from SPUR.CONTROL.S (game_name, session_time_limit_minutes,
-victory_type, victory_gold_amount, victory_item_number) versus
+victory_type, victory_silver_amount, victory_item_number) versus
 TADA-specific additions (require_invites, invite_expiry_days, max_players,
 port, host, dwarf_silver).
 
@@ -157,13 +157,13 @@ class ConfigCommand(Command):
         notes = [
             'Admin or Dungeon Master only.',
             "<key> can be a unique prefix of the full setting name (e.g. "
-            "'victory_g' for victory_gold_amount) -- an ambiguous prefix "
+            "'victory_s' for victory_silver_amount) -- an ambiguous prefix "
             "(matching more than one setting) lists the candidates instead "
             "of guessing.",
             'port/host changes only take effect on the next server restart.',
             'session_time_limit_minutes is stored but not yet enforced -- '
             'nothing currently disconnects a player at the limit.',
-            'victory_type/victory_gold_amount/victory_item_number gate the '
+            'victory_type/victory_silver_amount/victory_item_number gate the '
             'win check at the level-6 "Ladder Up" room (victory.py) -- see '
             'that module for the exact escape conditions.',
         ],

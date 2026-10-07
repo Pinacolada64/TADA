@@ -615,8 +615,8 @@ the CAST mechanic itself.
      itself isn't implemented, so this gate is a hard blocker today.
   2. Objective item carried, only when `config.victory_type` is `item`
      or `both` — checks `player.inventory` for `config.victory_item_number`.
-  3. Silver in hand, only when `victory_type` is `gold` or `both` —
-     checks against `config.victory_gold_amount`. SPUR's actual gate here
+  3. Silver in hand, only when `victory_type` is `silver` or `both` —
+     checks against `config.victory_silver_amount`. SPUR's actual gate here
      was a "riches of Tut" flag (`zu$` position 9); `config.py` deliberately
      generalized this into a plain silver threshold instead, predating
      `victory.py`, so `victory.py` does **not** consult the Tut flag.

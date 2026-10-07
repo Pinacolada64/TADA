@@ -1386,7 +1386,7 @@ register_topic(
             "game's own flavor text is that you need to personally "
             "defeat SPUR himself to win -- that's not actually checked "
             "anywhere; only the Wraith King's death (plus whatever "
-            "item/gold gate applies) matters."
+            "item/silver gate applies) matters."
         ),
         category=HelpCategory.CONCEPT,
         admin_notes=[
@@ -1395,8 +1395,8 @@ register_topic(
             "117 ('Shimmering Portal', the only rc==1 'Ladder Up' room "
             "in the dataset). Gates: PlayerFlags.WRAITH_KING_ALIVE must "
             "be False (unconditional); config.victory_type "
-            "('gold'/'item'/'both') then further requires "
-            "config.victory_gold_amount silver in hand and/or carrying "
+            "('silver'/'item'/'both') then further requires "
+            "config.victory_silver_amount silver in hand and/or carrying "
             "objects.json item #config.victory_item_number. On success: "
             "winners.py records the win, a battle.log entry and "
             "permanent news post follow.",

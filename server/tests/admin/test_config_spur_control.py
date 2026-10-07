@@ -73,7 +73,7 @@ class TestResolveKey(unittest.TestCase):
         self.assertIsNone(key)
         self.assertEqual(
             set(candidates),
-            {'victory_type', 'victory_gold_amount', 'victory_item_number'},
+            {'victory_type', 'victory_silver_amount', 'victory_item_number'},
         )
 
     def test_no_match_returns_empty_candidates(self):
@@ -133,13 +133,13 @@ class TestSessionTimeLimit(_IsolatedConfigTest):
 class TestVictoryCondition(_IsolatedConfigTest):
     def test_defaults(self):
         cfg = ServerConfig()
-        self.assertEqual(cfg.victory_type, 'gold')
-        self.assertEqual(cfg.victory_gold_amount, 5000)
+        self.assertEqual(cfg.victory_type, 'silver')
+        self.assertEqual(cfg.victory_silver_amount, 5000)
         self.assertEqual(cfg.victory_item_number, 0)
 
     def test_victory_type_accepts_valid_values(self):
         cfg = ServerConfig()
-        for value in ('gold', 'item', 'both'):
+        for value in ('silver', 'item', 'both'):
             cfg.victory_type = value
             self.assertEqual(cfg.victory_type, value)
 
@@ -148,29 +148,48 @@ class TestVictoryCondition(_IsolatedConfigTest):
         with self.assertRaises(ValueError):
             cfg.victory_type = 'diamonds'
 
-    def test_gold_amount_and_item_number_round_trip(self):
+    def test_silver_amount_and_item_number_round_trip(self):
         cfg = ServerConfig()
-        cfg.victory_gold_amount = 10000
+        cfg.victory_silver_amount = 10000
         cfg.victory_item_number = 25  # oil painting, objects.json
-        self.assertEqual(cfg.victory_gold_amount, 10000)
+        self.assertEqual(cfg.victory_silver_amount, 10000)
         self.assertEqual(cfg.victory_item_number, 25)
 
     def test_negative_amounts_clamp_to_zero(self):
         cfg = ServerConfig()
-        cfg.victory_gold_amount = -100
+        cfg.victory_silver_amount = -100
         cfg.victory_item_number = -1
-        self.assertEqual(cfg.victory_gold_amount, 0)
+        self.assertEqual(cfg.victory_silver_amount, 0)
         self.assertEqual(cfg.victory_item_number, 0)
+
+    def test_victory_type_gold_is_accepted_as_alias_for_silver(self):
+        """Pre-silver-standard spelling still works, stored as 'silver'."""
+        cfg = ServerConfig()
+        cfg.victory_type = 'gold'
+        self.assertEqual(cfg.victory_type, 'silver')
+
+    def test_old_gold_config_file_is_migrated_to_silver(self):
+        import json
+        ServerConfig._config_file.parent.mkdir(parents=True, exist_ok=True)
+        ServerConfig._config_file.write_text(json.dumps(
+            {'victory_type': 'gold', 'victory_gold_amount': 7500}))
+        cfg = ServerConfig()
+        self.assertEqual(cfg.victory_type, 'silver')
+        self.assertEqual(cfg.victory_silver_amount, 7500)
+        on_disk = json.loads(ServerConfig._config_file.read_text())
+        self.assertNotIn('victory_gold_amount', on_disk)
+        self.assertEqual(on_disk['victory_silver_amount'], 7500)
+        self.assertEqual(on_disk['victory_type'], 'silver')
 
     def test_persists_across_instances(self):
         cfg = ServerConfig()
         cfg.victory_type = 'both'
-        cfg.victory_gold_amount = 7500
+        cfg.victory_silver_amount = 7500
         cfg.victory_item_number = 6  # large ruby
         ServerConfig._instance = None
         reloaded = ServerConfig()
         self.assertEqual(reloaded.victory_type, 'both')
-        self.assertEqual(reloaded.victory_gold_amount, 7500)
+        self.assertEqual(reloaded.victory_silver_amount, 7500)
         self.assertEqual(reloaded.victory_item_number, 6)
 
 
