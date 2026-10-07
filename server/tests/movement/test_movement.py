@@ -44,7 +44,11 @@ def test_move_broadcasts_and_changes_room():
     ctx.send      = AsyncMock()
     ctx.send_room = AsyncMock()
 
-    with patch('ally_events.try_ally_find_silver', new=AsyncMock()):
+    # The destination may hold a monster that now attacks on sight
+    # (encounters/monster.py's try_monster_engage()) -- not what this test
+    # covers, and a MagicMock player can't fight it.
+    with patch('ally_events.try_ally_find_silver', new=AsyncMock()), \
+         patch('encounters.monster.try_monster_engage', new=AsyncMock()):
         res = asyncio.run(MoveCommand().execute(ctx, direction))
 
     assert res.success is True

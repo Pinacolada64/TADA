@@ -444,6 +444,20 @@ register_topic(
             "(+1 to-hit, +1 damage), ELITE at 99 (+2 to-hit, +damage "
             "scaling with your level). This is separate from character "
             "experience, which you earn every swing regardless of outcome.",
+            "Most monsters attack on sight: walk into one's room and it "
+            "swings before you can act -- unless you surprise it, it's "
+            "friendly or charmed, or (for a Thief, an Assassin, or anyone "
+            "wearing the Ring) it loses sight of you. A loaded missile "
+            "weapon, a pole weapon, or being mounted can win you the first "
+            "strike instead.",
+            "Each round the monster swings first, then you choose. Besides "
+            "the [A]ttack/[L]urk/[F]lee/[R]eady/e[X]it menu you can "
+            "|command|USE|reset|, |command|CAST|reset|, |command|EAT|reset|, "
+            "|command|DRINK|reset|, |command|WEAR|reset| or "
+            "|command|READY|reset| something -- each takes your turn -- or "
+            "check |command|INV|reset|, |command|STATS|reset|, "
+            "|command|LOOK|reset| or |command|HELP|reset| for free. "
+            "To get away, |command|FLEE|reset|.",
         ],
         see_also=["weaponclass", "basedamage", "easeofuse", "weaponaffinity", "bhr"],
     ),

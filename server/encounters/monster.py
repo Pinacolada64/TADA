@@ -27,11 +27,12 @@ Three rolls, in SPUR's own order, each short-circuiting the next:
      the same `i$="CHARM":gosub lnk.msc5` join-offer flow, so the join
      prompt/honor-penalty/broadcast logic doesn't need porting twice.
   3. Ally tactical positioning / desertion (lines 140-168, "tactical"/
-     "desert"): only rolled if neither 1 nor 2 fired. Picks one ally to
-     call out a position -- bar/ally_data.py's AllyPosition enum
-     (POINT/FLANK/REAR/EMPTY) was already defined there but never wired
-     to anything until now -- with a chance that ally deserts the party
-     outright.
+     "desert"): only rolled if neither 1 nor 2 fired, and only for a
+     monster that's about to attack (_queue_engage()). Delegates to
+     combat/engine.py's roll_tactical_ambush() -- the ORDER-aware port
+     (bar/ally_data.py's AllyPosition POINT/FLANK/REAR slots), with a
+     chance the posted ally deserts outright and a "caught off guard"
+     result that grants the monster a bonus first swing.
 
   4. Turf guards (lines 79-83): monsters #65/#66/#67 are each a specific
      guild's own hired guard ("GUARD ==[]"/"GUARD -}--"/"GUARD \\|/",
@@ -205,7 +206,10 @@ async def try_monster_encounter(ctx: 'GameContext', *, level: int, room_no: int)
 
     flags = monster.get('flags') or {}
     if flags.get('mechanical'):
-        return  # deliberate deviation from source -- see module docstring
+        # deliberate deviation from source -- see module docstring. Still
+        # hostile, though: SPUR's advent never checks ":" before m.attack.
+        await _queue_engage(ctx, monster, monster_no, level=level, room_no=room_no)
+        return
 
     if await _try_turf_guard(ctx, monster_no):
         return
@@ -220,7 +224,125 @@ async def try_monster_encounter(ctx: 'GameContext', *, level: int, room_no: int)
     if await _try_spontaneous_charm(ctx, monster, monster_no, level=level, room_no=room_no):
         return
 
-    await _try_ally_tactical(ctx, monster)
+    # The monster attacks (SPUR.MAIN.S advent -> advent5 m.attack, the
+    # very next thing after rd.mons returns). The fight itself starts in
+    # try_monster_engage(), once the room has finished displaying.
+    await _queue_engage(ctx, monster, monster_no, level=level, room_no=room_no)
+
+
+# Monsters that never start a fight on their own, beyond the charm/friendly
+# gates in _monster_engages(): the WILD HORSE (#136, LASSO/tame instead --
+# wild_horse_events.py) and THE DWARF (#137, his own steal/relocate logic
+# in encounters/dwarf.py). Both are TADA additions with no SPUR m.attack
+# precedent. Hardcoded rather than imported, same circular-import reason
+# as _WILD_HORSE_MONSTER_NUMBER below.
+_NEVER_ENGAGES = frozenset({136, 137})
+
+
+def _monster_engages(ctx: 'GameContext', monster: dict, monster_no: int) -> bool:
+    """Does this monster attack the player on sight (SPUR.MAIN.S advent's
+    m.attack), rather than waiting to be attacked?
+
+    No when SPUR's zq would be set -- a charmable ("AC") monster is always
+    zq=1 (rd.mons `if instr("AC",wy$) zq=1`, e.g. the OLD MAN's "waits
+    patiently"), as is an alignment-friendly one (combat/engine.py's
+    _is_friendly_encounter()) -- or for the TADA-only NPCs in
+    _NEVER_ENGAGES.
+    """
+    if monster_no in _NEVER_ENGAGES:
+        return False
+    if (monster.get('flags') or {}).get('charmable'):
+        return False
+    from combat.engine import _is_friendly_encounter
+    return not _is_friendly_encounter(ctx, monster)
+
+
+async def _queue_engage(ctx: 'GameContext', monster: dict, monster_no: int, *,
+                        level: int, room_no: int) -> bool:
+    """If the monster is hostile, roll rd.mons's tactical ambush and queue
+    the fight (player.pending_engage). Returns True if queued.
+
+    SPUR.MISC4.S rd.mon2: `if zq=0 if zs=0 gosub tactical` -- the ally
+    warning shout / "caught off guard" roll happens here on room entry,
+    once, and only for a hostile monster the player didn't surprise
+    (the caller has already returned for a surprise or a charm). Its
+    result rides along in pending_engage to enter_combat(ambushed=).
+    This replaced an older, lighter room-entry copy (_try_ally_tactical,
+    which also picked ally positions at random instead of using ORDER)
+    that ran alongside combat/engine.py's own copy at fight start,
+    doubling the shout.
+    """
+    if not _monster_engages(ctx, monster, monster_no):
+        return False
+    from combat.engine import roll_tactical_ambush
+    ambushed = await roll_tactical_ambush(ctx, monster, int(room_no))
+    ctx.player.pending_engage = {
+        'level':          level,
+        'room_no':        int(room_no),
+        'monster_number': monster_no,
+        'ambushed':       ambushed,
+    }
+    return True
+
+
+async def try_monster_engage(ctx: 'GameContext') -> None:
+    """Start the fight queued by try_monster_encounter(), now that the
+    room has been fully described -- called last thing by Server._move()
+    and Server._teleport_to(), after every other room-entry event, so a
+    fight that ends with the player fleeing elsewhere (or dying) doesn't
+    leave this room's later entry hooks to run against the wrong room.
+
+    The monster swings before the player's first prompt (SPUR.MAIN.S
+    advent5), unless the player wins first strike (combat/engine.py's
+    _monster_turn()). Re-checks everything the earlier entry hooks might
+    have changed: the player's still in that room and alive, the monster's
+    still there and unhandled, and nobody else's fight already has it.
+
+    A Thief, Assassin, or Ring wearer may slip by unnoticed instead (SPUR
+    zs=999, "m$ LOST SIGHT OF YOU!" -- combat/engine.py's
+    lost_sight_roll()), in which case no fight starts at all: SPUR's
+    travel lets a zs=999 player walk on past (`if zs<990 ... blocks your
+    way`), and ATTACK still works if they'd rather fight.
+    """
+    player = ctx.player
+    pending = getattr(player, 'pending_engage', None)
+    player.pending_engage = None
+    if not pending:
+        return
+
+    level   = int(getattr(player, 'map_level', 1) or 1)
+    room_no = int(getattr(ctx.client, 'room', 0) or 0)
+    if (pending.get('level'), pending.get('room_no')) != (level, room_no):
+        return
+    if int(getattr(player, 'hit_points', 1) or 0) <= 0:
+        return
+
+    monster_no = pending.get('monster_number')
+    room = _current_room(ctx)
+    if not room or int(getattr(room, 'monster', 0) or 0) != monster_no:
+        return
+    if (monster_no in getattr(player, 'dead_monsters', [])
+            or monster_no in getattr(player, 'charmed_monsters', [])
+            or monster_no in getattr(player, 'fled_monsters', [])):
+        return
+
+    active = getattr(ctx.server, 'active_combats', {}) or {}
+    session = active.get(room_no)
+    if session is not None and not session._done.is_set():
+        return
+
+    from monsters import get_monster, monster_display_name
+    monster = get_monster(getattr(ctx.server, 'monsters', []), monster_no)
+    if monster is None:
+        return
+
+    from combat.engine import enter_combat, lost_sight_roll
+    if lost_sight_roll(player, monster):
+        await ctx.send(f'{monster_display_name(monster, capitalize=True)} lost sight of you!')
+        return
+
+    await enter_combat(ctx, monster, monster_initiated=True,
+                       ambushed=bool(pending.get('ambushed')))
 
 
 async def _try_turf_guard(ctx: 'GameContext', monster_no: int) -> bool:
@@ -464,74 +586,6 @@ async def _try_spontaneous_charm(ctx: 'GameContext', monster: dict, monster_no: 
         'to_hit':         int(monster.get('to_hit', 0) or 0),
     }
     return True
-
-
-async def _try_ally_tactical(ctx: 'GameContext', monster: dict) -> None:
-    """SPUR.MISC4.S:140-168 "tactical"/"desert". Only reached when neither
-    the surprise nor charm roll fired this encounter."""
-    from bar.ally_data import Ally, AllyFlags, AllyPosition
-
-    player = ctx.player
-    party  = getattr(player, 'party', None)
-    if not party:
-        return
-
-    # A mounted player's horse rolls its own, separate bolt chance on
-    # every ambush -- independent of whether a non-mount ally exists/
-    # deserts below, see ally_events/horse_bolt.py.
-    from ally_events.horse_bolt import maybe_bolt_mount
-    await maybe_bolt_mount(ctx)
-
-    allies = [
-        m for m in party
-        if isinstance(m, Ally) and getattr(m, 'hit_points', 0) > 0
-        and AllyFlags.MOUNT not in (getattr(m, 'flags', None) or [])
-    ]
-    if not allies:
-        return
-
-    ally = random.choice(allies)
-    position = random.choice((AllyPosition.POINT, AllyPosition.FLANK, AllyPosition.REAR))
-    ally.position = position
-    position_txt = {
-        AllyPosition.POINT: 'To the front',
-        AllyPosition.FLANK: 'On the flank',
-        AllyPosition.REAR:  'To the rear',
-    }[position]
-
-    # SPUR.MISC4.S's tactical (skip branch): `if zt if instr(">",i$) print
-    # \"'THERE SEEMS TO BE A LIFE FORCE "zt$",' MENTIONS "lu$` -- god/
-    # goddess-tier allies (cln.ally's ">"/"+" markers) get this phrasing
-    # instead of the plain "SHOUTS" line. Title prefix matches
-    # ally_events/farewell.py's cln.ally-derived "THE GOD "/"THE GODDESS "
-    # convention.
-    flags = getattr(ally, 'flags', None) or []
-    if AllyFlags.GOD in flags:
-        display_name = f'THE GOD {ally.name}'
-    elif AllyFlags.GODDESS in flags:
-        display_name = f'THE GODDESS {ally.name}'
-    else:
-        display_name = None
-
-    if display_name is not None:
-        await ctx.send(f"'There seems to be a life force {position_txt.lower()},' mentions {display_name}.")
-    else:
-        await ctx.send(f"{ally.name} shouts, '{position_txt}!'")
-
-    # SPUR desert: gosub rnd.10z:if z<>5 then return -- 1-in-10 chance
-    if random.randint(1, 10) != 5:
-        return
-
-    from bar.ally_data import AllyStatus
-    name = ally.name
-    await ctx.send(f'{name} runs away screaming!')
-    await ctx.send_room(f"{name} deserts {getattr(player, 'name', 'someone')}'s party!",
-                         exclude_self=True)
-    ally.status = AllyStatus.FREE
-    ally.owner = None
-    ally.position = AllyPosition.EMPTY
-    party.remove(ally)
-    player.unsaved_changes = True
 
 
 async def _shadow_ambient(ctx: 'GameContext') -> None:

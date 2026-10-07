@@ -130,7 +130,7 @@ async def try_redirect_to_ally(session: 'CombatSession', ctx: 'GameContext', res
     odds. An Elite ally never rolls this at all (SPUR forces z=0 in the
     same branch that grants its damage reduction). A fleeing ally reverts
     to AllyStatus.FREE and leaves the party outright, same as
-    encounters/monster.py's _try_ally_tactical() desertion roll -- not
+    combat/engine.py's CombatSession._ally_deserts() tactical desertion -- not
     death, but gone from this fight either way.
     """
     if not result.hit or result.damage <= 0:

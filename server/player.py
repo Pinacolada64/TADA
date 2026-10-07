@@ -559,6 +559,20 @@ class Player:
         # reconnect.
         self.pending_charm = None
 
+        # A monster that's about to start a fight with this player, queued
+        # by encounters/monster.py's try_monster_encounter() on room entry
+        # and consumed by try_monster_engage() once the room has finished
+        # displaying -- {'level', 'room_no', 'monster_number'} or None.
+        # Session-only (see save()'s _SESSION_ONLY).
+        self.pending_engage = None
+
+        # (level, room_no, monster_number) of the monster this player most
+        # recently helped kill, while they're still in that room -- set by
+        # combat/engine.py's _monster_dies(), cleared by Server._move()/
+        # _teleport_to() on leaving. Keeps a re_animates kill (never added
+        # to dead_monsters) dead for the rest of the visit. Session-only.
+        self.slain_here = None
+
         # flag whether a save is required:
         self.unsaved_changes: bool = False
 
@@ -1132,7 +1146,8 @@ class Player:
             _SESSION_ONLY = {'readied_weapon', 'storm_servant_bonus', 'skill_potion_bonus', 'compass_active',
                              'pending_pages',
                              'pending_duel_challenge', 'active_duel', '_weapons_data',
-                             'guild_following', 'carried_followers'}
+                             'guild_following', 'carried_followers', 'pending_engage',
+                             'slain_here'}
             data_out = {k: v for k, v in self.__dict__.items() if k not in _SESSION_ONLY}
             data_out['party'] = self.party.to_json()
             from inventory import Inventory

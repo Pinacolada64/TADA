@@ -1072,7 +1072,9 @@ class Server:
                     # Monster fled this player's fight (loud weapon scared it
                     # off) -- SPUR's md==2 "tracks" state.
                     monster_and_seen += ['', f'You see {name} tracks here.']
-                elif mon_num is not None and mon_num in mk:
+                elif mon_num is not None and (
+                        mon_num in mk
+                        or getattr(player, 'slain_here', None) == (level, int(room_no), mon_num)):
                     # Monster is dead for this player
                     if flags.get('mechanical'):
                         monster_and_seen += ['', f'The wrecked remains of {name} lie here.']
@@ -1313,6 +1315,7 @@ class Server:
             return
 
         self._leave_combat_on_move(ctx, room_no)
+        ctx.player.slain_here = None    # a re_animates kill gets back up behind you
 
         from spells.charm import try_charm_join_offer
         await try_charm_join_offer(ctx, level=level, room_no=room_no)
@@ -1359,9 +1362,11 @@ class Server:
                 await notify(ctx, arrival_line(ctx.player, direction))
 
         if target_level != level:
-            await self._teleport_to(ctx, target_level, int(dest), message_number=message_number)
+            await self._teleport_to(ctx, target_level, int(dest), message_number=message_number,
+                                    engage=False)
             await announce_arrival()
             await guild_follow.show_followers(ctx, group, direction)
+            await self._monster_engages(ctx)
             return
 
         ctx.client.room = int(dest)
@@ -1394,6 +1399,14 @@ class Server:
         await try_djinn_sighting(ctx)
         from ally_events.starvation import try_encounter as try_ally_starvation
         await try_ally_starvation(ctx)
+        await self._monster_engages(ctx)
+
+    async def _monster_engages(self, ctx: GameContext) -> None:
+        """A hostile monster queued on room entry (encounters/monster.py's
+        try_monster_encounter()) starts its fight -- deliberately the last
+        room-entry step, see try_monster_engage()'s docstring."""
+        from encounters.monster import try_monster_engage
+        await try_monster_engage(ctx)
 
     @staticmethod
     def _room_has_flag(room, flag_prefix: str, direction: str) -> bool:
@@ -1433,7 +1446,13 @@ class Server:
         active  = getattr(self, 'active_combats', {})
         session = active.get(room_no)
         if session and not session._done.is_set() and ctx in session.attackers:
-            session._remove_attacker(ctx)
+            # Same exit as flee: out of the fight, which ends (and comes out
+            # of active_combats) if they were the last one in it -- a fight
+            # whose leader already left otherwise lingered, leaderless and
+            # unfinished, with nobody to take it over.
+            session._leave_fight(ctx)
+            if session._done.is_set() and active.get(room_no) is session:
+                del active[room_no]
 
     def _hidden_exit_target(self, room, direction: str, level: int) -> int | None:
         """Guess a hidden_exit_east/west flag's target room via +/-1 adjacency.
@@ -1463,16 +1482,21 @@ class Server:
         return None
 
     async def _teleport_to(self, ctx: GameContext, target_level: int, target_room: int,
-                            *, message_number: int | None = None) -> None:
+                            *, message_number: int | None = None, engage: bool = True) -> None:
         """Move the player to a confirmed cross-level hidden-exit destination.
 
         Prints the room's own pre-move message (e.g. level 1 room 89's
         message #18, server/messages.json) if any, then the same "YOU HAVE
         ENTERED <level>!" banner SPUR's travel4 always shows on a level
         change (SPUR.MISC.S:457-464).
+
+        *engage* False defers a hostile monster's attack (_monster_engages())
+        to the caller -- _move() passes it so its own arrival notices print
+        before the fight starts.
         """
         if message_number is not None:
             await send_message(ctx, message_number)
+        ctx.player.slain_here = None    # see _move()
         ctx.player.map_level = target_level
         try:
             ctx.client.map_level = target_level
@@ -1510,6 +1534,8 @@ class Server:
         await try_djinn_sighting(ctx)
         from ally_events.starvation import try_encounter as try_ally_starvation
         await try_ally_starvation(ctx)
+        if engage:
+            await self._monster_engages(ctx)
 
     # -----------------------------------------------------------------------
     # Broadcast
@@ -1618,6 +1644,9 @@ class Server:
         """Save player state and clean up on quit or disconnect."""
         logging.debug('ENTER hp=%r', getattr(ctx.player, 'hit_points', '?'))
         player = ctx.player
+        # Out of any fight they'd joined as a bystander (a leader's own
+        # round loop already took them out on disconnect).
+        self._leave_combat_on_move(ctx, getattr(ctx.client, 'room', None))
         if player and not isinstance(player, GuestPlayer):
             try:
                 # Sync room from client to player as a safety net in case any

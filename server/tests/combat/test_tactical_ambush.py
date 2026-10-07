@@ -323,9 +323,10 @@ class TestTacticalAmbushFeedsFirstStrike(unittest.IsolatedAsyncioTestCase):
         session._try_class_tame = AsyncMock(return_value=False)
         session._check_crystal_pendant = AsyncMock(return_value=None)
 
-        async def fake_ambush_check(ctx):
-            session._ambush_first_strike = True
-        session._check_tactical_ambush = fake_ambush_check
+        # The ambush is rolled on room entry now (roll_tactical_ambush())
+        # and handed to the session up front, as enter_combat(ambushed=True)
+        # does.
+        session._ambush_first_strike = True
 
         from combat.resolution import AttackResult, MonsterAttackResult
 

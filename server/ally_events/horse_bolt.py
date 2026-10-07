@@ -3,11 +3,12 @@ ambush, and the player catching back up to it later.
 
 TADA-only enhancement (no SPUR precedent). The tactical-ambush/desert
 mechanic (SPUR.MISC4.S "tactical"/"desert" -- combat/engine.py's
-_check_tactical_ambush, encounters/monster.py's _try_ally_tactical) used
-to be able to catch a MOUNT-flagged ally in its desert roll, permanently
+_check_tactical_ambush, rolled once per encounter on room entry via
+roll_tactical_ambush(); encounters/monster.py once had its own second copy,
+_try_ally_tactical, since removed) used to be able to catch a MOUNT-flagged ally in its desert roll, permanently
 removing the player's horse from their party ("runs away screaming!" --
 reported live as "medusa scared SHADOW"). Mounts are now excluded from
-that mechanic entirely (see AllyFlags.MOUNT checks in both callers); this
+that mechanic entirely (see the AllyFlags.MOUNT check in _check_tactical_ambush); this
 module gives a mounted player's horse its own, gentler version instead:
 on a failed ambush roll the horse bolts a few rooms away
 (AllyStatus.BOLTED, tracked via bolt_room_no/bolt_map_level on the Ally --
