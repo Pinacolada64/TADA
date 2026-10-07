@@ -224,7 +224,11 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
     """Return (display_name, InventoryEntry, remove_fn) for items the player can pick up.
 
     Static map items already in the player's ration/item history ring buffers
-    (see Player.ration_history / Player.item_history) are hidden.
+    (see Player.ration_history / Player.item_history) are hidden, as are
+    static items the player is already carrying -- SPUR.MAIN.S:244's single
+    check (`instr(a$,i$)) or (instr(a$,xt$))`, inventory or history) zeroes
+    the room's item before either the description or GET sees it, and the
+    room description (simple_server.py) already hid carried ones.
     remove_fn() records the pickup for static items; pops the entry for dropped items.
     """
     server  = ctx.server
@@ -238,6 +242,7 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
 
     ration_history = getattr(player, 'ration_history', [])
     item_history = getattr(player, 'item_history', [])
+    inventory = getattr(player, 'inventory', None)
     available = []
 
     # Static room items (item / weapon / food are 1-based indices into server collections)
@@ -276,6 +281,17 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
         item_category = category
         if attr == 'food' and item_kind == 'drink':
             item_category = ItemCategory.DRINK
+
+        # Already carrying one (see docstring). category is part of the
+        # match -- id_number alone isn't unique across weapons/items/rations
+        # (same reason as _pick_up()'s own "You already have" check).
+        if inventory is not None and inventory.find(
+                item_id=item_id, category=str(item_category)):
+            logging.debug(
+                "%s: skipping %s %s (id=%s) -- already carrying one",
+                player.name, attr, name, item_id,
+            )
+            continue
 
         # rations.json's "price" doubles as survival.ration_restore()'s
         # quality signal -- a room-found ration needs it carried onto the

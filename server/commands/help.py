@@ -1291,10 +1291,13 @@ register_topic(
         category=HelpCategory.CONCEPT,
         admin_notes=[
             "player.item_history / player.ration_history (player.py) -- "
-            "session ring buffers, reseeded from current inventory on "
-            "login. commands/get.py's _room_available_items() and "
-            "simple_server.py's room-item display both hide any item ID "
-            "present in the relevant history list; record_item_pickup()/"
+            "session ring buffers (60/20, SPUR xt$/xo$), reset on login: "
+            "ration_history reseeded from carried rations, item_history "
+            "from worn armor/shield only. commands/get.py's "
+            "_room_available_items() and simple_server.py's room-item "
+            "display both hide a static item whose ID is in the relevant "
+            "history list *or* already in inventory (same category) -- "
+            "SPUR.MAIN.S:244's xi$/xt$ check; record_item_pickup()/"
             "record_ration_pickup() append to it on GET.",
         ],
     ),

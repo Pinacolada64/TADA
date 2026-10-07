@@ -39,6 +39,7 @@ def _make_ctx(weapons: list[dict], room_weapon: int):
     server.game_map.get_room.return_value = room
 
     player = MagicMock()
+    player.inventory.find.return_value = []  # carrying nothing -- get.py hides static items already carried
     player.item_history = []
     player.map_level = 1
     player.char_class = PlayerClass.FIGHTER
