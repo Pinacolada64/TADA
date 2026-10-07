@@ -39,6 +39,7 @@ def _make_ctx(room_food_index: int, rations: list[dict]):
     server.game_map.get_room.return_value = room
 
     player = MagicMock()
+    player.inventory.find.return_value = []  # carrying nothing -- get.py hides static items already carried
     player.ration_history = []
     player.map_level = 1
 
