@@ -156,7 +156,7 @@ def spell_list_lines(ctx) -> list[str]:
             str(i),
             getattr(item, 'name', '?'),
             getattr(item, 'effect_type', '?'),
-            f"{getattr(item, 'cast_chance', 0)}%",
+            f"{spellbook.cast_chance(ctx.player, item)}%",
         ])
     return [''] + t.render(width=width) + ['']
 
@@ -730,6 +730,11 @@ class CastCommand(Command):
             'way (or, for TRANSPORT TO SHOPPE, somewhere random on this level).',
             'WIZARD\'S GLOW absorbs 2 damage from each monster hit for 20 hits, '
             'adds 20 to your shield in duels, and fades when you log off.',
+            'Practice pays off: each successful cast raises your chance with '
+            'that spell by 2% (up to 99%). You keep it even after the spell is '
+            'used up, so a fresh copy casts at your improved chance, and a '
+            'failed cast never lowers it. |command|INV|reset|, the CAST list '
+            'and the Wizard\'s cave all show your current chance.',
         ],
     )
 
@@ -792,7 +797,9 @@ class CastCommand(Command):
         from room_notices import notify, who
         await notify(ctx, f'{who(player)} casts {name.title()}!')
 
-        cast_chance = int(getattr(spell, 'cast_chance', 0) or 0)
+        # The player's remembered cast % for this spell (spellbook.py),
+        # not just this scroll's own base value.
+        cast_chance = spellbook.cast_chance(player, spell)
         outcome = _roll_outcome(player, cast_chance)
 
         if outcome == 'fizzle':
@@ -820,6 +827,13 @@ class CastCommand(Command):
             return
         if final_outcome == 'success':
             await ctx.send('Spell successful!')
+            # Practice: a cast that won its roll *and* took effect raises
+            # the remembered cast % (an aura on a backfire roll still takes
+            # effect, but didn't win the roll, so it doesn't count).
+            if success:
+                old_chance, new_chance = spellbook.record_successful_cast(player, spell)
+                if new_chance > old_chance:
+                    await ctx.send(f'(Your skill with {name} improves: {new_chance}% to cast.)')
         else:
             await ctx.send('Spell backfired!')
         if after is not None:

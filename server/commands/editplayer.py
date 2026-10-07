@@ -10,7 +10,8 @@ Menu layout mirrors the original C64 TADA Player Editor (tep v2.07):
   ├─  3. Attributes        stats (CHR, CON, DEX, INT, STR, WIS, Energy)
   ├─  4. Character / NPC Stats  player name; rename allies & horse, and
   │                        edit their strength / to-hit / HP (clamped to
-  │                        the SPUR ceilings in bar/ally_data.py)
+  │                        the SPUR ceilings in bar/ally_data.py); Spells
+  │                        sub-menu: remembered cast % per spell
   ├─  5. Combinations      locker, elevator, castle, booby traps
   ├─  6. Command Settings  player.command_settings toggles (e.g. whereat hiding)
   ├─  7. Flags/Counters    all PlayerFlags grouped by category
@@ -1692,6 +1693,84 @@ def _names_menu(ctx) -> Menu:
     menu.add_item(MenuItem('List Allies',   shortcuts='?', action=_list_owned_allies))
     menu.add_item(MenuItem('Add Ally',      shortcuts='a', action=_add_ally_by_name))
     menu.add_item(MenuItem('Remove Ally',   shortcuts='r', action=_remove_ally_by_name))
+    menu.add_item(MenuItem('Spells',        shortcuts='sp', submenu=_spells_menu(ctx)))
+    return menu
+
+
+async def _prompt_cast_chance(ctx, name: str, current: int, base: int) -> Optional[int]:
+    """Prompt for a spell's remembered cast %: base..CAST_CHANCE_MAX, or
+    R to reset it to the spell's own base (returned as *base*). Anything
+    below base would do nothing -- spellbook.cast_chance() never goes
+    under it. Returns None on cancel/blank."""
+    from spellbook import CAST_CHANCE_MAX
+    while True:
+        raw = await ctx.prompt(
+            f'{name} cast %',
+            preamble_lines=[
+                f'Current: {current}%  (base {base}%)',
+                f'Enter {base}-{CAST_CHANCE_MAX}, R to reset to base, '
+                f'or {ctx.player.return_key} to cancel',
+            ],
+        )
+        if raw is None or not raw.strip():
+            return None
+        text = raw.strip()
+        if text.upper() == 'R':
+            return base
+        try:
+            val = int(text.rstrip('%'))
+        except ValueError:
+            await ctx.send('Please enter a number, or R to reset.')
+            continue
+        if base <= val <= CAST_CHANCE_MAX:
+            return val
+        await ctx.send(f'Enter a number between {base} and {CAST_CHANCE_MAX}.')
+
+
+def _spells_menu(ctx) -> Menu:
+    """One row per catalog spell (shoppe/wizard.py's SPELLS), dot-leader
+    showing this player's remembered cast % (player.spell_cast_chance,
+    raised by practice -- see spellbook.py), '*' when practice has moved
+    it off the spell's base. Kept whether or not they still own a copy."""
+    from shoppe.wizard import SPELLS
+    p    = ctx.player
+    menu = _titled_menu(ctx, 'Spells (cast %)')
+
+    def _chances() -> dict:
+        chances = getattr(p, 'spell_cast_chance', None)
+        if chances is None:
+            chances = {}
+            p.spell_cast_chance = chances
+        return chances
+
+    def _current(sp: dict) -> int:
+        return max(sp['cast_chance'], int(_chances().get(str(sp['number']), 0)))
+
+    def _label(sp: dict) -> str:
+        cur = _current(sp)
+        return f"{cur}%*" if cur != sp['cast_chance'] else f"{cur}%"
+
+    def make_action(sp: dict):
+        async def action(ctx):
+            base = sp['cast_chance']
+            val  = await _prompt_cast_chance(ctx, sp['name'], _current(sp), base)
+            if val is None:
+                return
+            key = str(sp['number'])
+            if val == base:
+                _chances().pop(key, None)
+            else:
+                _chances()[key] = val
+            p.unsaved_changes = True
+            await ctx.send(f"{sp['name']} cast chance set to {val}%.")
+        return action
+
+    for sp in SPELLS:
+        menu.add_item(MenuItem(
+            sp['name'],
+            dot_leader_handler=lambda ctx, sp=sp: _label(sp),
+            action=make_action(sp),
+        ))
     return menu
 
 

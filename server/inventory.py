@@ -159,8 +159,28 @@ class InventoryEntry:
         if price is not None:
             d['item_price'] = price
         if self.contents is not None:
+            # A container's capacity has to round-trip too: is_container
+            # needs capacity > 0, so without it a reloaded Spell Book
+            # dropped out of INV's listing (and its contents lost their
+            # slot limit) even though CAST could still read them.
+            capacity = getattr(self.item, 'capacity', 0) or 0
+            if capacity > 0:
+                d['item_capacity'] = capacity
             d['contents'] = self.contents.to_json()
         return d
+
+
+def _container_capacity(d: dict) -> int:
+    """A saved container's capacity: its own item_capacity, or -- for saves
+    written before that was stored -- the Spell Book's fixed capacity, or
+    (any other container) at least room for what it was holding."""
+    saved = d.get('item_capacity')
+    if saved:
+        return int(saved)
+    from spellbook import SPELLBOOK_CAPACITY, SPELLBOOK_ITEM_NUMBER
+    if d.get('item_id') == SPELLBOOK_ITEM_NUMBER:
+        return SPELLBOOK_CAPACITY
+    return max(1, len(d.get('contents') or []))
 
 
 class Inventory:
@@ -469,6 +489,9 @@ class Inventory:
                 quantity=d.get('quantity', 1),
             )
             if 'contents' in d:
-                entry.contents = cls.from_json(d['contents'], weapons_data=weapons_data)
+                capacity = _container_capacity(d)
+                item.capacity = capacity
+                entry.contents = cls.from_json(d['contents'], capacity=capacity,
+                                               weapons_data=weapons_data)
             inv._entries.append(entry)
         return inv

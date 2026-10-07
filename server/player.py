@@ -455,6 +455,13 @@ class Player:
         # (combat/resolution.py's shield_exp_bonus()) once a player has
         # enough of it with the shield they currently have equipped.
         self.shield_proficiency: dict = kwargs.get('shield_proficiency', {})
+        # Remembered cast % per spell, keyed by str(spell number), 0-99 --
+        # not part of original SPUR (q3 there is a fixed per-spell stat).
+        # New mechanic: every successful cast raises it (spellbook.py's
+        # record_successful_cast()), and it belongs to the player, not the
+        # scroll -- spells are one-shot, so it has to outlive every copy
+        # for practice to mean anything. Failures never lower it.
+        self.spell_cast_chance: dict = kwargs.get('spell_cast_chance', {})
         # Quest #16 (quests/README.md) -- item #86 "Tut's Treasure", level 2
         # room 158 "Secret Chamber". examined=True once EXAMINEd (disarms a
         # trap, +2 INT); taken=True once GET afterward awards the gold bonus.
@@ -1568,6 +1575,11 @@ class Player:
             if 'shield_proficiency' in data and isinstance(data['shield_proficiency'], dict):
                 try:
                     self.shield_proficiency = {str(k): int(v) for k, v in data['shield_proficiency'].items()}
+                except Exception:
+                    pass
+            if 'spell_cast_chance' in data and isinstance(data['spell_cast_chance'], dict):
+                try:
+                    self.spell_cast_chance = {str(k): int(v) for k, v in data['spell_cast_chance'].items()}
                 except Exception:
                     pass
             if 'tuts_treasure' in data and isinstance(data['tuts_treasure'], dict):

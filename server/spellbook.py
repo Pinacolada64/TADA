@@ -99,3 +99,35 @@ def remove_spell(player, item) -> bool:
     if inv is not None:
         return inv.remove(item)
     return False
+
+
+# Remembered cast % (player.spell_cast_chance): each successful cast adds
+# CAST_CHANCE_STEP to the spell's chance, up to CAST_CHANCE_MAX -- the same
+# 0-99 ceiling player.py's weapon_experience/shield_proficiency use.
+CAST_CHANCE_STEP = 2
+CAST_CHANCE_MAX  = 99
+
+
+def cast_chance(player, item) -> int:
+    """The cast % this player gets with *item*: the spell's own base
+    chance, or the player's remembered one for that spell number if
+    practice has raised it higher. Every copy of a spell -- in the Spell
+    Book, loose in the pack, or bought again later -- reads the same value."""
+    base = int(getattr(item, 'cast_chance', 0) or 0)
+    remembered = (getattr(player, 'spell_cast_chance', None) or {}).get(
+        str(getattr(item, 'id_number', '')), 0)
+    return max(base, int(remembered or 0))
+
+
+def record_successful_cast(player, item) -> tuple[int, int]:
+    """Raise this player's remembered cast % for *item*'s spell after a
+    successful cast. Returns (old, new) -- equal once it's at the cap."""
+    old = cast_chance(player, item)
+    new = min(CAST_CHANCE_MAX, old + CAST_CHANCE_STEP)
+    if new > old:
+        remembered = getattr(player, 'spell_cast_chance', None)
+        if remembered is None:
+            remembered = player.spell_cast_chance = {}
+        remembered[str(getattr(item, 'id_number', ''))] = new
+        player.unsaved_changes = True
+    return old, max(old, new)
