@@ -1142,6 +1142,7 @@ class Server:
             from room_notices import location_of
             here = (level, room_no, location_of(client)[2])
             others = []
+            on_duty_names: set = set()   # helpstaff/duty.py tag, below
             for addr, c in self.clients.items():
                 if c is client or location_of(c) != here:
                     continue
@@ -1158,6 +1159,9 @@ class Server:
                 other_player = getattr(getattr(c, 'ctx', None), 'player', None)
                 name = getattr(other_player, 'name', None) or getattr(c, 'username', None) or 'someone'
                 others.append((name, other_player))
+                from helpstaff.duty import on_duty
+                if on_duty(c):
+                    on_duty_names.add(name)
 
             session = (getattr(self, 'active_combats', {}) or {}).get(room_no)
             fighting = set()
@@ -1172,13 +1176,14 @@ class Server:
                 # SPUR.DUEL2.S ply.loc: a duel loser's name gets an
                 # "(Unconscious)" tag in room listings until they wake up
                 # at next login (logon_events/unconscious_wake.py).
-                # commands/helpstaff.py: an on-duty helpstaffer is tagged
-                # "[Helpstaff]" so players can see who to ask.
+                # helpstaff/duty.py: an on-duty helpstaffer is tagged
+                # "[Helpstaff]" so players can see who to ask. On duty is
+                # per-connection (client.helpstaff_on_duty), not a flag.
                 from flags import PlayerFlags
-                from commands.helpstaff import HELPSTAFF_TAG
+                from helpstaff.duty import HELPSTAFF_TAG
                 display_names = []
                 for n, p in bystanders:
-                    if p is not None and p.query_flag(PlayerFlags.HELPSTAFF):
+                    if n in on_duty_names:
                         n = f'{n} {HELPSTAFF_TAG}'
                     if p is not None and p.query_flag(PlayerFlags.UNCONSCIOUS):
                         n = f'{n} (Unconscious)'

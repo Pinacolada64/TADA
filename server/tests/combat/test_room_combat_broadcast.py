@@ -116,11 +116,22 @@ class TestRoomCombatBroadcast:
         lines = server._describe_room(_viewer_client())
         assert any('Loser (Unconscious) is here' in line for line in lines)
 
-    def test_on_duty_helpstaffer_tagged_in_room_listing(self, server):
-        # commands/helpstaff.py: on-duty staff show as "Name [Helpstaff]".
+    def test_member_off_duty_not_tagged(self, server):
         from flags import PlayerFlags
+        member = _client('Sam')
+        member.ctx.player.query_flag.side_effect = lambda f: f == PlayerFlags.HELPSTAFF
+        server.clients = {'a': member}
+        server.active_combats = {}
+        lines = server._describe_room(_viewer_client())
+        assert any('Sam is here' in line for line in lines)
+        assert not any('Helpstaff' in line for line in lines)
+
+    def test_on_duty_helpstaffer_tagged_in_room_listing(self, server):
+        # helpstaff/duty.py: on-duty staff show as "Name [Helpstaff]". On
+        # duty is per-connection, not the HELPSTAFF membership flag.
+        from helpstaff.duty import set_on_duty
         staffer = _client('Sam')
-        staffer.ctx.player.query_flag.side_effect = lambda f: f == PlayerFlags.HELPSTAFF
+        set_on_duty(staffer, True)
         server.clients = {'a': staffer}
         server.active_combats = {}
         lines = server._describe_room(_viewer_client())

@@ -168,7 +168,13 @@ class MailCommand(Command):
         for i, msg in enumerate(inbox, 1):
             posted = msg.get('timestamp', '')[:16].replace('T', ' ')
             status = 'New' if not msg.get('read', False) else ''
-            lines.append(f"  {i:>3}. {posted:<{_DATE_COL_WIDTH}}{msg.get('from', '?'):<16}{status}")
+            # A long sender ("Ryan, Helpstaff member") doesn't fit the
+            # column: list the player it's from (reply_to) instead -- the
+            # full sender still shows on the message's own From: line.
+            sender = msg.get('from', '?')
+            if len(sender) > 15 and msg.get('reply_to'):
+                sender = msg['reply_to']
+            lines.append(f"  {i:>3}. {posted:<{_DATE_COL_WIDTH}}{sender[:15]:<16}{status}")
         lines.append('')
         return lines
 
@@ -283,7 +289,10 @@ class MailCommand(Command):
             await ctx.send('No such mail message.')
             return CommandResult.fail('Unknown mail message.', error='not_found')
 
-        target = entries[number - 1][1].get('from', '')
+        # 'reply_to' (mail.add_message()) when the displayed sender isn't a
+        # plain player name, e.g. "Ryan, Helpstaff member".
+        msg    = entries[number - 1][1]
+        target = msg.get('reply_to') or msg.get('from', '')
         if not target or target.lower() == name.lower():
             await ctx.send('Cannot reply to that message.')
             return CommandResult.fail('No valid sender.', error='not_found')
@@ -372,7 +381,7 @@ class MailCommand(Command):
         """[R]eply from within `mail #read`: prompt for a short reply
         right there and page (or, offline, mail) the sender -- same
         delivery path as the standalone `mail #reply <n>=<message>`."""
-        target = msg.get('from', '')
+        target = msg.get('reply_to') or msg.get('from', '')
         if not target or target.lower() == ctx.player.name.lower():
             await ctx.send('Cannot reply to that message.')
             return

@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """bot_helpstaff.py -- live end-to-end check of HELPSTAFF (commands/
-helpstaff.py): duty on/off, #show, asking, the relay to staff, #list,
-#cancel, #accept's teleport, and the disconnect cleanup in simple_server.py.
+helpstaff.py and the helpstaff/ package): the login check-in, duty on/off,
+#show, asking, the relay to staff, #list, #cancel, #accept's teleport and
+[Helpstaff] tag, the disconnect cleanup in simple_server.py, and questions
+saved while nobody is on duty being answered by mail (#queue, a saved FAQ
+answer, the line editor) -- including the player's 'mail #reply'.
 
 Two ways to run it:
 
@@ -15,13 +18,16 @@ Two ways to run it:
              running a build with HELPSTAFF) using existing bot accounts
              (default botdummy as staffer, botlasso as the player asking;
              passwords from tools/bot_credentials.py). Every
-             setup_bot_accounts.py account is an Admin, so check C (a plain
-             player can't go on duty) is skipped. The staffer is left off
-             duty at the end; it does teleport to wherever the player
-             asking happens to be standing.
+             setup_bot_accounts.py account is an Admin rather than a
+             helpstaff member, so check C (a plain player can't go on duty)
+             and the login check-in (Z, M) are skipped. The staffer is left
+             off duty at the end; it does teleport to wherever the player
+             asking happens to be standing, and botlasso gets a mailed
+             answer.
 
 Cast (throwaway mode, level 1):
-  botstaff   Admin, in room 41 -- goes on duty and answers
+  botstaff   helpstaff member (not an Admin), in room 41 -- goes on duty
+             and answers
   botnewbie  plain player, in room 54 -- asks for help
   botwatch   plain player, in room 41 -- checks #show, tries #on
 
@@ -29,16 +35,18 @@ Rooms 41 and 54 are tools/bot_follow_me.py's: neutral and monster-free,
 so the teleport can't be blocked by a Freeze Adventurer spell.
 
 Checks:
+  Z  login check-in: a member is asked "Go on helpstaff duty?" and Return
+     leaves them off duty (throwaway mode only)
   A  #show with nobody on duty: "No one is on helpstaff duty"
-  B  asking with nobody on duty: "No staff are currently available"
-     (and no prompt)
+  B  asking with nobody on duty saves the question for a mailed answer
   C  a plain player's #on is refused (throwaway mode only)
-  D  the Admin's #on: "You are now on helpstaff duty."
+  D  #on: on duty, and told a saved question is waiting
   E  #show now lists the staffer
   F  asking: the "What do you need help with?" prompt (in msg['prompt'],
      see CLAUDE.md's bot notes) lists who's available; the staffer gets
      "<name> needs help (<where>): <text>" with the #accept/#decline hint;
-     the player asking is told who it went to
+     the player asking is told who it went to; the live request replaces
+     the saved one
   G  #list shows the open request
   H  #cancel withdraws it, the staffer is told, #list is empty again
   I  #accept: the staffer is told it's heading over and lands in the
@@ -47,13 +55,21 @@ Checks:
      "<staffer> [Helpstaff] is here."; a second #accept finds it no
      longer open. If a tough monster in the staffer's room blocks the
      teleport (Freeze Adventurer; seen in --live mode, where the staffer
-     starts wherever its account was left), I instead checks that the
-     request reopened, skips the arrival checks, and cancels it.
+     starts wherever its account was left, if it isn't an Admin/DM), I
+     instead checks that the request reopened, skips the arrival checks,
+     and cancels it.
   J  a request whose player disconnects is dropped from #list
   K  #off: off duty, #show is empty again, and (throwaway mode) the
      watcher's LOOK shows the staffer without the tag
-  L  (throwaway mode) the staffer's save has HELPSTAFF off and botwatch's
-     room (where K's last #accept took it)
+  L  a question saved while the player is offline: #queue -> [F]AQ #2
+     with a note mails it; the player's mailbox shows it from "<staffer>,
+     Helpstaff member" with the question and the saved answer; their
+     'mail #reply' reaches the staffer as a page
+  M  (throwaway mode) the staffer logs back in, says Y to going on duty
+     and Y to reviewing, answers with the line editor; the player (online)
+     is told it was answered and the mail has the editor text
+  N  (throwaway mode) the staffer's save still has the HELPSTAFF
+     membership flag, and nothing on-duty was saved
 
 Usage:
     .venv/bin/python tools/bot_helpstaff.py [--port 34194] [--keep-dir]
@@ -105,18 +121,18 @@ def seed_accounts(save_dir: Path) -> None:
     from player import Player
 
     cast = [
-        ('botstaff',  STAFF_ROOM,  True),
+        ('botstaff',  STAFF_ROOM,  True),     # helpstaff member
         ('botnewbie', NEWBIE_ROOM, False),
         ('botwatch',  STAFF_ROOM,  False),
     ]
     (save_dir / 'net').mkdir(parents=True, exist_ok=True)
-    for name, room, admin in cast:
+    for name, room, member in cast:
         player = Player(id=name, name=name, char_class=PlayerClass.FIGHTER,
                         gender=Gender.MALE, map_level=1, map_room=room)
         player.creation_done = True
         player.hit_points = 500          # survive any stray encounter
-        if admin:
-            player.set_flag(PlayerFlags.ADMIN)
+        if member:
+            player.set_flag(PlayerFlags.HELPSTAFF)
         player.unsaved_changes = True
         if not player.save(force=True):
             raise RuntimeError(f'could not save {name}')
@@ -172,8 +188,11 @@ class Bot:
         self.lines: list[str] = []      # every line received, in order
         self.closed = False
 
-    async def connect(self, host: str, port: int) -> None:
+    async def connect(self, host: str, port: int, *, answer=None) -> None:
+        """Log in. `answer(bot)` may return a reply for a prompt on the way
+        in (e.g. the helpstaff login check-in); otherwise Return."""
         self.reader, self.writer = await asyncio.open_connection(host, port)
+        self.closed = False
         init = await self.recv(timeout=5)
         await self._send({'server_id': init.get('server_id', 'test_server'),
                           'server_key': init.get('server_key', 'test_key')})
@@ -195,15 +214,17 @@ class Bot:
         log(f'  [{self.name}] -> connect {self.name} ****')
         await self._send({'lines': [f'connect {self.name} {self.password}'], 'mode': 'game'})
         # The login banner/welcome can page; answer anything that isn't
-        # the main prompt with a bare RETURN until we get there.
-        for _ in range(40):
-            msg = await self.recv(timeout=5)
+        # the main prompt with a bare RETURN until we get there (or with
+        # whatever `answer` says, for prompts it recognizes).
+        for _ in range(150):
+            msg = await self.recv(timeout=6)
             if msg is None:
                 raise RuntimeError(f'{self.name}: login stalled at {self.last_prompt!r}')
             if self.at_main():
                 return
-            if msg.get('prompt'):
-                await self.say('')
+            if msg.get('prompt') and not self.at_marker():
+                reply = answer(self) if answer else None
+                await self.say(reply if reply is not None else '')
         raise RuntimeError(f'{self.name}: never reached the main prompt')
 
     async def _send(self, obj: dict) -> None:
@@ -236,6 +257,11 @@ class Bot:
             self.prompts.append(self.last_prompt)
         return msg
 
+    def at_marker(self) -> bool:
+        """A bare 'main'/'login' prompt is the server announcing the input
+        mode, not asking anything -- never answer it."""
+        return self.last_prompt.strip() in ('main', 'login')
+
     def at_main(self) -> bool:
         # The main prompt carries a "[HH:MM] " timestamp (bot_horse_journey.py).
         return self.last_prompt.rstrip().endswith('main>')
@@ -248,7 +274,7 @@ class Bot:
                 return False
             if self.at_main():
                 return True
-            if answer and self.last_prompt:
+            if answer and self.last_prompt and not self.at_marker():
                 reply = answer(self)
                 if reply is not None:
                     await self.say(reply)
@@ -306,6 +332,39 @@ def answer_question(text: str):
     return lambda b: text if 'what do you need help with' in b.last_prompt.lower() else None
 
 
+def by_prompt(**replies):
+    """An `answer` callback replying by prompt text: by_prompt(duty='y')
+    answers any prompt containing 'duty' with 'y'. Unmatched prompts get
+    None (until_main keeps reading; connect sends Return)."""
+    def _answer(bot):
+        low = bot.last_prompt.lower()
+        for needle, reply in replies.items():
+            if needle.replace('_', ' ') in low:
+                return reply
+        return None
+    return _answer
+
+
+def in_order(*replies):
+    """An `answer` callback giving `replies` one per prompt, in order --
+    for a fixed walk like the #queue review and the line editor, whose
+    line prompts all look alike."""
+    pending = list(replies)
+    def _answer(bot):
+        low = bot.last_prompt.lower()
+        if '-- more' in low or '-- end' in low:
+            return ''
+        return pending.pop(0) if pending else None
+    return _answer
+
+
+def newest_mail_number(lines) -> int | None:
+    import re
+    numbers = [int(m.group(1)) for line in lines
+               for m in [re.match(r'^\s*(\d+)\.\s', line)] if m]
+    return max(numbers) if numbers else None
+
+
 async def ask(newbie: Bot, staff: Bot | None, text: str) -> tuple[list[str], list[str], list[str]]:
     """newbie types HELPSTAFF and answers the prompt with `text`; returns
     (newbie's lines, the prompts newbie saw, what staff received)."""
@@ -325,38 +384,51 @@ async def scenario(host: str, port: int, staff: Bot, newbie: Bot,
     everyone = [b for b in (staff, newbie, watch) if b]
     for b in everyone:
         log(f'\n== {b.name} logs in')
+        mark = len(b.prompts)
         await b.connect(host, port)
+        if b is staff and watch:
+            asked = any('go on helpstaff duty' in p.lower() for p in b.prompts[mark:])
+            check('Z login check-in asks a member to go on duty', asked,
+                  repr(b.prompts[mark:][-4:]))
     for b in everyone:
         await b.settle(0.5)
 
-    # Start from a known state: the live staffer may have been left on duty.
-    if staff.name and not watch:
-        await staff.run('helpstaff #off')
-
     s, n = staff.name, newbie.name
+    if watch:
+        said = await watch.run('helpstaff #show')
+        check('Z Return at the check-in leaves the member off duty',
+              has(said, 'No one is on helpstaff duty'), joined(said))
+    else:
+        # Start from a known state: the live staffer may have been left on duty.
+        await staff.run('helpstaff #off')
+        await newbie.run('helpstaff #cancel')    # clears any saved question too
 
     log('\n== A: #show with nobody on duty')
     said = await newbie.run('helpstaff #show')
     check('A #show: nobody on duty', has(said, 'No one is on helpstaff duty'), joined(said))
 
-    log('\n== B: asking with nobody on duty')
+    log('\n== B: asking with nobody on duty saves the question')
     said, prompts, _ = await ask(newbie, None, QUESTION)
-    check('B asking with nobody on duty is refused without a prompt',
-          has(said, 'No staff are currently available')
-          and not any('what do you need help with' in p.lower() for p in prompts),
+    check('B asking with nobody on duty saves it for a mailed answer',
+          any('what do you need help with' in p.lower() for p in prompts)
+          and has(said, 'No one is on helpstaff duty right now')
+          and has(said, 'Your question has been saved.'),
           joined(said))
 
     if watch:
         log('\n== C: a plain player tries #on')
         said = await watch.run('helpstaff #on')
         check('C a plain player cannot go on duty',
-              has(said, 'Only Admins and Dungeon Masters can go on helpstaff duty'), joined(said))
+              has(said, 'Only helpstaff members, Admins and Dungeon Masters '
+                        'can go on helpstaff duty.'), joined(said))
     else:
         log('\n== C: skipped (--live: every bot account is an Admin)')
 
-    log('\n== D: the Admin goes on duty')
+    log('\n== D: the staffer goes on duty')
     said = await staff.run('helpstaff #on')
-    check('D #on: on duty', has(said, 'You are now on helpstaff duty.'), joined(said))
+    check('D #on: on duty, told a saved question is waiting',
+          has(said, 'You are now on helpstaff duty.')
+          and has(said, 'saved question waiting'), joined(said))
 
     log('\n== E: #show lists the staffer')
     said = await newbie.run('helpstaff #show')
@@ -378,8 +450,9 @@ async def scenario(host: str, port: int, staff: Bot, newbie: Bot,
 
     log('\n== G: #list')
     said = await staff.run('helpstaff #list')
-    check('G #list shows the open request',
-          has(said, 'Open requests for help:') and has(said, f'{n} (') and has(said, QUESTION),
+    check('G #list shows the open request (the live one replaced the saved one)',
+          has(said, 'Open requests for help:') and has(said, f'{n} (') and has(said, QUESTION)
+          and not has(said, 'saved question'),
           joined(said))
 
     log('\n== H: #cancel')
@@ -462,8 +535,64 @@ async def scenario(host: str, port: int, staff: Bot, newbie: Bot,
         check('K once off duty, the staffer shows without the tag',
               has(seen, s) and not has(seen, '[Helpstaff]'), joined(seen)[:200])
 
-    for b in (staff, watch):
-        if b:
+    log('\n== L: a saved question answered by mail with a FAQ answer')
+    await newbie.connect(host, port)
+    await newbie.settle(0.5)
+    await ask(newbie, None, 'I keep starving. What do I do?')
+    await newbie.quit()
+    await asyncio.sleep(1)
+    said = await staff.run('helpstaff #queue', answer=in_order('f', '2', 'Good question!'))
+    check('L #queue -> FAQ #2 with a note mails the answer',
+          has(said, f'Question 1 of 1, from {n}') and has(said, f'Answer mailed to {n}.'),
+          joined(said)[:240])
+    await newbie.connect(host, port)
+    await newbie.settle(0.5)
+    listing = await newbie.run('mail', answer=lambda b: '')   # Return leaves the picker
+    number = newest_mail_number(listing)
+    msg_lines = await newbie.run(f'mail {number}', answer=lambda b: '') if number else []
+    check('L the player\'s mail is from "<staffer>, Helpstaff member" with the '
+          'question, note and saved answer',
+          has(msg_lines, f'{s}, Helpstaff member') and has(msg_lines, 'I keep starving.')
+          and has(msg_lines, 'Good question!') and has(msg_lines, 'needs food and water'),
+          joined(msg_lines)[:300])
+    await staff.settle(0.3)
+    staff_mark = len(staff.lines)
+    await newbie.run(f'mail #reply {number}=Thanks, that worked!')
+    await staff.settle()
+    check('L the player\'s mail #reply reaches the staffer',
+          has(staff.lines[staff_mark:], 'Thanks, that worked!'),
+          joined(staff.lines[staff_mark:]))
+
+    if watch:
+        log('\n== M: login check-in -> on duty -> review -> answer in the editor')
+        await ask(newbie, None, 'Where can I buy a sword?')
+        await staff.quit()
+        await asyncio.sleep(1)
+        await newbie.settle(0.3)
+        newbie_mark = len(newbie.lines)
+        staff_mark = len(staff.lines)
+        flow = in_order('y', 'y', 'a', 'Try the weapon shop in town.', '.s')
+        await staff.connect(host, port, answer=flow)
+        await staff.settle(1.0)
+        said = staff.lines[staff_mark:]
+        await newbie.settle()
+        check('M the check-in put the member on duty and the editor answer was mailed',
+              has(said, 'You are now on helpstaff duty.')
+              and has(said, f'Answer mailed to {n}.') and has(said, 'That was the last question.'),
+              joined(said)[-300:])
+        check('M the player, online, is told it was answered',
+              has(newbie.lines[newbie_mark:], f'{s} answered your help request.'),
+              joined(newbie.lines[newbie_mark:]))
+        listing = await newbie.run('mail', answer=lambda b: '')   # Return leaves the picker
+        number = newest_mail_number(listing)
+        msg_lines = await newbie.run(f'mail {number}', answer=lambda b: '') if number else []
+        check('M the mail has the editor text',
+              has(msg_lines, 'Where can I buy a sword?')
+              and has(msg_lines, 'Try the weapon shop in town.'), joined(msg_lines)[:300])
+        await staff.run('helpstaff #off')
+
+    for b in (staff, newbie, watch):
+        if b and not b.closed:
             await b.quit()
     await asyncio.sleep(1)
 
@@ -505,8 +634,10 @@ def main() -> int:
             server.terminate()
             server.wait(timeout=10)
         data = saved(save_dir, 'botstaff')
-        check(f'L the staffer\'s save has HELPSTAFF off and room {STAFF_ROOM}',
-              not saved_flag(data, 'Helpstaff') and data.get('map_room') == STAFF_ROOM,
+        check(f'N the staffer\'s save keeps HELPSTAFF membership, no on-duty state, '
+              f'room {STAFF_ROOM}',
+              saved_flag(data, 'Helpstaff') and 'helpstaff_on_duty' not in data
+              and data.get('map_room') == STAFF_ROOM,
               f"Helpstaff={saved_flag(data, 'Helpstaff')} map_room={data.get('map_room')}")
         (save_dir / 'bot_helpstaff.log').write_text('\n'.join(transcript) + '\n')
         if args.keep_dir:

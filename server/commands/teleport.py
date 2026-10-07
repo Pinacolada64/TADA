@@ -416,8 +416,8 @@ class TeleportCommand(Command):
                 await ctx.send(f'{mname} looks puzzled as you fade from view.')
 
         # An on-duty helpstaffer shows as "Name [Helpstaff]" to onlookers.
-        from commands.helpstaff import tagged_name
-        shown = tagged_name(ctx.player)
+        from helpstaff.duty import tagged_name
+        shown = tagged_name(ctx.player, ctx.client)
         await ctx.send('You disappear in a flash of light.')
         await ctx.send_room(f'{shown} disappears in a flash of light.', exclude_self=True)
         ctx.client.room        = dest

@@ -63,17 +63,25 @@ def save_mailbox(player_name: str, inbox: list[dict]) -> None:
     _mail_path(player_name).write_text(json.dumps(inbox, indent=2))
 
 
-def add_message(player_name: str, from_name: str, body: str) -> None:
+def add_message(player_name: str, from_name: str, body: str,
+                reply_to: str | None = None) -> None:
     """Append one message to *player_name*'s mailbox. Shared by
     commands/page.py's offline fallback and MAIL's 'reply', so both write
-    the exact same record shape."""
+    the exact same record shape.
+
+    *reply_to* is the player 'mail #reply' should answer when *from_name*
+    isn't a plain player name -- helpstaff answers are from "Ryan,
+    Helpstaff member" but reply to Ryan (helpstaff/review.py)."""
     inbox = load_mailbox(player_name)
-    inbox.append({
+    record = {
         'from':      from_name,
         'timestamp': datetime.datetime.now().isoformat(),
         'body':      body,
         'read':      False,
-    })
+    }
+    if reply_to:
+        record['reply_to'] = reply_to
+    inbox.append(record)
     save_mailbox(player_name, inbox)
 
 
