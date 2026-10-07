@@ -12,9 +12,7 @@ Sections: Open PRs → Feature branches (no PR) → Direct commits to master →
 
 ## Open PRs
 
-| PR | Branch | Title |
-|----|--------|-------|
-| [#80](https://github.com/Pinacolada64/TADA/pull/80) | `fix/get-hides-carried-static-items` | GET's item list (`_room_available_items()`, also LOOK/EXAMINE <item>) now hides a static room item the player already carries, category-aware -- SPUR.MAIN.S:244's xi$/xt$ check; the room description already did, so `get prospecting` offered a book LOOK hid. Pickup was already blocked ("You already have"), so display/fidelity only. Dropped copies still listed. 5 new tests; full suite 4995 passed. |
+_(none)_
 
 ---
 
@@ -37,6 +35,7 @@ Sections: Open PRs → Feature branches (no PR) → Direct commits to master →
 
 | PR | Merge commit | Branch | Title |
 |----|--------------|--------|-------|
+| [#80](https://github.com/Pinacolada64/TADA/pull/80) | `120dfbd` | `fix/get-hides-carried-static-items` | GET's item list (`_room_available_items()`, also LOOK/EXAMINE <item>) now hides a static room item the player already carries, category-aware -- SPUR.MAIN.S:244's xi$/xt$ check; the room description already did, so `get prospecting` offered a book LOOK hid. Pickup was already blocked ("You already have"), so display/fidelity only. Dropped copies still listed. 5 new tests; full suite 4995 passed; CI green. Live server restarted on `120dfbd` (2026-10-07, first graceful SIGINT restart via #79, ~2s); live: carrying the book, `get prospecting` in room 89 -> "You do not see any". |
 | [#79](https://github.com/Pinacolada64/TADA/pull/79) | `748aae4` | `fix/run-server-graceful-shutdown` | `run_server.py` (the live entry point) now runs `Server.graceful_shutdown()` on SIGINT/SIGTERM via a shared `simple_server.run_until_stopped()` -- it used to skip it, so Ctrl-C gave no shutdown notice and waited on idle connections (the #78 restart stalled minutes). Also `run_server.py --petscii-port`. Real-process SIGINT with an idle connection exits in 0.06s; full suite 5001 passed; CI green. Live server stopped via in-game `shutdown #time now` and started on `748aae4` (2026-10-07). |
 | [#78](https://github.com/Pinacolada64/TADA/pull/78) | `8e3a4ea` | `feature/victory-silver-prospecting` | "Prospecting..." (item #61) text generated from the win config (silver amount / named item / both; Wraith-King-only fallback) instead of SPUR's hardcoded "5,000 gold". Win settings to silver standard: `victory_gold_amount` -> `victory_silver_amount`, `victory_type` `'gold'` -> `'silver'`; old `server_config.json` migrated on load, `'gold'` still accepted as alias. Also fixes the refusal grammar ("Ye do not have", "Ye have not found"). CI green; live server restarted on `8e3a4ea` (2026-10-07), `config` confirmed "Victory Silver Amount" live. |
 | [#77](https://github.com/Pinacolada64/TADA/pull/77) | `31b1d4c` | `fix/helpstaff-staff-hint` | HELPSTAFF: staff (members, Admins, DMs) typing a bare `helpstaff` get "(You are helpstaff -- did you mean helpstaff #show or helpstaff #list? ...)" instead of the "What do you need help with?" question (found testing as railbender). New `helpstaff #ask` asks for anyone -- staff's way in; `bot_live_partner.py` / `bot_helpstaff.py --live` (Admin bots) ask with it. 74/74 helpstaff tests, full suite, throwaway bot 27/27; live server restarted on `31b1d4c` (2026-10-06), reminder and `#ask` confirmed live. |
