@@ -108,7 +108,7 @@ def evaluate_victory(player: "Player") -> VictoryResult:
         if _silver_in_hand(player) < amount:
             return VictoryResult(False, [
                 "A voice echoes in your ear..",
-                "'Ye has not found riches enough to pass through!'",
+                "'Ye have not found riches enough to pass through!'",
             ])
 
     lines = ["A voice echoes in your ear.."]
