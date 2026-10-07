@@ -14,10 +14,10 @@ Three gates, checked in SPUR's order:
      unconditionally, regardless of victory_type.
   2. If config.victory_type is 'item' or 'both': player must be carrying
      objects.json item #config.victory_item_number (SPUR's og/xi$).
-  3. If config.victory_type is 'gold' or 'both': player must have at least
-     config.victory_gold_amount silver in hand (SPUR's Tut's-treasure gold
+  3. If config.victory_type is 'silver' or 'both': player must have at least
+     config.victory_silver_amount silver in hand (SPUR's Tut's-treasure riches
      flag, deliberately generalized by config.py into a plain silver
-     threshold -- see config.py's victory_gold_amount docstring; this port
+     threshold -- see config.py's victory_silver_amount docstring; this port
      never wired up a Tut-specific flag, so there's nothing SPUR-literal
      to check here beyond the amount).
 
@@ -80,7 +80,7 @@ def _post_win_news(player_name: str) -> None:
 
 def evaluate_victory(player: "Player") -> VictoryResult:
     """Check the three win gates against *player*'s current state and
-    config.py's victory_type/victory_gold_amount/victory_item_number.
+    config.py's victory_type/victory_silver_amount/victory_item_number.
 
     Does NOT record the win or apply any side effects -- call
     declare_victory() for that once this returns won=True.
@@ -103,8 +103,8 @@ def evaluate_victory(player: "Player") -> VictoryResult:
                 "'Ye does not have the Object I have sought! Ye may not pass!'",
             ])
 
-    if victory_type in ('gold', 'both'):
-        amount = config.victory_gold_amount
+    if victory_type in ('silver', 'both'):
+        amount = config.victory_silver_amount
         if _silver_in_hand(player) < amount:
             return VictoryResult(False, [
                 "A voice echoes in your ear..",
@@ -114,7 +114,7 @@ def evaluate_victory(player: "Player") -> VictoryResult:
     lines = ["A voice echoes in your ear.."]
     if victory_type in ('item', 'both') and config.victory_item_number:
         lines.append("'Ye have found the Object I have sought!'")
-    if victory_type in ('gold', 'both'):
+    if victory_type in ('silver', 'both'):
         lines.append("'Ye have found Riches enough to pass through!'")
     return VictoryResult(True, lines)
 

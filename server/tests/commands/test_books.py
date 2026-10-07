@@ -15,9 +15,9 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
-from books import get_book_text, load_books
+from books import PROSPECTING_ITEM_NUMBER, get_book_text, load_books
 
 
 class TestLoadBooks(unittest.TestCase):
@@ -71,3 +71,64 @@ class TestGetBookText(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
+
+
+def _patched_config(**overrides):
+    cfg = MagicMock()
+    cfg.victory_type = overrides.get('victory_type', 'silver')
+    cfg.victory_silver_amount = overrides.get('victory_silver_amount', 5000)
+    cfg.victory_item_number = overrides.get('victory_item_number', 0)
+    return cfg
+
+
+class TestProspectingBookReflectsWinConfig(unittest.TestCase):
+    """#61 "Prospecting..." is generated from config.py's victory_*
+    settings rather than books.json's hardcoded SPUR default."""
+
+    def _read(self, **overrides) -> str:
+        ctx = MagicMock()
+        ctx.server.books = {PROSPECTING_ITEM_NUMBER: ['stale SPUR text']}
+        with patch('config.config', _patched_config(**overrides)):
+            return ' '.join(get_book_text(ctx, PROSPECTING_ITEM_NUMBER))
+
+    def test_silver_shows_configured_amount(self):
+        text = self._read(victory_type='silver', victory_silver_amount=12345)
+        self.assertIn('12,345 silver pieces', text)
+        self.assertNotIn('gold', text.lower())
+        self.assertNotIn('stale', text)
+
+    def test_silver_ignores_item_number(self):
+        text = self._read(victory_type='silver', victory_item_number=34)
+        self.assertNotIn('Grail', text)
+
+    def test_item_names_configured_item_without_silver(self):
+        text = self._read(victory_type='item', victory_item_number=35)
+        self.assertIn('the sand dollar', text)
+        self.assertNotIn('silver', text)
+
+    def test_item_keeps_existing_article(self):
+        text = self._read(victory_type='item', victory_item_number=34)
+        self.assertIn('the Holy Grail', text)
+        self.assertNotIn('the the', text)
+
+    def test_both_mentions_amount_and_item(self):
+        text = self._read(victory_type='both', victory_silver_amount=750,
+                          victory_item_number=35)
+        self.assertIn('750 silver pieces', text)
+        self.assertIn('the sand dollar', text)
+
+    def test_both_with_no_item_set_is_silver_only(self):
+        """victory.py skips the item gate when victory_item_number is 0."""
+        text = self._read(victory_type='both', victory_item_number=0)
+        self.assertIn('5,000 silver pieces', text)
+        self.assertNotIn('in hand as well', text)
+
+    def test_item_with_no_item_set_mentions_only_wraith_king(self):
+        text = self._read(victory_type='item', victory_item_number=0)
+        self.assertIn('King of the Wraiths', text)
+
+    def test_works_even_if_books_json_failed_to_load(self):
+        ctx = MagicMock()
+        ctx.server = MagicMock(spec=[])
+        with patch('config.config', _patched_config(victory_silver_amount=5000)):
+            self.assertIn('5,000 silver', ' '.join(get_book_text(ctx, PROSPECTING_ITEM_NUMBER)))

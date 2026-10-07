@@ -93,7 +93,7 @@ def edit_game_config():
 
 def edit_game_goal():
     """Edit game goal (win condition) -- SPUR.CONTROL.S's object label
-    lives in edit_server_config() as victory_type/victory_gold_amount/
+    lives in edit_server_config() as victory_type/victory_silver_amount/
     victory_item_number, not a separate editor."""
     edit_server_config()
 
@@ -311,7 +311,7 @@ def main():
 
 def setup_data():
     # This used to open a submenu for "Configure game goal" -- that's
-    # edit_server_config()'s victory_type/victory_gold_amount/
+    # edit_server_config()'s victory_type/victory_silver_amount/
     # victory_item_number now, not a separate GameConfig-backed screen
     # (GameConfig doesn't exist anywhere in this checkout).
     print("Game data setup not yet implemented.")

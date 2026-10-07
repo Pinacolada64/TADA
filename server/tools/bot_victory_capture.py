@@ -48,11 +48,11 @@ async def main():
     if STAGE == '1':
         OUT.write('=== Attempt #1: Wraith King still alive ===\n')
         await cmd('look')
-        await cmd('config victory_type gold')
-        await cmd('config victory_gold_amount 100')
+        await cmd('config victory_type silver')
+        await cmd('config victory_silver_amount 100')
         await cmd('u')
     elif STAGE == '2':
-        OUT.write('\n=== Attempt #2: Wraith King dead, victory_type=gold, silver in hand met ===\n')
+        OUT.write('\n=== Attempt #2: Wraith King dead, victory_type=silver, silver in hand met ===\n')
         await cmd('u')
     elif STAGE == '3':
         OUT.write('\n=== Attempt #3: victory_type=item, item not carried ===\n')

@@ -111,7 +111,7 @@ class TestEditServerConfig(unittest.TestCase):
         with patch('builtins.input', side_effect=['victory', _BACK]):
             s.edit_server_config()
         # Untouched -- ambiguous input must not silently pick one.
-        self.assertEqual(server_config.victory_type, 'gold')
+        self.assertEqual(server_config.victory_type, 'silver')
 
     def test_edit_game_config_and_edit_game_goal_route_to_same_editor(self):
         import setup.server_setup as s
@@ -119,9 +119,9 @@ class TestEditServerConfig(unittest.TestCase):
         with patch('builtins.input', side_effect=['session', '30', _BACK]):
             s.edit_game_config()
         self.assertEqual(server_config.session_time_limit_minutes, 30)
-        with patch('builtins.input', side_effect=['victory_g', '9000', _BACK]):
+        with patch('builtins.input', side_effect=['victory_s', '9000', _BACK]):
             s.edit_game_goal()
-        self.assertEqual(server_config.victory_gold_amount, 9000)
+        self.assertEqual(server_config.victory_silver_amount, 9000)
 
 
 class TestUserAccounts(unittest.TestCase):

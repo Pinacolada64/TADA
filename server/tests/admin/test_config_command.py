@@ -168,7 +168,7 @@ class TestConfigCommandIO(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result.success)
         text = _sent_text(ctx)
         self.assertIn('victory_type', text)
-        self.assertIn('victory_gold_amount', text)
+        self.assertIn('victory_silver_amount', text)
         self.assertIn('victory_item_number', text)
 
     async def test_set_string_value(self):

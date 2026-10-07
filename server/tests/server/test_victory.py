@@ -3,7 +3,7 @@ level-6 "Ladder Up" (room 117 "Shimmering Portal") win check.
 
 SPUR.MISC7.S's win/win2/win5/nowin gates, ported: (1) Wraith King must be
 dead, (2) victory_item_number carried if victory_type is item/both,
-(3) victory_gold_amount in hand if victory_type is gold/both.
+(3) victory_silver_amount in hand if victory_type is silver/both.
 """
 from __future__ import annotations
 
@@ -52,8 +52,8 @@ def _make_player(wraith_king_alive=True, silver_in_hand=0, item_ids=()):
 
 def _patched_config(**overrides):
     cfg = MagicMock()
-    cfg.victory_type = overrides.get('victory_type', 'gold')
-    cfg.victory_gold_amount = overrides.get('victory_gold_amount', 5000)
+    cfg.victory_type = overrides.get('victory_type', 'silver')
+    cfg.victory_silver_amount = overrides.get('victory_silver_amount', 5000)
     cfg.victory_item_number = overrides.get('victory_item_number', 0)
     return cfg
 
@@ -61,28 +61,28 @@ def _patched_config(**overrides):
 class TestEvaluateVictoryWraithKingGate(unittest.TestCase):
     def test_wraith_king_alive_blocks_regardless_of_other_gates(self):
         player = _make_player(wraith_king_alive=True, silver_in_hand=999999)
-        with patch('config.config', _patched_config(victory_type='gold', victory_gold_amount=100)):
+        with patch('config.config', _patched_config(victory_type='silver', victory_silver_amount=100)):
             result = evaluate_victory(player)
         self.assertFalse(result.won)
         self.assertIn("King of the Wraiths", ' '.join(result.lines))
 
-    def test_wraith_king_dead_and_gold_gate_met_wins(self):
+    def test_wraith_king_dead_and_silver_gate_met_wins(self):
         player = _make_player(wraith_king_alive=False, silver_in_hand=6000)
-        with patch('config.config', _patched_config(victory_type='gold', victory_gold_amount=5000)):
+        with patch('config.config', _patched_config(victory_type='silver', victory_silver_amount=5000)):
             result = evaluate_victory(player)
         self.assertTrue(result.won)
 
 
-class TestEvaluateVictoryGoldGate(unittest.TestCase):
+class TestEvaluateVictorySilverGate(unittest.TestCase):
     def test_insufficient_silver_fails(self):
         player = _make_player(wraith_king_alive=False, silver_in_hand=100)
-        with patch('config.config', _patched_config(victory_type='gold', victory_gold_amount=5000)):
+        with patch('config.config', _patched_config(victory_type='silver', victory_silver_amount=5000)):
             result = evaluate_victory(player)
         self.assertFalse(result.won)
 
     def test_sufficient_silver_passes(self):
         player = _make_player(wraith_king_alive=False, silver_in_hand=5000)
-        with patch('config.config', _patched_config(victory_type='gold', victory_gold_amount=5000)):
+        with patch('config.config', _patched_config(victory_type='silver', victory_silver_amount=5000)):
             result = evaluate_victory(player)
         self.assertTrue(result.won)
 
@@ -102,17 +102,17 @@ class TestEvaluateVictoryItemGate(unittest.TestCase):
 
 
 class TestEvaluateVictoryBothGate(unittest.TestCase):
-    def test_both_requires_item_and_gold(self):
+    def test_both_requires_item_and_silver(self):
         player = _make_player(wraith_king_alive=False, silver_in_hand=100, item_ids=[35])
         with patch('config.config', _patched_config(
-                victory_type='both', victory_gold_amount=5000, victory_item_number=35)):
+                victory_type='both', victory_silver_amount=5000, victory_item_number=35)):
             result = evaluate_victory(player)
         self.assertFalse(result.won)
 
     def test_both_satisfied_wins(self):
         player = _make_player(wraith_king_alive=False, silver_in_hand=5000, item_ids=[35])
         with patch('config.config', _patched_config(
-                victory_type='both', victory_gold_amount=5000, victory_item_number=35)):
+                victory_type='both', victory_silver_amount=5000, victory_item_number=35)):
             result = evaluate_victory(player)
         self.assertTrue(result.won)
 
