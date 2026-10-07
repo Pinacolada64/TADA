@@ -428,6 +428,8 @@ class TestHelpstaffAccept(_IsolatedStore):
         self.assertIn('Sam', sam.ctx.server.pending_help_requests)
 
     async def test_plain_player_cannot_accept(self):
+        # Staff-only switches answer a plain player like an unknown option
+        # (commands/helpstaff.py's STAFF_SWITCHES).
         player    = make_client(make_player('Bob'))
         requester = make_client(make_player('Newbie'))
         make_server(player, requester)
@@ -436,7 +438,7 @@ class TestHelpstaffAccept(_IsolatedStore):
         result = await HelpstaffCommand().execute(player.ctx, '#accept', 'Newbie')
 
         self.assertFalse(result.success)
-        self.assertIn('not marked as available', _sent_text(player.ctx).lower())
+        self.assertIn("unknown option '#accept'", _sent_text(player.ctx).lower())
         self.assertIn('Newbie', player.ctx.server.pending_help_requests)
 
     async def test_member_off_duty_told_to_go_on_duty(self):
