@@ -101,8 +101,11 @@ TADA IMPLICATIONS
 # Not ported yet: re-readying a different weapon mid-duel, and SPUR's
 # turf-bonus (accuracy/damage for fighting in your own guild's
 # territory -- distinct from turf CAPTURE, which is ported, see
-# room_alignment.py) and Wizard-glow (+20 shield status flag)
-# modifiers. Noted in TODO.md/TODO_HELP.md.
+# room_alignment.py). Noted in TODO.md/TODO_HELP.md.
+#
+# Wizard's Glow (SPUR.DUEL.S:79, +20 shield while commands/cast.py's
+# aura is up) is ported as _duel_shield() -- read wherever the shield
+# rating feeds duel math, never written back to the real shield item.
 #
 # Guild support (SPUR.DUEL.S:113-136 "follow"): ported as _guild_support(),
 # computed once per side at duel start and stored on _DuelSide.support --
@@ -453,6 +456,23 @@ def _is_predictable(history: list, tactic: DuelTactic) -> bool:
     return len(history) >= _STREAK_LEN and all(t == tactic for t in history[-_STREAK_LEN:])
 
 
+# SPUR.DUEL.S:79: `if instr(mid$(zu$,7,1),"23") ... sh=sh+20`.
+_GLOW_DUEL_SHIELD_BONUS = 20
+
+
+def _has_glow(player) -> bool:
+    return int(getattr(player, 'wizard_glow', None) or 0) > 0
+
+
+def _duel_shield(player) -> int:
+    """The shield rating duel math uses: the real one, plus Wizard's
+    Glow's +20 (which SPUR grants even with no shield readied)."""
+    shield = int(getattr(player, 'shield', 0) or 0)
+    if _has_glow(player):
+        shield += _GLOW_DUEL_SHIELD_BONUS
+    return shield
+
+
 def _absorb_shield_armor(raw: float, attacker, defender) -> tuple:
     """Shield/armor block math, copied from combat/resolution.py's
     monster_attacks() (see module comment for why this isn't imported).
@@ -463,7 +483,8 @@ def _absorb_shield_armor(raw: float, attacker, defender) -> tuple:
 
     shield_blocked = shield_degraded = 0
     shield_destroyed = False
-    shield = int(getattr(defender, 'shield', 0) or 0)
+    real_shield = int(getattr(defender, 'shield', 0) or 0)
+    shield = _duel_shield(defender)
     if shield > 0:
         # Two-phase SPUR formula (kept in sync with combat/resolution.py's
         # monster_attacks() -- see module comment above; message #14
@@ -505,9 +526,13 @@ def _absorb_shield_armor(raw: float, attacker, defender) -> tuple:
             rip_z = max(0, rip_z) * 2
             if random.randint(0, 59) < rip_z:
                 shield_destroyed = True
-                shield_degraded = shield
+                shield_degraded = real_shield
 
-            defender.gain_shield_proficiency(active_shield_id)
+            if real_shield <= 0:
+                # A glow-only block: no shield item to wear down or train.
+                shield_degraded, shield_destroyed = 0, False
+            else:
+                defender.gain_shield_proficiency(active_shield_id)
 
     armor_blocked = armor_degraded = 0
     armor_destroyed = False
@@ -772,8 +797,8 @@ class DuelSession:
 
         # Shield differential read before either basher's cost is charged
         # (DUEL.S:430-433 runs before the sh=sh-3/ye=ye-3 cost lines).
-        side_shield = int(getattr(attacker, 'shield', 0) or 0)
-        opp_shield  = int(getattr(defender, 'shield', 0) or 0)
+        side_shield = _duel_shield(attacker)
+        opp_shield  = _duel_shield(defender)
 
         a = _BASH_BASE
         a += min(side_shield, 100) // 3
@@ -1305,6 +1330,14 @@ async def _resolve_challenge(ctx: GameContext, accept: bool) -> CommandResult:
     if _ammo_penalty(defender, getattr(defender, 'readied_weapon', None)) < 1.0:
         defender_lines.insert(1, 'No ammo readied! All weapon attributes reduced by half.')
 
+    # SPUR.DUEL.S:72/79 -- each side hears about their own glow, and the
+    # other side's ("(The dork has Wizard glow in effect)").
+    for me, them, my_lines, their_lines in ((challenger, defender, challenger_lines, defender_lines),
+                                            (defender, challenger, defender_lines, challenger_lines)):
+        if _has_glow(me):
+            my_lines.insert(1, '(Your Wizard glow adds 20 to your shield)')
+            their_lines.insert(1, f'({me.name} has Wizard glow in effect)')
+
     await challenger_ctx.send(challenger_lines)
     await ctx.send(defender_lines)
     await session._broadcast_bystanders(f'{challenger.name} and {defender.name} begin a duel!')
@@ -1471,9 +1504,10 @@ class DuelCommand(Command):
             'for your guild, unless it\'s a guild HQ or free-fire zone.'
         ),
         notes = [
-            'Rough draft: SPUR\'s re-readying a different weapon mid-duel, '
-            'turf bonus (fighting on your own guild\'s territory), and '
-            'Wizard glow are not ported yet.',
+            'Rough draft: SPUR\'s re-readying a different weapon mid-duel and '
+            'turf bonus (fighting on your own guild\'s territory) are not '
+            'ported yet.',
+            'An active Wizard\'s Glow adds 20 to your shield for the duel.',
         ],
     )
 

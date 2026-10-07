@@ -253,6 +253,9 @@ class MonsterAttackResult:
     fire_shield_blocked: bool = False
     # SPUR & flag (experience_drain): drains ep on a hit (~20% chance)
     experience_drained: int  = 0
+    # SPUR.COMBAT.S:267 "[WIZARDS GLOW FLASHES]": damage the caster's
+    # Wizard's Glow aura (commands/cast.py) turned aside on this hit.
+    glow_absorbed:      int  = 0
     # SPUR line 212: taking damage > 4 has a chance to reduce player DEX
     dex_lost:           bool = False
     # SPUR.COMBAT.S:307: ps=ps-(a/2) — taking damage reduces player Strength (ps) by damage/2
@@ -767,6 +770,14 @@ def monster_attacks(monster: dict, player, *, stone_blocked: bool = False,
     raw = float((r1 + r2 + r3) / 3)
     raw += (8 - ma)                      # bigger monsters hit harder
 
+    # Wizard's Glow (SPUR.COMBAT.S:267: `if instr(mid$(zu$,7,1),"23")
+    # print "[WIZARDS GLOW FLASHES]":a=a-2`) -- applied ahead of the
+    # shield, same place SPUR has it. engine.py spends the round.
+    glow_absorbed = 0
+    if int(getattr(player, 'wizard_glow', None) or 0) > 0:
+        glow_absorbed = min(2, max(0, int(raw)))
+        raw -= glow_absorbed
+
     # Shield block (SPUR lines 269-286) -- two distinct phases (see message
     # #14, "Shields in Monster Combat"): phase 1 decides whether the shield
     # gets a hand in this attack at all, phase 2 (only reached on a phase-1
@@ -924,6 +935,7 @@ def monster_attacks(monster: dict, player, *, stone_blocked: bool = False,
         experience_drained=experience_drained,
         dex_lost=dex_lost,
         strength_lost=strength_lost,
+        glow_absorbed=glow_absorbed,
     )
 
 

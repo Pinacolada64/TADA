@@ -559,7 +559,12 @@ class ConnectCommand(Command):
         # TODO: warn if Amulet of Life has expired (AMULET_OF_LIFE_ENERGIZED flag
         #       cleared between sessions based on time elapsed).
 
-        # TODO: warn if Wizard's Glow spell has dissipated (spell decay on logout).
+        # Wizard's Glow lasts one play session (SPUR.LOGON.S:238-240:
+        # "Your Wizard's Glow spell has dissipated"), however many of its
+        # rounds (commands/cast.py) were left when the player logged off.
+        from commands.cast import dissipate_wizard_glow
+        if dissipate_wizard_glow(player):
+            login_lines += ["", "Your Wizard's Glow spell has dissipated."]
 
         # Party members waiting (SPUR.LOGON.S ally greeting -- master only;
         # see logon_events/ally_greeting.py).
