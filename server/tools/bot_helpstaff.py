@@ -98,6 +98,10 @@ sys.path.insert(0, str(_SERVER_DIR / 'tools'))
 THROWAWAY_PASSWORD = 'helpstaff-bots'   # throwaway accounts in a throwaway dir
 STAFF_ROOM, NEWBIE_ROOM = 41, 54
 QUESTION = 'How do I find the bar?'
+# Plain players ask with a bare HELPSTAFF; staff (every --live bot account
+# is an Admin) get a #show/#list reminder from that now, so --live asks
+# with #ask instead -- set in main().
+ASK_COMMAND = 'helpstaff'
 
 transcript: list[str] = []
 
@@ -372,7 +376,7 @@ async def ask(newbie: Bot, staff: Bot | None, text: str) -> tuple[list[str], lis
         await staff.settle(0.3)
     staff_mark = len(staff.lines) if staff else 0
     prompt_mark = len(newbie.prompts)
-    said = await newbie.run('helpstaff', answer=answer_question(text))
+    said = await newbie.run(ASK_COMMAND, answer=answer_question(text))
     staff_saw = (await staff.settle()) if staff else []
     if staff:
         staff_saw = staff.lines[staff_mark:]
@@ -612,6 +616,8 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.live:
+        global ASK_COMMAND
+        ASK_COMMAND = 'helpstaff #ask'          # the --live asker is an Admin
         from bot_credentials import load_password
         port = args.port or 34083
         staff = Bot(args.staff, load_password(args.staff))

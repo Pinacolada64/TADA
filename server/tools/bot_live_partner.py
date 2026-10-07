@@ -14,7 +14,7 @@ Two roles:
           A tough monster in the bot's room can block the teleport (Freeze
           Adventurer); that's logged and the request reopens for others.
 
-  ask     Logs in (--asker, default botswarm01), types `helpstaff` and asks
+  ask     Logs in (--asker, default botswarm01), types `helpstaff #ask` and asks
           --question, so a real player on duty can practise #list /
           #accept / #decline. Waits up to --wait seconds for "... has
           arrived to help you." (or "... is here to help you."), reports
@@ -110,7 +110,9 @@ async def ask(args) -> None:
     def _answer(b):
         return args.question if bare_prompt(b).startswith('what do you need help with') else None
 
-    said = await bot.run('helpstaff', answer=_answer)
+    # Bot accounts are Admins, i.e. staff: a bare HELPSTAFF from staff only
+    # shows a #show/#list reminder now, so ask with #ask.
+    said = await bot.run('helpstaff #ask', answer=_answer)
     if has(said, 'Your question has been saved.'):
         log(f'== nobody on duty: {bot.name}\'s question was saved for a mailed answer')
         if args.cancel:
