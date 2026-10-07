@@ -12,7 +12,9 @@ Sections: Open PRs → Feature branches (no PR) → Direct commits to master →
 
 ## Open PRs
 
-_(none)_
+| PR | Branch | Title |
+|----|--------|-------|
+| [#78](https://github.com/Pinacolada64/TADA/pull/78) | `feature/victory-silver-prospecting` | "Prospecting..." (item #61) text generated from the win config (silver amount / named item / both; Wraith-King-only fallback) instead of SPUR's hardcoded "5,000 gold". Win settings to silver standard: `victory_gold_amount` -> `victory_silver_amount`, `victory_type` `'gold'` -> `'silver'`; old `server_config.json` migrated on load, `'gold'` still accepted as alias. Full suite clean apart from one pre-existing time-of-day failure; live untested. |
 
 ---
 
