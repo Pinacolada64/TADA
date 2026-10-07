@@ -12,7 +12,9 @@ Sections: Open PRs → Feature branches (no PR) → Direct commits to master →
 
 ## Open PRs
 
-_(none)_
+| PR | Branch | Title |
+|----|--------|-------|
+| [#79](https://github.com/Pinacolada64/TADA/pull/79) | `fix/run-server-graceful-shutdown` | `run_server.py` (the live entry point) now runs `Server.graceful_shutdown()` on SIGINT/SIGTERM via a shared `simple_server.run_until_stopped()` -- it used to skip it, so Ctrl-C gave no shutdown notice and waited on idle connections (the #78 restart stalled minutes). Also `run_server.py --petscii-port`. Real-process SIGINT with an idle connection exits in 0.06s; full suite 5001 passed. |
 
 ---
 
