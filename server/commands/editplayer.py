@@ -1693,7 +1693,13 @@ def _names_menu(ctx) -> Menu:
     menu.add_item(MenuItem('List Allies',   shortcuts='?', action=_list_owned_allies))
     menu.add_item(MenuItem('Add Ally',      shortcuts='a', action=_add_ally_by_name))
     menu.add_item(MenuItem('Remove Ally',   shortcuts='r', action=_remove_ally_by_name))
-    menu.add_item(MenuItem('Spells',        shortcuts='sp', submenu=_spells_menu(ctx)))
+    menu.add_item(MenuItem(
+        'Spells', shortcuts='sp', submenu=_spells_menu(ctx),
+        help_text=('Each spell\'s remembered cast % for this player. Every successful '
+                   '|command|CAST|reset| raises it by 2% (up to 99%), it is kept even '
+                   'after the spell is used up, and a fresh copy casts at it. Set one, '
+                   'or R to reset it to the spell\'s base %.'),
+    ))
     return menu
 
 
@@ -1765,11 +1771,25 @@ def _spells_menu(ctx) -> Menu:
             await ctx.send(f"{sp['name']} cast chance set to {val}%.")
         return action
 
+    def _help(sp: dict) -> str:
+        # Description and effect label from shoppe/wizard.py's own SPELLS
+        # table and _EFFECT_LABELS -- the same text the Wizard's i# shows.
+        from shoppe.wizard import _EFFECT_LABELS
+        cur  = _current(sp)
+        base = sp['cast_chance']
+        only = ' (Wizards only)' if sp.get('wizard_only') else (
+               ' (Druids only)' if sp.get('druid_only') else '')
+        mine = f'{cur}% (raised by practice)' if cur != base else f'{cur}%'
+        return (f"{sp['name']}{only}: {sp['description']} "
+                f"Effect: {_EFFECT_LABELS.get(sp['effect'], sp['effect'])}. "
+                f"Base cast chance {base}%; {p.name}'s: {mine}.")
+
     for sp in SPELLS:
         menu.add_item(MenuItem(
             sp['name'],
             dot_leader_handler=lambda ctx, sp=sp: _label(sp),
             action=make_action(sp),
+            help_text=lambda ctx, sp=sp: _help(sp),
         ))
     return menu
 

@@ -87,5 +87,31 @@ class TestSpellsMenu(unittest.TestCase):
         self.assertEqual(player.spell_cast_chance, {'2': 84})
 
 
+class TestSpellsMenuHelp(unittest.TestCase):
+    """h<number> on a spell row shows its shoppe/wizard.py description."""
+
+    def test_row_help_is_the_wizards_description_plus_chances(self):
+        from shoppe.wizard import SPELLS
+        player = Player()
+        player.name = 'Rulan'
+        player.spell_cast_chance = {'2': 84}
+        ctx = _FakeCtx(player=player)
+        item = _find_item(_spells_menu(ctx), 'WHEATIES')
+        text = item.help_text(ctx)
+        description = next(sp['description'] for sp in SPELLS if sp['number'] == 2)
+        self.assertIn(description, text)
+        self.assertIn('Effect: STR.', text)
+        self.assertIn("Base cast chance 70%; Rulan's: 84% (raised by practice).", text)
+
+    def test_class_only_spell_says_so(self):
+        ctx = _FakeCtx()
+        text = _find_item(_spells_menu(ctx), "WIZARD'S GLOW").help_text(ctx)
+        self.assertIn("WIZARD'S GLOW (Wizards only):", text)
+
+    def test_spells_item_has_help(self):
+        ctx = _FakeCtx()
+        self.assertIn('remembered cast %', _find_item(_names_menu(ctx), 'Spells').help_text)
+
+
 if __name__ == '__main__':
     unittest.main()
