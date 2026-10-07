@@ -23,6 +23,7 @@ class _FakeSession:
         self.monster = {'name': monster_name}
         self.attackers = []
         self._done = asyncio.Event()
+        self.leader = object()      # a fight with its leader still in it -> join()
         self.join = AsyncMock(side_effect=self._join)
 
     async def _join(self, ctx):

@@ -652,9 +652,10 @@ async def phase_medusa(hero: Bot) -> None:
     """Hero solos this one -- thornshield staying elsewhere avoids the race
     where its bystander 'attack' lands the instant after hero's kill and
     opens a second, unwanted fresh fight against the same room/monster
-    number (see this module's docstring: _monster_in_room() has no
-    "already dead" gate, only per-player dead_monsters, so a second
-    attacker always gets a fresh full-HP copy). Not needed here anyway --
+    number (see this module's docstring: _monster_in_room() had no
+    "already dead" gate, so a second attacker got a fresh full-HP copy --
+    since fixed, ATTACK/LURK now check combat.engine.monster_gone_for()
+    and refuse with "is already dead"). Not needed here anyway --
     pendant/ambush/STORM/ammo are all leader-only mechanics hero gets
     fighting alone."""
     _log(f'\n\n{"#" * WIDTH}\n#  PHASE 1: MEDUSA -- Crystal Pendant + tactical ambush + STORM BOW\n{"#" * WIDTH}')

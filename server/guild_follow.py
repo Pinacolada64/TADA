@@ -377,6 +377,11 @@ def relocate_followers(ctx, group: MovingGroup, *, from_room: int,
         fclient.room = int(to_room)
         fplayer.map_room = int(to_room)
         fplayer.unsaved_changes = True
+        # Same as the leader's own move (Server._move()): a re_animates kill
+        # left behind gets back up, so it isn't still "already dead" for this
+        # follower if they walk back in on their own (see
+        # combat.engine.monster_gone_for()).
+        fplayer.slain_here = None
         mark_visited(fplayer, int(to_level), int(to_room))
 
 

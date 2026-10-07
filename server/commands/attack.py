@@ -111,12 +111,29 @@ class AttackCommand(Command):
                     await ctx.send(f'There is no "{" ".join(args)}" here — only '
                                     f'{monster_display_name(session.monster)}.')
                     return CommandResult.fail(error='no_match')
-            await session.join(ctx)
+            # One bystander swing -- or the lead, if the fight's leader has
+            # left it (see combat.engine.join_or_lead()).
+            from combat.engine import join_or_lead
+            await join_or_lead(ctx, session)
             return CommandResult.ok()
 
         # Find the monster in this room
         monster = _monster_in_room(ctx)
         if monster is None:
+            await ctx.send("There's nothing to fight here.")
+            return CommandResult.fail(error='no_monster')
+
+        # Already dealt with, for this player: killed (maybe a moment ago,
+        # by another party in the same fight), scared off, or charmed --
+        # see combat.engine.monster_gone_for().
+        from combat.engine import monster_gone_for
+        gone = monster_gone_for(player, monster.get('number'),
+                                level=int(getattr(player, 'map_level', 1) or 1),
+                                room_no=getattr(ctx.client, 'room', None))
+        if gone == 'dead':
+            await ctx.send(f'{monster_display_name(monster, capitalize=True)} is already dead.')
+            return CommandResult.fail(error='monster_dead')
+        if gone:
             await ctx.send("There's nothing to fight here.")
             return CommandResult.fail(error='no_monster')
 

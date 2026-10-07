@@ -52,6 +52,11 @@ class _FakeSession:
         if ctx in self.attackers:
             self.attackers.remove(ctx)
 
+    def _leave_fight(self, ctx):
+        self._remove_attacker(ctx)
+        if not self.attackers:
+            self._done.set()
+
 
 class TestLeaveCombatOnMove(unittest.IsolatedAsyncioTestCase):
     async def test_bystander_removed_from_attackers_on_move(self):

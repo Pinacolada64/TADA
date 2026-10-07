@@ -379,6 +379,30 @@ def _record_kill(player, monster: dict) -> None:
             player.unsaved_changes = True
 
 
+def monster_gone_for(player, monster_no, *, level: int, room_no) -> Optional[str]:
+    """Is the room's monster *monster_no* already dealt with, for *player*?
+    Returns 'dead', 'fled' or 'charmed', or None if it's still there to
+    fight. room.monster is shared, but whether it's dead is per player
+    (dead_monsters etc.), so ATTACK/LURK must check this before opening a
+    fresh CombatSession -- each session fights its own full-HP copy.
+
+    'dead' also covers a re_animates kill in this same room visit
+    (player.slain_here): those never go into dead_monsters (see
+    _record_kill()), but SPUR still shows "YOU SEE A DEAD m$" (md=1) until
+    the player leaves; it re-animates on re-entry (rd.mons runs again).
+    """
+    if monster_no is None:
+        return None
+    if (monster_no in (getattr(player, 'dead_monsters', None) or [])
+            or getattr(player, 'slain_here', None) == (int(level), int(room_no), monster_no)):
+        return 'dead'
+    if monster_no in (getattr(player, 'fled_monsters', None) or []):
+        return 'fled'
+    if monster_no in (getattr(player, 'charmed_monsters', None) or []):
+        return 'charmed'
+    return None
+
+
 def _record_flee(player, monster: dict) -> None:
     """Mark a monster scared off by a loud weapon as tracks-only for this
     player -- SPUR's md==2 state (SPUR.COMBAT.S scare subroutine). Per-player,
@@ -472,7 +496,16 @@ def lost_sight_roll(player, monster: dict, *, is_surprise: bool = False) -> bool
 
 
 def _monster_hp(monster: dict) -> int:
-    return int(monster.get('strength') or monster.get('hit_points') or 5)
+    # Not "strength or hit_points or 5": 0 is falsy, so a hit landing the
+    # monster on exactly 0 read back as 5 HP -- it "healed" instead of
+    # dying, and only an overshoot below 0 ever killed it (found by
+    # tests/e2e/test_shared_monster_kill_e2e.py: a 4-HP TROLL took 20-30
+    # blows). Same trap monsters.py's monster_is_alive() already avoids.
+    for key in ('strength', 'hit_points'):
+        value = monster.get(key)
+        if value is not None:
+            return int(value)
+    return 5
 
 
 def _set_monster_hp(monster: dict, hp: int) -> None:
@@ -623,22 +656,43 @@ class CombatSession:
                     result = self._swing(ctx, is_lurking=True)
             else:
                 result = self._swing(ctx)
-            if result is None:
-                return
-            await _add_exp(ctx, exp_per_swing())
-            await self._narrate_player_swing(ctx, result, bystander=True)
-            if result.hit:
-                self._record_hit(_player_name(ctx))
-            if result.round_max > 0 and result.round_count is not None:
-                bystander_player = ctx.player
-                bystander_player.ammo_rounds = result.round_count
-                bystander_player.unsaved_changes = True
-                if not result.hit:
-                    await self._stray_round(ctx, result.weapon_name,
-                                            weapon_id=result.weapon_id)
-            _set_monster_hp(self.monster, _monster_hp(self.monster) - result.damage)
+            if result is not None:
+                await _add_exp(ctx, exp_per_swing())
+                await self._narrate_player_swing(ctx, result, bystander=True)
+                if result.hit:
+                    self._record_hit(_player_name(ctx))
+                if result.round_max > 0 and result.round_count is not None:
+                    bystander_player = ctx.player
+                    bystander_player.ammo_rounds = result.round_count
+                    bystander_player.unsaved_changes = True
+                    if not result.hit:
+                        await self._stray_round(ctx, result.weapon_name,
+                                                weapon_id=result.weapon_id)
+                _set_monster_hp(self.monster, _monster_hp(self.monster) - result.damage)
+                if _monster_hp(self.monster) <= 0:
+                    await self._monster_dies(ctx)
+                    return
+
+            # The joining player's own party fights alongside them -- one
+            # swing each per ATTACK/LURK, the same as the leader's allies get
+            # each round in _run_loop(). Before, only the leader's allies
+            # ever swung, so a second party's allies just stood there. (A
+            # LURK whose own shot doesn't fire still sends the allies in,
+            # also as in _run_loop().)
+            await self._ally_swings(ctx)
             if _monster_hp(self.monster) <= 0:
-                await self._monster_dies(ctx)
+                await self._monster_dies(ctx, player_killed=False)
+
+    async def take_over(self, ctx: 'GameContext') -> None:
+        """*ctx* becomes this fight's leader and runs its round loop, after
+        the previous leader left (fled, died, disconnected, ...) while
+        others were still fighting. Same monster, same HP -- the fight just
+        carries on with a new player at the prompt, swinging first this
+        round (they chose to attack). Blocks until the fight ends for them,
+        like start()."""
+        self.leader = ctx
+        await self._join_attacker(ctx)
+        await self._run_loop(ctx, resumed=True)
 
     async def flee(self, ctx: 'GameContext') -> bool:
         """Attempt to flee.  Returns True if the player escaped."""
@@ -948,8 +1002,23 @@ class CombatSession:
     # Internal: turn loop
     # ------------------------------------------------------------------
 
-    async def _run_loop(self, ctx: 'GameContext') -> None:
-        """Main per-leader combat loop.  Runs until monster dies, player dies, or fled."""
+    async def _run_loop(self, ctx: 'GameContext', *, resumed: bool = False) -> None:
+        """Main per-leader combat loop.  Runs until monster dies, player dies, or fled.
+
+        *resumed*: this fighter is taking over a fight already in progress
+        (take_over()) -- skip the encounter intro (opening line, greeting,
+        Crystal Pendant check), which already happened for this monster."""
+        mname = monster_display_name(self.monster)
+        player = ctx.player
+        if resumed:
+            await ctx.send(f'You take the lead against {mname}!')
+            await ctx.send_room(f'{_player_name(ctx)} takes the lead against {mname}!',
+                                exclude_self=True)
+            await self._lead_rounds(ctx)
+            return
+        await self._intro_then_rounds(ctx)
+
+    async def _intro_then_rounds(self, ctx: 'GameContext') -> None:
         mname = monster_display_name(self.monster)
         player = ctx.player
 
@@ -993,6 +1062,13 @@ class CombatSession:
         # re-rolled it after a surprise, which SPUR never does (`if zq=0
         # if zs=0 gosub tactical`).
 
+        await self._lead_rounds(ctx)
+
+    async def _lead_rounds(self, ctx: 'GameContext') -> None:
+        """The per-round loop itself -- after the intro, or straight away
+        for a fighter taking over (take_over())."""
+        mname = monster_display_name(self.monster)
+        player = ctx.player
         first_round = True
         # Set when the player's input was refused (CHARGE not available,
         # LURK with no allies) -- re-prompt without it costing a turn, so
@@ -1078,7 +1154,9 @@ class CombatSession:
                                     '|command|INV|reset|...)')
                 raw = await ctx.prompt('Command', preamble_lines=preamble)
                 if raw is None:
-                    # Client disconnected mid-fight
+                    # Client disconnected mid-fight (or sent bye): out of the
+                    # fight, which goes on for anyone else still in it.
+                    self._leave_fight(ctx)
                     break
                 text = raw.strip()
                 word = text.split()[0].lower() if text else 'a'
@@ -1722,8 +1800,9 @@ class CombatSession:
         if result.hit and not result.spell_cast and (result.damage + result.fire_damage) >= hp:
             from ally_events import try_ally_death_save
             if await try_ally_death_save(ctx, result.damage + result.fire_damage):
-                self._done.set()
-                self._remove_attacker(ctx)
+                # Saved and carried out of the fight -- which goes on for
+                # anyone else still in it (see _player_dies()).
+                self._leave_fight(ctx)
                 return True
 
         await self._narrate_monster_swing(ctx, result)
@@ -2078,6 +2157,19 @@ class CombatSession:
         # room, fully healed, for the next `attack`).
         skill_notes = {id(b_ctx): _award_hit_based_skill(self, b_ctx) for b_ctx in credited}
 
+        # Record the kill for everyone in the fight *now*, before the first
+        # await below. self._done is already set, so a late ATTACK no longer
+        # finds this session -- if the monster weren't already dead for the
+        # attacker by then (dead_monsters / slain_here, see
+        # monster_gone_for()), that ATTACK opened a second, fresh full-HP
+        # fight against it. Recording it at the end of this method left a
+        # window as wide as every send below plus the shadow-ally recruit's
+        # Y/N prompt to the killer (found by tests/e2e/
+        # test_shared_monster_kill_e2e.py: a bystander who'd joined and
+        # missed re-fought the TROLL while the killer was being asked about
+        # APOLLO). The "is slain!" notices still go out last.
+        self._record_kill_for(credited)
+
         if player_killed:
             await ctx.send(f'|green|You have slain {mname}!{hits_note}{skill_notes[id(ctx)]}|reset|')
         else:
@@ -2224,12 +2316,28 @@ class CombatSession:
         # self.attackers (e.g. a grenade thrown at another room's fight via
         # commands/use.py) -- credited exactly once either way, since
         # _record_kill no longer dedupes (each kill is its own log entry).
+        # (The recording itself happened up top, in _record_kill_for(), so
+        # there's no window for a late ATTACK -- only the notices are here.)
         for b_ctx in credited:
-            _record_kill(b_ctx.player, self.monster)
             if b_ctx is ctx:
                 continue
             Mname = monster_display_name(self.monster, capitalize=True)
             await b_ctx.send(f'|green|{Mname} is slain!{skill_notes[id(b_ctx)]}|reset|')
+
+    def _record_kill_for(self, credited: list) -> None:
+        """_record_kill() plus slain_here for every credited participant --
+        synchronous on purpose (see _monster_dies()'s call site)."""
+        mid = self.monster.get('number') or self.monster.get('id_number') or self.monster.get('id')
+        for b_ctx in credited:
+            _record_kill(b_ctx.player, self.monster)
+            # Dead for this player until they leave the room, re_animates or
+            # not (see monster_gone_for()) -- without this, a bystander's
+            # ATTACK landing just after the kill opened a second, fresh
+            # full-HP fight against the same monster (tools/
+            # bot_epic_battle.py documented the race and worked around it).
+            if mid is not None and self.room_no is not None:
+                b_ctx.player.slain_here = (int(getattr(b_ctx.player, 'map_level', 1) or 1),
+                                           int(self.room_no), mid)
 
     async def _reveal_hidden_exit(self, ctx: 'GameContext') -> None:
         """Reveal a hidden_exit_east/west room's secret passage on monster death.
@@ -2308,8 +2416,14 @@ class CombatSession:
         )
 
     async def _player_dies(self, ctx: 'GameContext') -> None:
-        """Handle player death during combat."""
-        self._done.set()
+        """Handle player death during combat.
+
+        Takes only this player out of the fight (_leave_fight()): anyone
+        else still in it fights on against the same wounded monster, and
+        the next of them to ATTACK/LURK takes the lead (take_over()). This
+        used to end the fight outright, so their next ATTACK opened a fresh
+        full-HP one."""
+        self._leave_fight(ctx)
         mname = monster_display_name(self.monster)
         # TADA addition: a gendered sendoff on the closing line. Not SPUR-
         # sourced (see server/GENDER_AUDIT.md's "death message variant"
@@ -2346,8 +2460,10 @@ class CombatSession:
         separate per-room registry: the same monster showing up
         elsewhere on the map displays the same statue there too, exactly
         like SPUR.
+
+        Like _player_dies(), takes only this player out of the fight.
         """
-        self._done.set()
+        self._leave_fight(ctx)
         mname = monster_display_name(self.monster)
         await ctx.send([
             f'|red|...ARGG!! YOU ARE TURNED TO STONE!|reset|',
@@ -2478,7 +2594,7 @@ async def enter_combat(ctx: 'GameContext', monster: dict, *,
         existing = ctx.server.active_combats[room_no]
         if not existing._done.is_set():
             await ctx.send('There is already a fight in progress here — joining!')
-            await existing.join(ctx)
+            await join_or_lead(ctx, existing)
             return
 
     session = CombatSession(monster, room_no)
@@ -2515,8 +2631,43 @@ async def enter_combat(ctx: 'GameContext', monster: dict, *,
     try:
         await session.start(ctx)
     finally:
-        if room_no is not None and ctx.server.active_combats.get(room_no) is session:
-            del ctx.server.active_combats[room_no]
+        release_leader(ctx, session)
+
+
+def release_leader(ctx: 'GameContext', session: CombatSession) -> None:
+    """Tidy up after *ctx*'s turn leading *session* ends (its round loop
+    returned, however it ended).
+
+    A fight that's over comes out of server.active_combats. One that
+    isn't -- the leader fled, died or disconnected while others were
+    still fighting -- stays registered with no leader, so the next of
+    them to ATTACK/LURK takes over (join_or_lead()) against the same
+    wounded monster. Dropping it here used to let that next ATTACK open
+    a fresh, full-HP fight instead."""
+    if not session._done.is_set() and ctx in session.attackers:
+        session._leave_fight(ctx)        # left some other way, e.g. an exception
+    if session.leader is ctx:
+        session.leader = None
+    active = getattr(ctx.server, 'active_combats', None) or {}
+    room_no = session.room_no
+    if session._done.is_set() and room_no is not None and active.get(room_no) is session:
+        del active[room_no]
+
+
+async def join_or_lead(ctx: 'GameContext', session: CombatSession, *,
+                       is_lurking: bool = False) -> None:
+    """ATTACK/LURK on a fight already in progress: one bystander swing
+    (join()), or -- if its leader has left -- take over as leader."""
+    if session.leader is None:
+        try:
+            await session.take_over(ctx)
+        finally:
+            release_leader(ctx, session)
+        return
+    if is_lurking:
+        await session.join(ctx, is_lurking=True)
+    else:
+        await session.join(ctx)
 
 
 async def roll_tactical_ambush(ctx: 'GameContext', monster: dict, room_no: int) -> bool:
@@ -2545,6 +2696,6 @@ async def join_combat(ctx: 'GameContext') -> bool:
     active  = getattr(ctx.server, 'active_combats', {})
     session = active.get(room_no)
     if session and not session._done.is_set():
-        await session.join(ctx)
+        await join_or_lead(ctx, session)
         return True
     return False
