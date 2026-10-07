@@ -162,3 +162,26 @@ class TestStaffSwitchesHiddenFromPlayers(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestUsageSyntaxColor(unittest.TestCase):
+    """Usage/Examples syntax is wrapped in |command|...|reset| (the
+    viewer's PREFS command color), including a section's usage and a
+    syntax too long for its column that gets its own line."""
+
+    def test_usage_and_examples_colored(self):
+        h = Help(summary="S.", usage=[("say <message>", "Speak.")],
+                 examples=[("say Hello!", "Greet.")])
+        out = _text(format_help(h, width=78))
+        self.assertIn("|command|say <message>|reset|", out)
+        self.assertIn("|command|say Hello!|reset|", out)
+
+    def test_section_usage_colored(self):
+        out = _text(format_help(SAMPLE, width=78, viewer_flags={PlayerFlags.HELPSTAFF}))
+        self.assertIn("|command|sample #secret|reset|", out)
+
+    def test_long_syntax_on_its_own_line_is_colored(self):
+        out = format_help(HelpstaffCommand.help, 'helpstaff', width=40,
+                          viewer_flags={PlayerFlags.HELPSTAFF})
+        own_line = next(l for l in out if 'helpstaff #accept <name>' in l)
+        self.assertEqual(own_line.strip(), '|command|helpstaff #accept <name>|reset|')

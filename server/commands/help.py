@@ -54,6 +54,13 @@ def _cmd(text: str) -> str:
     return f'|cyan|{text}|reset|'
 
 
+def _syntax(text: str) -> str:
+    """Command syntax in a Usage/Examples row ("helpstaff #faq [<n>]"), in
+    the viewer's own command color (PREFS 'C' -- see formatting.py and
+    the 'markup' help topic), unlike _cmd()'s fixed cyan for names."""
+    return f'|command|{text}|reset|'
+
+
 def _alias(text: str) -> str:
     """A command's alias(es) -- deliberately darker/dimmer than _cmd()."""
     return f'|dark_gray|{text}|reset|'
@@ -1837,7 +1844,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
     if usage:
         lines.append("")
         lines.append(_heading("Usage:"))
-        items = [(_auto_escape(str(u[0])),
+        items = [(_syntax(_auto_escape(str(u[0]))),
                    _auto_escape(str(u[1])) if len(u) > 1 and u[1] else "")
                  for u in usage]
         lines.extend(format_two_column(items, width))
@@ -1848,7 +1855,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
         lines.append("")
         lines.append(_heading(singular if len(examples) == 1 else plural))
         for item in examples:
-            lines.append(f"  {_auto_escape(item[0])}")
+            lines.append(f"  {_syntax(_auto_escape(item[0]))}")
             if len(item) > 1 and item[1]:
                 lines.extend(wrap_text(
                     _auto_escape(str(item[1])),
@@ -1910,7 +1917,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
                                    width=wrap_width, initial_indent=" " * 2,
                                    subsequent_indent=" " * 2))
         if section.usage:
-            items = [(_auto_escape(str(u[0])),
+            items = [(_syntax(_auto_escape(str(u[0]))),
                        _auto_escape(str(u[1])) if len(u) > 1 and u[1] else "")
                      for u in section.usage]
             lines.extend(format_two_column(items, width))
