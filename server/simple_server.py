@@ -1787,6 +1787,72 @@ class Server:
 
 # ---------------------------------------------------------------------------
 # Entry point
+async def run_until_stopped(server: 'Server', test_time: float = 0.0) -> None:
+    """Run *server* until SIGINT/SIGTERM (graceful_shutdown() first) or
+    until start() returns on its own.
+
+    Shared by simple_server.py's own __main__ and run_server.py (what the
+    live `tada` screen session actually runs) -- run_server.py used to do
+    a bare asyncio.run(server.start()), so Ctrl-C only cancelled the main
+    task: no shutdown notice, no graceful save, and start()'s
+    wait_closed() then sat waiting for every idle connection to drop on
+    its own (seen live 2026-10-07, a restart stalled minutes on one
+    player idle 11h).
+
+    test_time > 0 runs for that many seconds and exits (CI/diagnostics).
+    """
+    task = asyncio.create_task(server.start())
+
+    if test_time > 0:
+        await asyncio.sleep(test_time)
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        return
+
+    # SIGINT (Ctrl-C) / SIGTERM (`kill <pid>`, systemd/docker stop) --
+    # registered on the running loop so graceful_shutdown() can still
+    # await things (send to clients, save players) before the process
+    # exits. This replaces the old bare `except KeyboardInterrupt`
+    # below, which fired only *after* asyncio.run() had already torn
+    # the loop down -- too late to await anything. See
+    # Server.graceful_shutdown()'s own docstring for why SIGKILL can't
+    # be handled this way (or any way).
+    stop_event = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    installed = []
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            loop.add_signal_handler(sig, stop_event.set)
+            installed.append(sig)
+        except NotImplementedError:
+            # Windows: add_signal_handler isn't supported. Ctrl-C
+            # still raises KeyboardInterrupt the old way in that case
+            # (see the bare except below) -- just without a graceful
+            # save, same as before this feature existed.
+            pass
+
+    try:
+        stop_waiter = asyncio.create_task(stop_event.wait())
+        done, pending = await asyncio.wait(
+            {task, stop_waiter}, return_when=asyncio.FIRST_COMPLETED)
+
+        if stop_waiter in done and not task.done():
+            await server.graceful_shutdown()
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        else:
+            stop_waiter.cancel()
+    finally:
+        for sig in installed:
+            loop.remove_signal_handler(sig)
+
+
 # ---------------------------------------------------------------------------
 
 if __name__ == '__main__':
@@ -1817,54 +1883,8 @@ if __name__ == '__main__':
 
     server = Server(args.host, args.port, args.petscii_port)
 
-    async def _run():
-        task = asyncio.create_task(server.start())
-
-        if args.test_time > 0:
-            await asyncio.sleep(args.test_time)
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
-            return
-
-        # SIGINT (Ctrl-C) / SIGTERM (`kill <pid>`, systemd/docker stop) --
-        # registered on the running loop so graceful_shutdown() can still
-        # await things (send to clients, save players) before the process
-        # exits. This replaces the old bare `except KeyboardInterrupt`
-        # below, which fired only *after* asyncio.run() had already torn
-        # the loop down -- too late to await anything. See
-        # Server.graceful_shutdown()'s own docstring for why SIGKILL can't
-        # be handled this way (or any way).
-        stop_event = asyncio.Event()
-        loop = asyncio.get_running_loop()
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            try:
-                loop.add_signal_handler(sig, stop_event.set)
-            except NotImplementedError:
-                # Windows: add_signal_handler isn't supported. Ctrl-C
-                # still raises KeyboardInterrupt the old way in that case
-                # (see the bare except below) -- just without a graceful
-                # save, same as before this feature existed.
-                pass
-
-        stop_waiter = asyncio.create_task(stop_event.wait())
-        done, pending = await asyncio.wait(
-            {task, stop_waiter}, return_when=asyncio.FIRST_COMPLETED)
-
-        if stop_waiter in done and not task.done():
-            await server.graceful_shutdown()
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
-        else:
-            stop_waiter.cancel()
-
     try:
-        asyncio.run(_run())
+        asyncio.run(run_until_stopped(server, test_time=args.test_time))
     except (KeyboardInterrupt, BrokenPipeError):
         pass
     logging.info('Server shut down.')

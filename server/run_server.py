@@ -1,7 +1,7 @@
 """Small runner to start the simple_server.Server and keep it running.
 
 Usage:
-  python run_server.py [--host HOST] [--port PORT]
+  python run_server.py [--host HOST] [--port PORT] [--petscii-port PORT]
 
 Examples:
   python run_server.py --host 127.0.0.1 --port 34083
@@ -14,7 +14,7 @@ import sys
 
 sys.path.insert(0, str(__file__).rsplit('/', 1)[0])
 
-from simple_server import Server, _PlayerFilter
+from simple_server import PETSCII_PORT, Server, _PlayerFilter, run_until_stopped
 
 # Matches simple_server.py's own __main__ block -- without this, running
 # the server via this script (rather than `python simple_server.py`
@@ -31,13 +31,18 @@ logging.getLogger().handlers[0].addFilter(_PlayerFilter())
 parser = argparse.ArgumentParser()
 parser.add_argument('--host', default='0.0.0.0')
 parser.add_argument('--port', type=int, default=34083)
+parser.add_argument('--petscii-port', type=int, default=PETSCII_PORT, dest='petscii_port')
 args = parser.parse_args()
 
-server = Server(args.host, args.port)
+server = Server(args.host, args.port, args.petscii_port)
 
 async def main():
+    # run_until_stopped() installs the SIGINT/SIGTERM handler that runs
+    # Server.graceful_shutdown() (notify + save + close every connection)
+    # -- a bare `await server.start()` here left Ctrl-C to asyncio.run()'s
+    # default task cancel, which skipped all of that.
     try:
-        await server.start()
+        await run_until_stopped(server)
     except asyncio.CancelledError:
         pass
     except Exception:
@@ -48,3 +53,4 @@ if __name__ == '__main__':
         asyncio.run(main())
     except KeyboardInterrupt:
         logging.info('Server interrupted, shutting down')
+    logging.info('Server shut down.')
