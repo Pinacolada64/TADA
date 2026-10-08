@@ -12,7 +12,9 @@ Sections: Open PRs → Feature branches (no PR) → Direct commits to master →
 
 ## Open PRs
 
-_(none)_
+| PR | Branch | Tip | Summary |
+|----|--------|-----|---------|
+| [#83](https://github.com/Pinacolada64/TADA/pull/83) | `fix/editor-colors-escape` | `6d3d3ee` | Line editor `.h colors` shows the markup it teaches: `\|red\|word\|reset\|` and the Examples' syntax are escaped (`\|red\|Stop!\|reset\|`, `\|command\|.s\|reset\|`), explanations show the result in color; examples fit 40 columns. `table.py`: escaped `\|\|token\|\|` measured at its displayed width, cells wrap by visible width without splitting markup, truncation keeps escapes. `gen_help_pdf.py` strips tokens via `plain_encode()` (no more bare `\|\|` in the PDFs). 7 new tests; full suite incl. e2e 5030 passed. |
 
 ---
 
