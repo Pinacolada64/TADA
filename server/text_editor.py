@@ -1226,6 +1226,21 @@ async def _cmd_scale(editor: 'Editor', arg: str) -> Optional[str]:
     return None
 
 
+# What run_editor() shows when a session opens, and the hint '.h' adds for
+# a non-expert player -- module constants so tools/gen_help_pdf.py's
+# editor reference uses the exact same wording.
+EDITOR_INTRO_LINES = (
+    "Line editor -- type text to add lines; commands start with '.' or '/'.",
+    "|command|.h|reset| for help, |command|.s|reset| to save, |command|.a|reset| to abort.",
+)
+EDITOR_HELP_HINT = (
+    "Help on individual commands can be shown by typing "
+    "|command|.h <command_letter>|reset|. For example, |command|.h h|reset| "
+    "displays help for the |command|Help|reset| command. Type "
+    "|command|.h colors|reset| for help on color markup."
+)
+
+
 def _format_help_line(command_key: str, command_text: str, screen_width: int) -> str:
     """Dot-leader help line: '.a .......... Abort'"""
     left = f'.{command_key} '
@@ -1283,12 +1298,7 @@ async def _cmd_help(editor: 'Editor', arg: str) -> Optional[str]:
 
     if not arg:
         if not editor.ctx.player.is_expert:
-            await editor.ctx.send(
-                "(Help on individual commands can be shown by typing "
-                "|command|.h <command_letter>|reset|. For example, |command|.h h|reset| "
-                "displays help for the |command|Help|reset| command. Type "
-                "|command|.h colors|reset| for help on color markup.)"
-            )
+            await editor.ctx.send(f'({EDITOR_HELP_HINT})')
 
         out = [_format_help_line(cmd.command_key, cmd.command_text, editor.screen_width) for cmd in commands]
         await editor.ctx.send(out)
@@ -1574,10 +1584,7 @@ async def run_editor(ctx: 'GameContext',
     editor = Editor(ctx, initial_lines)
     editor.activity_id = activity_id
     editor.activity_label = activity_label
-    await ctx.send([
-        "Line editor -- type text to add lines; commands start with '.' or '/'.",
-        "|command|.h|reset| for help, |command|.s|reset| to save, |command|.a|reset| to abort.",
-    ])
+    await ctx.send(list(EDITOR_INTRO_LINES))
 
     # WHEREAT (commands/whereat.py) reads ctx.client.virtual_location --
     # same convention as commands/news.py's 'Reading news' and
