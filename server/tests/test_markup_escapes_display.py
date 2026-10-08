@@ -56,53 +56,22 @@ class TestTableEscapes(unittest.TestCase):
         self.assertEqual(table._visible_len(out), 8)
 
 
-class TestEditorColorsPetsciiBang(unittest.IsolatedAsyncioTestCase):
-    """'.h colors' adds a paragraph on '!' as a stand-in for '|' -- only
-    for Commodore (PETSCII) players, the only ones '!' works for."""
+class TestEditorColorsBang(unittest.TestCase):
+    """'.h colors' explains '!' as a stand-in for '|' -- to every player,
+    since '!' works on every terminal (markup_tokens.py)."""
 
-    async def _colors_help(self, petscii: bool) -> str:
-        from unittest.mock import AsyncMock, MagicMock, patch
-        from text_editor import run_editor
-        ctx = MagicMock()
-        ctx.player.client_settings.screen_columns = 40
-        ctx.player.query_flag = MagicMock(return_value=False)
-        ctx.player.is_expert = True
-        replies = iter(['.h colors', '.s'])
-        ctx.prompt = AsyncMock(side_effect=lambda *a, **kw: next(replies, None))
-        ctx.send = AsyncMock()
-        with patch('commands.help._is_petscii_viewer', return_value=petscii):
-            await run_editor(ctx)
-        sent = []
-        for call in ctx.send.await_args_list:
-            for arg in call.args:
-                sent.extend(arg if isinstance(arg, list) else [arg])
-        return '\n'.join(str(x) for x in sent)
+    def test_bang_paragraph_shows_syntax_literally(self):
+        text = '\n'.join(_shown(l) for l in _format_help_text(_COLOR_TOPIC_TEXT, 78))
+        self.assertIn('! works exactly like |', text)
+        self.assertIn('!red!word!reset! is the same as |red|word|reset|', text)
+        self.assertIn("(!red| isn't one)", text)
+        self.assertNotIn('!!', text)
 
-    async def test_commodore_player_sees_bang_paragraph(self):
-        text = await self._colors_help(petscii=True)
-        self.assertIn('On a Commodore, ! works exactly like |', text)
-        self.assertIn('use | instead', text)
-
-    async def test_other_players_do_not(self):
-        text = await self._colors_help(petscii=False)
-        self.assertIn('||red||word||reset||', text)          # the main topic is there
-        self.assertNotIn('On a Commodore', text)
-
-    def test_paragraph_shows_bang_syntax_on_a_commodore(self):
-        import formatting
-        from text_editor import _COLOR_TOPIC_PETSCII_TEXT
-        lines = _format_help_text(_COLOR_TOPIC_PETSCII_TEXT, 40)
-        shown = '\n'.join(formatting._PETSCII_TOKEN_RE.sub(
-            formatting._petscii_token_strip_replace, l) for l in lines)
-        self.assertIn('!red!word!reset! is the same as |red|word|reset|', shown)
-        self.assertIn("(!red| isn't one)", shown)
-        self.assertNotIn('!!', shown)
-
-    def test_paragraph_encodes_cleanly(self):
-        from formatting import petscii_encode
-        from text_editor import _COLOR_TOPIC_PETSCII_TEXT
+    def test_topic_encodes_cleanly_everywhere(self):
+        from formatting import ansi_encode, petscii_encode
         with self.assertNoLogs('root', level='WARNING'):
-            for line in _format_help_text(_COLOR_TOPIC_PETSCII_TEXT, 40):
+            for line in _format_help_text(_COLOR_TOPIC_TEXT, 40):
+                ansi_encode(line)
                 petscii_encode(line)
 
 
@@ -114,14 +83,13 @@ class TestHelpPdfStripTokens(unittest.TestCase):
         self.assertEqual(gen_help_pdf.strip_tokens('then ||reset|| returns, |red|word|reset| [[x]] 5%%'),
                          'then |reset| returns, word [x] 5%')
 
-    def test_editor_pdf_includes_commodore_paragraph(self):
+    def test_editor_pdf_shows_bang_paragraph_literally(self):
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'tools'))
         import gen_help_pdf
         entries, _intro = gen_help_pdf.collect_editor_entries()
         colors = next(e for e in entries if e['name'] == '.h colors')
         text = '\n'.join(colors['lines'])
-        self.assertIn('Commodore (PETSCII) connections only:', text)
-        self.assertIn('!red!word!reset!', text)
+        self.assertIn('!red!word!reset! is the same as |red|word|reset|', text)
         self.assertNotIn('!!', text)
 
 

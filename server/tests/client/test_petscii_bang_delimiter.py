@@ -6,10 +6,12 @@ Ryan asked for an easier-to-type substitute for PETSCII clients specifically:
 in _expand_tab_tokens() when the target codec is PETSCIICodec), including the
 doubled-delimiter escape (!!token!! -> literal !token!, matching ||token|| ->
 |token|). '|' still works everywhere it always has -- this is additive, not
-a replacement -- and ANSI/plain encoding are deliberately left untouched
-since '!' is common in ordinary game text there ("Welcome, Alice!") in a way
-it isn't a concern for PETSCII, where the whole point is avoiding an awkward
-keystroke.
+a replacement.
+
+Since 2026-10-07 '!' works on every terminal (ANSI and plain too), so a
+Commodore player's !red! text renders for everyone -- but only around a
+real token name (markup_tokens.TOKEN_NAMES), since '!' is common in
+ordinary game text ("Welcome, Alice!"). See markup_tokens.py.
 """
 from __future__ import annotations
 
@@ -81,18 +83,29 @@ class TestPetsciiEncodeBangDelimiter(unittest.TestCase):
         self.assertGreater(len(result), 0)
 
 
-class TestAnsiPlainRemainPipeOnly(unittest.TestCase):
-    """'!' must NOT become a delimiter for ANSI/plain clients -- unlike
-    '|', it's common in ordinary game text ("Welcome, Alice!")."""
+class TestAnsiPlainBangDelimiter(unittest.TestCase):
+    """'!' works like '|' for ANSI/plain clients too, but only around a
+    real token name -- ordinary '!' text ("Welcome, Alice!") is untouched."""
 
-    def test_ansi_encode_bang_token_stays_literal(self):
-        self.assertEqual(ansi_encode('!red!Hi!reset!'), '!red!Hi!reset!')
+    def test_ansi_encode_bang_token_applies_like_pipe(self):
+        self.assertEqual(ansi_encode('!red!Hi!reset!'), ansi_encode('|red|Hi|reset|'))
+        self.assertNotIn('!', ansi_encode('!red!Hi!reset!'))
 
     def test_ansi_encode_pipe_token_still_applies(self):
         self.assertNotEqual(ansi_encode('|red|Hi|reset|'), '|red|Hi|reset|')
 
-    def test_plain_encode_bang_token_stays_literal(self):
-        self.assertEqual(plain_encode('!red!Hi!reset!'), '!red!Hi!reset!')
+    def test_plain_encode_strips_bang_token(self):
+        self.assertEqual(plain_encode('!red!Hi!reset!'), 'Hi')
+
+    def test_bang_escape_shows_literal_for_ansi_and_plain(self):
+        self.assertEqual(ansi_encode('!!red!!Hi'), '!red!Hi')
+        self.assertEqual(plain_encode('!!red!!Hi'), '!red!Hi')
+
+    def test_bang_around_a_non_token_word_is_left_alone(self):
+        for text in ('Wow!great!', 'Hey!!wow!!', 'PILLAGE!redx!'):
+            with self.subTest(text=text), self.assertNoLogs('root', level='WARNING'):
+                self.assertEqual(ansi_encode(text), text)
+                self.assertEqual(plain_encode(text), text)
 
     def test_ordinary_exclamations_unaffected(self):
         text = 'Welcome, Alice! You win!'
@@ -121,15 +134,15 @@ class TestExpandTabTokensBangDelimiter(unittest.TestCase):
         cs = _settings(has_tab_key=False, tab_width=4)
         self.assertEqual(_expand_tab_tokens('A!!tab!!B', cs, PETSCIICodec()), 'A!!tab!!B')
 
-    def test_bang_tab_not_expanded_for_ansi_codec(self):
-        """Scoped to PETSCII only -- an ANSI client typing '!tab!' just
-        gets literal text, not a real tab."""
+    def test_bang_tab_expands_for_ansi_codec(self):
+        """'!' works on every terminal now -- an ANSI client's '!tab!' is a
+        real tab too."""
         cs = _settings(has_tab_key=False, tab_width=4)
-        self.assertEqual(_expand_tab_tokens('A!tab!B', cs, ANSICodec()), 'A!tab!B')
+        self.assertEqual(_expand_tab_tokens('A!tab!B', cs, ANSICodec()), 'A   B')
 
-    def test_bang_tab_not_expanded_with_no_codec(self):
+    def test_bang_tab_expands_with_no_codec(self):
         cs = _settings(has_tab_key=False, tab_width=4)
-        self.assertEqual(_expand_tab_tokens('A!tab!B', cs, None), 'A!tab!B')
+        self.assertEqual(_expand_tab_tokens('A!tab!B', cs, None), 'A   B')
 
     def test_format_lines_expands_bang_tab_for_petscii(self):
         cs = _settings(has_tab_key=False, tab_width=4)

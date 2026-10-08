@@ -789,6 +789,13 @@
   too, gated to PETSCII viewers only via the new `Help.petscii_notes`/
   `is_petscii` mechanism (mirrors the existing admin_notes/is_privileged
   gating).
+  [UPDATED 10/7/26] `!` now works on **every** terminal (Ryan), so a
+  Commodore player's `!red!` mail/posts/say render for ANSI and plain
+  readers too -- but only around a real token name (markup_tokens.py's
+  TOKEN_NAMES), which keeps ordinary text like "Wow!great!" untouched.
+  One shared pattern (markup_tokens.TOKEN_RE) now serves formatting.py,
+  table.py and menu_system.py; 'help colors' and '.h colors' explain `!`
+  to everyone. Live check: tools/bot_bang_markup.py.
 - Level 6 "Stardate" date format (Ryan): level 6's sci-fi theming (see
   books.json's "Stardate: 2163.5" flavor text) suggests its own date
   display should read as a Star Trek-style stardate (`yyyy.mm.dd`)

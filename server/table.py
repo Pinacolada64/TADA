@@ -34,26 +34,15 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Iterable, List, Optional, Sequence
 
-# Strip |pipe-token| color markers before measuring visible width. An
-# escaped ||token|| is not a marker: it displays as the literal |token|
-# (formatting.py's _TOKEN_RE / _token_strip_replace(), mirrored here for
-# the same no-dependency reason as _BRACKET_RE below), so it has to count
-# as that many visible characters -- or a cell *showing* markup, like the
-# line editor's '.h colors' examples, gets too narrow a column.
-_TOKEN_RE = re.compile(r'\|\|(?P<escaped>[a-z_]+)\|\||\|[a-z_]+\|')
-
-
-def _displayed_tokens(text: str) -> str:
-    """*text* as it shows on screen: real |tokens| gone, ||escaped||
-    ones as their literal |token|."""
-    return _TOKEN_RE.sub(lambda m: f"|{m.group('escaped')}|" if m.group('escaped') else '', text)
-
-
-def _strip_real_tokens(text: str) -> str:
-    """Drop real |tokens| but keep ||escaped|| ones as written, so text
-    sent on still displays them literally instead of turning them into
-    real color markers."""
-    return _TOKEN_RE.sub(lambda m: m.group(0) if m.group('escaped') else '', text)
+# Strip |pipe-token| (and !bang-token!) color markers before measuring
+# visible width. An escaped ||token|| / !!token!! is not a marker: it
+# displays as the literal |token| / !token!, so it counts as that many
+# visible characters -- or a cell *showing* markup, like the line
+# editor's '.h colors' examples, gets too narrow a column. The pattern
+# lives in markup_tokens.py, shared with formatting.py, so this module
+# still has no dependency on formatting.py itself.
+from markup_tokens import TOKEN_RE as _TOKEN_RE, displayed as _displayed_tokens, \
+    strip_real as _strip_real_tokens
 
 # formatting.py's [bracket] highlighting convention (highlight_brackets()):
 # a cell can carry raw '[LOOT]'-style markup that ctx.send()'s pipeline
@@ -231,12 +220,12 @@ def _wrap_visible(paragraph: str, width: int) -> list[str]:
     counts |token| markup as width, so a cell holding color tokens broke
     early -- and mid-word ('Warnin' / 'g!'). A word that is itself wider
     than the cell is only split when it carries no markup (splitting
-    '||red||' or '|reset|' would leave broken tokens on screen)."""
+    '||red||', '|reset|' or '!red!' would leave broken tokens on screen)."""
     out: list[str] = []
     line, line_len = "", 0
     for word in paragraph.split():
         wlen = _visible_len(word)
-        if wlen > width and '|' not in word and '[' not in word:
+        if wlen > width and not _TOKEN_RE.search(word) and '[' not in word:
             pieces = textwrap.wrap(word, width=width, break_long_words=True)
         else:
             pieces = [word]
