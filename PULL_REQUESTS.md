@@ -12,9 +12,7 @@ Sections: Open PRs → Feature branches (no PR) → Direct commits to master →
 
 ## Open PRs
 
-| PR | Branch | Tip | Summary |
-|----|--------|-----|---------|
-| [#83](https://github.com/Pinacolada64/TADA/pull/83) | `fix/editor-colors-escape` | `7516975` | Markup: `!` works like `\|` on **every** terminal (was Commodore-only) -- `!red!`, `!tab!`, counts, `!!red!!` escape -- but only around a real token name, so ordinary `!` text is untouched; one shared pattern in new `markup_tokens.py` for formatting.py/table.py/menu_system.py; `help colors`/`.h colors` explain it to everyone. `.h colors` shows the syntax it teaches (`\|red\|word\|reset\|`, escaped examples, 40-column layout). `table.py`: escapes measured at displayed width, wrap by visible width without splitting markup. `gen_help_pdf.py` strips via `plain_encode()`. Full suite incl. e2e 5043 passed; `tools/bot_bang_markup.py` 5/5 (ANSI + plain over real sockets). |
+_(none)_
 
 ---
 
@@ -37,6 +35,7 @@ Sections: Open PRs → Feature branches (no PR) → Direct commits to master →
 
 | PR | Merge commit | Branch | Title |
 |----|--------------|--------|-------|
+| [#83](https://github.com/Pinacolada64/TADA/pull/83) | `61bdbd8` | `fix/editor-colors-escape` | `!` markup works like `\|` on every terminal, only around real token names (new `markup_tokens.py`, shared by formatting.py/table.py/menu_system.py); `.h colors` shows the syntax it teaches and explains `!` to everyone; `table.py` measures escaped markup at its displayed width and wraps without splitting markup; `gen_help_pdf.py` strips via `plain_encode()`. |
 | [#82](https://github.com/Pinacolada64/TADA/pull/82) | `7bd3ab6` | `feature/docs-pdf` | `server/tools/gen_help_pdf.py`: exports in-game help as PDF manuals -- `TADA_Help_Reference.pdf` (74 commands, 29 concept topics, player view via `format_help()` + ReportLab) and `TADA_Editor_Reference.pdf` (the line editor's `.h` help: 19 dot commands, `.h colors`, 4 admin-only). `reportlab~=5.0` in requirements.txt; 3 player-text typo fixes. Written 2026-09-20, merged 2026-10-07. |
 | [#81](https://github.com/Pinacolada64/TADA/pull/81) | `d4bb66a` | `feature/help-flag-sections` | Flag-gated help (`HelpSection` / `Help.sections`, shown only to viewers with one of its `PlayerFlags` or Admins/DMs); `help helpstaff` hides staff switches from plain players (a **Helpstaff** section instead), and they read as "Unknown option"; too-long syntax at 40 columns gets its own line; usage/example syntax in `\|command\|` color. |
 | [#80](https://github.com/Pinacolada64/TADA/pull/80) | `120dfbd` | `fix/get-hides-carried-static-items` | GET's item list (`_room_available_items()`, also LOOK/EXAMINE <item>) now hides a static room item the player already carries, category-aware -- SPUR.MAIN.S:244's xi$/xt$ check; the room description already did, so `get prospecting` offered a book LOOK hid. Pickup was already blocked ("You already have"), so display/fidelity only. Dropped copies still listed. 5 new tests; full suite 4995 passed; CI green. Live server restarted on `120dfbd` (2026-10-07, first graceful SIGINT restart via #79, ~2s); live: carrying the book, `get prospecting` in room 89 -> "You do not see any". |
