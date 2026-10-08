@@ -10,6 +10,12 @@ log = logging.getLogger(__name__)
 
 _WEAPON_MAX = 6  # SPUR xw<6 gate
 
+# Only the first ten weapons are the smith's own stock (SPUR's cb$="2"
+# "for sale" rows are #1-10); everything past that -- the higher-level
+# gear -- is for players to discover out in the dungeon, not to browse
+# here. Ryan's call, 2026-10-07.
+_SHOP_STOCK_MAX = 10
+
 
 # ---------------------------------------------------------------------------
 # Data loaders
@@ -56,6 +62,8 @@ async def _buy(ctx: GameContext, player, inv, all_weapons) -> None:
             return 0
         return len(inv.entries('Weapon'))
 
+    for_sale = all_weapons[:_SHOP_STOCK_MAX]
+
     await ctx.send([
         '',
         "Excellent! Choose thee well!! From mine hands I have crafted this list of fine weapons!",
@@ -84,7 +92,7 @@ async def _buy(ctx: GameContext, player, inv, all_weapons) -> None:
             return
         if choice == '?':
             lines = ['', 'Available weapons:', '']
-            for w in all_weapons:
+            for w in for_sale:
                 lines.append(f"  {w['number']:>3}. {w['name']:<22} {w['price']:>5}s")
             await ctx.send(lines)
             continue
@@ -99,7 +107,7 @@ async def _buy(ctx: GameContext, player, inv, all_weapons) -> None:
             await ctx.send('Enter a weapon number, ? to list, or [Q] Leave.')
             continue
 
-        matched = next((w for w in all_weapons if w['number'] == wnum), None)
+        matched = next((w for w in for_sale if w['number'] == wnum), None)
         if matched is None:
             await ctx.send('Weapon not available for sale!')
             continue
