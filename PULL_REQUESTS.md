@@ -12,9 +12,7 @@ Sections: Open PRs → Feature branches (no PR) → Direct commits to master →
 
 ## Open PRs
 
-| PR | Branch | Tip | Summary |
-|----|--------|-----|---------|
-| [#82](https://github.com/Pinacolada64/TADA/pull/82) | `feature/docs-pdf` | `08d7684` | `server/tools/gen_help_pdf.py` (written 2026-09-20, unmerged until now): exports every in-game help entry (74 commands, 29 concept topics) via `format_help()` + ReportLab to `TADA_Help_Reference.pdf`, player view, plus `TADA_Editor_Reference.pdf` (the line editor's `.h` help: 19 dot commands, `.h colors`, 4 admin-only; `EDITOR_INTRO_LINES`/`EDITOR_HELP_HINT` constants in text_editor.py), resolving `\|tokens\|`/`[[..]]`/`%%` like a real client; `reportlab~=5.0` in requirements.txt; 3 player-text typo fixes (scrapping/not/hit hit). Master merged in clean; full suite incl. e2e passes. |
+_(none)_
 
 ---
 
@@ -37,6 +35,7 @@ Sections: Open PRs → Feature branches (no PR) → Direct commits to master →
 
 | PR | Merge commit | Branch | Title |
 |----|--------------|--------|-------|
+| [#82](https://github.com/Pinacolada64/TADA/pull/82) | `7bd3ab6` | `feature/docs-pdf` | `server/tools/gen_help_pdf.py`: exports in-game help as PDF manuals -- `TADA_Help_Reference.pdf` (74 commands, 29 concept topics, player view via `format_help()` + ReportLab) and `TADA_Editor_Reference.pdf` (the line editor's `.h` help: 19 dot commands, `.h colors`, 4 admin-only). `reportlab~=5.0` in requirements.txt; 3 player-text typo fixes. Written 2026-09-20, merged 2026-10-07. |
 | [#81](https://github.com/Pinacolada64/TADA/pull/81) | `d4bb66a` | `feature/help-flag-sections` | Flag-gated help (`HelpSection` / `Help.sections`, shown only to viewers with one of its `PlayerFlags` or Admins/DMs); `help helpstaff` hides staff switches from plain players (a **Helpstaff** section instead), and they read as "Unknown option"; too-long syntax at 40 columns gets its own line; usage/example syntax in `\|command\|` color. |
 | [#80](https://github.com/Pinacolada64/TADA/pull/80) | `120dfbd` | `fix/get-hides-carried-static-items` | GET's item list (`_room_available_items()`, also LOOK/EXAMINE <item>) now hides a static room item the player already carries, category-aware -- SPUR.MAIN.S:244's xi$/xt$ check; the room description already did, so `get prospecting` offered a book LOOK hid. Pickup was already blocked ("You already have"), so display/fidelity only. Dropped copies still listed. 5 new tests; full suite 4995 passed; CI green. Live server restarted on `120dfbd` (2026-10-07, first graceful SIGINT restart via #79, ~2s); live: carrying the book, `get prospecting` in room 89 -> "You do not see any". |
 | [#79](https://github.com/Pinacolada64/TADA/pull/79) | `748aae4` | `fix/run-server-graceful-shutdown` | `run_server.py` (the live entry point) now runs `Server.graceful_shutdown()` on SIGINT/SIGTERM via a shared `simple_server.run_until_stopped()` -- it used to skip it, so Ctrl-C gave no shutdown notice and waited on idle connections (the #78 restart stalled minutes). Also `run_server.py --petscii-port`. Real-process SIGINT with an idle connection exits in 0.06s; full suite 5001 passed; CI green. Live server stopped via in-game `shutdown #time now` and started on `748aae4` (2026-10-07). |
