@@ -12,7 +12,9 @@ Sections: Open PRs → Feature branches (no PR) → Direct commits to master →
 
 ## Open PRs
 
-_(none)_
+| PR | Branch | Tip | Summary |
+|----|--------|-----|---------|
+| [#84](https://github.com/Pinacolada64/TADA/pull/84) | `fix/armory-stock-first-ten` | `42343a5` | Weapons Master's buy list (`shoppe/armory.py` `_buy`) lists and sells only the first ten weapons (`_SHOP_STOCK_MAX`, SPUR's own shop stock #1-10); higher-level gear is left for players to discover. Selling still recognizes every weapon; ship armory unaffected. Note: SPUR's for-sale set also had #25. 3 new tests (`tests/shoppe/test_armory_stock.py`); suite 5035 passed. |
 
 ---
 
