@@ -14,7 +14,7 @@ Sections: Open PRs → Feature branches (no PR) → Direct commits to master →
 
 | PR | Branch | Tip | Summary |
 |----|--------|-----|---------|
-| [#83](https://github.com/Pinacolada64/TADA/pull/83) | `fix/editor-colors-escape` | `6d3d3ee` | Line editor `.h colors` shows the markup it teaches: `\|red\|word\|reset\|` and the Examples' syntax are escaped (`\|red\|Stop!\|reset\|`, `\|command\|.s\|reset\|`), explanations show the result in color; examples fit 40 columns. `table.py`: escaped `\|\|token\|\|` measured at its displayed width, cells wrap by visible width without splitting markup, truncation keeps escapes. `gen_help_pdf.py` strips tokens via `plain_encode()` (no more bare `\|\|` in the PDFs). 7 new tests; full suite incl. e2e 5030 passed. |
+| [#83](https://github.com/Pinacolada64/TADA/pull/83) | `fix/editor-colors-escape` | `7516975` | Markup: `!` works like `\|` on **every** terminal (was Commodore-only) -- `!red!`, `!tab!`, counts, `!!red!!` escape -- but only around a real token name, so ordinary `!` text is untouched; one shared pattern in new `markup_tokens.py` for formatting.py/table.py/menu_system.py; `help colors`/`.h colors` explain it to everyone. `.h colors` shows the syntax it teaches (`\|red\|word\|reset\|`, escaped examples, 40-column layout). `table.py`: escapes measured at displayed width, wrap by visible width without splitting markup. `gen_help_pdf.py` strips via `plain_encode()`. Full suite incl. e2e 5043 passed; `tools/bot_bang_markup.py` 5/5 (ANSI + plain over real sockets). |
 
 ---
 
