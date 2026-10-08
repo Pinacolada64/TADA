@@ -39,7 +39,9 @@ Checks:
      leaves them off duty (throwaway mode only)
   A  #show with nobody on duty: "No one is on helpstaff duty"
   B  asking with nobody on duty saves the question for a mailed answer
-  C  a plain player's #on is refused (throwaway mode only)
+  C  a plain player's #on is refused as an unknown option, and their
+     'help helpstaff' has no Helpstaff section; the member's does
+     (throwaway mode only)
   D  #on: on duty, and told a saved question is waiting
   E  #show now lists the staffer
   F  asking: the "What do you need help with?" prompt (in msg['prompt'],
@@ -422,9 +424,16 @@ async def scenario(host: str, port: int, staff: Bot, newbie: Bot,
     if watch:
         log('\n== C: a plain player tries #on')
         said = await watch.run('helpstaff #on')
-        check('C a plain player cannot go on duty',
-              has(said, 'Only helpstaff members, Admins and Dungeon Masters '
-                        'can go on helpstaff duty.'), joined(said))
+        check('C a plain player cannot go on duty (#on reads as an unknown option)',
+              has(said, "Unknown option '#on'."), joined(said))
+        shown = await watch.run('help helpstaff', answer=lambda b: '')
+        check("C a plain player's help helpstaff has no Helpstaff section or #faq",
+              has(shown, 'helpstaff #show') and not has(shown, 'Helpstaff:')
+              and not has(shown, '#faq'), joined(shown)[-200:])
+        shown = await staff.run('help helpstaff', answer=lambda b: '')
+        check("C the member's help helpstaff shows the Helpstaff section",
+              has(shown, 'Helpstaff:') and has(shown, 'helpstaff #faq #add'),
+              joined(shown)[-200:])
     else:
         log('\n== C: skipped (--live: every bot account is an Admin)')
 

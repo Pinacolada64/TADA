@@ -488,7 +488,11 @@ class TestFormatTwoColumnBracketAlignment(unittest.TestCase):
     def test_commandline_topic_usage_rows_align(self):
         from formatting import highlight_brackets, PlainCodec
         out = format_help(_TOPICS["commandline"], width=78) or []
-        rendered = [highlight_brackets(line, PlainCodec()) for line in out]
+        import re
+        # Strip |color| tokens too (usage syntax is |command|-colored) --
+        # both are zero-width on screen, so this is what actually lines up.
+        rendered = [re.sub(r'\|[a-z_]+\|', '', highlight_brackets(line, PlainCodec()))
+                    for line in out]
         required_line = next(l for l in rendered if l.strip().startswith("<required>"))
         optional_line = next(l for l in rendered if l.strip().startswith("[optional]"))
         col_a = required_line.index("Angle brackets:")
