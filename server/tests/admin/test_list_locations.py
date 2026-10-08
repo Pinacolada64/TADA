@@ -303,8 +303,9 @@ class TestTeleportOption(unittest.IsolatedAsyncioTestCase):
                         prompt_answer='')
         ctx.player.return_key = 'Return'
         await cmd.execute(ctx, '#w', '#tel')
-        prompt_text = ctx.prompt.await_args.args[0]
-        self.assertIn('Return', prompt_text)
+        call = ctx.prompt.await_args
+        preamble = call.kwargs.get('preamble_lines') or []
+        self.assertIn('Return', ' '.join(preamble) + call.args[0])
 
     async def test_tel_flag_cancel_on_blank(self):
         cmd = ListLocationsCommand()

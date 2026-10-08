@@ -87,7 +87,7 @@ class TestTryMonsterEncounterTurfGuardRouting(unittest.IsolatedAsyncioTestCase):
         ctx = _make_ctx(guild=Guild.CLAW, monster_no=67)
         with patch('encounters.monster._try_surprise') as mock_surprise, \
              patch('encounters.monster._try_spontaneous_charm') as mock_charm, \
-             patch('encounters.monster._try_ally_tactical') as mock_tactical:
+             patch('encounters.monster._queue_engage') as mock_tactical:
             await try_monster_encounter(ctx, level=1, room_no=2)
         mock_surprise.assert_not_called()
         mock_charm.assert_not_called()
@@ -101,6 +101,15 @@ def _make_shadow_ctx(room_flags=(), prompt_reply='Y'):
     ctx.player.honor = 1000
     ctx.player.party = MagicMock()
     ctx.player.party.add = AsyncMock()
+
+    def _adjust_honor(adjustment):
+        if adjustment == 0:
+            return None
+        ctx.player.honor += adjustment
+        ctx.player.unsaved_changes = True
+        phrase = 'less' if adjustment < 0 else 'more'
+        return ctx.player.honor, f'(You feel {phrase} honorable) ({adjustment:+d})'
+    ctx.player.adjust_honor = _adjust_honor
     ctx.client.room = 2
 
     room = MagicMock()

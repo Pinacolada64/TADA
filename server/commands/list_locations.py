@@ -144,7 +144,7 @@ class ListLocationsCommand(Command):
             ('list #a[rmor]',   'List every armor location.'),
             ('list #s[hield]',  'List every shield location.'),
             ('list #i[tems]',   'List every item location (any type).'),
-            ('list #<type>',    'List by a specific objects.json type (book, treasure, etc.).'),
+            ('list #<type>',    'List by a specific item type (book, treasure, etc.).'),
             ('list #m[onsters]', 'List every monster location.'),
             ('list #r[ations]', 'List every ration (food/drink) location.'),
             ('list #<cat> <name>', 'Narrow to entries whose name contains <name>.'),
@@ -153,21 +153,25 @@ class ListLocationsCommand(Command):
             ('list #w',       'LIST scans every room on every level and reports where a '
                                "category of object currently sits -- a way to answer "
                                '"where are all the copies of X" without digging through '
-                               "the raw data files. \"list #w\" reports every weapon's "
+                               "the raw data files. |command|list #w|reset| reports every weapon's "
                                "current room."),
-            ('list #shield',  'Any objects.json "type" works as a switch, not just the '
-                               'shorthand ones -- "list #shield" lists every shield the '
+            ('list #shield',  'Any item "type" works as a switch, not just the '
+                               'shorthand ones -- |command|list #shield|reset| lists every shield the '
                                'same way.'),
             ('list #m goblin', 'A category also takes an optional substring to search for '
-                               "a specific entry by name -- \"list #m goblin\" lists only "
+                               "a specific entry by name -- |command|list #m goblin|reset| lists only "
                                'monster locations whose name contains "goblin".'),
             ('list #w #tel',  "Adding '#tel' after the listing prompts you to pick one of "
                                "the results and teleport straight to it -- handy for "
                                "actually going to check on a specific copy."),
-            ('find #r ale',   "'find' is an alias for 'list' -- \"find #r ale\" searches "
+            ('find #r ale',   "'find' is an alias for 'list' -- |command|find #r ale|reset| searches "
                                'ration locations for names containing "ale".'),
         ],
         notes = ['Admin or Dungeon Master only.'],
+        admin_notes = [
+            '<type> is any objects.json "type" field value, not just the '
+            'shorthand categories listed above.',
+        ],
     )
 
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
@@ -251,7 +255,8 @@ class ListLocationsCommand(Command):
     async def _offer_teleport(self, ctx: GameContext, found: list) -> None:
         return_key = ctx.player.return_key
         raw_choice = await ctx.prompt(
-            f'Teleport to which number? (or {return_key} to abort)'
+            '#',
+            preamble_lines=[f'Teleport to which number? (or {return_key} to abort)'],
         )
         if not raw_choice or not raw_choice.strip():
             return

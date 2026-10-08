@@ -24,7 +24,7 @@ news_store.save_news(). See _RESUME_HANDLERS below. A recovered new post
 lands with sane defaults for anything that genuinely can't survive a
 crash (a fresh news post's admin-picked lifetime, since that's collected
 even earlier than the title) -- 'permanent' until the admin narrows it
-with 'news edit <id>'. Anything whose activity_id has no registered
+with 'news #edit <id>'. Anything whose activity_id has no registered
 handler falls back to a plain personal text file the player can review
 and repost by hand.
 """
@@ -97,7 +97,7 @@ async def _resume_news_post(ctx, rest: str, body: list) -> Optional[str]:
     """rest is the title verbatim (no admin-picked lifetime survives a
     crash, since that's collected before the editor opens) -- posted as
     'permanent' by default; the admin can narrow it afterwards with
-    'news edit <id>'."""
+    'news #edit <id>'."""
     import datetime
     import news as news_store
     if not rest:
@@ -115,20 +115,26 @@ async def _resume_news_post(ctx, rest: str, body: list) -> Optional[str]:
     items.append(item)
     news_store.save_news(items)
     return (f"News item #{item['id']} posted (as \"permanent\" -- "
-            f"use 'news edit {item['id']}' to change that).")
+            f"use |command|news #edit {item['id']}|reset| to change that).")
 
 
 async def _resume_board_post(ctx, rest: str, body: list) -> Optional[str]:
-    """rest is 'title\\x1fanonymous_flag' -- see commands/board.py's
-    _post() for the other end of this encoding."""
+    """rest is 'title\\x1fanonymous_flag\\x1fboard_id' -- see
+    commands/board/board.py's _post() for the other end of this
+    encoding. board_id defaults to 1 (the only board that existed
+    before this field was added) so a recovery file saved before this
+    change still resumes cleanly."""
     import datetime
     import board as board_store
-    title, _, anon_flag = rest.partition('\x1f')
+    title, _, remainder = rest.partition('\x1f')
+    anon_flag, _, board_id_str = remainder.partition('\x1f')
     if not title:
         return None
+    board_id = int(board_id_str) if board_id_str.isdigit() else board_store.meta.DEFAULT_BOARD_ID
     threads = board_store.load_board()
     thread = {
         'id':        board_store.next_id(threads),
+        'board_id':  board_id,
         'title':     title,
         'author':    ctx.player.name,
         'anonymous': anon_flag == '1',
@@ -204,7 +210,7 @@ class EditCommand(Command):
             if body is None:
                 await ctx.send('Cancelled.')
                 return CommandResult.ok('Cancelled.')
-            await ctx.send('(Not saved anywhere permanent -- use "edit <filename>" to keep it.)')
+            await ctx.send('(Not saved anywhere permanent -- use |command|edit <filename>|reset| to keep it.)')
             return CommandResult.ok('Edited scratch buffer.')
 
         return await self._resume_recovery(ctx, recovery_path)
@@ -213,7 +219,8 @@ class EditCommand(Command):
         data = load_recovery_file(recovery_path)
         label = data.get('activity_label') or 'writing something'
         choice = await ctx.prompt(
-            f'Before the server went down, you were {label}. Resume editing? y/n')
+            'y/n',
+            preamble_lines=[f'Before the server went down, you were {label}. Resume editing? y/n'])
         if not (choice or '').strip().lower().startswith('y'):
             delete_recovery_file(recovery_path)
             await ctx.send('Recovery text discarded.')

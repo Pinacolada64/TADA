@@ -19,6 +19,9 @@ class PlayerFlags(StrEnum):
     DUNGEON_MASTER = "Dungeon Master"
     # speaker on a chat channel or in an amphitheater (public chat room):
     ORATOR = "Orator"
+    # on helpstaff duty: notified of, and can accept, 'helpstaff' requests
+    # (commands/helpstaff.py):
+    HELPSTAFF = "Helpstaff"
     # guild stuff:
     GUILD_AUTODUEL = "Guild AutoDuel"
     GUILD_FOLLOW_MODE = "Guild Follow Mode"
@@ -49,6 +52,11 @@ class PlayerFlags(StrEnum):
     GAUNTLETS_WORN = "Gauntlets worn"
     PENDANT_WORN = "Pendant worn"
     RING_WORN = "Ring worn"
+    # SPUR.MISC2.S:460 -- Odin the Shield Master's training (message #13):
+    # +20% shield block chance, +1 damage absorbed, -3% shield-rip chance.
+    # Quest to earn it isn't ported yet (see quests/README.md); the flag
+    # exists so combat/resolution.py's formulas are ready when it is.
+    SHIELD_TRAINED = "Shield Trained"
     SPUR_ALIVE = "SPUR alive"
     THUG_ATTACK = "Thug attack"
     WRAITH_KING_ALIVE = "Wraith King alive"
@@ -75,6 +83,7 @@ new_player_default_flags = [
     # a level lower than Admin, different permissions to be determined:
     (PlayerFlags.DUNGEON_MASTER, FlagDisplayTypes.YESNO, False),
     (PlayerFlags.ORATOR, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.HELPSTAFF, FlagDisplayTypes.ONOFF, False),
     # guild stuff:
     (PlayerFlags.GUILD_AUTODUEL, FlagDisplayTypes.ONOFF, False),
     (PlayerFlags.GUILD_FOLLOW_MODE, FlagDisplayTypes.ONOFF, False),
@@ -92,6 +101,7 @@ new_player_default_flags = [
     (PlayerFlags.DWARF_ALIVE, FlagDisplayTypes.YESNO, True),
     (PlayerFlags.GAUNTLETS_WORN, FlagDisplayTypes.YESNO, False),
     (PlayerFlags.PENDANT_WORN, FlagDisplayTypes.YESNO, False),
+    (PlayerFlags.SHIELD_TRAINED, FlagDisplayTypes.YESNO, False),
     (PlayerFlags.RING_WORN, FlagDisplayTypes.YESNO, False),
     (PlayerFlags.SPUR_ALIVE, FlagDisplayTypes.YESNO, True),
     (PlayerFlags.THUG_ATTACK, FlagDisplayTypes.YESNO, False),

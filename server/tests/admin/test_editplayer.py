@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import unittest
+import unittest.mock
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -77,12 +78,22 @@ class _MockPlayer:
         self.food               = 20
         self.drink              = 20
         self._held_items: set   = set()
+        self.party: list        = []
+        self.unsaved_changes    = False
+
+    @property
+    def return_key(self) -> str:
+        return self.client_settings.return_key
 
     def has_item(self, *, name=None, item_id=None, category=None) -> bool:
         return name is not None and name.upper() in self._held_items
 
     def query_flag(self, flag) -> bool:
         return flag in self._flags
+
+    @property
+    def return_key(self) -> str:
+        return self.client_settings.return_key
 
     def set_flag(self, flag) -> None:
         self._flags.add(flag)
@@ -235,7 +246,7 @@ class TestMenuStructure(unittest.TestCase):
     def test_main_menu_contains_expected_labels(self):
         labels = {i.text for i in _build_main_menu(self.ctx).selectable}
         for name in ('Alignment', 'Attributes', 'Flags/Counters',
-                     'Statistics', 'Character Names', 'Combinations',
+                     'Statistics', 'Character / NPC Stats', 'Combinations',
                      'Hit Points', 'Money', 'Weapons'):
             self.assertIn(name, labels, f'{name!r} missing from main menu')
 
@@ -493,6 +504,113 @@ class TestCommandSettingsNewsMenu(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Didn't understand that date.", ctx.sent)
 
 
+class TestCommandSettingsReplyTargetMenu(unittest.IsolatedAsyncioTestCase):
+    """'Last Paged' / 'Last Whispered' entries -- the '#reply'/'#r' target
+    for commands/page.py and commands/whisper.py, editable by an admin."""
+
+    def _item(self, ctx, text):
+        menu = _command_settings_menu(ctx)
+        return next(i for i in menu.selectable if i.text == text)
+
+    def _ctx(self, responses=None):
+        import types
+        ctx = _MockCtx(responses=responses)
+        ctx.server = types.SimpleNamespace(clients={})
+        return ctx
+
+    async def test_dot_leader_shows_none_when_unset(self):
+        ctx = self._ctx()
+        self.assertEqual(self._item(ctx, 'Last Paged').dot_leader_handler(ctx), '(none)')
+        self.assertEqual(self._item(ctx, 'Last Whispered').dot_leader_handler(ctx), '(none)')
+
+    async def test_dot_leader_shows_name_when_set(self):
+        ctx = self._ctx()
+        ctx.player.command_settings.page.last_paged = 'Alice'
+        self.assertEqual(self._item(ctx, 'Last Paged').dot_leader_handler(ctx), 'Alice')
+
+    async def test_blank_leaves_unchanged(self):
+        ctx = self._ctx(responses=[''])
+        ctx.player.command_settings.page.last_paged = 'Alice'
+        await self._item(ctx, 'Last Paged').action(ctx)
+        self.assertEqual(ctx.player.command_settings.page.last_paged, 'Alice')
+        self.assertFalse(ctx.player.unsaved_changes)
+
+    async def test_dash_clears(self):
+        ctx = self._ctx(responses=['-'])
+        ctx.player.command_settings.whisper.last_whispered = 'Bob'
+        await self._item(ctx, 'Last Whispered').action(ctx)
+        self.assertIsNone(ctx.player.command_settings.whisper.last_whispered)
+        self.assertTrue(ctx.player.unsaved_changes)
+
+    async def test_sets_to_existing_player_canonical_casing(self):
+        ctx = self._ctx(responses=['alice'])
+        with unittest.mock.patch('tada_utilities.player_exists', return_value=True), \
+             unittest.mock.patch('tada_utilities.find_players', return_value=['Alice']):
+            await self._item(ctx, 'Last Paged').action(ctx)
+        self.assertEqual(ctx.player.command_settings.page.last_paged, 'Alice')
+        self.assertTrue(ctx.player.unsaved_changes)
+
+    async def test_unknown_player_rejected(self):
+        ctx = self._ctx(responses=['Nobody'])
+        with unittest.mock.patch('tada_utilities.player_exists', return_value=False):
+            await self._item(ctx, 'Last Paged').action(ctx)
+        self.assertIsNone(ctx.player.command_settings.page.last_paged)
+        self.assertFalse(ctx.player.unsaved_changes)
+        self.assertIn('No such player "Nobody".', ctx.sent)
+
+
+class TestCommandSettingsLastHistoryMenu(unittest.IsolatedAsyncioTestCase):
+    """'Page/Whisper #last Limit' and 'Page/Whisper History' entries."""
+
+    def _item(self, ctx, text):
+        menu = _command_settings_menu(ctx)
+        return next(i for i in menu.selectable if i.text == text)
+
+    async def test_limit_dot_leader_reflects_value(self):
+        ctx = _MockCtx()
+        item = self._item(ctx, 'Page #last Limit')
+        self.assertEqual(item.dot_leader_handler(ctx), '5')
+        ctx.player.command_settings.page.last_limit = 8
+        self.assertEqual(item.dot_leader_handler(ctx), '8')
+
+    async def test_limit_edit_sets_and_marks_unsaved(self):
+        ctx = _MockCtx(responses=['3'])
+        await self._item(ctx, 'Page #last Limit').action(ctx)
+        self.assertEqual(ctx.player.command_settings.page.last_limit, 3)
+        self.assertTrue(ctx.player.unsaved_changes)
+
+    async def test_limit_edit_out_of_range_keeps_prompting_then_cancels(self):
+        # 99 rejected, then blank cancels -> unchanged
+        ctx = _MockCtx(responses=['99', ''])
+        await self._item(ctx, 'Whisper #last Limit').action(ctx)
+        self.assertEqual(ctx.player.command_settings.whisper.last_limit, 5)
+
+    async def test_history_dot_leader_shows_count(self):
+        ctx = _MockCtx()
+        ctx.player.command_settings.page.history = [
+            {'name': 'Alice', 'at': 'x'}, {'name': 'Bob', 'at': 'x'}]
+        self.assertEqual(
+            self._item(ctx, 'Page History').dot_leader_handler(ctx), '2 entries')
+
+    async def test_history_empty_reports_and_no_prompt(self):
+        ctx = _MockCtx()
+        await self._item(ctx, 'Page History').action(ctx)
+        self.assertIn('Page History: (empty)', ctx.sent)
+
+    async def test_history_clear_on_yes(self):
+        ctx = _MockCtx(responses=['y'])
+        ctx.player.command_settings.whisper.history = [{'name': 'Alice', 'at': 'x'}]
+        await self._item(ctx, 'Whisper History').action(ctx)
+        self.assertEqual(ctx.player.command_settings.whisper.history, [])
+        self.assertTrue(ctx.player.unsaved_changes)
+
+    async def test_history_kept_on_blank(self):
+        ctx = _MockCtx(responses=[''])
+        ctx.player.command_settings.page.history = [{'name': 'Alice', 'at': 'x'}]
+        await self._item(ctx, 'Page History').action(ctx)
+        self.assertEqual(len(ctx.player.command_settings.page.history), 1)
+
+
 # ---------------------------------------------------------------------------
 # 4b. Survival counter (Food/Drink) action
 # ---------------------------------------------------------------------------
@@ -521,12 +639,14 @@ class TestSurvivalCounterAction(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ctx.player.food, 0)
 
     async def test_food_can_be_set_to_max(self):
-        ctx = _MockCtx(responses=['20'])
+        from config import config
+        ctx = _MockCtx(responses=[str(config.survival_max)])
         await self._invoke(ctx, 'Food (Hunger)')
-        self.assertEqual(ctx.player.food, 20)
+        self.assertEqual(ctx.player.food, config.survival_max)
 
     async def test_out_of_range_value_rejected_and_unchanged(self):
-        ctx = _MockCtx(responses=['21', ''])
+        from config import config
+        ctx = _MockCtx(responses=[str(config.survival_max + 1), ''])
         ctx.player.food = 15
         await self._invoke(ctx, 'Food (Hunger)')
         self.assertEqual(ctx.player.food, 15)
@@ -748,11 +868,11 @@ class TestIntegration(unittest.IsolatedAsyncioTestCase):
     navigate_menu calls ctx.prompt('Choice', ...) after every menu display.
     Inline action prompts (_prompt_int, list pickers) also consume items.
 
-    Flags/Counters is item 6 in the main menu.
+    Flags/Counters is item 7 in the main menu.
     Expert Mode is item 1 in the flags menu.
 
     Scripted navigation to toggle Expert Mode and return:
-        Main displayed   → '6'  → push Flags submenu
+        Main displayed   → '7'  → push Flags submenu
         Flags displayed  → '1'  → run toggle action
         Flags displayed  → ''   → pop Flags submenu
         Main displayed   → ''   → pop main menu, done
@@ -768,6 +888,7 @@ class TestIntegration(unittest.IsolatedAsyncioTestCase):
         self.assertGreater(len(ctx.sent), 0)
 
     async def test_toggle_expert_mode_via_navigation(self):
+        # Main → Flags/Counters (7) → Expert Mode (1) → up → up
         ctx = _MockCtx(responses=['7', '1', '', ''])
         self.assertFalse(ctx.player.query_flag(PlayerFlags.EXPERT_MODE))
         await EditPlayerCommand().execute(ctx)
@@ -816,6 +937,63 @@ class TestIntegration(unittest.IsolatedAsyncioTestCase):
                or ctx.player.combinations.get(combo_type.name))
         self.assertIsNotNone(obj)
         self.assertEqual(obj.combination, (4, 5, 9))
+
+
+# ---------------------------------------------------------------------------
+# 10. Character / NPC Stats — _edit_ally_stats (strength / to-hit / HP,
+#     clamped to bar/ally_data.py's canonical SPUR ceilings)
+# ---------------------------------------------------------------------------
+
+class TestEditAllyStats(unittest.IsolatedAsyncioTestCase):
+
+    def _ally(self, name='ROBIN', strength=9, to_hit=4, hp=18):
+        from bar.ally_data import Ally, AllyStatus
+        a = Ally(name, 'm', strength, to_hit, [])
+        a.status = AllyStatus.SERVANT
+        a.hit_points = hp
+        return a
+
+    async def test_edit_strength_sets_value_and_marks_unsaved(self):
+        from commands.editplayer import _edit_ally_stats
+        ally = self._ally(strength=25)
+        ctx  = _MockCtx(responses=['s', '12', ''])
+        await _edit_ally_stats(ctx, ally)
+        self.assertEqual(ally.strength, 12)
+        self.assertTrue(ctx.player.unsaved_changes)
+
+    async def test_edit_to_hit_and_hp_in_one_visit(self):
+        from commands.editplayer import _edit_ally_stats
+        ally = self._ally(to_hit=4, hp=18)
+        ctx  = _MockCtx(responses=['t', '7', 'h', '30', ''])
+        await _edit_ally_stats(ctx, ally)
+        self.assertEqual(ally.to_hit, 7)
+        self.assertEqual(ally.hit_points, 30)
+
+    async def test_strength_above_cap_is_rejected(self):
+        from bar.ally_data import ALLY_STRENGTH_MAX
+        from commands.editplayer import _edit_ally_stats
+        ally = self._ally(strength=10)
+        # 99 is over ALLY_STRENGTH_MAX (25) -> _prompt_int loops, then blank
+        # cancels the sub-prompt, then blank finishes the stat menu.
+        ctx  = _MockCtx(responses=['s', str(ALLY_STRENGTH_MAX + 74), '', ''])
+        await _edit_ally_stats(ctx, ally)
+        self.assertEqual(ally.strength, 10)
+
+    async def test_hp_above_cap_is_rejected(self):
+        from bar.ally_data import ALLY_HP_MAX
+        from commands.editplayer import _edit_ally_stats
+        ally = self._ally(hp=20)
+        ctx  = _MockCtx(responses=['h', str(ALLY_HP_MAX + 1), '', ''])
+        await _edit_ally_stats(ctx, ally)
+        self.assertEqual(ally.hit_points, 20)
+
+    async def test_blank_first_input_is_a_no_op(self):
+        from commands.editplayer import _edit_ally_stats
+        ally = self._ally(strength=9)
+        ctx  = _MockCtx(responses=[''])
+        await _edit_ally_stats(ctx, ally)
+        self.assertEqual(ally.strength, 9)
+        self.assertFalse(ctx.player.unsaved_changes)
 
 
 # ---------------------------------------------------------------------------

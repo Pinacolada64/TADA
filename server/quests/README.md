@@ -59,7 +59,7 @@ level-aware label wherever it reaches the player or game logic (e.g.
 | 13 | Power Armor / Shield Recharge | #112 Armor Power Pak / #117 Shield Power Pak | Recharges shield/armor to full (120%) effectiveness | **skip only** | Confirmed in skip; master's shield system is simpler (flat % add, no recharge) |
 | 14 | Copper Key / Wraith Master | #80 Copper Key, `USE`d at level 5 room 390 "The Great Door" | Grants Wraith Master status (`PlayerFlags.WRAITH_MASTER`) | master | Confirmed mechanic and room; flavor text untraced (see below) |
 | 15 | Wraith King / RONNEY | Defeat monster #93 "RONNEY" (disguised King of the Wraiths) at level 5 room 285 "Kings Chamber" | +1 level, Honor (`vk`) +100 (capped 1900), advances the same `zu$[7]` status tier as quest #14, teleport to level 5 room 390 "The Great Door" (the same ruins location quest #14's Copper Key checks) | master | Confirmed trigger, room, and full effects; not yet implemented |
-| 16 | Tut's Treasure | Item #86 "Tut's Treasure" — level 2, room 158 "Secret Chamber"; monster #102 "KING TUT" guards the adjacent room 157 "Mummy's Tomb" | `EXAMINE` it first — disarms a trap, +2 INT (only while under 25), marks `zu$[9]="1"` (examined). `GET` afterward — awards a huge gold bonus (`iv×1000`) and marks `zu$[9]="2"` (looted); this is the exact flag `commands/stats.py`'s "Tut's Treasure: Looted../Somewhere.." line already displays, and the same flag SPUR's original win check reads for its gold-riches gate (`SPUR.MISC7.S`'s `win2`, generalized away by this port's `config.py` into a flat `victory_gold_amount` — see `MECHANICS.md`'s "Win/escape detection"). `GET` it *without* examining first — "Ain't you heard of the Mummy's curse?!?!", jumps to the same `pandora` punishment used for other cursed items (-XP capped to 100, -CON capped to 5, -INT -5 with "You feel dumber!", -HP to 5 if higher) | master | Confirmed — full mechanic traced (`SPUR.MISC.S:245-252,294-297`, `SPUR.MISC3.S:416-422`, `SPUR.MISC5.S:230`); nothing in this port sets the flag — `player.tuts_treasure_looted` / `flags.py`'s `TutTreasure` dataclass are unwired stubs, and neither `commands/get.py` nor `commands/examine.py` special-case item #86 |
+| 16 | Tut's Treasure | Item #86 "Tut's Treasure" — level 2, room 158 "Secret Chamber"; monster #102 "KING TUT" guards the adjacent room 157 "Mummy's Tomb" | `EXAMINE` it first — disarms a trap, +2 INT (only while under 25), marks `zu$[9]="1"` (examined). `GET` afterward — awards a huge gold bonus (`iv×1000`) and marks `zu$[9]="2"` (looted); this is the exact flag `commands/stats.py`'s "Tut's Treasure: Looted../Somewhere.." line already displays, and the same flag SPUR's original win check reads for its gold-riches gate (`SPUR.MISC7.S`'s `win2`, generalized away by this port's `config.py` into a flat `victory_silver_amount` — see `MECHANICS.md`'s "Win/escape detection"). `GET` it *without* examining first — "Ain't you heard of the Mummy's curse?!?!", jumps to the same `pandora` punishment used for other cursed items (-XP capped to 100, -CON capped to 5, -INT -5 with "You feel dumber!", -HP to 5 if higher) | master | Confirmed — full mechanic traced (`SPUR.MISC.S:245-252,294-297`, `SPUR.MISC3.S:416-422`, `SPUR.MISC5.S:230`); nothing in this port sets the flag — `player.tuts_treasure_looted` / `flags.py`'s `TutTreasure` dataclass are unwired stubs, and neither `commands/get.py` nor `commands/examine.py` special-case item #86 |
 
 Quest #12 is already implemented (LASSO, Saddle/Horse Armor, MOUNT/DISMOUNT/CHARGE —
 see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
@@ -410,10 +410,10 @@ see `MECHANICS.md` "Horses"). Everything else in this table is unimplemented.
     Constitution at 5, -5 INT ("You feel dumber!"), and drops HP to 5 if
     higher.
   - `GET`/`EXAMINE` again once `zu$[9]="2"` is a no-op (already resolved).
-- **Feeds the original win check**: SPUR's actual gold-riches gate
+- **Feeds the original win check**: SPUR's actual riches gate
   (`SPUR.MISC7.S`'s `win2` label) reads this exact flag — `zu$[9]="2"` is
   literally "found the riches of TUT". This port's `config.py` deliberately
-  generalized that into a flat `victory_gold_amount` silver-in-hand check
+  generalized that into a flat `victory_silver_amount` silver-in-hand check
   instead of porting the Tut-specific flag (see `MECHANICS.md`'s "Win/escape
   detection"), so `victory.py` doesn't read this flag — but the *display*
   line survived the generalization and is the one dangling loose end that
@@ -446,7 +446,6 @@ the named quests above:
 | — | Monster #103 ("guardian") | Repeat-encounter monster that "remembers" a previous player loss and returns stronger (`ms=ms+xp*6`) | `SPUR.MISC4.S:198–199` |
 | — | Monsters #125/#126 (OZ, Wicked Witch) | Tied to the Ruby Slippers chain (quest #7) but the broomstick's first-acquisition trigger wasn't fully traced (witch-kill drop vs. static item) | `level_6.json` room 582 (OZ) / room 556 (Wicked Witch) — cited as rooms 115/118 in an earlier version of this doc, before the room-numbering fix |
 | — | School / re-training | Pay gold + lose 1 level to re-pick character class; flavor recovered as messages #8 (camp intro) and #6 (result) | `SPUR.MISC2.S:418,434` |
-| — | Shield training (Odin the Shield Master) | Pay gold for permanent shield bonus (20% less chance of a monster getting past your shield, +1 protection); flavor recovered as message #13 | `SPUR.MISC2.S:460` |
 | — | Duel help text | Full `H`elp screen for the duel (PvP) system recovered as message #16 — not yet ported into `commands/` duel help | `SPUR.DUEL.S:26,43` |
 
 ---

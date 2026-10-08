@@ -1,3 +1,70 @@
+9/3/26:
+- **`%k` substitute_tokens() token for the player's Return/Enter key
+  label.** `tada_utilities.substitute_tokens()` already runs every
+  outgoing line through %-token substitution (%n name, %s/%o/%p/%P/%r
+  pronouns, %c class, %e race -- see its docstring), and `ctx.send()`
+  applies it automatically to every line sent (`network_context.py`).
+  A `%k` token resolving to `subject.return_key` (falling back to
+  `'Enter'` if the subject doesn't expose it, same fallback the
+  property itself uses -- see `player.py`'s `Player.return_key`) would
+  let *static* text -- anything that can't reach a live `ctx.player` at
+  construction time -- reference the player's negotiated key label the
+  same way dynamic f-string prompts already do via
+  `{ctx.player.return_key}`. Concrete motivating case:
+  `commands/more_prompt.py`'s `Help(description=...)` hardcodes "Enter"
+  in its help text (`"...pauses with a '-- More --' prompt between
+  pages (Enter for next, B/- for back, Q to stop)..."`) -- `Help` is a
+  dataclass built once at class-definition time with no `ctx` in scope,
+  so it can't currently be written as an f-string the way ~100+ other
+  prompt call sites were converted to do (see the "Wrap long
+  ctx.prompt() option text into preamble_lines" branch/commit, which
+  also swept most hardcoded "Enter" strings elsewhere in the codebase
+  to `{ctx.player.return_key}` but explicitly left this one as a TODO
+  rather than bolt on new templating machinery unprompted). Once `%k`
+  exists, `more_prompt.py`'s description (and any other static
+  Help()/flavor text baking in "Enter") can switch to it. Not yet
+  scoped/implemented -- just the idea captured here.
+
+8/26/26:
+- **Starter SIG/board structure for the multi-SIG bulletin board.**
+  Once the sig-editor branch (`board/`, `commands/board/edit.py`) is
+  merged and the board has real content, populate it via `board #edit`
+  with a small starter set rather than leaving just the single migrated
+  default board. The useful axis for a MUD is out-of-character (players
+  talking to each other and to admins) vs in-character (posts that read
+  as part of the world). Proposed lean opening set -- 3 SIGs, ~7 boards,
+  deliberately small so it doesn't feel dead in alpha:
+  - **Town Square** (general OOC hub): General (the default board -- keep
+    it as the single-board-shortcut target so installs that never touch
+    `board #edit` are unaffected), New Arrivals (intros + newcomer
+    "how do I..."), Off Topic.
+  - **Adventurers' Guild** (gameplay talk): Tactics & Builds (class/race/
+    weapon/Honor strategy), Bugs & Oddities (player bug reports -- feeds
+    admin triage), Suggestions (feature requests, balance gripes).
+  - **The Chronicle** (IC / lore-flavored): Tavern Tales (RP, war
+    stories, duel brags), Notices & Bounties (IC wanted posts,
+    party-finding, trades).
+  - Put a SigOp on each non-admin SIG (a trusted alpha tester per SIG) --
+    reads better than "This SIG currently has no administrator." in the
+    entry greeting added 8/26/26, and gives the greeting something to
+    say.
+  Grow-into-it additions, not for day one (a dozen empty boards feels
+  dead):
+  - **Fist** and **Sword** SIGs (or boards under Adventurers' Guild),
+    one per guild, gated by guild membership via the board access system
+    -- recruitment, AutoDuel challenges, internal guild politics.
+  - **Dueling Pit** board -- challenges, results, trash talk, W/L
+    bragging (ties into `combat/duel.py`).
+  - **Stables** board -- horse trading, journey reports (ties into the
+    horse-journey / bolt mechanics).
+  - **The Keep** (admin SIG): Announcements (players read-only, admins
+    post), Changelog, Known Issues.
+  - **Cartographers** -- player-drawn maps, exploration notes,
+    "what's past level 8".
+  Guidance: don't create all of this at once; add a SIG only when a real
+  conversation is overflowing General. Just the plan captured here --
+  no data created yet.
+
 8/15/26:
 - **Server config option: spoils-splitting mode.** Monster kill silver
   currently always splits evenly across every credited attacker
@@ -918,10 +985,11 @@
     viewer check pattern) rather than a straight thread listing; `board
     <sig>` lists threads within one SIG (SIGs the player's gate check
     fails are simply left off the picker, not shown-but-blocked).
-    Existing verbs (`post`/`reply <id>`/`delete <id>`/`rn`/`ld`) all need
-    a SIG argument or a "current SIG" concept threaded through the
-    session somehow -- unresolved which is better.
-  - **`board rn`/`board ld` scope**: today's `command_settings.board.
+    Existing verbs (`post`/`reply <id>`/`#delete <id>`) and listing-prompt
+    commands (`rn`/`ld`) all need a SIG argument or a "current SIG"
+    concept threaded through the session somehow -- unresolved which is
+    better.
+  - **`rn`/`ld` scope** (typed at the listing prompt): today's `command_settings.board.
     last_date` is a single global threshold. Per-SIG activity probably
     wants a per-SIG threshold instead (`last_date_by_sig: dict[str,
     str]` on `BoardSettings`) so reading all of "General" doesn't also
@@ -948,7 +1016,7 @@
   menu in the same `#`-prefixed control-word style as `page #haven`/
   `page #ignore`/`whereat #hide`, distinct from the main post/reply/
   read verbs -- natural home for `anonymous_mode` and, potentially,
-  `board ld`'s threshold too, though that's not decided. Not
+  `ld`'s threshold too, though that's not decided. Not
   implemented yet.
 
 7/22/26:
@@ -1525,6 +1593,29 @@
   value, so may need a way to know a given HQ room's owning guild,
   e.g. from the room name/level data or a small static mapping).
 
+- [DONE 9/24/26, branch feature/follow-me] FOLLOW ME + STAY ported as a
+  hybrid (Ryan's call): online guildmates follow live via
+  `guild_follow.bring_followers()` from `_move()`; logged-off guildmates
+  parked in the room are carried (session-only `carried_followers`) and
+  dropped off by STAY or automatically on logoff (SPUR's LOGON.STAY),
+  with the one-shot "You followed <name>" login notice. Correction to
+  the scoping below: SPUR's `come` recruited *logged-off* characters
+  (single-user BBS), not online ones. Still open:
+  - come.e unconscious-carry case (helper follower/ally with >10 HP,
+    one body max) -- unconscious candidates are just refused for now.
+  - Guild-leader verification gate (`flag(3)+flag(6)+flag(13)=0`, "You
+    must be verified by your guild leader first..") -- no such
+    verification step exists in the port yet.
+  - stay.a's `#!` / `<<` `lo$` room markers (meaning unidentified);
+    other-guild turf, '+' free-fire and `@@` water/vacuum are ported.
+  - Followers only come along on normal map exits (`_move()`); special
+    exits (bar, shoppe, guild HQ, Allys Guild) and teleports leave live
+    followers behind (they "lose track" on the leader's next move).
+  - EditPlayer entry for the new persisted `followed_leader_name` field
+    (one-shot "You followed <name>" login notice, cleared once shown) --
+    Ryan, 9/24/26: add later, not needed yet. Decide which
+    `commands/editplayer.py` menu it belongs in.
+  Original scoping notes, kept for history:
 - FOLLOW ME command (scoping only, not started -- see `commands/
   follow.py`'s `FOLLOW`/`FL`, already built, which is only half of this:
   the personal opt-in flag, `PlayerFlags.GUILD_FOLLOW_MODE`). SPUR's

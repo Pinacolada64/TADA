@@ -128,7 +128,7 @@ def set_thug_flag_on_target(ctx: GameContext, target_name: str) -> None:
     for client in online_clients.values():
         # Client stores the live session as .ctx (simple_server.py sets
         # client.ctx = ctx on connect), never a bare .player -- see
-        # commands/messaging.py's online_player_names() for the same
+        # tada_utilities.py's online_player_names() for the same
         # pattern this module previously got wrong in three places.
         tp = getattr(getattr(client, 'ctx', None), 'player', None)
         if tp and getattr(tp, 'name', '').lower() == target_name.lower():
@@ -182,13 +182,16 @@ async def _hire(ctx: GameContext) -> None:
     await ctx.send(f'{_NPC}: {_AP}Who do you wish me to mess up?{_AP}')
 
     while True:
-        raw = await ctx.prompt('Player name (? to list, Enter to cancel)')
+        raw = await ctx.prompt(
+            'Name',
+            preamble_lines=[f'Player name (? to list, {player.return_key} to cancel)'])
         if not raw or not raw.strip():
             return
 
         pattern = raw.strip()
 
-        from commands.messaging import prompt_player_choice, find_players, is_online
+        from commands.messaging import prompt_player_choice
+        from tada_utilities import find_players, is_online
         if pattern == '?':
             pattern = '*'
 
@@ -226,7 +229,9 @@ async def _hire(ctx: GameContext) -> None:
                 lines.append(f'  {i:>3}.{star} {n}')
             lines.append('')
             await ctx.send(lines)
-            raw2 = await ctx.prompt(f'Choose (1–{len(names)}, Enter to cancel)')
+            raw2 = await ctx.prompt(
+                'Choice',
+                preamble_lines=[f'Choose (1–{len(names)}, {player.return_key} to cancel)'])
             if not raw2 or not raw2.strip():
                 return
             try:
@@ -276,7 +281,9 @@ async def _hire(ctx: GameContext) -> None:
             return
 
         # Anonymous option (SPUR.BAR.S: "Do you wish to remain unknown?")
-        raw5 = await ctx.prompt('Do you wish to remain unknown? (Y/N)')
+        raw5 = await ctx.prompt(
+            'Y/N',
+            preamble_lines=['Do you wish to remain unknown? (Y/N)'])
         if raw5 and raw5.strip().upper() == 'Y':
             attacker_display = 'SOMEBODY'
         else:

@@ -1,7 +1,8 @@
 """tests/admin/test_config_survival_tick_interval.py — Sysop-tunable
-commands-between-hunger/thirst-depletion setting (survival.py's
-survival_tick()). Ryan felt the shipped default (10) was too aggressive;
-rather than pick a new hardcoded value, it's now a CONFIG setting.
+enable/disable toggle for hunger/thirst depletion (survival.py's
+survival_tick(), called once per qualifying move/attack action). -1
+disables depletion; any other value enables it (the specific number no
+longer paces depletion since the 2026-08-25 per-action redesign).
 
 Also covers survival_max -- the maximum/starting value for the food/
 drink counters themselves (survival.py's old hardcoded _MAX=20),
@@ -83,9 +84,9 @@ class TestSurvivalMaxConfig(unittest.TestCase):
         ServerConfig._config_file = self._orig_file
         ServerConfig._instance = self._orig_instance
 
-    def test_defaults_to_twenty(self):
+    def test_defaults_to_one_hundred(self):
         cfg = ServerConfig()
-        self.assertEqual(cfg.survival_max, 20)
+        self.assertEqual(cfg.survival_max, 100)
 
     def test_set_and_get_round_trips(self):
         cfg = ServerConfig()

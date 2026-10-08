@@ -37,7 +37,7 @@ async def main():
         if 'terminal type' in last.lower(): await _send(w, {'lines':['A'],'mode':'login'})
     await _send(w, {'lines':['connect botdummy puppy123'],'mode':'login'})
     await _recv_all(r,4.0)
-    for cmd in ['config victory', 'config victory_t', 'config victory_g 8000', 'config sess 30', 'config d']:
+    for cmd in ['config victory', 'config victory_t', 'config victory_s 8000', 'config sess 30', 'config d']:
         print(f"\n=== -> {cmd!r} ===")
         await _send(w, {'lines':[cmd],'mode':'game'})
         _print(await _recv_all(r,4.0))

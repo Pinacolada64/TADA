@@ -520,22 +520,22 @@ class MapCommand(Command):
         usage    = [
             ('map', 'Show nearby rooms.'),
             ('map grid', 'Show nearby rooms as a colored grid of boxes.'),
-            ('map #grid', 'Same as "map grid".'),
+            ('map #grid', 'Same as |command|map grid|reset|.'),
             ('map #overview [<level>]', 'Debug Mode: full-level birds-eye grid.'),
             ('map #visited [<level>]', "Birds-eye grid of rooms you've actually been to."),
         ],
         notes = [
             'Only available to the Ranger class, and only from character '
             'level 3 onward.',  # (SPUR.MISC5.S's original xp>2 gate)
-            '"map grid" (or "map #grid") draws the same nearby rooms as '
+            '|command|map grid|reset| (or |command|map #grid|reset|) draws the same nearby rooms as '
             'connected boxes -- colored by terrain keywords in the room '
             'name, with M/I/W/F/@ markers, exit gaps, and a color-key '
             'line underneath. Your own room is always marked with @. '
             'Box-drawing glyphs adapt to your client: double-line for '
             'ANSI, single-line for a real Commodore/PETSCII client.',
-            '"map #visited [<level>]" (any character, not gated by class/'
+            '|command|map #visited [<level>]|reset| (any character, not gated by class/'
             'level like the rest of this command) draws the same '
-            'compressed birds-eye grid as "map #overview", but only for '
+            'compressed birds-eye grid as |command|map #overview|reset|, but only for '
             'rooms you have personally set foot in on the given level '
             '(your own level if omitted) -- never spoils unexplored '
             'territory. An exit toward a room you have not yet visited '
@@ -546,7 +546,7 @@ class MapCommand(Command):
         admin_notes = [
             "Admins/DMs additionally see each nearby room's number -- "
             'ordinary players just get the direction path and name.',
-            '"map #overview [<level>]" needs Debug Mode on (not the '
+            '|command|map #overview [<level>]|reset| needs Debug Mode on (not the '
             'Ranger/level-3 gate above) and shows every room on the given '
             'level (your own level if omitted) as a single reverse-video '
             'square, with arrow glyphs around it marking which of '
@@ -559,9 +559,28 @@ class MapCommand(Command):
     async def execute(self, ctx: GameContext, *args) -> CommandResult:
         player = ctx.player
 
-        if args and args[0].lower().lstrip('#') == 'overview':
+        # Same '#edit'-or-bare convention as board.py/groups.py/whereat.py:
+        # a '#'-prefixed sub-word routes into switches (parse_args() only
+        # buckets '#'-prefixed tokens there), a bare one lands in
+        # positional. Unlike those commands, every sub-word here has
+        # always accepted *either* form (see this class's own Help(usage=)
+        # -- 'map grid' and 'map #grid' are explicitly documented as the
+        # same command) -- this parses both/either uniformly instead of
+        # each branch below hand-rolling its own args[0].lower().
+        # lstrip('#') check. 'rest' is whatever's left after the sub-word
+        # (the optional <level> argument), regardless of which list the
+        # sub-word itself came from.
+        positional, switches = self.parse_args(*args)
+        if switches:
+            sub  = switches[0].lstrip('#').lower()
+            rest = positional
+        else:
+            sub  = positional[0].lower() if positional else ''
+            rest = positional[1:]
+
+        if sub == 'overview':
             if not _is_debug(player):
-                await ctx.send("You need Debug Mode on for that -- see the DBG command.")
+                await ctx.send("You need Debug Mode on for that -- see the |command|DBG|reset| command.")
                 return CommandResult.fail('Not in debug mode.', error='not_debug')
 
             game_map = getattr(ctx.server, 'game_map', None)
@@ -569,11 +588,11 @@ class MapCommand(Command):
                 await ctx.send('You lose your bearings -- no map data here.')
                 return CommandResult.fail('No map data.', error='no_map')
 
-            if len(args) > 1:
+            if rest:
                 try:
-                    level = int(args[1])
+                    level = int(rest[0])
                 except ValueError:
-                    await ctx.send(f'"{args[1]}" is not a level number.')
+                    await ctx.send(f'"{rest[0]}" is not a level number.')
                     return CommandResult.fail('Bad level.', error='bad_level')
             else:
                 level = player.map_level
@@ -585,17 +604,17 @@ class MapCommand(Command):
             await ctx.send([f'|yellow|Level {level} overview|reset|', ''] + lines)
             return CommandResult.ok('Showed level overview.')
 
-        if args and args[0].lower().lstrip('#') == 'visited':
+        if sub == 'visited':
             game_map = getattr(ctx.server, 'game_map', None)
             if not game_map:
                 await ctx.send('You lose your bearings -- no map data here.')
                 return CommandResult.fail('No map data.', error='no_map')
 
-            if len(args) > 1:
+            if rest:
                 try:
-                    level = int(args[1])
+                    level = int(rest[0])
                 except ValueError:
-                    await ctx.send(f'"{args[1]}" is not a level number.')
+                    await ctx.send(f'"{rest[0]}" is not a level number.')
                     return CommandResult.fail('Bad level.', error='bad_level')
             else:
                 level = player.map_level
@@ -625,7 +644,7 @@ class MapCommand(Command):
             await ctx.send('You lose your bearings -- no map data here.')
             return CommandResult.fail('No room data.', error='no_map')
 
-        if args and args[0].lower().lstrip('#') == 'grid':
+        if sub == 'grid':
             lines = render_ansi_grid(ctx, game_map, player.map_level, player, _BFS_DEPTH)
             await ctx.send(lines)
             return CommandResult.ok('Showed nearby rooms as a grid.')

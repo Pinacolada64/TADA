@@ -177,7 +177,7 @@ def _treasure_conversion(player, name: str, price: int) -> list[str]:
     player.unsaved_changes = True
 
     total = player.get_silver(PlayerMoneyTypes.IN_HAND)
-    return [f'({amount:,} sp) You now have {total:,} silver in hand.']
+    return [f'(worth {amount:,} sp) You now have {total:,} silver in hand.']
 
 
 def _monster_in_room(ctx: GameContext) -> dict | None:
@@ -224,7 +224,11 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
     """Return (display_name, InventoryEntry, remove_fn) for items the player can pick up.
 
     Static map items already in the player's ration/item history ring buffers
-    (see Player.ration_history / Player.item_history) are hidden.
+    (see Player.ration_history / Player.item_history) are hidden, as are
+    static items the player is already carrying -- SPUR.MAIN.S:244's single
+    check (`instr(a$,i$)) or (instr(a$,xt$))`, inventory or history) zeroes
+    the room's item before either the description or GET sees it, and the
+    room description (simple_server.py) already hid carried ones.
     remove_fn() records the pickup for static items; pops the entry for dropped items.
     """
     server  = ctx.server
@@ -238,6 +242,7 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
 
     ration_history = getattr(player, 'ration_history', [])
     item_history = getattr(player, 'item_history', [])
+    inventory = getattr(player, 'inventory', None)
     available = []
 
     # Static room items (item / weapon / food are 1-based indices into server collections)
@@ -277,11 +282,30 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
         if attr == 'food' and item_kind == 'drink':
             item_category = ItemCategory.DRINK
 
+        # Already carrying one (see docstring). category is part of the
+        # match -- id_number alone isn't unique across weapons/items/rations
+        # (same reason as _pick_up()'s own "You already have" check).
+        if inventory is not None and inventory.find(
+                item_id=item_id, category=str(item_category)):
+            logging.debug(
+                "%s: skipping %s %s (id=%s) -- already carrying one",
+                player.name, attr, name, item_id,
+            )
+            continue
+
+        # rations.json's "price" doubles as survival.ration_restore()'s
+        # quality signal -- a room-found ration needs it carried onto the
+        # Item just like kind above, or EAT/DRINK falls back to the
+        # lowest quality tier (price=10) for every free floor pickup
+        # regardless of what it's actually worth.
+        item_price = raw.get('price') if isinstance(raw, dict) else getattr(raw, 'price', None)
+
         if attr == 'weapon':
             from items import build_weapon_from_raw
             item = build_weapon_from_raw(raw, id_number=item_id)
         else:
-            item = Item(id_number=item_id, name=name, category=item_category, kind=item_kind)
+            item = Item(id_number=item_id, name=name, category=item_category,
+                        kind=item_kind, price=item_price)
         # Preserve objects.json's own "type" field (e.g. "book") as a real
         # ItemType -- read.py's book list keys off this, and without it a
         # room-found book (a scroll, say) would never show up there at all;
@@ -307,7 +331,7 @@ def _room_available_items(ctx: GameContext) -> list[tuple]:
             else:
                 p.record_item_pickup(iid)
             logging.debug(
-                "%s: recorded %s (id=%s) in %s history",
+                "%s: recorded %i (id=%s) in %s history",
                 p.name, iid, 'ration' if is_ration else 'item',
             )
 
@@ -407,7 +431,8 @@ class GetCommand(Command):
         lines.append('')
         await ctx.send(lines)
 
-        raw = await ctx.prompt(f'Get which item (1-{len(available)}, or Enter to cancel)')
+        raw = await ctx.prompt(preamble_lines=f"(1-{len(available)}, or {ctx.player.return_key} to cancel)",
+                               prompt_text=f'Get which item')
         if not raw or not raw.strip():
             return CommandResult.ok()
 
@@ -469,7 +494,7 @@ class GetCommand(Command):
                 if other.query_flag(PlayerFlags.UNCONSCIOUS):
                     await ctx.send(f"{pname} won't fit in your sack..")
                 else:
-                    await ctx.send(f'{pname} skuttles out of reach!')
+                    await ctx.send(f'{pname} scuttles out of reach!')
 
         if not matched and target != '*':
             await ctx.send(f'You do not see any "{target}" here.')
@@ -494,7 +519,7 @@ class GetCommand(Command):
         # else since it's not a real catalog item (no id_number, no price,
         # nothing to add to inventory or convert to gold).
         if getattr(entry.item, 'is_statue', False):
-            await ctx.send('THE STATUE IS MUCH TOO HEAVY!')
+            await ctx.send('The statue is much too heavy!')
             return CommandResult.ok()
 
         # --- Gollum's ring: he won't let it go while he's alive
@@ -538,7 +563,7 @@ class GetCommand(Command):
 
         # --- Fireplace: USE only (SPUR.MISC.S:285) ---
         if item_cat == ItemCategory.ITEM and item_id == _FIREPLACE:
-            await ctx.send('You can only USE this..')
+            await ctx.send('You can only |command|USE|reset| this..')
             return CommandResult.ok()
 
         # --- Obelisk: too large to move (SPUR.MISC.S:287) ---

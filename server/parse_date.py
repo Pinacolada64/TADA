@@ -138,8 +138,8 @@ def parse_relative_date(text: str, today: Optional[date] = None) -> Optional[dat
     Feb 28/29, not 30 days back. A bare unit with no count ('week')
     implies 1. Returns None if *text* doesn't match this shape at all
     (caller should fall back to parse_date() for an absolute date
-    instead -- see commands/board.py's 'board ld' for that fallback
-    chain in practice).
+    instead -- see commands/board/board.py's 'ld' listing-prompt command
+    for that fallback chain in practice).
     """
     if not text or not text.strip():
         return None

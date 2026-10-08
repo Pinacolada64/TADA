@@ -103,16 +103,19 @@ class TestAnsiPlainRemainPipeOnly(unittest.TestCase):
 class TestExpandTabTokensBangDelimiter(unittest.TestCase):
 
     def test_bang_tab_expands_when_codec_is_petscii(self):
+        # 'A' at column 0 -> next stop at 4 is 3 spaces, not a flat
+        # tab_width repeat -- see formatting._expand_tab_tokens().
         cs = _settings(has_tab_key=False, tab_width=4)
-        self.assertEqual(_expand_tab_tokens('A!tab!B', cs, PETSCIICodec()), 'A    B')
+        self.assertEqual(_expand_tab_tokens('A!tab!B', cs, PETSCIICodec()), 'A   B')
 
     def test_bang_tab_count_expands_when_codec_is_petscii(self):
+        # col 0 -> stop at 4 (3 sp) -> stop at 8 (4 sp) = 7 spaces total.
         cs = _settings(has_tab_key=False, tab_width=4)
-        self.assertEqual(_expand_tab_tokens('A!tab:2!B', cs, PETSCIICodec()), 'A        B')
+        self.assertEqual(_expand_tab_tokens('A!tab:2!B', cs, PETSCIICodec()), 'A       B')
 
     def test_pipe_tab_still_expands_under_petscii_codec(self):
         cs = _settings(has_tab_key=False, tab_width=4)
-        self.assertEqual(_expand_tab_tokens('A|tab|B', cs, PETSCIICodec()), 'A    B')
+        self.assertEqual(_expand_tab_tokens('A|tab|B', cs, PETSCIICodec()), 'A   B')
 
     def test_bang_tab_escape_left_untouched_at_expand_stage(self):
         cs = _settings(has_tab_key=False, tab_width=4)
@@ -131,12 +134,12 @@ class TestExpandTabTokensBangDelimiter(unittest.TestCase):
     def test_format_lines_expands_bang_tab_for_petscii(self):
         cs = _settings(has_tab_key=False, tab_width=4)
         lines = format_lines(['A!tab!B!tab:2!C'], cs, PETSCIICodec())
-        self.assertEqual(lines, ['A    B        C'])
+        self.assertEqual(lines, ['A   B       C'])
 
     def test_full_pipeline_bang_tab_survives_to_petscii_bytes(self):
         cs = _settings(has_tab_key=False, tab_width=4)
         lines = format_lines(['A!tab!B'], cs, PETSCIICodec())
-        self.assertEqual(petscii_encode(lines[0]), petscii_encode('A    B'))
+        self.assertEqual(petscii_encode(lines[0]), petscii_encode('A   B'))
 
 
 if __name__ == '__main__':

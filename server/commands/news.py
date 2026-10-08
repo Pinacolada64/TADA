@@ -6,9 +6,9 @@ the in-game command surface:
 
   news                 — list currently-active items (title + id + date)
   news <id>            — read one item in full, marks 'once' items seen
-  news post            — (admin) write a new item
-  news edit <id>       — (admin) change an existing item's body/lifetime
-  news delete <id>     — (admin) remove an item
+  news #post           — (admin) write a new item
+  news #edit <id>      — (admin) change an existing item's body/lifetime
+  news #delete <id>    — (admin) remove an item
 
 Login-time display ("what's new since you last logged in") is handled by
 commands/connect.py, which calls the same news.py helpers this command uses
@@ -53,30 +53,42 @@ class NewsCommand(Command):
         usage    = [
             ('news',            'List currently-active news items.'),
             ('news <id>',       'Read one item in full.'),
-            ('news post',       '(Admin) Write a new news item.'),
-            ('news edit <id>',  '(Admin) Edit an existing item.'),
-            ('news delete <id>', '(Admin) Remove an item.'),
+            ('news #post',       '(Admin) Write a new news item.'),
+            ('news #edit <id>',  '(Admin) Edit an existing item.'),
+            ('news #delete <id>', '(Admin) Remove an item.'),
         ],
         notes = [
             "Whether NEWS shows just what's new since your last login or "
             "a full directory every time is controlled by PREFS (key N).",
-            "Bare 'news' stays in the listing -- press Enter with no "
-            "number to leave it.",
+            "Bare |command|news|reset| stays in the listing -- press Enter "
+            "with no number to leave it.",
         ],
     )
 
     async def execute(self, ctx, *args) -> CommandResult:
-        positional, _ = self.parse_args(*args)
-        sub = positional[0].lower() if positional else ''
+        positional, switches = self.parse_args(*args)
+        sub = switches[0].lstrip('#').lower() if switches else ''
 
         if sub == 'post':
             return await self._post(ctx)
-        if sub == 'edit' and len(positional) > 1:
-            return await self._edit(ctx, positional[1])
-        if sub == 'delete' and len(positional) > 1:
-            return await self._delete(ctx, positional[1])
+        if sub == 'edit' and positional:
+            return await self._edit(ctx, positional[0])
+        if sub == 'delete' and positional:
+            return await self._delete(ctx, positional[0])
         if positional and positional[0].isdigit():
             return await self._read_one(ctx, int(positional[0]))
+
+        # 'post'/'edit'/'delete' are '#'-only switches now, not bare
+        # positional words -- a bare 'news edit 5' (no leading '#') would
+        # otherwise match none of the sub== checks above and silently
+        # fall through to the plain listing below, the exact board.py-
+        # style bug this switch-consistency audit started with. Catch
+        # the bare word explicitly and point at the right syntax instead.
+        if positional and positional[0].lower() in ('post', 'edit', 'delete'):
+            bare = positional[0].lower()
+            hint = f'news #{bare}' + (' <id>' if bare != 'post' else '')
+            await ctx.send(f"'{bare}' needs a '#' -- try |command|{hint}|reset|.")
+            return CommandResult.fail('Missing #.', error='missing_hash')
 
         return await self._list(ctx)
 
@@ -109,19 +121,29 @@ class NewsCommand(Command):
                     return CommandResult.ok('No news.')
 
                 rule_width = getattr(getattr(ctx.player, 'client_settings', None), 'screen_columns', 80)
+                # Dates are rendered in the viewer's PREFS date format (which
+                # can be wider than ISO's fixed 10 chars), so size the Date
+                # column to the widest one actually shown, with _DATE_COL_WIDTH
+                # as the floor.
+                rows = [
+                    (f"{it['id']:>3}",
+                     news_store.format_posted_date(it.get('posted_at', ''), ctx.player),
+                     it.get('title', '(untitled)'))
+                    for it in visible
+                ]
+                date_col = max([_DATE_COL_WIDTH] + [len(posted) + 3 for _, posted, _ in rows])
                 lines = [
                     '', '|yellow|News|reset|', '',
-                    f"  Num  {'Date':<{_DATE_COL_WIDTH}}Title",
+                    f"  Num  {'Date':<{date_col}}Title",
                     make_rule(rule_width, hrule_char(ctx)),
                 ]
-                for it in visible:
-                    posted = it.get('posted_at', '')[:10]
-                    lines.append(f"  {it['id']:>3}. {posted:<{_DATE_COL_WIDTH}}{it.get('title', '(untitled)')}")
+                for num, posted, title in rows:
+                    lines.append(f"  {num}. {posted:<{date_col}}{title}")
                 lines.append('')
 
                 raw = await ctx.prompt(
-                    f'Read which (# or {ctx.player.return_key} to exit)',
-                    preamble_lines=lines,
+                    '#',
+                    preamble_lines=lines + [f'Read which (# or {ctx.player.return_key} to exit)'],
                 )
                 if raw is None or not raw.strip():
                     return CommandResult.ok('Exited news.')
@@ -216,7 +238,7 @@ class NewsCommand(Command):
             return CommandResult.fail('Permission denied.', error='permission_denied')
 
         if not id_str.isdigit():
-            await ctx.send('Usage: news edit <id>')
+            await ctx.send('Usage: |command|news #edit <id>|reset|')
             return CommandResult.fail('Bad id.', error='bad_args')
 
         items = news_store.load_news()
@@ -240,7 +262,7 @@ class NewsCommand(Command):
                 item.pop('start_date', None)
                 item.pop('end_date', None)
 
-        await ctx.send("Enter the new body, or '.a' to abort and keep the current text.")
+        await ctx.send("Enter the new body, or |command|.a|reset| to abort and keep the current text.")
         body = await run_editor(ctx, initial_lines=deserialize_lines(item.get('body', [])),
                                  activity_id=f"news_edit:{item['id']}",
                                  activity_label=f"editing news #{item['id']}")
@@ -258,7 +280,7 @@ class NewsCommand(Command):
             return CommandResult.fail('Permission denied.', error='permission_denied')
 
         if not id_str.isdigit():
-            await ctx.send('Usage: news delete <id>')
+            await ctx.send('Usage: |command|news #delete <id>|reset|')
             return CommandResult.fail('Bad id.', error='bad_args')
 
         items = news_store.load_news()
@@ -298,9 +320,12 @@ class NewsCommand(Command):
                 return title
 
             raw = await ctx.prompt(
-                f"A news item titled '{existing.get('title', '')}' already exists "
-                f"(#{existing['id']}). [E]dit it, [C]hange this title, or "
-                f"{ctx.player.return_key} to abort",
+                'Choice',
+                preamble_lines=[
+                    f"A news item titled '{existing.get('title', '')}' already exists "
+                    f"(#{existing['id']}). [E]dit it, [C]hange this title, or "
+                    f"{ctx.player.return_key} to abort",
+                ],
             )
             choice = (raw or '').strip().lower()[:1]
             if choice == 'e':
@@ -316,7 +341,7 @@ class NewsCommand(Command):
     async def _pick_lifetime(self, ctx, allow_skip: bool = False) -> dict | None:
         from parse_date import parse_date_range
 
-        prompt_extra = ' (or Enter to keep current)' if allow_skip else ''
+        prompt_extra = f' (or {ctx.player.return_key} to keep current)' if allow_skip else ''
         raw = await ctx.prompt(
             'Lifetime',
             preamble_lines=[

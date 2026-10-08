@@ -3,7 +3,8 @@
 Covers commands/cast.py -- CastCommand, a faithful port of SPUR.MISC3.S's
 `cast`/`cst.outc`/`cast.spl` labels (verified directly against source, see
 that module's docstring). One test class per effect family, plus the
-deferred/flavor-stub scope boundary and the Druid/staff bonus.
+flavor-stub scope boundary and the Druid/staff bonus. The travel and
+aura spells live in test_cast_travel_aura.py.
 """
 from __future__ import annotations
 
@@ -41,6 +42,7 @@ class _FakeCtx:
     def __init__(self, responses, player, room=1, active_combats=None):
         self._q = list(responses)
         self.sent: list = []
+        self.room_said: list = []
         self.player = player
         self.client = SimpleNamespace(room=room)
         self.server = SimpleNamespace(active_combats=active_combats or {})
@@ -52,8 +54,8 @@ class _FakeCtx:
             else:
                 self.sent.append(a)
 
-    async def send_room(self, *args, **kwargs):
-        pass
+    async def send_room(self, line, exclude_self=False):
+        self.room_said.append(line)   # room_notices' lines for bystanders
 
     async def prompt(self, prompt_text: str = '', preamble_lines=None):
         if preamble_lines:
@@ -143,6 +145,8 @@ class TestStatSpells(unittest.IsolatedAsyncioTestCase):
             await _cast_first_known_spell(ctx)
         self.assertEqual(player.stats[PlayerStat.STR], 13)
         self.assertIn('Spell successful!', ctx._flat())
+        self.assertEqual(len(ctx.room_said), 1)
+        self.assertTrue(ctx.room_said[0].startswith(f'{ctx.player.name} casts '), ctx.room_said)
 
     async def test_intelligence_success_uses_spurs_exact_smart_line(self):
         player = _new_player(PlayerClass.FIGHTER, intelligence=20)
@@ -347,49 +351,6 @@ class TestMonsterDamageSpell(unittest.IsolatedAsyncioTestCase):
         with patch('commands.cast.random.randint', side_effect=[10000, 1]):
             await _cast_first_known_spell(ctx)
         self.assertEqual(session.monster['strength'], 25)  # damaged, not healed
-
-
-class TestDeferredEffectTypes(unittest.IsolatedAsyncioTestCase):
-    async def test_level_up_is_refused_and_not_consumed(self):
-        player = _new_player(PlayerClass.WIZARD, intelligence=20)
-        book = spellbook.ensure_spellbook(player)
-        book.contents.add(_spell(effect_type='U', name='ELEVATOR UP'))
-        ctx = _FakeCtx(['1'], player)
-        await _cast_first_known_spell(ctx)
-        self.assertIn("hasn't taught anyone how to unlock", ctx._flat())
-        self.assertEqual(len(spellbook.spell_entries(player)), 1)
-
-    async def test_level_down_is_refused_and_not_consumed(self):
-        player = _new_player(PlayerClass.WIZARD, intelligence=20)
-        book = spellbook.ensure_spellbook(player)
-        book.contents.add(_spell(effect_type='L', name='ELEVATOR DOWN'))
-        ctx = _FakeCtx(['1'], player)
-        await _cast_first_known_spell(ctx)
-        self.assertEqual(len(spellbook.spell_entries(player)), 1)
-
-    async def test_teleport_to_shoppe_is_refused_and_not_consumed(self):
-        player = _new_player(PlayerClass.WIZARD, intelligence=20)
-        book = spellbook.ensure_spellbook(player)
-        book.contents.add(_spell(effect_type='R', name='TRANSPORT TO SHOPPE'))
-        ctx = _FakeCtx(['1'], player)
-        await _cast_first_known_spell(ctx)
-        self.assertEqual(len(spellbook.spell_entries(player)), 1)
-
-    async def test_wizards_glow_aura_is_refused_and_not_consumed(self):
-        player = _new_player(PlayerClass.WIZARD, intelligence=20)
-        book = spellbook.ensure_spellbook(player)
-        book.contents.add(_spell(effect_type='A', name="WIZARD'S GLOW"))
-        ctx = _FakeCtx(['1'], player)
-        await _cast_first_known_spell(ctx)
-        self.assertEqual(len(spellbook.spell_entries(player)), 1)
-
-    async def test_dispel_poison_aura_is_refused_and_not_consumed(self):
-        player = _new_player(PlayerClass.WIZARD, intelligence=20)
-        book = spellbook.ensure_spellbook(player)
-        book.contents.add(_spell(effect_type='A', name='DISPEL POISON'))
-        ctx = _FakeCtx(['1'], player)
-        await _cast_first_known_spell(ctx)
-        self.assertEqual(len(spellbook.spell_entries(player)), 1)
 
 
 class TestFlavorStubbedEffectTypes(unittest.IsolatedAsyncioTestCase):

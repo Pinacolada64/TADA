@@ -213,6 +213,12 @@ class TerminalColors:
         self.highlight_color: ColorName = ColorName.RED
         self.normal_color: ColorName = ColorName.WHITE
         self.background_color: ColorName = ColorName.BLACK
+        # |command| markup color (text_editor.py's game-command references,
+        # e.g. '.h h') -- separate from highlight_color so command syntax
+        # can be told apart from [bracket]-highlighted entities/emphasis.
+        # Defaults to cyan; editable via PREFS 'C' -> 'C' Colors, same
+        # picker as text_color/highlight_color.
+        self.command_color: ColorName = ColorName.CYAN
 
     def to_dict(self) -> dict:
         return {
@@ -221,13 +227,14 @@ class TerminalColors:
             'highlight_color':  self.highlight_color.name,
             'normal_color':     self.normal_color.name,
             'background_color': self.background_color.name,
+            'command_color':    self.command_color.name,
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> 'TerminalColors':
         instance = cls()
         for key in ('text_color', 'border_color', 'highlight_color',
-                    'normal_color', 'background_color'):
+                    'normal_color', 'background_color', 'command_color'):
             # isinstance guard, not just try/except KeyError: a save file
             # from before ClientSettings had a real to_dict() dumped enum
             # members via a generic __dict__ fallback -- a dict of the
@@ -286,7 +293,12 @@ class ClientSettings:
     # already in) -- an IANA zone name (e.g. 'America/New_York') converts
     # to that zone instead. See formatting.format_player_datetime().
     timezone:    str = ''
-    date_format: str = '%B %d, %Y'
+    # Default includes a weekday (preset 8, 'Weekday, Month Day, Year' --
+    # commands/prefs.py's _DATE_FORMAT_PRESETS) so a never-touched-PREFS
+    # player's dates look the same as before the weekday got folded into
+    # the date-format choice itself (2026-08-27) instead of always being
+    # prepended separately -- see formatting.format_player_datetime().
+    date_format: str = '%A, %B %d, %Y'
     # 12-hour ('%I:%M %p', e.g. '2:30 PM') or 24-hour ('%H:%M', e.g.
     # '14:30' -- the default, matching this codebase's previous hardcoded
     # Hourglass behavior). Editable via PREFS 'F' (Time Format). See
@@ -315,6 +327,11 @@ class ClientSettings:
     # PETSCIINetworkContext as a real, deliberate-looking choice every
     # time. ANSI/JSON clients are genuinely unaffected either way, per
     # the comment above.
+    # Separately, tada-client.asm's term_chrout only advances a screen
+    # row on $0D (CR) -- a real C64 that never visits PREFS 'L' would
+    # otherwise get LF bytes its own line-advance routine doesn't
+    # recognize, and never scroll to a new line. Found live: real
+    # hardware was receiving nothing but LF's.
     line_ending: str = LineEnding.CR
     # Set automatically as a side effect of picking a client type (PREFS
     # 'T') -- true for the Commodore 128, TADA/ANSI, and Custom presets

@@ -54,10 +54,11 @@ from __future__ import annotations
 
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
-from commands.messaging import parse_targets, expand_groups, find_online, player_exists
+from commands.messaging import parse_targets, expand_groups, find_online
 from flags import PlayerFlags
 import mail as mail_store
 from formatting import deserialize_lines, hrule_char, make_rule, render_lines
+from tada_utilities import player_exists
 
 _DATE_COL_WIDTH = 20  # "YYYY-MM-DDTHH:MM:SS"[:16] + padding
 
@@ -119,11 +120,11 @@ class MailCommand(Command):
             'Unread mail is announced when you log in.',
             'Inside the listing, a bare number reads that message; '
             "'d<n>' deletes it.",
-            "'mail #read' walks your mailbox one message at a time with "
+            "|command|mail #read|reset| walks your mailbox one message at a time with "
             'a Reply/Delete/Archive/Keep menu -- requires Prompt Mode '
             '(PREFS) on and more than one message.',
             'MAIL always leaves a letter in the mailbox, whether or not '
-            'the recipient is online -- use PAGE for a live message.',
+            'the recipient is online -- use |command|PAGE|reset| for a live message.',
         ],
     )
 
@@ -167,7 +168,13 @@ class MailCommand(Command):
         for i, msg in enumerate(inbox, 1):
             posted = msg.get('timestamp', '')[:16].replace('T', ' ')
             status = 'New' if not msg.get('read', False) else ''
-            lines.append(f"  {i:>3}. {posted:<{_DATE_COL_WIDTH}}{msg.get('from', '?'):<16}{status}")
+            # A long sender ("Ryan, Helpstaff member") doesn't fit the
+            # column: list the player it's from (reply_to) instead -- the
+            # full sender still shows on the message's own From: line.
+            sender = msg.get('from', '?')
+            if len(sender) > 15 and msg.get('reply_to'):
+                sender = msg['reply_to']
+            lines.append(f"  {i:>3}. {posted:<{_DATE_COL_WIDTH}}{sender[:15]:<16}{status}")
         lines.append('')
         return lines
 
@@ -191,8 +198,9 @@ class MailCommand(Command):
                     return CommandResult.ok('No mail.')
 
                 raw = await ctx.prompt(
-                    f"Read which (#, 'd<n>' to delete, or {ctx.player.return_key} to exit)",
-                    preamble_lines=self._render_listing(ctx, [m for _, m in entries]),
+                    '#',
+                    preamble_lines=self._render_listing(ctx, [m for _, m in entries])
+                    + [f"Read which (#, 'd<n>' to delete, or {ctx.player.return_key} to exit)"],
                 )
                 if raw is None or not raw.strip():
                     return CommandResult.ok('Exited mail.')
@@ -260,7 +268,7 @@ class MailCommand(Command):
 
     async def _reply(self, ctx, raw: str) -> CommandResult:
         if '=' not in raw:
-            await ctx.send('Usage: mail #reply <n>=<message>')
+            await ctx.send('Usage: |command|mail #reply <n>=<message>|reset|')
             return CommandResult.fail('Missing =.', error='missing_args')
 
         number_str, _, message = raw.partition('=')
@@ -268,10 +276,10 @@ class MailCommand(Command):
         message    = message.strip()
 
         if not number_str.isdigit():
-            await ctx.send('Usage: mail #reply <n>=<message>')
+            await ctx.send('Usage: |command|mail #reply <n>=<message>|reset|')
             return CommandResult.fail('Missing number.', error='missing_args')
         if not message:
-            await ctx.send('Reply with what?  Usage: mail #reply <n>=<message>')
+            await ctx.send('Reply with what?  Usage: |command|mail #reply <n>=<message>|reset|')
             return CommandResult.fail('Missing message.', error='missing_args')
 
         name    = ctx.player.name
@@ -281,7 +289,10 @@ class MailCommand(Command):
             await ctx.send('No such mail message.')
             return CommandResult.fail('Unknown mail message.', error='not_found')
 
-        target = entries[number - 1][1].get('from', '')
+        # 'reply_to' (mail.add_message()) when the displayed sender isn't a
+        # plain player name, e.g. "Ryan, Helpstaff member".
+        msg    = entries[number - 1][1]
+        target = msg.get('reply_to') or msg.get('from', '')
         if not target or target.lower() == name.lower():
             await ctx.send('Cannot reply to that message.')
             return CommandResult.fail('No valid sender.', error='not_found')
@@ -336,8 +347,11 @@ class MailCommand(Command):
                 )
 
                 raw = await ctx.prompt(
-                    f'[R]eply, [D]elete, [A]rchive, [K]eep, Read [O]ver, '
-                    f'or {ctx.player.return_key} for next',
+                    'Choice',
+                    preamble_lines=[
+                        f'[R]eply, [D]elete, [A]rchive, [K]eep, Read [O]ver, '
+                        f'or {ctx.player.return_key} for next',
+                    ],
                 )
                 if raw is None:
                     return CommandResult.ok('Exited mail.')
@@ -367,7 +381,7 @@ class MailCommand(Command):
         """[R]eply from within `mail #read`: prompt for a short reply
         right there and page (or, offline, mail) the sender -- same
         delivery path as the standalone `mail #reply <n>=<message>`."""
-        target = msg.get('from', '')
+        target = msg.get('reply_to') or msg.get('from', '')
         if not target or target.lower() == ctx.player.name.lower():
             await ctx.send('Cannot reply to that message.')
             return
@@ -425,7 +439,7 @@ class MailCommand(Command):
             mail_store.add_message(name, ctx.player.name, body)
 
         for tctx in online_ctxs:
-            hint = '' if tctx.player.is_expert else " (type 'mail' to read)"
+            hint = '' if tctx.player.is_expert else " (type |command|mail|reset| to read)"
             await tctx.send(f'You have new mail from {ctx.player.name}.{hint}')
 
     async def _compose(self, ctx, args: tuple) -> CommandResult:
@@ -438,7 +452,7 @@ class MailCommand(Command):
             targets_str, _, message = raw.partition('=')
             message = message.strip()
             if not message:
-                await ctx.send('Mail what?  Usage: mail <target[[,target2]]>=<message>')
+                await ctx.send('Mail what?  Usage: |command|mail <target[[,target2]]>=<message>|reset|')
                 return CommandResult.fail('Missing message.', error='missing_args')
             return await self._send_short(ctx, targets_str, message)
 
@@ -446,7 +460,7 @@ class MailCommand(Command):
 
     async def _send_short(self, ctx, targets_str: str, message: str) -> CommandResult:
         if not targets_str.strip():
-            await ctx.send('Mail whom?  Usage: mail <target[[,target2]]>=<message>')
+            await ctx.send('Mail whom?  Usage: |command|mail <target[[,target2]]>=<message>|reset|')
             return CommandResult.fail('Missing target.', error='missing_args')
 
         targets, problems = self._resolve_targets(ctx, targets_str)
@@ -465,7 +479,7 @@ class MailCommand(Command):
             await ctx.send(p)
         if not targets:
             if not problems:
-                await ctx.send('Mail whom?  Usage: mail <target[[,target2]]> (opens the editor)')
+                await ctx.send('Mail whom?  Usage: |command|mail <target[[,target2]]>|reset| (opens the editor)')
             return CommandResult.fail('No valid target.', error='missing_args')
 
         from text_editor import run_editor

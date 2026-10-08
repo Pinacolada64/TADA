@@ -151,7 +151,8 @@ class WearCommand(Command):
                 lines.append(f'  {i:>2}. {getattr(e.item, "name", "?")}')
             lines.append('')
             await ctx.send(lines)
-            raw = await ctx.prompt(f'Wear which item (1-{len(entries)}, Enter to cancel)')
+            raw = await ctx.prompt(preamble_lines=f'(1-{len(entries)}, {ctx.player.return_key} to cancel)',
+                                   prompt_text="Wear which item")
             if not raw or not raw.strip():
                 return CommandResult.ok()
             try:
@@ -176,7 +177,7 @@ class WearCommand(Command):
                 player.unsaved_changes = True
                 lines = ['Ring worn!  You are hard to see!']
                 if not player.is_expert:
-                    lines.append('(WEAR again to remove)')
+                    lines.append('(|command|WEAR|reset| again to remove)')
                 lines.append('THE EVIL SENSES YOU MORE CLEARLY!')
                 stats = getattr(player, 'stats', None) or {}
                 pt = int(stats.get('Constitution', 10))
@@ -200,7 +201,7 @@ class WearCommand(Command):
                 player.unsaved_changes = True
                 lines = ['Crystal Pendant worn!']
                 if not player.is_expert:
-                    lines.append('(WEAR again to remove)')
+                    lines.append('(|command|WEAR|reset| again to remove)')
                 await ctx.send(lines)
             else:
                 player.clear_flag(PlayerFlags.PENDANT_WORN)
@@ -219,6 +220,7 @@ class WearCommand(Command):
             player.unsaved_changes = True
             await ctx.send('BATTLE ARMOR WORN.')
             await ctx.send('New armor rating=125%')
+            await _notify_worn(ctx, name)
             return CommandResult.ok()
 
         if item_no == _POWER_ARMOR_ID:
@@ -228,6 +230,7 @@ class WearCommand(Command):
             await ctx.send('POWER ARMOR ENERGIZED!')
             await ctx.send('Protects from nuclear back-blast for this play session!')
             await ctx.send('New armor rating=150%')
+            await _notify_worn(ctx, name)
             return CommandResult.ok()
 
         # ---- Generic armor (SPUR.SUB.S "wear") -----------------------------
@@ -244,4 +247,11 @@ class WearCommand(Command):
         player.unsaved_changes = True
         await ctx.send(f'(New armor rating: {new_armor}%)')
         await ctx.send(f'{name} worn.')
+        await _notify_worn(ctx, name)
         return CommandResult.ok()
+
+
+async def _notify_worn(ctx: GameContext, name: str) -> None:
+    """Tell the room -- see room_notices.py."""
+    from room_notices import notify, the, who
+    await notify(ctx, f'{who(ctx.player)} puts on {the(name)}.')

@@ -73,7 +73,7 @@ _CATEGORY_ORDER = [
 ]
 
 
-def _format_entry(entry: InventoryEntry, index: int, worn: bool = False) -> str:
+def _format_entry(entry: InventoryEntry, index: int, worn: bool = False, player=None) -> str:
     name  = getattr(entry.item, 'name', '?') or '?'
     flags = getattr(entry.item, 'flags', None)
     # Ammo (shoppe/ollys.py): loose boxes show per-box rounds and how many
@@ -94,7 +94,7 @@ def _format_entry(entry: InventoryEntry, index: int, worn: bool = False) -> str:
     if charges is not None:
         max_ch      = getattr(entry.item, 'max_charges', 0)
         charge_pct  = int(charges / max_ch * 100) if max_ch else 0
-        cast_chance = getattr(entry.item, 'cast_chance', None)
+        cast_chance = _cast_chance(entry.item, player)
         cast_str    = f', cast: {cast_chance}%' if cast_chance else ''
         charges_str = f' [{charges}/{max_ch} charges, {charge_pct}%{cast_str}]'
     else:
@@ -115,14 +115,30 @@ def _format_entry(entry: InventoryEntry, index: int, worn: bool = False) -> str:
     return f'{index:>3}. {qty}{name}{ammo_str}{charges_str}{container_str}{worn_str}'
 
 
-def _container_lines(entry: InventoryEntry) -> list[str]:
+def _cast_chance(item, player) -> int | None:
+    """A spell's cast % as *player* would get it -- their remembered,
+    practice-raised chance (spellbook.py's cast_chance()) -- or the item's
+    own base value when there's no player (an ally's pack)."""
+    if player is not None and getattr(item, 'category', None) == ItemCategory.SPELL:
+        import spellbook
+        return spellbook.cast_chance(player, item)
+    return getattr(item, 'cast_chance', None)
+
+
+def _container_lines(entry: InventoryEntry, player=None) -> list[str]:
     if not entry.is_container or not entry.contents:
         return []
-    return [
-        f'         > {getattr(sub.item, "name", "?")}'
-        + (f' x{sub.quantity}' if sub.quantity > 1 else '')
-        for sub in entry.contents
-    ]
+    lines = []
+    for sub in entry.contents:
+        line = (f'         > {getattr(sub.item, "name", "?")}'
+                + (f' x{sub.quantity}' if sub.quantity > 1 else ''))
+        # Spell Book pages show their cast % too, same as a loose spell.
+        if getattr(sub.item, 'category', None) == ItemCategory.SPELL:
+            chance = _cast_chance(sub.item, player)
+            if chance:
+                line += f' (cast: {chance}%)'
+        lines.append(line)
+    return lines
 
 
 def _ally_inventory_lines(player) -> list[str]:
@@ -200,6 +216,8 @@ class InvCommand(Command):
         testing     = '#test' in switches
         categorized = bool(args) and args[0].lower() in ('cat', 'c', 'categorized')
 
+        # Whose remembered cast % spells show -- not the #test pack's.
+        player = None if testing else ctx.player
         if testing:
             inventory = _make_test_inventory()
             capacity  = inventory.capacity
@@ -232,8 +250,8 @@ class InvCommand(Command):
                     lines.append(f'-- {cat} --')
                     for entry in cat_entries:
                         worn = getattr(entry.item, 'id_number', None) in worn_ids
-                        lines.append(_format_entry(entry, index, worn=worn))
-                        lines.extend(_container_lines(entry))
+                        lines.append(_format_entry(entry, index, worn=worn, player=player))
+                        lines.extend(_container_lines(entry, player))
                         index += 1
                     lines.append('')
                     any_shown = True
@@ -242,8 +260,8 @@ class InvCommand(Command):
             else:
                 for index, entry in enumerate(inventory, 1):
                     worn = getattr(entry.item, 'id_number', None) in worn_ids
-                    lines.append(_format_entry(entry, index, worn=worn))
-                    lines.extend(_container_lines(entry))
+                    lines.append(_format_entry(entry, index, worn=worn, player=player))
+                    lines.extend(_container_lines(entry, player))
 
         # New in TADA -- allies carrying gifted items were invisible here
         # entirely (see _ally_inventory_lines' docstring). Skipped in

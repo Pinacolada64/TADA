@@ -155,7 +155,7 @@ async def try_recognition_scene(ctx: 'GameContext', monster: dict) -> bool:
 
     await ctx.send('The shadow flies away..')
     if honor > _HONOR_DRAIN:
-        player.honor = honor - _HONOR_DRAIN
+        player.adjust_honor(-_HONOR_DRAIN)
 
     player.unsaved_changes = True
     return True

@@ -50,7 +50,6 @@ def _sent(ctx) -> str:
 _PATCH_STUBS = patch.multiple(
     'shoppe.main',
     _armory        = AsyncMock(return_value=None),
-    _protection    = AsyncMock(return_value=None),
     _general_store = AsyncMock(return_value=None),
     _bank          = AsyncMock(return_value=None),
     _wizard        = AsyncMock(return_value=None),
@@ -78,6 +77,36 @@ class TestShoppeSessionExit(unittest.IsolatedAsyncioTestCase):
         ctx    = make_ctx(player, ['X'])
         await _shoppe_session(ctx, player)
         self.assertIn('passageway', _sent(ctx))
+
+    @_PATCH_STUBS
+    async def test_q_exits(self, **_):
+        """[Q] is the Shoppe's leave key now, matching the other menus."""
+        from shoppe.main import _shoppe_session
+        player = make_player()
+        for key in ('q', 'Q'):
+            ctx = make_ctx(player, [key])
+            await _shoppe_session(ctx, player)
+            self.assertIn('passageway', _sent(ctx))
+
+    @_PATCH_STUBS
+    async def test_menu_shows_q_leave(self, **_):
+        from shoppe.main import _shoppe_session
+        player = make_player(is_expert=False)
+        ctx    = make_ctx(player, ['q'])
+        await _shoppe_session(ctx, player)
+        self.assertIn('[Q] Leave the Shoppe', _sent(ctx))
+        self.assertNotIn('[X]', _sent(ctx))
+
+    @_PATCH_STUBS
+    async def test_word_starting_with_q_does_not_leave(self, **_):
+        """Only an exact 'q' leaves -- 'quote' mustn't walk the player out."""
+        from shoppe.main import _shoppe_session
+        player = make_player()
+        ctx    = make_ctx(player, ['quote', 'q'])
+        with patch('shoppe.main.try_global_command', new=AsyncMock(return_value=True)) as glob:
+            await _shoppe_session(ctx, player)
+        glob.assert_awaited_once()
+        self.assertEqual(_sent(ctx).count('passageway'), 1)
 
     @_PATCH_STUBS
     async def test_none_prompt_exits(self, **_):
@@ -139,7 +168,7 @@ class TestShoppeSessionMenu(unittest.IsolatedAsyncioTestCase):
         player = make_player()
         ctx    = make_ctx(player, ['x'])
         await _shoppe_session(ctx, player)
-        self.assertIn('[X] Leave', _sent(ctx))
+        self.assertIn('[Q] Leave', _sent(ctx))
 
 
 class TestShoppeSessionOthersPresent(unittest.IsolatedAsyncioTestCase):
@@ -157,6 +186,14 @@ class TestShoppeSessionOthersPresent(unittest.IsolatedAsyncioTestCase):
         peer_client      = MagicMock()
         peer_client.ctx  = peer_ctx
         peer_client.virtual_location = 'shoppe'
+        # Same level and room as the shopper -- a Shoppe exists on each of
+        # levels 1-5, so presence only counts occupants of this one.
+        # (make_ctx leaves ctx.client None -- see its comment; this test
+        # only types 'x', which leaves before any global command runs.)
+        from types import SimpleNamespace
+        ctx.client = SimpleNamespace(room=1, virtual_location='shoppe')
+        peer_client.room = 1
+        peer_player.map_level = player.map_level = 1
 
         ctx.server.clients = {'peer': peer_client}
         await _shoppe_session(ctx, player)

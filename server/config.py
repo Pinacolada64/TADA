@@ -33,21 +33,22 @@ SETTINGS_METADATA: Dict[str, SettingInfo] = {
     ),
     'victory_type': SettingInfo(
         str, "What escaping via the level 6 ladder up (room 117, "
-             "\"Shimmering Portal\") requires to win: 'gold', 'item', or "
+             "\"Shimmering Portal\") requires to win: 'silver', 'item', or "
              "'both' (SPUR.CONTROL.S object label). See victory.py for the "
              "full win check.",
         'Victory Type',
     ),
-    'victory_gold_amount': SettingInfo(
-        int, "Silver required in hand to win, when victory_type is 'gold' or 'both'.",
-        'Victory Gold Amount',
+    'victory_silver_amount': SettingInfo(
+        int, "Silver required in hand to win, when victory_type is 'silver' or 'both'.",
+        'Victory Silver Amount',
     ),
     'victory_item_number': SettingInfo(
         int, "objects.json Treasure item number required to win, when victory_type is 'item' or 'both'; 0 = none set.",
         'Victory Item',
     ),
     'dwarf_silver': SettingInfo(
-        int, 'Silver The Dwarf (tips.txt) has stolen so far, server-wide. Awarded in full to whoever kills him.',
+        int, "Silver The Dwarf (tips.txt) has stolen so far, server-wide. Awarded in full to "
+        "whoever kills him, then reset to a 500-silver floor (not zero).",
         "Dwarf's Silver",
     ),
     'dwarf_move_interval_minutes': SettingInfo(
@@ -57,9 +58,11 @@ SETTINGS_METADATA: Dict[str, SettingInfo] = {
         'Dwarf Move Interval',
     ),
     'survival_tick_interval': SettingInfo(
-        int, 'Commands between each hunger/thirst depletion step (survival.py\'s '
-             'survival_tick(), called once per command). Higher = food/drink last '
-             'longer between meals. -1 disables depletion entirely; otherwise minimum 1.',
+        int, 'Enables/disables hunger-thirst depletion (survival.py\'s survival_tick(), '
+             'called once per movement/attack/flee/cast/lasso/lurk action -- '
+             'other commands like help/look never deplete it). -1 disables depletion '
+             'entirely; any other value enables it, depleting 1 point per qualifying '
+             'action.',
         'Survival Tick Interval',
     ),
     'survival_max': SettingInfo(
@@ -179,6 +182,24 @@ def resolve_key(partial: str) -> tuple:
     return None, candidates
 
 
+def _migrate_gold_to_silver(on_disk: Dict[str, Any]) -> bool:
+    """Rewrite a server_config.json written before the silver-standard
+    rename (CLAUDE.md's "Monetary standard") in place: victory_gold_amount
+    -> victory_silver_amount, victory_type 'gold' -> 'silver'. Returns True
+    if anything changed, so the caller can save the migrated file."""
+    changed = False
+    if 'victory_gold_amount' in on_disk:
+        old = on_disk.pop('victory_gold_amount')
+        on_disk.setdefault('victory_silver_amount', old)
+        changed = True
+    if on_disk.get('victory_type') == 'gold':
+        on_disk['victory_type'] = 'silver'
+        changed = True
+    if changed:
+        logging.info('ServerConfig: migrated gold-standard victory settings to silver')
+    return changed
+
+
 class ServerConfig:
     """
     Manages server configuration including optional features like invites.
@@ -220,7 +241,7 @@ class ServerConfig:
         'survival_tick_interval': 10,
         # Maximum/starting value for the food/drink counters (survival.py's
         # own old hardcoded _MAX, same sysop-tunable reasoning).
-        'survival_max': 20,
+        'survival_max': 100,
 
         # --- SPUR.CONTROL.S game configuration (SysOp "config"/"object"/
         # "time.set" labels) -- the handful of settings there that are
@@ -238,14 +259,14 @@ class ServerConfig:
         # object label: what "winning" requires when a player escapes via
         # the level 6 ladder up (room 117, "Shimmering Portal" -- see
         # victory.py). SPUR's go=1/2/3 -- victory_type is one of
-        # "gold", "item", "both". victory_item_number is an objects.json
+        # "silver", "item", "both". victory_item_number is an objects.json
         # Treasure item number (0 = none set); SPUR's chk.obj refused to
         # let the SysOp pick anything literally named JEWEL/DIAMOND/GOLD/
         # SILVER/COIN (too generic/ambiguous with ordinary loot) -- worth
         # enforcing the same rule wherever an admin command ends up setting
         # this, not just here.
-        'victory_type': 'gold',
-        'victory_gold_amount': 5000,
+        'victory_type': 'silver',
+        'victory_silver_amount': 5000,
         'victory_item_number': 0,
 
         # Blank = "whatever timezone the server process's OS is set to"
@@ -275,6 +296,7 @@ class ServerConfig:
             try:
                 with open(self._config_file, 'r') as f:
                     on_disk = json.load(f)
+                migrated = _migrate_gold_to_silver(on_disk)
                 self._config = {**self._default_config, **on_disk}
                 missing_keys = [k for k in self._default_config if k not in on_disk]
                 if missing_keys:
@@ -285,6 +307,8 @@ class ServerConfig:
                         {k: self._default_config[k] for k in missing_keys},
                     )
                 logging.info('ServerConfig._load_config: loaded %s', self._config_file)
+                if migrated:
+                    self._save_config()
             except (json.JSONDecodeError, OSError):
                 logging.exception(
                     'ServerConfig._load_config: failed to read %s -- '
@@ -392,7 +416,7 @@ class ServerConfig:
         bound commands/editplayer.py's Food/Drink editors clamp to.
         Sysop-tunable for the same reason survival_tick_interval is:
         Ryan didn't want either value hardcoded."""
-        return int(self.get('survival_max', 20))
+        return int(self.get('survival_max', 100))
 
     @survival_max.setter
     def survival_max(self, value: int) -> None:
@@ -424,27 +448,32 @@ class ServerConfig:
     @property
     def victory_type(self) -> str:
         """What escaping via the level 6 ladder up (room 117, "Shimmering
-        Portal") requires to count as a win: 'gold' (victory_gold_amount
+        Portal") requires to count as a win: 'silver' (victory_silver_amount
         in hand), 'item' (carrying victory_item_number), or 'both'
         (SPUR.CONTROL.S's object label, go=1/2/3). See victory.py for the
         full win check."""
-        return str(self.get('victory_type', 'gold'))
+        return str(self.get('victory_type', 'silver'))
 
     @victory_type.setter
     def victory_type(self, value: str) -> None:
-        if value not in ('gold', 'item', 'both'):
-            raise ValueError("victory_type must be 'gold', 'item', or 'both'")
+        # 'gold' is the pre-silver-standard spelling (CLAUDE.md's
+        # "Monetary standard") -- still accepted so an admin typing the
+        # old word gets what they meant, but stored as 'silver'.
+        if value == 'gold':
+            value = 'silver'
+        if value not in ('silver', 'item', 'both'):
+            raise ValueError("victory_type must be 'silver', 'item', or 'both'")
         self.set('victory_type', value)
 
     @property
-    def victory_gold_amount(self) -> int:
-        """Silver required in hand to win, when victory_type is 'gold' or
+    def victory_silver_amount(self) -> int:
+        """Silver required in hand to win, when victory_type is 'silver' or
         'both' (SPUR's oh/ol, here as a single amount)."""
-        return int(self.get('victory_gold_amount', 5000))
+        return int(self.get('victory_silver_amount', 5000))
 
-    @victory_gold_amount.setter
-    def victory_gold_amount(self, value: int) -> None:
-        self.set('victory_gold_amount', max(0, int(value)))
+    @victory_silver_amount.setter
+    def victory_silver_amount(self, value: int) -> None:
+        self.set('victory_silver_amount', max(0, int(value)))
 
     @property
     def victory_item_number(self) -> int:

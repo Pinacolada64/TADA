@@ -21,7 +21,7 @@
 ; instead of a fixed address), navigate with CRSR UP/DOWN, capture a
 ; new combo for a nav slot with RETURN (key_capture_combo -- rejects a
 ; combo already bound elsewhere), and either Save (KERNAL SAVE
-; keymap_table back to KEYMAP.CFG) or Cancel. A macro-text sub-editor
+; keymap_table back to TADA64.CFG) or Cancel. A macro-text sub-editor
 ; (RETURN on a macro slot), clearing a slot (DEL), and preset loading
 ; (P) are follow-up work, not yet in this file.
 {include:constants.asm}
@@ -43,7 +43,7 @@ BOX_ROWS    = 21               ; rows 2-22 -- clear of STATUS_ROW(23)/
 ; keymap.asm's own file-header comment). Must be kept in sync by hand
 ; if either changes; confirmed no simpler option exists the same way
 ; OVERLAY_BUF's own comment documents for that constant.
-MAX_BINDINGS   = 15        ; keymap.asm's own MAX_BINDINGS comment
+MAX_BINDINGS   = 16        ; keymap.asm's own MAX_BINDINGS comment
                              ; explains the 5 nav functions (word-left,
                              ; word-right, home via CRSR-UP, home via
                              ; the real CLR/HOME key, end) + the
@@ -71,7 +71,7 @@ BINDING_SIZE   = 3 + MACRO_TEXT_LEN
 HOME_MERGE_ROW = 2
 
 ; --- Two-screen split (Ryan's ask, 2026-09-18): the list is now one of
-; two pages, "Keymap Editor" (the 5 nav rows above) and "Macro Editor"
+; two pages, "Keymap Editor" (the 6 nav rows above) and "Macro Editor"
 ; (the remaining macro slots), selected via a header row shown above
 ; row 0 -- CRSR-UP past row 0 moves focus onto the header (header_
 ; focused=1); CRSR-LEFT/RIGHT while there toggle active_page and
@@ -84,9 +84,10 @@ HOME_MERGE_ROW = 2
 ; of the two, used as draw_list's fixed loop bound so switching to a
 ; shorter page still blanks whatever the longer page left on screen
 ; (see draw_list's own comment).
-NAV_SLOT_COUNT = 6
-NAV_ROWS       = HOME_MERGE_ROW + 3   ; word-left, word-right, home
-                                         ; (merged), end, open-editor = 5
+NAV_SLOT_COUNT = 7          ; + the drive picker's F5 slot (2026-10-01)
+NAV_ROWS       = HOME_MERGE_ROW + 4   ; word-left, word-right, home
+                                         ; (merged), end, open-editor,
+                                         ; drive picker = 6
 MACRO_ROWS     = MAX_BINDINGS - NAV_SLOT_COUNT   ; 9
 PAGE_ROWS_MAX  = MACRO_ROWS
 
@@ -111,12 +112,42 @@ ACTION_WORD_RIGHT  = 2
 ACTION_HOME        = 3
 ACTION_END         = 4
 ACTION_OPEN_EDITOR = 5
+ACTION_OPEN_DRIVES = 6
 ACTION_MACRO       = 255
 
-; $2900 -- see tada-client.asm's OVERLAY_BUF comment (moved here
+; SFDX ($cb, keyboard_rollover.asm) "key-number" values for RETURN and
+; RUN/STOP -- confirmed 2026-09-22 against the actual KERNAL ROM's own
+; unshifted decode table (canonical key-number order == SFDX order),
+; not just recalled -- see server/CLAUDE.md's own "C64 keyboard
+; matrix" reference for the full table and how these were derived.
+; capture_macro_combo (below) uses these to reject RETURN as a
+; bindable macro trigger and to cancel on RUN/STOP, the same way
+; key_capture_combo's own GETIN-based capture checks #$0d/#$03 --
+; except by PHYSICAL matrix position instead of GETIN's decoded byte,
+; since GETIN folds CTRL+M down to the same $0d byte RETURN itself
+; produces (Ryan's ask, 2026-09-22: a macro trigger needs to tell those
+; two apart, which only the matrix position can).
+KEY_NUM_RETURN  = 1
+KEY_NUM_RUNSTOP = 63
+
+; Resident status row's own fixed screen address -- tada-client.asm
+; defines STATUS_ROW(23)/STATUS_ROW_OFFSET(920) in its own private
+; scope, not constants.asm, so this file needs its own copy (same
+; "kept in sync by hand" precedent MAX_BINDINGS/BINDING_SIZE's own
+; comment documents). key_edit_macro_text (below) uses this as a wider
+; (40-column) input row for a macro's own text -- Ryan's idea,
+; 2026-09-22 -- borrowing it only while that routine's own wait loop
+; runs; nothing else touches the status row's raw bytes during a
+; keymap-editor visit (status_service isn't polled from any of this
+; file's own loops), so there's no live rotation/clock to fight with.
+STATUS_ROW_SCREEN = POPUP_SCREEN + 920
+KM_STATUS_ROW     = 23          ; STATUS_ROW_SCREEN's row, for JT_SET_CURSOR
+
+; $3800 (was $3000 briefly, $2900 before that, until 2026-09-28) -- see tada-client.asm's OVERLAY_BUF comment (moved here
 ; 2026-09-02 after this module's own first live test re-triggered the
 ; BACKUP_CHARS/BACKUP_COLORS collision that comment documents).
-        orig $2900
+        orig $3800                ; must match OVERLAY_BUF -- see
+                                  ; tada-client.asm
 
 module_start:
         tsx                          ; save the real stack depth we were
@@ -149,15 +180,16 @@ module_start:
                                        ; no visible popup on screen.
         jsr JT_SAVE_SCREEN
 
-        ; keymap_table_end_lo/hi = KEYMAP_TABLE_PTR + KEYMAP_TABLE_SIZE
-        ; -- key_save's own comment explains why this is computed once,
-        ; here, rather than inline at the SAVE call site.
+        ; keymap_table_end_lo/hi = KEYMAP_TABLE_PTR + CONFIG_FILE_SIZE
+        ; (the table plus the settings block after it) -- key_save's own
+        ; comment explains why this is computed once, here, rather than
+        ; inline at the SAVE call site.
         lda KEYMAP_TABLE_PTR
         clc
-        adc #<KEYMAP_TABLE_SIZE
+        adc #<CONFIG_FILE_SIZE
         sta keymap_table_end_lo
         lda KEYMAP_TABLE_PTR+1
-        adc #>KEYMAP_TABLE_SIZE
+        adc #>CONFIG_FILE_SIZE
         sta keymap_table_end_hi
 
         ; Snapshot keymap_table before anything in this visit can
@@ -231,19 +263,26 @@ keymap_keys:
         word key_row_up
         byte $11                  ; cursor down -- next row
         word key_row_down
-        byte $9d                  ; cursor left -- next sub-entry within
+        byte $1d                  ; cursor left -- next sub-entry within
         word key_subselect_next    ; a merged row (Home only, for now);
                                      ; no-op on any other row -- reversed
                                      ; from LEFT=prev/RIGHT=next 2026-09-18
                                      ; (Ryan's preference, confirmed live)
-        byte $1d                  ; cursor right -- previous sub-entry
+        byte $9d                  ; cursor right -- previous sub-entry
         word key_subselect_prev
         byte $53                  ; 'S' -- save and exit
         word key_save
         byte $03                  ; RUN/STOP -- cancel and exit
         word key_cancel
-        byte $0d                  ; RETURN -- capture a new combo for
-        word key_capture_combo    ; the selected row (nav slots only)
+        byte $0d                  ; RETURN -- nav rows: capture a new
+        word key_capture_combo    ; combo; macro rows: edit the text
+        byte $54                  ; 'T' -- macro rows only: capture a
+        word key_capture_trigger   ; new trigger combo (see that
+                                     ; routine's own header comment)
+        byte $14                  ; DEL -- macro rows only: clear the
+        word key_clear_macro       ; slot back to ACTION_EMPTY, after a
+                                     ; Y/N confirm (see that routine's
+                                     ; own header comment)
 KEYMAP_KEYS_END = * - keymap_keys
 
 ; CRSR-UP past row 0 moves focus onto the header instead of wrapping to
@@ -491,59 +530,125 @@ ssa_no_carry:
 ssa_done:
         rts
 
-; --- key_capture_combo: RETURN on the selected row -> wait for the
+; --- kcc_setup/kcc_teardown: shared prologue/epilogue for key_capture_
+; combo (nav rows, GETIN-decoded-byte identity) and capture_macro_combo
+; (macro rows, SFDX-matrix-position identity, below) -- factored out
+; 2026-09-22 rather than duplicated by hand when the macro-trigger
+; capture needed the exact same snapshot/prompt/restore/redraw shape
+; but a genuinely different wait-loop identity mechanism in between.
+;
+; kcc_setup: snapshot the resident cursor (JT_GET_CURSOR -- cursor_
+; toggle's own screen position, the one read_line_loop's own update_
+; cursor blinks; the KERNAL's PNT/PNTR, $d1-$d3, until screen-output.asm
+; took the screen over 2026-09-28) before update_capture_display starts
+; repositioning it at the live readout -- restored by kcc_teardown so
+; this wait's own cursor blinking can't leak a stale position into
+; read_line once this popup closes. cursor_phase itself needs no
+; snapshot/restore: read_line_loop's own cursor_hide call (right before
+; dispatching ANY keystroke, including the F7 that opened this popup)
+; already guarantees it's 0 (erased) on entry here, and kcc_teardown's
+; own JT_CURSOR_HIDE call puts it back to exactly that same state
+; before restoring the cursor, so the two states always match up.
+kcc_setup:
+        jsr JT_GET_CURSOR
+        stx capture_saved_row
+        sty capture_saved_col
+
+        ldx #<capture_prompt_msg
+        ldy #>capture_prompt_msg
+        jsr draw_message_row
+        lda #$ff                    ; sentinel -- guarantees update_
+        sta ucd_prev_mod             ; capture_display's own change-
+                                       ; check (see its comment) redraws
+                                       ; on THIS call: a real captured
+                                       ; mod is always masked to 3 bits
+                                       ; (0-7), so $ff can never match
+                                       ; and be mistaken for "unchanged"
+                                       ; -- without this reset, a SECOND
+                                       ; capture later in the same visit
+                                       ; could inherit the FIRST one's
+                                       ; leftover ucd_prev_mod/key and
+                                       ; wrongly skip its own first draw
+        jmp update_capture_display  ; tail call -- draws the (blank)
+                                       ; live row once up front, before
+                                       ; the first key; its own rts
+                                       ; returns straight to our caller
+
+; kcc_drain_getin: discard any bytes left sitting in the KERNAL
+; keyboard buffer -- called first thing by kcc_teardown (below) so a
+; physical keypress that satisfied SFDX during capture_macro_combo's
+; own wait (which never itself calls GETIN, see that routine's own
+; header comment) can't leak into keymap_menu_loop's next GETIN poll
+; once this popup regains control. Real bug caught live 2026-09-22:
+; without this, a captured Ctrl+C (SFDX-distinct from RUN/STOP, so the
+; capture itself succeeded) still left GETIN's OWN decoded byte for
+; that same keypress ($03 -- CTRL+letter follows the classic ASCII
+; control-code range, and 'C' is the 3rd letter) sitting unread in the
+; buffer; the very next idle-poll GETIN call read it back and matched
+; keymap_keys' own RUN/STOP entry, silently closing the whole popup
+; right after a successful capture. A no-op for key_capture_combo's own
+; nav-row path, which already consumes its one GETIN byte itself as
+; part of normal capture -- harmless to run unconditionally either way.
+kcc_drain_getin:
+        jsr GETIN
+        cmp #0
+        bne kcc_drain_getin
+        rts
+
+kcc_teardown:
+        jsr kcc_drain_getin
+        jsr JT_CURSOR_HIDE          ; erase the live-readout cursor at
+                                     ; its CURRENT position --
+                                     ; must happen before restoring
+                                     ; those below, while they still
+                                     ; point at the real on-screen spot
+                                     ; the cursor was last drawn at
+        ldx capture_saved_row
+        ldy capture_saved_col
+        jsr JT_SET_CURSOR
+        jsr draw_help_footer        ; restore rows 18/19 -- row 19 was
+                                     ; overwritten by the live combo
+                                     ; readout; picks the plain or
+                                     ; HOME_MERGE_ROW-specific footer
+                                     ; depending on selected_row, same
+                                     ; as key_row_up/down's own call
+        jmp draw_list                ; tail call
+
+; --- key_capture_combo: RETURN on the selected NAV row -> wait for the
 ; next real keypress (plus whatever SHIFT/C=/CTRL is held per $028d,
 ; same modifier-read keymap.asm's own keymap_dispatch uses) and store
-; it as that row's new modifier+key, leaving its action byte (and any
-; macro text) untouched. No-op on an empty slot (ACTION_EMPTY --
-; nothing to rebind) or a macro slot (ACTION_MACRO -- RETURN there is
-; reserved for the not-yet-built macro-text sub-editor, see this
-; file's own header comment); only the four nav actions (WORD_LEFT/
-; WORD_RIGHT/HOME/END) actually capture. RUN/STOP during the wait
-; cancels (matches the prompt's own "Stop to cancel" text) without
-; changing anything. A captured combo already bound to some OTHER slot
-; is rejected with an inline message and the wait resumes, rather than
-; silently creating a duplicate -- the original plan's "editor-time
-; only" duplicate check.
+; it as that row's new modifier+key, leaving its action byte untouched.
+; No-op on an empty slot (ACTION_EMPTY -- nothing to rebind); only the
+; four nav actions (WORD_LEFT/WORD_RIGHT/HOME/END) and ACTION_OPEN_
+; EDITOR actually capture. RUN/STOP during the wait cancels (matches
+; the prompt's own "Stop to cancel" text) without changing anything. A
+; captured combo already bound to some OTHER nav slot is rejected with
+; an inline message and the wait resumes, rather than silently creating
+; a duplicate -- the original plan's "editor-time only" duplicate
+; check.
+;
+; On the Macro Editor page, RETURN instead hands off to key_edit_macro_
+; text (Ryan's ask, 2026-09-22: "Return on a macro row says 'I want to
+; edit this macro'" -- matching "Return: Edit" already used elsewhere
+; in this popup, and text editing being the far more common action on
+; a macro row than rebinding its trigger). Trigger capture itself moved
+; to 'T' -- see key_capture_trigger's own header comment.
 key_capture_combo:
         lda header_focused         ; no row is selected while the header
         beq kcc_have_row            ; itself has focus -- nothing to bind
         rts
 kcc_have_row:
+        lda active_page
+        beq kcc_nav_page
+        jmp key_edit_macro_text
+kcc_nav_page:
         jsr selected_slot_addr
         ldy #2                     ; action byte
         lda (scr_ptr_lo),y
         cmp #ACTION_EMPTY
         beq kcc_rts
-        cmp #ACTION_MACRO
-        beq kcc_rts
 
-        ; Snapshot the KERNAL's own PNT/PNTR ($d1/$d2/$d3 -- cursor_
-        ; toggle's own screen-position pointer, read_line_loop's own
-        ; update_cursor uses the same pair) before update_capture_
-        ; display starts repositioning them at the live readout below --
-        ; restored in kcc_done so this wait's own cursor blinking can't
-        ; leak a stale position into read_line once this popup closes.
-        ; cursor_phase itself needs no snapshot/restore: read_line_loop's
-        ; own cursor_hide call (right before dispatching ANY keystroke,
-        ; including the F7 that opened this popup) already guarantees
-        ; it's 0 (erased) on entry here, and kcc_done's own JT_CURSOR_
-        ; HIDE call puts it back to exactly that same state before
-        ; restoring $d1-$d3, so the two states always match up.
-        lda $d1
-        sta capture_saved_pnt_lo
-        lda $d2
-        sta capture_saved_pnt_hi
-        lda $d3
-        sta capture_saved_pntr
-
-        ldx #<capture_prompt_msg
-        ldy #>capture_prompt_msg
-        jsr draw_message_row
-        lda #0
-        sta capture_display_key
-        jsr update_capture_display  ; draw the (blank) live row once
-                                       ; up front, before the first key
+        jsr kcc_setup
 kcc_wait:
         jsr GETIN
         cmp #0
@@ -552,8 +657,6 @@ kcc_wait:
                                        ; modifiers/blank-on-release live
         jmp kcc_wait
 kcc_got_key:
-        sta capture_display_key     ; cache for the live row regardless
-                                       ; of accept/reject below
         pha
         jsr update_capture_display
         pla
@@ -575,37 +678,713 @@ kcc_got_key:
         lda capture_key
         sta (scr_ptr_lo),y
 kcc_done:
-        jsr JT_CURSOR_HIDE          ; erase the live-readout cursor at
-                                     ; its CURRENT ($d1-$d3) position --
-                                     ; must happen before restoring
-                                     ; those below, while they still
-                                     ; point at the real on-screen spot
-                                     ; the cursor was last drawn at
-        lda capture_saved_pnt_lo
-        sta $d1
-        lda capture_saved_pnt_hi
-        sta $d2
-        lda capture_saved_pntr
-        sta $d3
-        jsr draw_help_footer        ; restore rows 18/19 -- row 19 was
-                                     ; overwritten by the live combo
-                                     ; readout; picks the plain or
-                                     ; HOME_MERGE_ROW-specific footer
-                                     ; depending on selected_row, same
-                                     ; as key_row_up/down's own call
-        jsr draw_list
+        jmp kcc_teardown             ; tail call
 kcc_rts:
         rts
 
+; --- key_edit_macro_text: RETURN on a Macro Editor row -> type/edit
+; that slot's own macro text (up to MACRO_TEXT_LEN=24 chars), using the
+; RESIDENT status row (STATUS_ROW_SCREEN, all 40 columns -- wider than
+; anything inside the popup's own box) as the input widget (Ryan's
+; idea, 2026-09-22). Reuses the same JT_CURSOR_HIDE/JT_UPDATE_CURSOR
+; blink trampolines key_capture_combo's own live readout already uses,
+; just pointed at a fixed resident screen row instead of one inside
+; this popup. No-op while the header has focus or on the Keymap Editor
+; page (nav rows have no text of their own).
+;
+; Edits happen in macro_text_scratch, a local copy -- the real slot
+; is only overwritten on accept (RETURN), matching every other capture
+; routine's own "scratch first" convention; RUN/STOP cancels, discarding
+; the scratch copy untouched. DEL backspaces. Only the input mechanics
+; are GETIN-based here, unlike capture_macro_combo's own SFDX-based
+; trigger capture -- this is genuinely TEXT the player is composing
+; (real characters like 'l','o','o','k'), not a single physical key's
+; own identity, so GETIN's decoded bytes are exactly what's wanted.
+; Printable range matches dc_key's own established convention ($41-$5A
+; 'A'-'Z', $20-$3F space/digits/punctuation -- PETSCII == screen code
+; already in this popup's charset); anything else typed is silently
+; ignored, same as capture_macro_combo's own RETURN-rejection shape.
+;
+; CRSR-LEFT/RIGHT move macro_edit_pos, a separate cursor offset within
+; macro_text_scratch (0..macro_edit_len) -- added 2026-09-22, Ryan's
+; ask. Before this, every insert/backspace implicitly worked at the
+; END of the buffer (macro_edit_len doubled as the only cursor); now
+; macro_edit_pos is the real insertion point and macro_edit_len is
+; just the total length, so a player can move back into already-typed
+; text (e.g. to fix a typo mid-word) instead of only ever appending or
+; trimming off the end. kemt_try_insert shifts everything from
+; macro_edit_pos onward one byte right to open a gap; kemt_backspace
+; shifts everything from macro_edit_pos onward one byte left to close
+; one, same as any ordinary line editor's insert-mode behavior (this
+; popup's own read_line-style input line, tada-client.asm, already
+; works this same way via cursor_pos -- this mirrors that rather than
+; inventing new mechanics). key_edit_macro_text seeds macro_edit_pos
+; to macro_edit_len on entry (cursor starts after the existing text,
+; matching this routine's old end-only behavior for anyone who never
+; touches CRSR-LEFT/RIGHT at all).
+;
+; Works on BOTH ACTION_EMPTY and ACTION_MACRO slots, in either order
+; relative to key_capture_trigger -- a player can set a macro's text
+; before or after its own trigger. Accepting text always sets ACTION_
+; MACRO (even if no trigger's been captured yet, symmetric with key_
+; capture_trigger's own "sets ACTION_MACRO once accepted regardless of
+; what the other field currently holds" behavior). A slot with ACTION_
+; MACRO but mod=key=0 (text set, no trigger yet) simply isn't reachable
+; by any real keypress until a trigger's also captured -- keymap_
+; dispatch's own key match can never see a real event that's key-number
+; 0, so this is a safe interim state, not a real conflict.
+;
+; Status row handling: while editing, this routine pokes STATUS_ROW_
+; SCREEN's raw bytes directly, bypassing the resident status QUEUE
+; entirely -- safe because status_service is never polled from any of
+; this file's own loops (nothing else can race to redraw that row
+; during a keymap-editor visit). On exit (accept or cancel), rather
+; than snapshot/restore the row's own raw bytes, this just pushes a
+; fresh blank message through the NORMAL push_keymap_status_msg path --
+; simpler, and it re-syncs the resident queue's own bookkeeping with
+; what's on screen, so a LATER status_service tick (once back in
+; ordinary gameplay) doesn't get confused by a screen state the queue
+; never knew about.
+key_edit_macro_text:
+        lda header_focused
+        bne kemt_early_rts
+        lda active_page
+        bne kemt_start
+kemt_early_rts:                      ; local rts -- kemt_rts itself is
+        rts                          ; 224+ bytes away, out of branch range
+kemt_start:
+        jsr edit_slot
+        jsr selected_slot_addr
+
+        ; Copy the slot's current text (offset+3..+26) into scratch,
+        ; tracking the real length explicitly in macro_edit_len rather
+        ; than relying on NUL-termination alone -- macro_text_scratch
+        ; is a fixed, reused buffer, and a PREVIOUS edit's now-stale
+        ; trailing bytes must never be treated as live content just
+        ; because this edit's own text happens to be shorter.
+        ldy #3
+        ldx #0
+kemt_copy_loop:
+        cpx #MACRO_TEXT_LEN
+        beq kemt_copy_done
+        lda (scr_ptr_lo),y
+        beq kemt_copy_done
+        sta macro_text_scratch,x
+        iny
+        inx
+        jmp kemt_copy_loop
+kemt_copy_done:
+        stx macro_edit_len
+        stx macro_edit_pos           ; cursor starts after the existing
+                                       ; text -- see this routine's own
+                                       ; header comment on macro_edit_pos
+
+        jsr JT_GET_CURSOR
+        stx capture_saved_row
+        sty capture_saved_col
+
+        jsr kemt_redraw              ; draw the initial text + cursor
+kemt_wait:
+        jsr GETIN
+        cmp #0
+        beq kemt_wait
+        cmp #$0d
+        beq kemt_accept
+        cmp #$03                    ; RUN/STOP -- cancel, no change
+        bne kemt_not_stop           ; inverted + jmp: kemt_done is 131
+        jmp kemt_done               ; bytes away, out of branch range
+kemt_not_stop:
+        cmp #$14                    ; DEL
+        beq kemt_backspace
+        cmp #$9d                    ; CRSR-LEFT -- move cursor left
+        beq kemt_cursor_left
+        cmp #$1d                    ; CRSR-RIGHT -- move cursor right
+        beq kemt_cursor_right
+        jsr kemt_try_insert
+        jmp kemt_wait
+kemt_cursor_left:
+        lda macro_edit_pos
+        beq kemt_wait                ; already at the start
+        dec macro_edit_pos
+        jsr kemt_redraw
+        jmp kemt_wait
+kemt_cursor_right:
+        lda macro_edit_pos
+        cmp macro_edit_len
+        beq kemt_wait                ; already at the end
+        inc macro_edit_pos
+        jsr kemt_redraw
+        jmp kemt_wait
+kemt_backspace:
+        lda macro_edit_pos
+        beq kemt_wait                ; nothing before the cursor to
+                                       ; remove -- see this routine's
+                                       ; own header comment on
+                                       ; macro_edit_pos vs macro_edit_len
+        ldx macro_edit_pos           ; shift scratch[pos..len-1] left
+kemt_backspace_shift:                 ; by one, closing the gap left by
+        cpx macro_edit_len            ; the removed character (macro_
+        beq kemt_backspace_shift_done ; text_scratch-1,x is a valid
+        lda macro_text_scratch,x      ; absolute,X address -- the base
+        sta macro_text_scratch-1,x    ; is just computed one byte
+        inx                           ; earlier, same trick spares a
+        jmp kemt_backspace_shift      ; second index register)
+kemt_backspace_shift_done:
+        dec macro_edit_len
+        dec macro_edit_pos
+        jsr kemt_redraw
+        jmp kemt_wait
+kemt_accept:
+        jsr selected_slot_addr       ; recompute -- kemt_redraw doesn't
+                                       ; touch scr_ptr_lo/hi, but this
+                                       ; matches every other capture
+                                       ; routine's own "don't trust a
+                                       ; pointer this old" convention
+        ldy #3
+        ldx #0
+kemt_write_loop:
+        cpx macro_edit_len
+        bcs kemt_write_pad
+        lda macro_text_scratch,x
+        sta (scr_ptr_lo),y
+        iny
+        inx
+        jmp kemt_write_loop
+kemt_write_pad:
+        cpx #MACRO_TEXT_LEN
+        beq kemt_write_action
+        lda #0
+        sta (scr_ptr_lo),y
+        iny
+        inx
+        jmp kemt_write_pad
+kemt_write_action:
+        ldy #2
+        lda (scr_ptr_lo),y
+        cmp #ACTION_MACRO
+        beq kemt_done
+        lda #ACTION_MACRO
+        sta (scr_ptr_lo),y
+kemt_done:
+        jsr JT_CURSOR_HIDE
+        ldx capture_saved_row
+        ldy capture_saved_col
+        jsr JT_SET_CURSOR
+        ldx #<keymap_status_clear_msg
+        ldy #>keymap_status_clear_msg
+        jsr push_keymap_status_msg   ; restore the status row via the
+                                       ; normal queue path -- see this
+                                       ; routine's own header comment
+        jmp draw_list                 ; tail call -- refresh the row's
+                                        ; own name column (may now show
+                                        ; real text instead of blank/
+                                        ; "-- empty --")
+kemt_rts:
+        rts
+
+; --- kemt_redraw: repaint STATUS_ROW_SCREEN with macro_text_scratch's
+; current content (macro_edit_len bytes), reverse video (matching
+; redraw_status_row's own convention -- this IS that same physical
+; row), padded to 40 columns, then position the live blink cursor right
+; after the text via JT_CURSOR_HIDE/JT_UPDATE_CURSOR -- same technique
+; update_capture_display's own live readout uses, just a fixed absolute
+; row instead of a per-call variable one (the status row never moves).
+kemt_redraw:
+        jsr JT_CURSOR_HIDE
+        ldy #0
+kemt_redraw_loop:
+        cpy macro_edit_len
+        bcs kemt_redraw_pad
+        lda macro_text_scratch,y
+        jsr macro_char_to_screencode
+        ora #$80
+        sta STATUS_ROW_SCREEN,y
+        iny
+        jmp kemt_redraw_loop
+kemt_redraw_pad:
+        lda #$a0                    ; reverse-video space
+kemt_redraw_pad_loop:
+        cpy #40
+        bcs kemt_redraw_position
+        sta STATUS_ROW_SCREEN,y
+        iny
+        jmp kemt_redraw_pad_loop
+kemt_redraw_position:
+        ldx #KM_STATUS_ROW
+        ldy macro_edit_pos           ; the cursor's own position, NOT
+        jsr JT_SET_CURSOR             ; macro_edit_len -- see key_edit_
+                                        ; macro_text's own header comment
+                                        ; on macro_edit_pos vs macro_
+                                        ; edit_len (2026-09-22)
+        jmp JT_UPDATE_CURSOR         ; tail call
+
+; --- macro_char_to_screencode: .A = a byte from a macro's own stored
+; text -> .A = the correct SCREEN CODE to poke for it. Only .A is
+; touched -- safe to call from a loop using X/Y as index counters.
+; Used by every routine that pokes a macro's own text directly (kemt_
+; redraw, describe_binding_row's dbr_macro_copy, update_macro_status_
+; preview) -- NOT by keymap_insert_macro (keymap.asm), which echoes the
+; RAW stored byte via a real jsr term_chrout/CHROUT during actual
+; gameplay, and CHROUT already does the SAME translation this routine
+; does, the normal way, given the stored-byte convention below.
+;
+; Real live find, 2026-09-22 (Ryan's own lowercase-typing ask led here):
+; CHROUT's own PETSCII->screencode translation, in THIS client's own
+; upper/lowercase charset, is the OPPOSITE of the naive assumption a
+; direct poke's own identity convention this file used to rely on --
+; confirmed via a real typed-and-echoed keystroke, not guessed: CHROUT
+; of PETSCII $41-$5A ("uppercase" by ASCII convention) echoes as
+; LOWERCASE (screencode $01-$1A), and CHROUT of $61-$7A ("lowercase" by
+; ASCII convention) echoes as UPPERCASE (screencode $41-$5A) -- because
+; this client only ever switched the VIC's own DISPLAY charset at boot
+; (tada-client.asm's own CHARSET_UPPER_LOWER), never the KERNAL's
+; separate keyboard DECODE table, so an unshifted letter key always
+; still produces the "conventionally uppercase" $41-$5A PETSCII byte
+; regardless of charset -- and CHROUT, charset-aware, correctly renders
+; THAT byte as lowercase to match what a genuine lowercase-mode
+; terminal's own unshifted key would mean. A real, pre-existing bug
+; this uncovers: every macro's text tested THIS SESSION, before this
+; fix, displayed correctly in the editor's own OLD identity-mapped
+; direct-poke convention but would have echoed in the OPPOSITE case
+; during real gameplay (via keymap_insert_macro's own CHROUT call) --
+; never actually seen, since every prior verification only checked
+; linebuf's own raw bytes, not the live screen render.
+;
+; Fixed by CHOOSING a stored-byte convention that's CHROUT-consistent
+; instead of fighting it: kemt_try_insert (below) now stores $61-$7A
+; for what the player types UNSHIFTED (still displays/echoes as
+; UPPERCASE, matching the feature's ORIGINAL established behavior --
+; no player-visible change there) and $41-$5A for a genuine SHIFT+
+; letter press (a NEW capability, Ryan's actual ask -- see kemt_try_
+; shift_letter's own comment), so CHROUT's real echo and this routine's
+; own direct-poke translation FINALLY agree with each other, by
+; construction, rather than by coincidence. This is a BREAKING change
+; to the stored byte format -- any macro text saved before this fix
+; will now display in the OPPOSITE case than it did before (still
+; correct going forward, just not compatible with old saves; this
+; feature is still draft-PR-only, no shipped save format to preserve).
+;
+; The back-arrow auto-submit marker ($5f -- keymap_insert_macro's own
+; header comment in keymap.asm) is a separate, ALREADY-correct special
+; case: unlike a letter, a punctuation/graphic PETSCII byte's own
+; screen-code position is a DIFFERENT, lower byte in EITHER charset
+; (only letters have two case-dependent charset positions) -- confirmed
+; via a live VICE screenshot, not guessed: $5f poked directly showed an
+; unrelated graphic, $1f showed the real left-arrow.
+macro_char_to_screencode:
+        cmp #$5f
+        beq mcts_arrow
+        cmp #$41
+        bcc mcts_rts                 ; < $41 -- space/digit/punctuation,
+                                        ; identity
+        cmp #$5b
+        bcc mcts_lower                ; $41-$5A -- shift-typed, lower
+                                        ; case-intended
+        cmp #$61
+        bcc mcts_rts                  ; $5b-$60 gap -- shouldn't occur,
+                                        ; identity fallback
+        cmp #$7b
+        bcs mcts_rts                   ; $7b+ -- shouldn't occur,
+                                         ; identity fallback
+        sec                            ; $61-$7A -- unshifted-typed,
+        sbc #$20                       ; upper case-intended -> screen
+        rts                             ; code $41-$5A
+mcts_lower:
+        sec
+        sbc #$40                     ; $41-$5A -> screen code $01-$1A
+        rts
+mcts_arrow:
+        lda #$1f
+mcts_rts:
+        rts
+
+; --- kemt_try_insert: .a = a GETIN byte -> insert it into macro_text_
+; scratch AT macro_edit_pos (shifting everything from there onward one
+; byte right to open a gap -- see key_edit_macro_text's own header
+; comment) if printable and there's room left (macro_edit_len <
+; MACRO_TEXT_LEN). Silently no-ops otherwise -- full buffer or an
+; unprintable key -- same "ignore rather than error" shape this file
+; already uses elsewhere in a wait loop.
+;
+; Case handling (Ryan's ask, 2026-09-22 -- see macro_char_to_screencode's
+; own comment for the full CHROUT-consistency reasoning this all rests
+; on): an UNSHIFTED letter key ($41-$5A -- this ROM's own decode table
+; never produces this range for a SHIFTED letter press, so no ambiguity
+; at all here) stores $41-$5A as-is (lowercase-intended). A SHIFT+
+; letter press stores $61-$7A (uppercase-intended). This matches
+; ordinary keyboard convention (plain key = lowercase, Shift =
+; uppercase) -- Ryan's own follow-up ask, 2026-09-22, after the FIRST
+; version of this shipped with the two swapped: technically consistent
+; with CHROUT either way, but unintuitive to actually type. $5f (back-
+; arrow) and $20-$3F (space/digit/punctuation) are unaffected either
+; way, stored as-is.
+;
+; SHIFT+letter's own real GETIN byte, corrected live 2026-09-22 (Ryan's
+; report: "typing an uppercase S types an E" -- traced to a genuinely
+; wrong ROM read, not real punctuation collisions as an EARLIER version
+; of this comment claimed). SHIFT+letter is simply the unshifted byte
+; with bit 7 set ($C1-$DA) -- the standard PETSCII convention -- read
+; straight from the KERNAL's own decode-table DISPATCH routine ($EB48),
+; which gives the shifted table's real base address ($EBC2). An earlier
+; pass here instead ASSUMED the shifted table immediately follows the
+; unshifted table's own 64 bytes ($EB81), landing one byte early
+; ($EBC1 instead of the real $EBC2) and silently pulling every single
+; shift+letter code from the wrong ROM position. Re-derived from the
+; verified dispatch-table address this time, not patched entry-by-entry.
+; There is NO punctuation collision at all with the correct $C1-$DA
+; range -- the earlier (wrong) values happened to land on real
+; punctuation bytes purely as an artifact of the same off-by-one read,
+; which is what motivated a whole SFDX cross-check mechanism to solve a
+; collision that never actually existed. A straight arithmetic check
+; replaces that entire 3-table lookup.
+kemt_try_insert:
+        sta kemt_typed
+        cmp #$5f
+        beq kemt_insert_go           ; back-arrow -- accept unconditionally
+        cmp #$41
+        bcc kemt_try_shift_letter
+        cmp #$5b
+        bcc kemt_insert_go            ; unshifted letter -- store as-is,
+                                        ; lower case-intended ($41-$5A)
+kemt_try_shift_letter:
+        lda kemt_typed
+        cmp #$c1
+        bcc kemt_try_punct
+        cmp #$db
+        bcs kemt_try_punct
+        sec
+        sbc #$60                     ; $C1-$DA -- SHIFT+letter (real
+        sta kemt_typed                ; PETSCII: unshifted OR $80) --
+        jmp kemt_insert_go             ; store upper case-intended
+                                         ; ($61-$7A)
+kemt_try_punct:
+        lda kemt_typed
+        cmp #$20
+        bcc kemt_insert_rts
+        cmp #$40
+        bcs kemt_insert_rts
+kemt_insert_go:
+        lda macro_edit_len
+        cmp #MACRO_TEXT_LEN
+        bcs kemt_insert_rts
+        ldx macro_edit_len            ; shift scratch[pos..len-1] right
+kemt_insert_shift:                     ; by one, from the END backward,
+        cpx macro_edit_pos             ; to open a gap at pos (macro_
+        beq kemt_insert_shift_done     ; text_scratch-1,x mirrors kemt_
+        lda macro_text_scratch-1,x     ; backspace_shift's own trick --
+        sta macro_text_scratch,x       ; see that routine's own comment)
+        dex
+        jmp kemt_insert_shift
+kemt_insert_shift_done:
+        ldx macro_edit_pos
+        lda kemt_typed
+        sta macro_text_scratch,x
+        inc macro_edit_len
+        inc macro_edit_pos
+        jsr kemt_redraw
+kemt_insert_rts:
+        rts
+
+kemt_typed:
+        byte 0
+macro_edit_pos:
+        byte 0
+macro_edit_len:
+        byte 0
+macro_text_scratch:
+        area MACRO_TEXT_LEN, 0
+
+; --- key_capture_trigger: 'T' on a Macro Editor row -> capture a new
+; trigger combo for that slot, via capture_macro_combo below. Moved off
+; RETURN (Ryan's ask, 2026-09-22 -- see key_capture_combo's own header
+; comment) onto its own key, since RETURN now means "edit this row's
+; text" instead. Same header_focused/active_page guards key_capture_
+; combo's own RETURN dispatch applied before the split -- a no-op while
+; the header has focus or on the Keymap Editor page.
+key_capture_trigger:
+        lda header_focused
+        bne kt_rts
+        lda active_page
+        beq kt_rts
+        jmp capture_macro_combo
+kt_rts:
+        rts
+
+; --- key_clear_macro: DEL on a Macro Editor row -> zero that slot back
+; to ACTION_EMPTY (modifier, key, action, AND macro_text all cleared --
+; a stale trigger or leftover text sitting under an ACTION_EMPTY byte
+; would be invisible in the list but would still round-trip through
+; Save/Load, so this clears the whole BINDING_SIZE run, not just the
+; action byte), after a Y/N confirm on rows 18/19 (same draw_message_
+; row infra key_capture_combo's own capture_prompt_msg/capture_
+; conflict_msg use). Same header_focused/active_page guards key_
+; capture_trigger's own comment explains; also a no-op on an already-
+; empty slot -- nothing to confirm clearing.
+;
+; No live readout/cursor here (unlike kcc_setup/kemt_redraw) -- this
+; is a static Y/N prompt, not something the player types text or a
+; combo into, so there's no cursor state to save/restore.
+key_clear_macro:
+        lda header_focused
+        bne kcm_rts
+        lda active_page
+        beq kcm_rts
+        jsr edit_slot
+        jsr selected_slot_addr
+        ldy #2                     ; action byte
+        lda (scr_ptr_lo),y
+        cmp #ACTION_EMPTY
+        beq kcm_rts                ; already empty -- nothing to clear
+
+        ldx #<kcm_confirm_msg1
+        ldy #>kcm_confirm_msg1
+        jsr draw_message_row
+        ldx #<kcm_confirm_msg2
+        ldy #>kcm_confirm_msg2
+        stx poke_src_lo
+        sty poke_src_hi
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+19)*40)
+        sta poke_dst_lo
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+19)*40)
+        sta poke_dst_hi
+        jsr poke_line
+kcm_wait:
+        jsr GETIN
+        cmp #0
+        beq kcm_wait
+        cmp #$59                   ; 'Y' -- confirmed, clear the slot
+        beq kcm_clear
+        cmp #$4e                   ; 'N' -- explicit decline
+        beq kcm_done
+        cmp #$03                   ; RUN/STOP -- same as 'N'
+        beq kcm_done
+        jmp kcm_wait                ; anything else -- ignore, keep
+                                       ; waiting for a real Y/N answer
+kcm_clear:
+        jsr selected_slot_addr      ; recompute -- the wait loop above
+                                       ; didn't touch scr_ptr_lo/hi, but
+                                       ; this matches every other
+                                       ; confirm/capture routine's own
+                                       ; "don't trust a pointer this
+                                       ; old" convention
+        ldy #0
+kcm_clear_loop:
+        lda #0
+        sta (scr_ptr_lo),y
+        iny
+        cpy #BINDING_SIZE
+        bne kcm_clear_loop
+kcm_done:
+        jsr draw_help_footer         ; restore rows 18/19
+        jmp draw_list                 ; tail call -- row may now show
+                                        ; "-- empty --" instead of the
+                                        ; cleared macro's old text
+kcm_rts:
+        rts
+
+; --- capture_macro_combo: capture a macro slot's own trigger -- wait
+; for the next real keypress and store its PHYSICAL matrix position
+; (SFDX, $cb, keyboard_rollover.asm) as that macro slot's new trigger,
+; rather than key_capture_combo's own GETIN-decoded byte (Ryan's ask,
+; 2026-09-22: GETIN folds CTRL+M down to the exact same $0d byte a
+; bare RETURN also produces, so a decoded-byte capture can't tell a
+; deliberate Ctrl+M trigger apart from an accidental Return -- SFDX's
+; matrix position can, see KEY_NUM_RETURN/KEY_NUM_RUNSTOP's own comment
+; and server/CLAUDE.md's "C64 keyboard matrix" reference for how those
+; were verified).
+;
+; Edge-detects directly on SFDX rather than snapshotting it when GETIN
+; fires: SFDX is live/unbuffered while GETIN is buffered, so a fast
+; tap-and-release could already be back at $40 (no key) by the time
+; GETIN's own byte surfaces, capturing a stale/wrong matrix position
+; for a quick tap. Polling SFDX directly every tick has no such lag.
+;
+; Does NOT poll GETIN at all -- real bug caught live 2026-09-22 (Ryan's
+; report: capturing Ctrl+C as a trigger "aborts" the whole popup).
+; GETIN's own decode table folds CTRL+C down to $03, byte-for-byte the
+; SAME value RUN/STOP produces -- keymap_menu_loop's own outer dispatch
+; treats a GETIN $03 as "close the popup." An earlier draft of this
+; routine still called GETIN every tick (purely to feed update_capture_
+; display's live-readout NAME lookup via capture_display_key), which
+; left that same physical keypress's OWN decoded byte sitting unread in
+; the KERNAL's keyboard buffer once accepted -- the very next GETIN
+; call after this routine returned (keymap_menu_loop's own idle poll)
+; picked it back up and misread it as Cancel, even though the capture
+; itself had already succeeded via SFDX. Fixed two ways: this routine
+; no longer touches GETIN at all (update_capture_display now derives
+; its live-readout name from SFDX too, via key_num_unshifted -- see
+; that table's own comment), and kcc_teardown now unconditionally
+; drains the keyboard buffer before returning, so any byte that DID
+; still make it in (e.g. from a rejected/duplicate attempt along the
+; way) can't leak into the next dispatch either.
+;
+; RUN/STOP (key-number 63) cancels, same as key_capture_combo's own
+; GETIN-based #$03 check. RETURN (key-number 1) is explicitly rejected
+; -- never valid as a macro trigger, since the player needs a real,
+; unshadowed RETURN to ever send a typed command -- with the same
+; inline-message-then-resume-wait shape capture_check_macro_duplicate
+; below uses for an ordinary conflicting-trigger rejection.
+;
+; A brand new macro (ACTION_EMPTY going in) becomes ACTION_MACRO once a
+; trigger is accepted, with empty text until key_edit_macro_text ('T'
+; is now key_capture_trigger's own dispatch key, not RETURN -- see that
+; routine's own header comment) fills it in; an existing macro (ACTION_
+; MACRO already) just gets its trigger updated, text untouched.
+;
+; cmc_wait_release (below) exists because SFDX is LIVE, not buffered
+; like GETIN: 'T' itself is the physical key that dispatched here in
+; the first place, and is very often STILL held down the instant this
+; routine starts running (typing is fast relative to a poll loop) --
+; without first waiting for SFDX to go back to $40 (nothing held),
+; cmc_wait's own capture check would immediately see 'T' itself as
+; "a key is held" and self-capture IT as the trigger before the player
+; ever gets a chance to press their intended one. Real bug caught live
+; 2026-09-22 (Ryan's report: "I see a flash of a message... but it
+; quickly goes back to the main menu keystrokes listing" -- the prompt
+; drawing then capture_macro_combo completing and restoring the footer
+; within the same fraction of a second, both matching a same-keypress
+; self-capture exactly).
+;
+; KNOWN GAP: capture_check_macro_duplicate only scans OTHER MACRO slots
+; -- nav-function slots store a DECODED byte, not a matrix position, so
+; a plain byte compare against them isn't meaningful, and a nav/macro
+; cross-conflict isn't caught yet. Realistic nav bindings are cursor
+; keys/F7; real collision risk with a macro's own CTRL/C=/SHIFT+letter-
+; or-digit trigger is low today, but this is an honest limitation, not
+; a silently-ignored one.
+capture_macro_combo:
+        jsr edit_slot                ; establishes edit_slot_value for
+                                       ; capture_check_macro_duplicate's
+                                       ; own "skip the slot being
+                                       ; edited" check below -- selected_
+                                       ; slot_addr (used later, once a
+                                       ; trigger's accepted) calls this
+                                       ; again itself, redundant but
+                                       ; harmless
+        jsr kcc_setup
+cmc_wait_release:
+        jsr update_capture_display
+        lda $cb                     ; SFDX -- wait for whatever's
+        cmp #$40                     ; currently held (almost always
+        bne cmc_wait_release          ; 'T' itself, still physically
+                                        ; down) to be released before
+                                        ; watching for a NEW keypress --
+                                        ; see this routine's own header
+                                        ; comment on why this exists
+cmc_wait:
+        jsr update_capture_display
+        lda $cb                     ; SFDX -- the only thing this loop
+                                       ; ever reads to decide capture
+        cmp #$40
+        beq cmc_wait                 ; no key currently held -- keep
+                                       ; waiting/blinking
+        cmp #KEY_NUM_RUNSTOP
+        beq cmc_done                 ; cancel -- no change
+        cmp #KEY_NUM_RETURN
+        bne cmc_have_key
+        ldx #<capture_return_reserved_msg
+        ldy #>capture_return_reserved_msg
+        jsr draw_message_row
+        jmp cmc_wait
+cmc_have_key:
+        sta capture_key              ; a MATRIX position here, NOT a
+                                        ; decoded byte -- see this
+                                        ; routine's own header comment
+        lda $028d
+        and #(MOD_SHIFT|MOD_CMDRE|MOD_CTRL)
+        sta capture_mod
+        jsr capture_check_macro_duplicate
+        bcs cmc_wait                  ; duplicate -- message shown, retry
+
+        jsr selected_slot_addr        ; recompute -- the duplicate scan
+                                        ; above reused scr_ptr_lo/hi
+        ldy #0
+        lda capture_mod
+        sta (scr_ptr_lo),y
+        ldy #1
+        lda capture_key
+        sta (scr_ptr_lo),y
+        ldy #2
+        lda (scr_ptr_lo),y
+        cmp #ACTION_MACRO
+        beq cmc_done                  ; already a macro -- action stays
+        lda #ACTION_MACRO             ; brand new -- was ACTION_EMPTY
+        sta (scr_ptr_lo),y
+cmc_done:
+        jmp kcc_teardown               ; tail call
+
+; --- capture_check_macro_duplicate: is capture_mod/capture_key (a
+; MATRIX position) already bound to some OTHER macro slot's own
+; trigger? Only scans the macro range (NAV_SLOT_COUNT..MAX_BINDINGS-1)
+; -- see capture_macro_combo's own header comment on why a nav/macro
+; cross-check isn't done here.
+capture_check_macro_duplicate:
+        lda KEYMAP_TABLE_PTR
+        sta scr_ptr_lo
+        lda KEYMAP_TABLE_PTR+1
+        sta scr_ptr_hi
+        ldx #0
+ccmd_advance_loop:
+        cpx #NAV_SLOT_COUNT           ; walk scr_ptr_lo/hi up to the
+        beq ccmd_scan_start            ; first real macro slot before
+                                         ; the actual scan starts
+        lda scr_ptr_lo
+        clc
+        adc #BINDING_SIZE
+        sta scr_ptr_lo
+        bcc ccmd_advance_no_carry
+        inc scr_ptr_hi
+ccmd_advance_no_carry:
+        inx
+        jmp ccmd_advance_loop
+ccmd_scan_start:
+ccmd_loop:
+        cpx edit_slot_value
+        beq ccmd_next                 ; skip the slot being edited
+        ldy #2
+        lda (scr_ptr_lo),y
+        cmp #ACTION_MACRO
+        bne ccmd_next                 ; not a macro slot (still empty)
+        ldy #0
+        lda (scr_ptr_lo),y
+        cmp capture_mod
+        bne ccmd_next
+        ldy #1
+        lda (scr_ptr_lo),y
+        cmp capture_key
+        bne ccmd_next
+        ldx #<capture_conflict_msg
+        ldy #>capture_conflict_msg
+        jsr draw_message_row
+        sec
+        rts
+ccmd_next:
+        lda scr_ptr_lo
+        clc
+        adc #BINDING_SIZE
+        sta scr_ptr_lo
+        bcc ccmd_no_carry
+        inc scr_ptr_hi
+ccmd_no_carry:
+        inx
+        cpx #MAX_BINDINGS
+        bne ccmd_loop
+        clc
+        rts
+
+; Shared scratch between key_capture_combo (nav rows) and capture_
+; macro_combo (macro rows) -- capture_key holds a GETIN-decoded byte
+; when the former wrote it, or an SFDX matrix position when the latter
+; did (see capture_macro_combo's own header comment); never both in
+; the same visit, since only one of the two routines ever runs at a
+; time. capture_mod is the same $028d-masked modifier byte either way.
 capture_key:
         byte 0
 capture_mod:
         byte 0
-capture_saved_pnt_lo:
+capture_saved_row:
         byte 0
-capture_saved_pnt_hi:
-        byte 0
-capture_saved_pntr:
+capture_saved_col:
         byte 0
 
 ; --- Live modifier/key readout during the capture wait (Ryan's idea,
@@ -621,11 +1400,19 @@ capture_live_mod:
         byte 0
 capture_live_key:
         byte 0
-; Cached from the last real GETIN event seen this wait (not necessarily
-; the one that ends up accepted -- a rejected duplicate re-enters the
-; wait and this keeps showing what was actually pressed). 0 = nothing
-; cached yet.
-capture_display_key:
+
+; describe_binding_row's own equivalent of capture_live_mod/key above --
+; a fake binding record (mod byte then key byte, already-decoded) so a
+; macro row's own describe_combo call (dbr_macro_done) can point scr_
+; ptr_lo/hi somewhere describe_combo_append's (scr_ptr_lo),y reads are
+; actually valid for, same reasoning as capture_live_mod/key's own
+; comment. dbr_macro_key_raw is scratch for the STORED matrix-position
+; byte, before key_num_unshifted converts it into list_trigger_key.
+list_trigger_mod:
+        byte 0
+list_trigger_key:
+        byte 0
+dbr_macro_key_raw:
         byte 0
 
 ; --- update_capture_display: refresh row 19's live readout, and blink
@@ -639,14 +1426,45 @@ capture_display_key:
 ; instant the physical key releases, independent of GETIN's own
 ; buffered timing. Clobbers A/X/Y and scr_ptr_lo/hi (both already
 ; treated as call-clobbered by every other routine in this file).
+;
+; The describe_combo/poke_line block (ucd_redraw below) only runs when
+; capture_live_mod/key actually changed since the last tick -- fixes a
+; real bug caught live 2026-09-20 (Ryan's report: "the cursor blink
+; routine from the keytable editor is not consistent," compared
+; against config_menu.asm's own steadier demo_cursor_update): this
+; routine used to run that ~40-byte rebuild on EVERY tick regardless,
+; making each iteration's cost uneven.
+;
+; SECOND bug in the same area, caught the same day once the first fix
+; alone didn't resolve Ryan's report: JT_CURSOR_HIDE used to run
+; unconditionally at the top of EVERY tick, immediately followed by a
+; fresh JT_UPDATE_CURSOR call at the bottom -- toggling the cursor off
+; and back on every single tick even when nothing should change,
+; layering a rapid extra flicker on top of the real, slower blink
+; period. Neither config_menu.asm's demo_cursor_update nor read_line_
+; loop's own real usage of update_cursor (cursor_hide is only called
+; once, right before dispatching an ACTUAL keystroke -- never on an
+; idle poll tick) ever do this; JT_UPDATE_CURSOR's own internal cursor_
+; phase-vs-$a2 check already decides on its own whether a transition is
+; due. Fix: JT_CURSOR_HIDE now only runs inside ucd_redraw, immediately
+; before the poke_line call that would otherwise overwrite a still-
+; reverse-video cell out from under cursor_phase's own bookkeeping; the
+; unchanged path (ucd_position) calls JT_UPDATE_CURSOR directly, same
+; shape as both reference implementations.
+;
+; THIRD change, 2026-09-22: the held key's display byte now comes from
+; SFDX itself (via key_num_unshifted, below) instead of a GETIN-decoded
+; byte cached in a capture_display_key variable -- that variable (and
+; the GETIN polling that fed it) is gone entirely. Two reasons: (1) it
+; let capture_macro_combo avoid touching GETIN at all, closing the
+; keyboard-buffer leak described in that routine's own header comment,
+; and (2) it's more correct for the live preview either way -- GETIN's
+; decoded byte is only ever describe_key's own SFDX-independent guess
+; at what a given modifier combo produces, so CTRL+D showed as a raw
+; "$04" fallback before (the exact "ctrl+$04 doesn't read as ctrl+D"
+; complaint the ORIGINAL nav-capture display fix was for); the matrix-
+; derived byte always renders as the physical letter/symbol.
 update_capture_display:
-        jsr JT_CURSOR_HIDE          ; erase wherever the cursor was left
-                                     ; blinking last tick, BEFORE this
-                                     ; tick's text overwrites that row --
-                                     ; a harmless no-op on the very first
-                                     ; call (cursor_phase starts at 0,
-                                     ; see key_capture_combo's own
-                                     ; comment on why that's guaranteed)
         lda $028d                  ; SHFLAG -- live modifier state
         and #(MOD_SHIFT|MOD_CMDRE|MOD_CTRL)
         sta capture_live_mod
@@ -656,11 +1474,33 @@ update_capture_display:
         bne ucd_have_key
         lda #0                     ; no key held -- key_names' $00
         sta capture_live_key        ; sentinel blanks the field for us
-        jmp ucd_describe
+        jmp ucd_check_change
 ucd_have_key:
-        lda capture_display_key
-        sta capture_live_key
-ucd_describe:
+        tax
+        lda key_num_unshifted,x     ; matrix position -> the physical
+        sta capture_live_key         ; key's own unshifted byte
+ucd_check_change:
+        lda capture_live_mod
+        cmp ucd_prev_mod
+        bne ucd_redraw
+        lda capture_live_key
+        cmp ucd_prev_key
+        beq ucd_position            ; both unchanged -- straight to the
+                                       ; cheap blink-check, no hide/redraw
+ucd_redraw:
+        jsr JT_CURSOR_HIDE          ; erase the cursor at its OLD position
+                                     ; (still the resident cursor's from
+                                     ; last tick)
+                                     ; before this redraw overwrites the
+                                     ; row underneath it -- a harmless
+                                     ; no-op on the very first call
+                                     ; (cursor_phase starts at 0, see
+                                     ; key_capture_combo's own comment on
+                                     ; why that's guaranteed)
+        lda capture_live_mod
+        sta ucd_prev_mod
+        lda capture_live_key
+        sta ucd_prev_key
         lda #<capture_live_mod
         sta scr_ptr_lo
         lda #>capture_live_mod
@@ -682,30 +1522,41 @@ ucd_copy_loop:
         ldy #>capture_live_row
         stx poke_src_lo
         sty poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+19)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+19)*40)
         sta poke_dst_hi
         jsr poke_line
-
-        ; Point PNT/PNTR ($d1/$d2/$d3) at the cell right after the live
-        ; text just printed (capture_live_row+11 is column 11 of this
+ucd_position:
+        ; Park the resident cursor (JT_SET_CURSOR) on the cell right
+        ; after the live text just printed (capture_live_row+11 is column 11 of this
         ; physical row -- see ucd_copy_loop above) -- JT_UPDATE_CURSOR
         ; toggles reverse-video on THAT cell if the blink timer calls
         ; for it this tick, giving a real cursor that visibly sits right
         ; where the next character would go, "following" the printout.
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
-        sta $d1
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
-        sta $d2
+        ; Uses ucd_text_len's own cached value even on a skip-redraw
+        ; tick -- unchanged since the last real redraw, so the cursor's
+        ; column doesn't move just because the text didn't.
         lda #11
         clc
         adc ucd_text_len
-        sta $d3
+        tay
+        ldx #BOX_TOP_ROW+19
+        jsr JT_SET_CURSOR
         jmp JT_UPDATE_CURSOR        ; tail call -- its own rts returns
                                      ; straight to our caller
 
 ucd_text_len:
+        byte 0
+; Last mod/key values a redraw actually ran for -- see this routine's
+; own header comment. key_capture_combo resets ucd_prev_mod to $ff
+; (impossible for a real 3-bit mod value) right before its own first
+; update_capture_display call each time it starts a fresh wait, so
+; that first call always redraws regardless of whatever a PREVIOUS
+; capture in the same popup visit left cached here.
+ucd_prev_mod:
+        byte 0
+ucd_prev_key:
         byte 0
 
 ; --- capture_check_duplicate: is capture_mod/capture_key already
@@ -765,9 +1616,9 @@ ccd_no_carry:
 draw_message_row:
         stx poke_src_lo
         sty poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+18)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+18)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+18)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+18)*40)
         sta poke_dst_hi
         jmp poke_line
 
@@ -793,7 +1644,11 @@ draw_help_footer:
         jmp dhf_row2
 dhf_list_focus:
         lda active_page
-        bne dhf_normal
+        beq dhf_nav_page
+        jmp dhf_macro_footer         ; full-range jmp -- dhf_macro_footer
+                                       ; is declared after dhf_row2 below,
+                                       ; outside a plain branch's reach
+dhf_nav_page:
         lda selected_row
         cmp #HOME_MERGE_ROW
         beq dhf_merged
@@ -814,14 +1669,27 @@ dhf_row2:
         stx poke_src_lo               ; draw_message_row only targets
         sty poke_src_hi               ; row 18 -- row 19 needs its own
                                         ; poke_line call here
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+19)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+19)*40)
         sta poke_dst_hi
         jmp poke_line               ; tail call -- its own rts returns
                                      ; straight to our caller
 
-; --- Save: write keymap_table back to KEYMAP.CFG, restore, hand back ---
+; Macro Editor page's own footer (Ryan's ask, 2026-09-22: advertise the
+; new RETURN=edit-text / T=capture-trigger split rather than leaving it
+; undiscoverable) -- row_help2 itself is reused unchanged for line two,
+; identical to the nav page's own (S: Save / Stop: Cancel apply here
+; exactly the same way).
+dhf_macro_footer:
+        ldx #<row_help1_macro
+        ldy #>row_help1_macro
+        jsr draw_message_row
+        ldx #<row_help2
+        ldy #>row_help2
+        jmp dhf_row2
+
+; --- Save: write keymap_table back to TADA64.CFG, restore, hand back ---
 ; SCRATCH the old file first, then a plain (no "@0:") SAVE -- Ryan's
 ; call, 2026-09-02: the "@0:" replace-file convention is known to
 ; trigger a real Commodore DOS bug on some drive/ROM combinations
@@ -831,13 +1699,19 @@ dhf_row2:
 ; makes the SCRATCH fail harmlessly with FILE NOT FOUND -- ignored,
 ; same as read_error_channel ignores it elsewhere.
 key_save:
+        jsr select_drive           ; disk.asm -- no drive on the bus at all:
+        bcc key_save_have_drive    ; don't touch the disk (the edits stay
+        ldx #<keymap_no_drive_msg  ; live for this session, same as a
+        ldy #>keymap_no_drive_msg  ; real Save) and say so
+        jmp key_save_report
+key_save_have_drive:
         jsr scratch_keymap_file
         lda #KEYMAP_FILENAME_LEN
         ldx #<keymap_filename
         ldy #>keymap_filename
         jsr KERNAL_SETNAM
+        jsr current_drive_to_x
         lda #2
-        ldx #8
         ldy #1
         jsr KERNAL_SETLFS
         ; KERNAL SAVE wants .A = a ZERO-PAGE address whose 2 bytes hold
@@ -855,9 +1729,24 @@ key_save:
         ldy keymap_table_end_hi
         lda #<scr_ptr_lo
         jsr KERNAL_SAVE
+        rol key_save_failed        ; KERNAL error (carry) -> bit 0
         jsr read_error_channel     ; clear the drive's error LED --
                                      ; same reasoning as init_keymap's
-                                     ; own LOAD-side call in keymap.asm
+                                     ; own LOAD-side call in keymap.asm.
+                                     ; Carry set: the drive reported an
+                                     ; error (26 WRITE PROTECT ON, 72
+                                     ; DISK FULL, ...)
+        rol key_save_failed
+        ldx #<keymap_saved_msg
+        ldy #>keymap_saved_msg
+        lda key_save_failed
+        and #$03
+        beq key_save_report
+        ldx #<keymap_save_failed_msg
+        ldy #>keymap_save_failed_msg
+key_save_report:
+        stx key_save_msg           ; JT_RESTORE_SCREEN doesn't promise to
+        sty key_save_msg+1         ; keep X/Y
         jsr JT_RESTORE_SCREEN      ; must happen BEFORE the status message
                                      ; below, not after -- JT_RESTORE_
                                      ; SCREEN repaints the WHOLE screen
@@ -870,9 +1759,9 @@ key_save:
                                      ; confirmed live 2026-09-18 to
                                      ; silently stomp the new message
                                      ; right back to the stale one
-        ldx #<keymap_saved_msg
-        ldy #>keymap_saved_msg
-        jsr push_keymap_status_msg ; "Saved keymap." -- via JT_STATUS_
+        ldx key_save_msg
+        ldy key_save_msg+1
+        jsr push_keymap_status_msg ; "Saved keymap." etc -- via JT_STATUS_
                                      ; PUSH_RESET/JT_BUILD_STATUS_LINE,
                                      ; not a direct call: this file is a
                                      ; separate standalone .prg, unlike
@@ -905,7 +1794,7 @@ push_keymap_status_msg:
         jmp JT_BUILD_STATUS_LINE  ; tail call -- its own rts returns
                                     ; straight to key_save/key_cancel
 
-; --- scratch_keymap_file: SCRATCH any existing KEYMAP.CFG before the
+; --- scratch_keymap_file: SCRATCH any existing TADA64.CFG before the
 ; SAVE in key_save above. Sent as a DOS command string ("S0:...") on
 ; the command channel (secondary address 15), same channel
 ; read_error_channel drains -- so this deliberately does NOT call
@@ -918,14 +1807,16 @@ scratch_keymap_file:
         ldx #<keymap_scratch_command
         ldy #>keymap_scratch_command
         jsr KERNAL_SETNAM
+        jsr current_drive_to_x
         lda #15
-        ldx #8
         ldy #15
         jsr KERNAL_SETLFS
         jsr KERNAL_OPEN
-        ldx #15
-        jsr KERNAL_CLOSE
-        rts
+        lda #15                    ; CLOSE takes the file number in .A --
+        jmp KERNAL_CLOSE           ; this was `ldx #15`, which left file 15
+                                   ; open (read_error_channel's own OPEN 15
+                                   ; then failed "file open"; the old copy
+                                   ; ignored that and read through it)
 
 ; --- Cancel: restore keymap_table from module_start's own snapshot,
 ; then hand back without touching disk. key_capture_combo writes
@@ -957,28 +1848,10 @@ key_cancel:
                                      ; can't go through the normal
                                      ; wait-for-server-data resume path
 
-; --- read_error_channel: drain the drive's command/error channel ---
-; Own copy, not shared with keymap.asm (separate assembly) -- see that
-; file's own read_error_channel for the full comment on why this
-; matters (a real 1541's ERROR LED otherwise stays lit/blinking).
-read_error_channel:
-        lda #0
-        jsr KERNAL_SETNAM
-        lda #15
-        ldx #8
-        ldy #15
-        jsr KERNAL_SETLFS
-        jsr KERNAL_OPEN
-        ldx #15
-        jsr KERNAL_CHKIN
-read_error_channel_loop:
-        jsr KERNAL_CHRIN
-        jsr KERNAL_READST
-        and #$40
-        beq read_error_channel_loop
-        jsr KERNAL_CLRCHN
-        lda #15
-        jmp KERNAL_CLOSE
+; read_error_channel, select_drive and current_drive_to_x: disk.asm's,
+; {include:}d here -- this overlay is a separate assembly, so it carries
+; its own copy of that file rather than reaching the resident one.
+{include:disk.asm}
 
 ; KERNAL routines this file needs, local {const:} -- see keymap.asm's
 ; own copy of this exact block for why (a separate assembly, doesn't
@@ -988,10 +1861,6 @@ read_error_channel_loop:
 {const: KERNAL_SAVE   $ffd8}
 {const: KERNAL_OPEN   $ffc0}
 {const: KERNAL_CLOSE  $ffc3}
-{const: KERNAL_CHKIN  $ffc6}
-{const: KERNAL_CLRCHN $ffcc}
-{const: KERNAL_CHRIN  $ffcf}
-{const: KERNAL_READST $ffb7}
 
 ; Zero page -- own copy, not shared with tada-client.asm's scr_ptr_lo/
 ; hi (separate assembly, doesn't {include:} anything from that file --
@@ -1019,9 +1888,9 @@ draw_popup:
         sta poke_src_lo
         lda #>top_border
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+0)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+0)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+0)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+0)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -1036,9 +1905,9 @@ draw_popup:
         sta poke_src_lo
         lda #>row_blank
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+2)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+2)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+2)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+2)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -1073,7 +1942,10 @@ draw_popup_blank_list:
         sta poke_src_hi
         lda blank_list_row
         clc
-        adc #BOX_TOP_ROW+3
+        adc #BOX_TOP_ROW+4  ; +4, not +3 -- list moved down one row to
+                              ; make room for a real blank row +2/+3
+                              ; separator (draw_title's own column-
+                              ; headers comment, 2026-09-22)
         jsr set_screen_line_local
         lda scr_ptr_lo
         sta poke_dst_lo
@@ -1089,9 +1961,9 @@ draw_popup_blank_list:
         sta poke_src_lo
         lda #>row_help1
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+18)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+18)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+18)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+18)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -1099,9 +1971,9 @@ draw_popup_blank_list:
         sta poke_src_lo
         lda #>row_help2
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+19)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+19)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+19)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -1109,9 +1981,9 @@ draw_popup_blank_list:
         sta poke_src_lo
         lda #>bottom_border
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+20)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+20)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+20)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+20)*40)
         sta poke_dst_hi
         jmp poke_line
 
@@ -1211,7 +2083,7 @@ dt_color_done:
         ldy #0
 dt_left_border:
         lda row_blank,y
-        sta SCREEN_RAM+(BOX_TOP_ROW+1)*40,y
+        sta POPUP_SCREEN+(BOX_TOP_ROW+1)*40,y
         iny
         cpy #5
         bne dt_left_border
@@ -1219,18 +2091,52 @@ dt_middle:
         ldx #0
 dt_middle_loop:
         lda title_scratch,x
-        sta SCREEN_RAM+(BOX_TOP_ROW+1)*40,y
+        sta POPUP_SCREEN+(BOX_TOP_ROW+1)*40,y
         iny
         inx
         cpx #30
         bne dt_middle_loop
 dt_right_border:
         lda row_blank,y
-        sta SCREEN_RAM+(BOX_TOP_ROW+1)*40,y
+        sta POPUP_SCREEN+(BOX_TOP_ROW+1)*40,y
         iny
         cpy #40
         bne dt_right_border
-        rts
+
+        ; Column headers, row +3 -- Ryan's ask, 2026-09-22: label the
+        ; list's own two columns ("Function"/"Combo" on the Keymap
+        ; Editor page, "Macro"/"Trigger" on the Macro Editor page),
+        ; page-aware the same way the footer (draw_help_footer) already
+        ; is. Row +3, not +2 right under the title -- a SECOND Ryan ask,
+        ; same day: the headers sitting directly against the title row
+        ; made them look like they might also be part of the title's
+        ; own CRSR-LEFT/RIGHT-selectable heading bar. Row +2 is left
+        ; genuinely blank (draw_popup's own one-time poke there, never
+        ; touched again by anything) as real visual separation instead.
+        ; The list itself moves down to match (draw_list's own dl_place
+        ; comment) -- borrowed from the existing (oversized) gap between
+        ; the list and the footer rather than growing the box, since
+        ; BOX_ROWS=21 already ends one row short of STATUS_ROW(23) on
+        ; purpose and growing it would collide with that (now doubly
+        ; important -- STATUS_ROW is also the macro-text editor's own
+        ; input widget and the browsing preview's own display row).
+        lda active_page
+        bne dt_columns_macro
+        ldx #<row_columns_nav
+        ldy #>row_columns_nav
+        jmp dt_columns_poke
+dt_columns_macro:
+        ldx #<row_columns_macro
+        ldy #>row_columns_macro
+dt_columns_poke:
+        stx poke_src_lo
+        sty poke_src_hi
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+3)*40)
+        sta poke_dst_lo
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+3)*40)
+        sta poke_dst_hi
+        jmp poke_line                ; tail call -- its own rts returns
+                                     ; straight to our caller
 
 ; --- dt_set_color: .X = start column within row +1's 30-char field,
 ; .Y = length, .A = VIC-II color number -> pokes that many COLOR_RAM
@@ -1293,7 +2199,8 @@ dl_place:
         ldx draw_list_row
         txa
         clc
-        adc #BOX_TOP_ROW+3
+        adc #BOX_TOP_ROW+4  ; +4, not +3 -- see draw_popup_blank_list's
+                              ; own comment on this same shift
         jsr set_screen_line_local  ; scr_ptr_lo/hi = this row's base --
                                      ; already zero page (unlike poke_
                                      ; dst_lo/hi below, which are plain
@@ -1335,10 +2242,87 @@ dl_right_border:
         inx
         cpx #PAGE_ROWS_MAX
         bne draw_list_loop
-        rts
+        jmp update_macro_status_preview ; tail call -- its own rts
+                                          ; returns straight to our caller
 
 draw_list_row:
         byte 0
+
+; --- update_macro_status_preview: repaint STATUS_ROW_SCREEN with the
+; CURRENTLY SELECTED macro row's own full text (up to MACRO_TEXT_LEN=
+; 24 columns -- well under the available 40) while just BROWSING the
+; list -- Ryan's ask, 2026-09-22: the list's own name column truncates
+; long macro text to 12 chars, so seeing the WHOLE thing means a live
+; preview on the status row as the player moves CRSR up/down.
+;
+; Called from draw_list's own tail -- every full-list redraw already
+; happens from there (key_row_up/down, toggle_active_page, module_
+; start, and every capture/edit/clear routine's own exit all already
+; tail-call or jsr draw_list), so every one of those already keeps the
+; list in sync gets this preview refreshed for free too, with a single
+; change point, rather than adding a second call at each of those
+; sites by hand.
+;
+; NOT called from key_edit_macro_text's own kemt_* routines -- those
+; already own this exact physical row for a different purpose (the
+; live text-INPUT widget) while their own wait loop runs; draw_list
+; itself is never called from inside that loop (only once, at kemt_
+; done, after it's already finished with the row), so there's no
+; conflict over who owns the row's raw bytes at any given moment.
+;
+; Blanks the row entirely whenever there's nothing meaningful to
+; preview: header-focused (no row is "selected"), the Keymap Editor
+; page (nav rows have no text of their own -- their combo is already
+; visible in the list itself, unlike a macro's text), or an ACTION_
+; EMPTY macro slot.
+update_macro_status_preview:
+        lda header_focused
+        bne umsp_blank
+        lda active_page
+        beq umsp_blank
+        jsr selected_slot_addr      ; scr_ptr_lo/hi -> the selected row's
+                                       ; own real slot (combo_subindex is
+                                       ; always 0 on this page -- key_
+                                       ; subselect_prev/next's own guard
+                                       ; only ever sets it nonzero on
+                                       ; HOME_MERGE_ROW, a Keymap Editor
+                                       ; page row)
+        ldy #2                     ; action byte
+        lda (scr_ptr_lo),y
+        cmp #ACTION_MACRO
+        bne umsp_blank              ; empty slot -- nothing to preview
+        ldy #3
+        ldx #0
+umsp_copy_loop:
+        cpx #MACRO_TEXT_LEN
+        beq umsp_pad
+        lda (scr_ptr_lo),y
+        beq umsp_pad                ; NUL -- pad the rest with blanks
+        jsr macro_char_to_screencode
+        ora #$80
+        sta STATUS_ROW_SCREEN,x
+        iny
+        inx
+        jmp umsp_copy_loop
+umsp_pad:
+        lda #$a0                    ; reverse-video space
+umsp_pad_loop:
+        cpx #40
+        beq umsp_rts
+        sta STATUS_ROW_SCREEN,x
+        inx
+        jmp umsp_pad_loop
+umsp_rts:
+        rts
+umsp_blank:
+        ldx #0
+umsp_blank_loop:
+        lda #$a0
+        sta STATUS_ROW_SCREEN,x
+        inx
+        cpx #40
+        bne umsp_blank_loop
+        rts
 
 ; get_page_rows's result, cached once per draw_list call rather than
 ; re-fetched every loop iteration (cheap either way, but cpx needs a
@@ -1436,6 +2420,7 @@ dbr_macro_copy:
         beq dbr_macro_done
         lda (scr_ptr_lo),y
         beq dbr_macro_pad          ; NUL -- pad the rest with spaces
+        jsr macro_char_to_screencode
         sta row_scratch+2,x
         iny
         inx
@@ -1447,9 +2432,39 @@ dbr_macro_pad:
         cpx #12
         bne dbr_macro_pad
 dbr_macro_done:
-        jmp dbr_combo_blank        ; a macro's own trigger combo still
-                                     ; shows normally below -- only the
-                                     ; NAME column took the early exit
+        ; Show the macro's own captured trigger, if it has one -- Ryan's
+        ; ask, 2026-09-22. scr_ptr_lo/hi still points at this slot's own
+        ; base (dbr_macro_copy above only ever used Y-indexed reads, never
+        ; touched it). mod=key=0 together means "no trigger captured
+        ; yet" (key_edit_macro_text's own header comment on this exact
+        ; state) -- blank rather than showing a misleading "trigger".
+        ;
+        ; The stored key byte is a MATRIX POSITION (capture_macro_combo's
+        ; own SFDX-based capture, not a GETIN-decoded byte the way nav
+        ; slots store one -- see that routine's own header comment for
+        ; why), so it can't be hand ed to describe_combo directly: key_
+        ; names is indexed by decoded bytes, and a raw matrix position
+        ; would either mismatch entirely or collide with an unrelated
+        ; decoded byte in that range. key_num_unshifted (already used
+        ; the exact same way by update_capture_display's own live
+        ; readout) converts matrix position -> decoded byte first.
+        ldy #0
+        lda (scr_ptr_lo),y          ; mod
+        sta list_trigger_mod
+        ldy #1
+        lda (scr_ptr_lo),y          ; key (matrix position)
+        sta dbr_macro_key_raw
+        ora list_trigger_mod
+        beq dbr_combo_blank          ; both zero -- no trigger yet
+        ldx dbr_macro_key_raw
+        lda key_num_unshifted,x
+        sta list_trigger_key
+        lda #<list_trigger_mod
+        sta scr_ptr_lo
+        lda #>list_trigger_mod
+        sta scr_ptr_hi
+        jsr describe_combo
+        rts
 dbr_nav_name:
         cmp #ACTION_WORD_LEFT
         bne dbr_try_word_right
@@ -1486,11 +2501,18 @@ dbr_try_end:
         jsr copy_name12
         jmp dbr_combo
 dbr_try_open_editor:
-        ; whatever's left over is ACTION_OPEN_EDITOR -- nothing else is
-        ; valid (ACTION_EMPTY/ACTION_MACRO both took an earlier exit,
-        ; above)
+        cmp #ACTION_OPEN_EDITOR
+        bne dbr_try_open_drives
         ldx #<name_open_editor
         ldy #>name_open_editor
+        jsr copy_name12
+        jmp dbr_combo
+dbr_try_open_drives:
+        ; whatever's left over is ACTION_OPEN_DRIVES -- nothing else is
+        ; valid (ACTION_EMPTY/ACTION_MACRO both took an earlier exit,
+        ; above)
+        ldx #<name_open_drives
+        ldy #>name_open_drives
         jsr copy_name12
 dbr_combo:
         jsr describe_combo
@@ -1840,6 +2862,31 @@ key_names:
                                      ; own blanking do the rest
 KEY_NAMES_END = * - key_names
 
+; --- key_num_unshifted: SFDX matrix position (0-63, index) -> that
+; physical key's own UNSHIFTED decode byte -- a hand-copied snapshot of
+; the actual KERNAL ROM's own unshifted keyboard-decode table (see
+; server/CLAUDE.md's "C64 keyboard matrix" reference for the full
+; table and how it was verified byte-for-byte against the ROM, not
+; recalled). update_capture_display indexes this directly with SFDX to
+; get a byte describe_key/dc_key's own existing A-Z/punctuation
+; rendering already knows how to show -- reused as-is rather than a
+; second renderer, same as describe_combo already reuses across both
+; the saved list and this live readout. The four modifier-key slots
+; (LSHIFT=15, RSHIFT=51, CTRL=58, CBM=61) hold the ROM's own internal
+; flag bytes, not real characters -- describe_key's hex fallback
+; handles those honestly (a lone SHIFT/CTRL/CBM press with nothing else
+; held is an edge case this popup was never going to render as a named
+; key anyway).
+key_num_unshifted:
+        byte $14,$0d,$1d,$88,$85,$86,$87,$11
+        byte $33,$57,$41,$34,$5a,$53,$45,$01
+        byte $35,$52,$44,$36,$43,$46,$54,$58
+        byte $37,$59,$47,$38,$42,$48,$55,$56
+        byte $39,$49,$4a,$30,$4d,$4b,$4f,$4e
+        byte $2b,$50,$4c,$2d,$2e,$3a,$40,$2c
+        byte $5c,$2a,$3b,$13,$01,$3d,$5e,$2f
+        byte $31,$5f,$04,$32,$20,$02,$51,$03
+
 ; .a = one character -> row_scratch+15+describe_combo_col, advances
 ; the column. Bounds-checked against the 15-byte combo field so a
 ; pathological table entry (shouldn't happen -- nothing writes one)
@@ -1915,10 +2962,10 @@ set_screen_line_local:
         tax
         lda row_offsets,x
         clc
-        adc #<SCREEN_RAM
+        adc #<POPUP_SCREEN
         sta scr_ptr_lo
         lda row_offsets+1,x
-        adc #>SCREEN_RAM
+        adc #>POPUP_SCREEN
         sta scr_ptr_hi
         rts
 
@@ -2054,7 +3101,10 @@ keymap_table_end_hi:
 ; depth instead of leaking it.
 module_entry_sp:
         byte 0
-KEYMAP_TABLE_SIZE = 405           ; MAX_BINDINGS(15) * BINDING_SIZE(27)
+KEYMAP_TABLE_SIZE = 432           ; MAX_BINDINGS(16) * BINDING_SIZE(27)
+; key_save writes CONFIG_FILE_SIZE (constants.asm) bytes instead: this
+; table plus the config_settings block after it (keymap.asm), so saving
+; the keymap keeps the data drive and other settings in TADA64.CFG.
 
 ; --- backup_keymap_table / restore_keymap_table: bulk-copy
 ; KEYMAP_TABLE_SIZE (405) bytes between the resident keymap_table (via
@@ -2131,7 +3181,7 @@ kt_copy_remaining_hi:
 
 ; This module's own copy of keymap_table, taken/restored around a
 ; popup visit -- NOT persisted anywhere itself (only the resident
-; keymap_table, via key_save, ever gets written to KEYMAP.CFG).
+; keymap_table, via key_save, ever gets written to TADA64.CFG).
 keymap_table_backup:
         area KEYMAP_TABLE_SIZE, $00
 
@@ -2155,37 +3205,39 @@ name_word_left:
 name_word_right:
         ascii "Word Right  "
 name_home:
-        ascii "Home        "
+        ascii "Line Start  "
 name_end:
-        ascii "End         "
+        ascii "Line End    "
 name_open_editor:
         ascii "Open Editor "
+name_open_drives:
+        ascii "Drive Picker"
 {alpha:normal}
 
 ; NUL-terminated modifier-prefix/key-name fragments -- describe_combo
 ; copies these via copy_mod_prefix/copy_key_name (stops at the NUL, not
 ; a fixed length, since these vary in length and get concatenated).
-{alpha:poke}
+{alpha:pokealt}
 mod_ctrl_name:
-        ascii "CTRL+"
+        ascii "Ctrl+"
         byte 0
 mod_cmdre_name:
         ascii "C=+"
         byte 0
 mod_shift_name:
-        ascii "SHFT+"
+        ascii "Shift+"
         byte 0
 key_left_name:
-        ascii "LEFT"
+        ascii "Left"
         byte 0
 key_right_name:
-        ascii "RIGHT"
+        ascii "Right"
         byte 0
 key_up_name:
-        ascii "UP"
+        ascii "Crsr Up"
         byte 0
 key_down_name:
-        ascii "DOWN"
+        ascii "Crsr Down"
         byte 0
 key_f1_name:
         ascii "F1"
@@ -2200,10 +3252,10 @@ key_f7_name:
         ascii "F7"
         byte 0
 key_home_name:
-        ascii "HOME"
+        ascii "Home"
         byte 0
 key_clear_name:
-        ascii "CLEAR"
+        ascii "Clear"
         byte 0
 key_none_name:
         byte 0                     ; empty string -- see key_names' own
@@ -2230,6 +3282,26 @@ top_border:
 ; both constants declared with draw_title below.
 row_title_base:
         ascii "  Keymap Editor   Macro Editor"
+
+; Column headers, row +2 (draw_title's own dt_columns_poke) -- Ryan's
+; ask, 2026-09-22. Full 40-byte poke_line sources (unlike row_title_
+; base above), same shape as row_help1/help2 below, since these are
+; plain unhighlighted text with no per-page invert/color logic needed
+; the way the title row's own two headings have. Column alignment
+; matches describe_binding_row's own row_scratch layout exactly:
+; marker(1) space(1) name(12) space(1) combo(15) -- 2 leading blanks
+; (marker+separator), the label left-justified in each field, verified
+; 30 ascii chars total the same way row_help1/row_help2's own strings
+; are.
+row_columns_nav:
+        byte $20,$20,$20,$20, $5d
+        ascii "  Function     Combo          "
+        byte $5d, $20,$20,$20,$20
+row_columns_macro:
+        byte $20,$20,$20,$20, $5d
+        ascii "  Macro        Trigger        "
+        byte $5d, $20,$20,$20,$20
+
 row_blank:
         byte $20,$20,$20,$20, $5d
         ascii "                              "
@@ -2276,6 +3348,26 @@ row_help2_header:
         ascii " Down: Select     Stop: Cancel"
         byte $5d, $20,$20,$20,$20
 
+; Macro Editor page's own footer line one -- see dhf_macro_footer's own
+; comment (line two reuses row_help2 unchanged).
+row_help1_macro:
+        byte $20,$20,$20,$20, $5d
+        ascii " Return: Edit    T: Trigger   "
+        byte $5d, $20,$20,$20,$20
+
+; key_clear_macro's own Y/N confirm, rows 18/19 -- same draw_message_
+; row/poke_line pair key_capture_combo's own live-readout row and
+; draw_help_footer already use, verified 30 ascii chars each the same
+; way row_help1/row_help2's own strings are.
+kcm_confirm_msg1:
+        byte $20,$20,$20,$20, $5d
+        ascii " Really clear this macro?     "
+        byte $5d, $20,$20,$20,$20
+kcm_confirm_msg2:
+        byte $20,$20,$20,$20, $5d
+        ascii " Y: yes          N/Stop: no   "
+        byte $5d, $20,$20,$20,$20
+
 ; key_capture_combo swaps row_help1's screen line for one of these two
 ; (then restores row_help1 itself when done) via draw_message_row --
 ; same shape/field width, verified 30 ascii chars each the same way
@@ -2287,6 +3379,12 @@ capture_prompt_msg:
 capture_conflict_msg:
         byte $20,$20,$20,$20, $5d
         ascii " That combo is already used!  "
+        byte $5d, $20,$20,$20,$20
+; capture_macro_combo's own rejection message when the captured SFDX
+; matrix position is KEY_NUM_RETURN -- see that routine's own comment.
+capture_return_reserved_msg:
+        byte $20,$20,$20,$20, $5d
+        ascii " RETURN cannot be a trigger!  "
         byte $5d, $20,$20,$20,$20
 
 ; --- capture_live_row: row 19's content during the capture wait --
@@ -2305,24 +3403,28 @@ bottom_border:
         area 30, $40
         byte $7d, $20,$20,$20,$20
 
-; "S0:KEYMAP.CFG" and "KEYMAP.CFG" share one copy of the filename text
+; "S0:TADA64.CFG" and "TADA64.CFG" share one copy of the filename text
 ; -- keymap_filename points partway into keymap_scratch_command's own
-; bytes ("S0:" + "KEYMAP.CFG" back to back), so key_save's plain SAVE
+; bytes ("S0:" + "TADA64.CFG" back to back), so key_save's plain SAVE
 ; and scratch_keymap_file's SCRATCH command both read out of the same
-; "KEYMAP.CFG" bytes rather than duplicating them (Ryan's idea,
+; "TADA64.CFG" bytes rather than duplicating them (Ryan's idea,
 ; 2026-09-02). Lengths are assemble-time label-difference constants,
 ; not hand-counted -- hand-counting is exactly what produced the
-; off-by-one this replaced (the old "@0:KEYMAP.CFG" code had `lda #14`
+; off-by-one this replaced (the old "@0:TADA64.CFG" code had `lda #14`
 ; for a 13-byte string). {alpha:alt} for the $C1-$DA uppercase-letter
 ; range a real disk directory needs (see keymap.asm's own
-; filename-block comment for the full reasoning); "S0:" is plain
-; ASCII/PETSCII punctuation, unaffected by alpha:alt either way (that
-; mode only remaps letters).
+; filename-block comment for the full reasoning). The "S" of "S0:" is a
+; letter too, though, and alpha:alt turned it into $D3, which DOS
+; doesn't take as SCRATCH: with a TADA64.CFG already on the disk the
+; old file stayed and the SAVE after it failed with 63, FILE EXISTS
+; (found 2026-10-02 -- see config_menu.asm's cm_scratch_command). A raw
+; byte $53 bypasses alpha mode.
 {alpha:alt}
 keymap_scratch_command:
-        ascii "S0:"
+        byte $53                  ; 'S' (SCRATCH) as DOS wants it
+        ascii "0:"
 keymap_filename:
-        ascii "KEYMAP.CFG"
+        ascii "TADA64.CFG"
 keymap_filename_end:
 {alpha:normal}
 KEYMAP_SCRATCH_LEN = keymap_filename_end - keymap_scratch_command  ; 13
@@ -2340,7 +3442,18 @@ keymap_saved_msg:
 keymap_aborted_msg:
         ascii "Aborted."
         byte 0
+keymap_no_drive_msg:
+        ascii "No drive: keymap not saved."
+        byte 0
+keymap_save_failed_msg:
+        ascii "Disk error: keymap not saved."
+        byte 0
 {alpha:normal}
+
+; key_save's: which message to show, and its two failure bits (SAVE's
+; own carry, then read_error_channel's)
+key_save_msg:      word 0
+key_save_failed:   byte 0
 
 ; Empty status-row "message" -- module_start pushes this to blank out
 ; keymap.asm's own "Opening keymap editor..." once this popup is fully

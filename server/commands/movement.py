@@ -55,7 +55,7 @@ _WASD_ALIASES: dict[str, str] = {
 }
 
 # Rooms that trigger a sub-area module when entered, keyed by room number.
-# The bar is level-gated in the original source, same as the Allys Guild/
+# The bar is level-gated in the original source, same as the Allies' Guild/
 # Jake's Stable checks below it (SPUR.MAIN.S: "if cl=1 then if cr=49 then
 # if di=1 link dy$", right alongside those two's own cl/cr/di checks) --
 # _BAR_ROOM (37) is this port's own exit-*destination* room number, which
@@ -67,7 +67,7 @@ _BAR_LEVEL   = 1
 _BAR_ROOM    = 37   # Wall Bar & Grill
 _SHOPPE_ROOM = None  # Shoppe is reached via rc/rt elevator, not a map room
 
-# The Allys Guild (skip branch SPUR.MISC8.S s.guild) is a hardcoded
+# The Allies' Guild (skip branch SPUR.MISC8.S s.guild) is a hardcoded
 # interception in the original source, not a normal data-driven room exit:
 # SPUR.MAIN.S: "if cl=4 if cr=42 if di=3 i$=\"SRV.GUILD\":...link dy$"
 # (cl=level, cr=room, di=3 means the player typed East). Level 4 room 42
@@ -170,6 +170,8 @@ async def _auto_dismount_if_needed(ctx: GameContext) -> None:
         player.clear_flag(PlayerFlags.MOUNTED)
         player.unsaved_changes = True
         await ctx.send('Your horse balks at the water -- you dismount.')
+        from room_notices import balk_dismount_line, notify
+        await notify(ctx, balk_dismount_line(player))
 
 
 async def _enter_shoppe(ctx: GameContext) -> None:
@@ -189,7 +191,7 @@ async def _enter_ship_stores(ctx: GameContext) -> None:
 
 
 async def _enter_allies_guild(ctx: GameContext) -> None:
-    """Player finds Bubba's Allys Guild down the alley (level 4, room 42, east)."""
+    """Player finds Bubba's Allies' Guild down the alley (level 4, room 42, east)."""
     from street.allies_guild import main as allies_guild_main
     await allies_guild_main(ctx)
     await ctx.server._show_room(ctx)
@@ -211,6 +213,12 @@ async def _enter_guild_hq(ctx: GameContext, guild_key: str) -> None:
 
 async def _enter_bar(ctx: GameContext) -> None:
     """Player enters the Wall Bar & Grill (room 37)."""
+    # The street room left behind -- bar/main.py itself tells the bar
+    # ("wanders into the Wall Bar & Grill") once the room has changed.
+    # (The shops and guilds above need nothing of the kind: each announces
+    # itself to the open room through presence.py.)
+    from room_notices import notify, who
+    await notify(ctx, f'{who(ctx.player)} heads into the Wall Bar & Grill.')
     ctx.client.room = _BAR_ROOM
     from bar.main import enter_bar
     await enter_bar(ctx)
@@ -232,7 +240,7 @@ class MoveCommand(Command):
         summary     = 'Move in a compass direction.',
         description = (
             'Use single-letter shortcuts (n, s, e, w, u, d), full words '
-            '(north, south, east, west, up, down), or "go <direction>". '
+            '(north, south, east, west, up, down), or |command|go <direction>|reset|. '
             'PREFS (\'W\') can switch w/a/s/d to mean north/west/south/east '
             'instead.'
         ),
@@ -243,9 +251,9 @@ class MoveCommand(Command):
         ],
         examples = [
             ('n',        "A single letter (n/s/e/w/u/d) moves one step in that compass "
-                          "direction on its own -- no 'go' needed."),
-            ('go west',  "'go <direction>' is the alternate, full-word form -- 'go west' "
-                          "and typing 'w' (or 'west') on its own all do the same thing, "
+                          "direction on its own -- no |command|go|reset| needed."),
+            ('go west',  "|command|go <direction>|reset| is the alternate, full-word form -- |command|go west|reset| "
+                          "and typing |command|w|reset| (or |command|west|reset|) on its own all do the same thing, "
                           "unless PREFS has remapped w/a/s/d to a WASD-style keymap."),
         ],
     )
@@ -272,6 +280,11 @@ class MoveCommand(Command):
             await ctx.send(f'Go where? ({hint})')
             return CommandResult.fail('No direction.', error='no_direction')
 
+        # A FOLLOW ME follower who walks off on their own breaks away
+        # (guild_follow.py) -- being led moves them without coming here.
+        import guild_follow
+        await guild_follow.stop_following(ctx)
+
         # Check for special exits before normal movement
         game_map = getattr(ctx.server, 'game_map', None)
         room_no  = getattr(ctx.client, 'room', 1) or 1
@@ -279,7 +292,7 @@ class MoveCommand(Command):
 
         # TODO: handle live monster blocking player's movement
 
-        # Allys Guild: hardcoded level/room/direction interception (see
+        # Allies' Guild: hardcoded level/room/direction interception (see
         # _ALLY_GUILD_LEVEL / _ALLY_GUILD_ROOM above), matching SPUR's own
         # hardcoded check rather than a data-driven room exit.
         if (direction == 'e' and player_level == _ALLY_GUILD_LEVEL

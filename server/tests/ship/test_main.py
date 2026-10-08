@@ -101,6 +101,17 @@ class TestShipMenuDispatch(unittest.IsolatedAsyncioTestCase):
         await ship_main(ctx)
         self.assertIn('You climb back up through the manhole.', ctx._flat())
 
+    async def test_q_leaves_the_ship_and_menu_shows_q(self):
+        """[Q] is the leave key now, as in the Merchant Shoppe."""
+        for key in ('q', 'Q'):
+            player = _new_player('Rulan')
+            ctx = _FakeCtx([key], player)
+            await ship_main(ctx)
+            self.assertIn('You climb back up through the manhole.', ctx._flat())
+        self.assertFalse(player.is_expert)     # so the menu was shown
+        self.assertIn('[Q] Leave the Shop', ctx._flat())
+        self.assertNotIn('[X]', ctx._flat())
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -215,6 +215,38 @@ whole time.
   execution environment by this resident program's own use of them, and
   safe to share since a module runs to completion before control ever
   returns to resident code (never concurrently with it).
+- Modules as of 2026-10-01 (addresses above are historical: `OVERLAY_BUF`
+  is `$3800` now and the jump table lives at `$c000` -- see
+  `tada-client.asm`/`constants.asm`): `PETSCII.ED`, `CONFIG.MNU`
+  (Video Settings), `HELP.MNU`, `KEYMAP.ED` (F7) and `DRIVE.MNU` (F5, the
+  drive picker -- `drive_menu.asm` wrapping `drive_menu_body.asm`, which
+  the 128 client builds in too). The keymap editor and the drive picker
+  save `TADA64.CFG`: `keymap_table` plus an 8-byte settings block
+  (`config_settings` in `keymap.asm`, reached through `KEYMAP_TABLE_PTR`/
+  `CONFIG_SETTINGS_PTR`) holding the data drive.
+- Modules poke their popups at `POPUP_SCREEN` (`constants.asm`, `$c400`
+  = `SCREEN_BUF_A`, the VIC-bank-3 buffer every loader makes front), never
+  `macro_preprocessor.py`'s built-in `SCREEN_RAM` (`$0400`) -- the client
+  stopped displaying `$0400` with the double-buffered screen, and every
+  popup drew off-screen until 2026-10-01.
+- The charset itself is RAM behind `$d000` (`CHARGEN_DEST`), readable
+  and writable only with I/O banked out -- and with SwiftLink up, its
+  receive NMI (which SEI can't mask) would then read `$de00` as plain
+  RAM. Resident `run_under_io` calls a routine with all RAM mapped while
+  the ACIA's receive IRQ is held off (RTS deasserted), points the RAM NMI
+  vector at an `rti`, and buffers any byte that landed meanwhile by hand
+  afterward. The routine may not touch I/O or call the KERNAL.
+- Video Settings' Border style (2026-10-02): Single (the Gothic box
+  glyphs) or Double (CP437-style double lines), swapped in place for
+  the 11 box-drawing screen codes, so every box on screen changes
+  together. The swap is resident (`border_style.asm`; overlays reach it
+  through `JT_SET_BORDER_STYLE`, `$c036`) so boot can reapply the saved
+  style. The Gothic glyphs are backed up at boot, from `gothic_charset`'s
+  source image, to `BORDER_BACKUP` in overlay RAM at `$9000` -- above
+  every module's image (`check_overlay_margin.py --modules` fails the
+  `.d64` build if one reaches it). `CONFIG.MNU` saves the choice in
+  `TADA64.CFG` (`config_settings`' `CFG_BORDER_STYLE`, byte +2) when it
+  changes; the server never sees it.
 - See `petscii_editor.asm` for the first real module -- also the
   reference for the "no `ds` directive, no macro parameters" bulk-copy
   pattern (self-modified `lda`/`sta` operands, incrementing the operand

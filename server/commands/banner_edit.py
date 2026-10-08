@@ -21,28 +21,15 @@ an explicit later phase.
 """
 from __future__ import annotations
 
-import asyncio
 import logging
 
 from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from flags import PlayerFlags
-from network_context import PETSCIINetworkContext
-from petscii_editor import canvas as canvas_wire
 from petscii_editor import store as canvas_store
-from petscii_editor.canvas import Canvas
+from petscii_editor.session import stream_canvas_edit
 
 log = logging.getLogger(__name__)
-
-# How long to wait for the client to upload its edited canvas back.
-# There's no clean cancel signal from the client yet (see this feature's
-# plan notes) -- an admin who just walks away from an open editor
-# shouldn't hang the connection forever, so this is a generous but
-# finite backstop rather than a real abort mechanism. Revisit if a
-# RUN/STOP-triggered cancel byte gets added client-side.
-UPLOAD_TIMEOUT_SECONDS = 15 * 60
-
-HEADER_LEN = 4  # STREAM_START, STREAM_CONFIRM, len_lo, len_hi
 
 
 class BannerEditCommand(Command):
@@ -53,8 +40,8 @@ class BannerEditCommand(Command):
         summary  = 'Edit a PETSCII banner/screen on your Commodore 64.',
         category = HelpCategory.ADMINISTRATIVE,
         usage    = [
-            ('banner edit <name>', 'Open (or create) a named banner in the visual editor.'),
-            ('banner list',        'List saved banners.'),
+            ('banner #edit <name>', 'Open (or create) a named banner in the visual editor.'),
+            ('banner #list',        'List saved banners.'),
         ],
         notes = [
             'Admin-only. Requires a real Commodore connection -- there\'s '
@@ -67,21 +54,33 @@ class BannerEditCommand(Command):
             await ctx.send('You lack the authority to do that.')
             return CommandResult.fail('Permission denied.', error='permission_denied')
 
-        positional, _switches = self.parse_args(*args)
-        if not positional:
-            await ctx.send('Usage: banner edit <name> | banner list')
+        positional, switches = self.parse_args(*args)
+        sub = switches[0].lstrip('#').lower() if switches else ''
+
+        if not sub:
+            # 'list'/'edit' are '#'-only switches, not bare positional
+            # words -- a bare word here used to work as sub, *rest =
+            # positional. Catch the specific bare-'list'/'edit' case and
+            # hint at the right syntax instead of falling into the
+            # generic "no subcommand" message below, same as news.py's
+            # own catch for this switch-consistency audit.
+            if positional and positional[0].lower() in ('list', 'edit'):
+                bare = positional[0].lower()
+                hint = f'banner #{bare}' + (' <name>' if bare == 'edit' else '')
+                await ctx.send(f"'{bare}' needs a '#' -- try |command|{hint}|reset|.")
+                return CommandResult.fail('Missing #.', error='missing_hash')
+            await ctx.send('Usage: banner #edit <name> | banner #list')
             return CommandResult.fail('No subcommand given.')
 
-        sub, *rest = positional
         if sub == 'list':
             return await self._list(ctx)
         if sub == 'edit':
-            if not rest:
-                await ctx.send('Edit which banner? (banner edit <name>)')
+            if not positional:
+                await ctx.send('Edit which banner? (banner #edit <name>)')
                 return CommandResult.fail('No banner name given.')
-            return await self._edit(ctx, ' '.join(rest))
+            return await self._edit(ctx, ' '.join(positional))
 
-        await ctx.send(f'Unknown "banner" subcommand: {sub!r}. Try "banner list" or "banner edit <name>".')
+        await ctx.send(f'Unknown "banner" subcommand: {sub!r}. Try |command|banner #list|reset| or |command|banner #edit <name>|reset|.')
         return CommandResult.fail('Unknown subcommand.', error='unknown_subcommand')
 
     async def _list(self, ctx) -> CommandResult:
@@ -94,47 +93,12 @@ class BannerEditCommand(Command):
         return CommandResult.ok(f'Listed {len(names)} banner(s).')
 
     async def _edit(self, ctx, name: str) -> CommandResult:
-        if not isinstance(ctx, PETSCIINetworkContext):
-            await ctx.send("Your connection can't run the visual banner editor -- it needs a real Commodore screen.")
-            return CommandResult.fail('No PETSCII display available.', error='no_petscii_display')
-
         path = canvas_store.path_for(name)
-        loaded = canvas_store.load(path)
-        cv = loaded if isinstance(loaded, Canvas) else Canvas()
-
-        await ctx.send(f'|cyan|[[c64]]|white| opening banner editor for "{name}"...')
-        await ctx.send_raw(canvas_wire.encode_download(cv))
-
-        try:
-            header = await asyncio.wait_for(ctx.reader.readexactly(HEADER_LEN), UPLOAD_TIMEOUT_SECONDS)
-        except asyncio.TimeoutError:
-            await ctx.send('Banner editor timed out waiting for a save.')
-            return CommandResult.fail('Upload timed out.', error='upload_timeout')
-        except (asyncio.IncompleteReadError, ConnectionError):
-            log.warning('banner edit %r: connection dropped mid-upload for %s', name, ctx.player.name)
-            return CommandResult.fail('Connection lost during upload.', error='connection_lost')
-
-        if header[1] == canvas_wire.STREAM_CANCEL:
-            await ctx.send(f'Banner edit for "{name}" cancelled.')
-            return CommandResult.ok('Cancelled.')
-
-        try:
-            body_len = header[2] | (header[3] << 8)
-            body = await asyncio.wait_for(ctx.reader.readexactly(body_len), UPLOAD_TIMEOUT_SECONDS)
-        except asyncio.TimeoutError:
-            await ctx.send('Banner editor timed out waiting for a save.')
-            return CommandResult.fail('Upload timed out.', error='upload_timeout')
-        except (asyncio.IncompleteReadError, ConnectionError):
-            log.warning('banner edit %r: connection dropped mid-upload for %s', name, ctx.player.name)
-            return CommandResult.fail('Connection lost during upload.', error='connection_lost')
-
-        try:
-            uploaded = canvas_wire.decode_upload(header + body)
-        except ValueError as exc:
-            await ctx.send(f'Banner upload rejected: {exc}')
-            return CommandResult.fail(str(exc), error='bad_upload')
-
-        canvas_store.save(path, uploaded)
-        log.info('ADMIN BANNER EDIT: %s saved banner %r', ctx.player.name, name)
-        await ctx.send(f'Banner "{name}" saved.')
-        return CommandResult.ok(f'Saved banner {name!r}.')
+        return await stream_canvas_edit(
+            ctx, path,
+            opening_msg=f'|cyan|[[c64]]|white| opening banner editor for "{name}"...',
+            timeout_msg='Banner editor timed out waiting for a save.',
+            cancelled_msg=f'Banner edit for "{name}" cancelled.',
+            saved_msg=f'Banner "{name}" saved.',
+            log_label=f'banner {name!r}',
+        )

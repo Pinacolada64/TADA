@@ -80,6 +80,15 @@ class TestPickBorderStyleSelection(unittest.IsolatedAsyncioTestCase):
         await _pick_border_style(ctx, _codec())
         self.assertEqual(ctx.player.client_settings.border_style, 'ascii')
 
+    async def test_marks_unsaved_changes(self):
+        # Regression: a real pick that never flags unsaved_changes never
+        # gets past Player.save()'s early-return guard on an abrupt
+        # disconnect -- found live 2026-08-27 via the date-format picker's
+        # own copy of this same bug.
+        ctx = _FakeCtx(['1'], Player())
+        await _pick_border_style(ctx, _codec())
+        self.assertTrue(ctx.player.unsaved_changes)
+
     async def test_number_selects_single(self):
         ctx = _FakeCtx(['2'], Player())
         await _pick_border_style(ctx, _codec())

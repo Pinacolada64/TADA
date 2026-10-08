@@ -18,7 +18,15 @@ _USERNAME = 'e2emover'
 _PASSWORD = 'e2epass'
 
 
-def test_move_south_from_room1_goes_to_13_and_saves(tmp_path):
+def test_move_south_from_room1_goes_to_13_and_saves(tmp_path, monkeypatch):
+    # Room 13 holds a huge TROLL, which now attacks on sight (encounters/
+    # monster.py's try_monster_engage()) -- an ambush plus its opening
+    # swings can kill this 10-HP test character before its first prompt,
+    # respawning it in room 1, so the saved room is a coin flip. Combat
+    # isn't what's under test.
+    from unittest.mock import AsyncMock
+    monkeypatch.setattr('encounters.monster.try_monster_engage', AsyncMock())
+
     import net_common
     net_common.run_server_dir = str(tmp_path / 'run' / 'server')
     seed_test_account(_USERNAME, _PASSWORD, map_room=1)

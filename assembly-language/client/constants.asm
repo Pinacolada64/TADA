@@ -69,13 +69,18 @@ PROTO_HELP_STREAM_CONFIRM    = $c019
 ; called directly (rules out the keyboard buffer), and the status-line
 ; clock froze too (consistent with mainline never reaching anywhere
 ; past the tight poll, not a keyboard-specific issue). JT_RESUME_LOCAL
-; (jmp read_line) skips straight past wait_for_data for exactly this
-; case -- safe because read_line's own entry point already
-; unconditionally resets linelen/cursor_pos to 0 regardless of how it
-; was reached (a pre-existing characteristic, not something this
+; (jmp resume_local, tada-client.asm) skips straight past wait_for_data
+; for exactly this case -- safe because read_line's own entry point
+; already unconditionally resets linelen/cursor_pos to 0 regardless of
+; how it was reached (a pre-existing characteristic, not something this
 ; introduces): a player mid-line when they press F7 already lost that
 ; partial text under the OLD hardcoded-F7-check code too, since that
 ; also `jmp`'d away from read_line's own call frame the same way.
+; resume_local runs read_line THEN send_line THEN loops back to prompt_
+; loop, NOT a bare jmp straight into read_line -- see resume_local's own
+; comment for a second, later bug (2026-09-22) that plain jmp caused:
+; read_line_done's own rts has nowhere correct to return to without a
+; jsr read_line ahead of it.
 JT_RESUME_LOCAL              = $c01a
 
 ; JT_STATUS_PUSH_RESET/JT_BUILD_STATUS_LINE -- added 2026-09-18 so
@@ -98,13 +103,28 @@ JT_BUILD_STATUS_LINE         = $c020
 ; this needs a trampoline at all (cursor_hide/update_cursor are plain
 ; labels in tada-client.asm, unreachable from a separate .prg). Unlike
 ; that pair, the caller doesn't pass anything in X/Y -- both routines
-; act on the KERNAL's own PNT/PNTR ($d1-$d3, zero page, so directly
-; readable/writable by keymap_menu.asm without a trampoline of their
-; own) and the resident cursor_phase byte; key_capture_combo's own
-; comment explains how it keeps those two trampolines and $d1-$d3
+; act on the resident cursor position (set via JT_SET_CURSOR below;
+; the KERNAL's own PNT/PNTR, $d1-$d3, until 2026-09-28) and the
+; resident cursor_phase byte; key_capture_combo's own comment explains
+; how it keeps those trampolines and the saved cursor position
 ; correctly scoped to just its own capture-wait sub-state.
 JT_CURSOR_HIDE               = $c023
 JT_UPDATE_CURSOR             = $c026
+
+; JT_GET_CURSOR/JT_SET_CURSOR/JT_CLEAR_SCREEN -- added 2026-09-28 when
+; screen-output.asm took the screen over from KERNAL CHROUT/PLOT. The
+; resident cursor (the one term_chrout prints at and cursor_toggle
+; blinks) is now screen-output.asm's own crsr_row/crsr_col, not the
+; KERNAL's PNT/PNTR ($d1-$d3), so overlays can't just poke those any
+; more. GET returns .X = row, .Y = column; SET takes the same (the
+; KERNAL_PLOT register order). keymap_menu.asm uses GET/SET to park the
+; blink cursor on its own popup rows and put it back afterward;
+; petscii_editor.asm uses CLEAR_SCREEN (blank every row but STATUS_ROW,
+; repaint STATUS_ROW, home the resident cursor) where it used to CHROUT
+; a $93.
+JT_GET_CURSOR                = $c029
+JT_SET_CURSOR                = $c02c
+JT_CLEAR_SCREEN              = $c02f
 
 ; Not a jump-table entry or protocol byte -- a 2-byte pointer (lo, hi)
 ; to keymap_table's real runtime address, written once by init_keymap
@@ -116,6 +136,75 @@ JT_UPDATE_CURSOR             = $c026
 ; keymap.asm and so can't see its `keymap_table = ...` symbol at
 ; assembly time even if that address WERE fixed) reads this pointer at
 ; runtime instead of needing to know or guess the address in advance.
-; $c029, not $c023 -- JT_CURSOR_HIDE/JT_UPDATE_CURSOR (above) took the
-; 6 bytes this used to start at.
-KEYMAP_TABLE_PTR             = $c029
+; $c032, not $c023 -- JT_CURSOR_HIDE/JT_UPDATE_CURSOR (above) took the
+; 6 bytes this used to start at, then JT_GET_CURSOR/JT_SET_CURSOR/
+; JT_CLEAR_SCREEN the 9 after that ($c029 until 2026-09-28).
+; POPUP_SCREEN -- where the overlays poke their popups: tada-client.asm's
+; SCREEN_BUF_A, the VIC-bank-3 screen buffer every loader makes front
+; (ensure_buffer_a_front) before jumping to OVERLAY_BUF. The overlays
+; used macro_preprocessor.py's built-in SCREEN_RAM ($0400) instead,
+; which the client stopped displaying when the double-buffered bank-3
+; screen (a9001e4) reached master with PR #61 -- every C64 popup drew
+; off-screen and only its color-RAM greying showed (found 2026-10-01).
+; Keep in step with SCREEN_BUF_A.
+POPUP_SCREEN                 = $c400
+
+KEYMAP_TABLE_PTR             = $c032
+
+; CONFIG_SETTINGS_PTR -- same idea as KEYMAP_TABLE_PTR, for the client
+; settings block (keymap.asm's config_settings) saved in TADA64.CFG
+; right after keymap_table. Written by init_keymap at boot; read by
+; drive_menu.asm (DRIVE.MNU), which can't see keymap.asm's symbols.
+; Added 2026-10-01 with the drive picker.
+CONFIG_SETTINGS_PTR          = $c034
+
+; JT_SET_BORDER_STYLE -- added 2026-10-02 with Video Settings' Border
+; style. .A = 0 Single (the Gothic box glyphs), nonzero Double: puts
+; that style's glyphs in the charset (border_style.asm's set_border_
+; style, resident so a saved style can be applied at boot) and records
+; it in BORDER_CUR_STYLE. Sits after the two pointers above rather than
+; with the rest of the jump table; init_jump_table writes it the same
+; way.
+JT_SET_BORDER_STYLE          = $c036
+
+; Border-style state, kept in overlay RAM ABOVE every overlay module's
+; image (the largest, keymap_menu, ends near $4cb0; check_overlay_
+; margin.py --modules fails the .d64 build if one ever reaches here)
+; rather than in the resident program -- Ryan's ask: back the Gothic
+; glyphs up in loadable-module RAM. Nothing loads this high, so it
+; survives every overlay. Not $9e00-$9fff: that's where the KERNAL would
+; put RS-232 buffers if device 2 were ever opened. border_style.asm's
+; bs_backup_gothic fills it at boot, straight from gothic_charset's
+; source image.
+BORDER_STATE                 = $9000
+BORDER_CUR_STYLE             = $9000  ; +0: style in the charset now,
+                                      ;     0 = Single (Gothic), 1 = Double
+BORDER_BACKUP                = $9008  ; +8: the Gothic box glyphs, 8 bytes
+                                      ;     each, in border_style.asm's
+                                      ;     bs_glyph_codes order
+BORDER_STATE_END             = $9060  ; BORDER_BACKUP + 11 glyphs * 8, by
+                                      ; hand (see CONFIG_FILE_SIZE)
+
+; config_settings' layout -- byte offsets into the block, shared by the
+; client (keymap.asm), the overlays and the 128 client (keymap_128.asm
+; keeps the same layout after its own keymap_table).
+CONFIG_VERSION       = 1      ; bump when the block's layout changes
+CFG_VERSION          = 0      ; +0: CONFIG_VERSION when it was saved
+CFG_DATA_DRIVE       = 1      ; +1: the data drive (session logs and
+                              ;     other data files -- the client's own
+                              ;     files and TADA64.CFG stay on the
+                              ;     drive it was loaded from); 0 = none
+                              ;     chosen yet, use that drive
+CFG_BORDER_STYLE     = 2      ; +2: Video Settings' Border style, 0 =
+                              ;     Single, 1 = Double (C64 only -- the
+                              ;     128 keeps the byte but never reads
+                              ;     it); was reserved/zero before
+                              ;     2026-10-02, so older files read as
+                              ;     Single and CONFIG_VERSION stays 1
+CONFIG_SETTINGS_SIZE = 8      ; +3..+7 reserved, zero
+
+; TADA64.CFG's whole size: keymap_table (keymap.asm's KEYMAP_TABLE_SIZE,
+; 432) + the settings block. What keymap_menu.asm's and drive_menu.asm's
+; SAVEs write, from KEYMAP_TABLE_PTR. By hand -- see keymap.asm's
+; KEYMAP_TABLE_SIZE comment on c64list truncating computed values.
+CONFIG_FILE_SIZE     = 440    ; 432 + 8

@@ -20,10 +20,11 @@ _AP = "'"
 # decremented on login (SPUR.LOGON.S mid$(zu$,7,1): if instr(...,"23")
 # active, else dissipated), not a round count. This port's Player.wizard_
 # glow is already documented as "rounds left, decrement at every turn"
-# (player.py), but nothing actually casts/decrements it yet -- no real
-# spell-casting system exists (see TODO.md's "7/17/26" entry). This max
-# is a placeholder for display purposes until that's built.
-_WIZARD_GLOW_MAX_ROUNDS = 20
+# (player.py). CAST WIZARD'S GLOW (commands/cast.py) now sets it to this
+# max, combat/engine.py spends a round each time it turns aside a
+# monster's blow, and login dissipates it (commands/connect.py) the way
+# SPUR's did.
+from commands.cast import WIZARD_GLOW_ROUNDS as _WIZARD_GLOW_MAX_ROUNDS
 
 
 # ---------------------------------------------------------------------------
@@ -287,8 +288,7 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
     _active_shield_id = getattr(player, 'active_shield_id', None)
     _shield_prof      = getattr(player, 'shield_proficiency', {}) or {}
     shield_skill      = int(_shield_prof.get(str(_active_shield_id), 0)) if _active_shield_id is not None else 0
-    shield_flag       = getattr(PlayerFlags, 'SHIELD_TRAINED', None)
-    shield_trained    = ('Yes' if qf(shield_flag) else 'No') if shield_flag else 'No'
+    shield_trained    = 'Yes' if qf(PlayerFlags.SHIELD_TRAINED) else 'No'
     lines += [
         f"Shield skill: {shield_skill} {tier_label(shield_skill)}|reset|, Formal training: {shield_trained}",
         '',
@@ -357,8 +357,8 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
     # table.py Table (Ally/Str/HP/Hit%/Notes columns) per Ryan's request;
     # Notes carries every AllyFlags member (see _ally_flag_tags), any
     # non-default AllyStatus tag, a Wpn tag for the ally's readied weapon
-    # (see _ally_weapon_display -- commands/give.py auto-readies a Weapon
-    # on GIVE), and a Worn tag for readied_armor/readied_shield (see
+    # (see _ally_weapon_display -- set via READY, commands/ready.py's
+    # _toggle_ally_weapon), and a Worn tag for readied_armor/readied_shield (see
     # _ally_worn_display -- commands/give.py auto-wears an armor/shield
     # Item the same way, added 2026-08-09). Not its own fixed-width table
     # column -- that starved Notes' width on narrow/C64 screens when tried
@@ -409,6 +409,17 @@ def _build_stats_lines(player, ctx=None) -> list[str]:
     else:
         lines.append('  No allies... sniff...')
     lines.append('')
+
+    # FOLLOW ME followers (guild_follow.py) -- SPUR.SUB.S's pr.guild,
+    # "FOLLOWING GUILD MEMBERS:", printed right after the ally roster.
+    server = getattr(ctx, 'server', None) if ctx is not None else None
+    import guild_follow
+    following = ([f.player.name for f in guild_follow.live_followers(server, player)] if server else [])
+    following += [f"{e.get('name')} (carried)" for e in guild_follow.carried(player)]
+    if following:
+        lines.append('Following guild members:')
+        lines.extend(f'  {name}' for name in following)
+        lines.append('')
 
     # World bosses
     lines.append(

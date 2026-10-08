@@ -3,7 +3,7 @@
 Wraps config.py's ServerConfig (server_config.json) -- see that module for
 the full rationale behind each setting (SETTINGS_METADATA), including
 which come from SPUR.CONTROL.S (game_name, session_time_limit_minutes,
-victory_type, victory_gold_amount, victory_item_number) versus
+victory_type, victory_silver_amount, victory_item_number) versus
 TADA-specific additions (require_invites, invite_expiry_days, max_players,
 port, host, dwarf_silver).
 
@@ -75,7 +75,7 @@ async def _prompt_new_value(ctx, key: str, label: str, desc: str) -> None:
         hint = " Type '?' to list eligible items." if key == _VICTORY_ITEM_KEY else ''
         raw = await ctx.prompt(
             f'New value for {label}',
-            preamble_lines=['', desc, f'Current: {current}  —  blank to cancel{hint}'],
+            preamble_lines=['', desc, f'Current: {current}  —  {ctx.player.return_key} to cancel{hint}'],
         )
         if raw is None or not raw.strip():
             return
@@ -146,27 +146,31 @@ class ConfigCommand(Command):
             ('config require_invites off', 'Stop requiring invites for new players.'),
         ],
         description = (
-            'Reads and writes server_config.json (config.py\'s ServerConfig). '
+            'Reads and writes server-wide settings. '
             'Several settings come from SPUR.CONTROL.S\'s SysOp config screen '
             '-- game_name, session_time_limit_minutes, and the victory_* '
             'trio (what it takes to "win" by escaping via the ladder up). '
             'Others (require_invites, invite_expiry_days, max_players, '
             'ansi_port, petscii_port, host, dwarf_silver) are TADA-specific '
-            'additions. The same settings are also editable offline via '
-            'setup/server_setup.py.'
+            'additions.'
         ),
         notes = [
             'Admin or Dungeon Master only.',
             "<key> can be a unique prefix of the full setting name (e.g. "
-            "'victory_g' for victory_gold_amount) -- an ambiguous prefix "
+            "'victory_s' for victory_silver_amount) -- an ambiguous prefix "
             "(matching more than one setting) lists the candidates instead "
             "of guessing.",
             'port/host changes only take effect on the next server restart.',
             'session_time_limit_minutes is stored but not yet enforced -- '
             'nothing currently disconnects a player at the limit.',
-            'victory_type/victory_gold_amount/victory_item_number gate the '
+            'victory_type/victory_silver_amount/victory_item_number gate the '
             'win check at the level-6 "Ladder Up" room (victory.py) -- see '
             'that module for the exact escape conditions.',
+        ],
+        admin_notes = [
+            'Reads and writes server_config.json (config.py\'s ServerConfig). '
+            'The same settings are also editable offline via '
+            'setup/server_setup.py.',
         ],
     )
 
@@ -190,7 +194,7 @@ class ConfigCommand(Command):
                     "Type more of the name to narrow it down."
                 )
                 return CommandResult.fail('Ambiguous setting.', error='ambiguous_key')
-            await ctx.send(f"Unknown setting '{typed}'. Use CONFIG with no arguments to list them all.")
+            await ctx.send(f"Unknown setting '{typed}'. Use |command|CONFIG|reset| with no arguments to list them all.")
             return CommandResult.fail('Unknown setting.', error='unknown_key')
 
         if len(positional) == 1:

@@ -86,7 +86,9 @@ class Server(socketserver.ThreadingMixIn, socketserver.TCPServer):
             try:
                 script_dir = Path(__file__).parent
                 self.game_map = Map()
-                for lvl in range(1, 8):
+                # levels 1-7 are SPUR's; level 8 is this port's addition
+                # (see tools/build_level_8_json.py). Missing files are skipped.
+                for lvl in range(1, 9):
                     level_file = script_dir / f"level_{lvl}.json"
                     if level_file.exists():
                         self.game_map.read_map(str(level_file), level=lvl)

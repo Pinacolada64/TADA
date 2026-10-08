@@ -248,6 +248,64 @@ class TestInventoryKindBackfill(unittest.TestCase):
         self.assertIsNone(entry.item.kind)
 
 
+class TestInventoryRationCategoryHealedFromKind(unittest.TestCase):
+    """Regression: Railbender's saved LOAF OF BREAD (item_kind='food',
+    but item_category='Item' -- items.py's Rations class never set
+    .category before 2026-08-25) never stacked with a freshly bought
+    second loaf. A fresh Rations() now sets category=FOOD/DRINK, but the
+    stale 'Item' string already sitting in old save files needed
+    from_json() to prefer item_kind over the persisted item_category
+    too, since a bare Rations.__init__ fix does nothing for entries
+    saved before it landed. Distinct from TestInventoryKindBackfill
+    above: that covers a record with item_kind *missing entirely*; this
+    covers one where item_kind is already present and correct, but
+    item_category is present and wrong.
+    """
+
+    def _stale_category_entry(self, item_id: int, name: str, kind: str, price: int = 30) -> dict:
+        """Shaped exactly like Railbender's real save data: item_kind
+        already correct, but item_category stuck at the generic 'Item'
+        Rations.__init__ used to leave it at."""
+        return {
+            'item_id': item_id, 'item_name': name, 'item_category': 'Item',
+            'quantity': 1, 'item_kind': kind, 'item_price': price,
+        }
+
+    def test_stale_food_category_heals_to_food(self):
+        restored = Inventory.from_json([self._stale_category_entry(5, 'LOAF OF BREAD', 'food')])
+        entry = restored.find(name='LOAF OF BREAD')[0]
+
+        self.assertEqual(entry.item.category, ItemCategory.FOOD)
+
+    def test_stale_drink_category_heals_to_drink(self):
+        restored = Inventory.from_json([self._stale_category_entry(12, 'MINERAL WATER', 'drink')])
+        entry = restored.find(name='MINERAL WATER')[0]
+
+        self.assertEqual(entry.item.category, ItemCategory.DRINK)
+
+    def test_freshly_constructed_rations_get_matching_category(self):
+        """The Rations.__init__ half of the fix: a brand-new purchase
+        must set .category itself, not rely on BaseItem's None default,
+        so two rations bought in the same session (never touching
+        from_json()) still match on category and stack."""
+        self.assertEqual(Rations(number=5, name='LOAF OF BREAD', kind='food', price=30).category,
+                          ItemCategory.FOOD)
+        self.assertEqual(Rations(number=1, name='TEA', kind='drink', price=10).category,
+                          ItemCategory.DRINK)
+
+    def test_buying_another_loaf_stacks_onto_the_healed_entry(self):
+        """The actual bug report: buying a second loaf of bread from the
+        general store didn't stack onto the one already carried from a
+        prior session."""
+        inv = Inventory.from_json([self._stale_category_entry(5, 'LOAF OF BREAD', 'food')])
+
+        added = inv.add(Rations(number=5, name='LOAF OF BREAD', kind='food', price=30))
+
+        self.assertTrue(added)
+        self.assertEqual(len(inv), 1)  # stacked, not a second slot
+        self.assertEqual(inv.find(name='LOAF OF BREAD')[0].quantity, 2)
+
+
 class TestInventoryTypeRoundTrip(unittest.TestCase):
     """Regression: item.type (item_system.ItemType -- armor/book/compass/
     cursed/shield/treasure) is a separate, independently-used property from

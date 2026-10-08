@@ -63,7 +63,7 @@ class AttackCommand(Command):
                                 "room) works the same way -- it's not for targeting a "
                                 'specific monster among several, since only one can occupy '
                                 'a room at a time.'),
-            ('k',              "'k' (also 'kill' or 'fight') is a shorter alias for "
+            ('k',              "|command|k|reset| (also |command|kill|reset| or |command|fight|reset|) is a shorter alias for "
                                 'attack -- all four do exactly the same thing.'),
         ],
         description = (
@@ -111,12 +111,29 @@ class AttackCommand(Command):
                     await ctx.send(f'There is no "{" ".join(args)}" here — only '
                                     f'{monster_display_name(session.monster)}.')
                     return CommandResult.fail(error='no_match')
-            await session.join(ctx)
+            # One bystander swing -- or the lead, if the fight's leader has
+            # left it (see combat.engine.join_or_lead()).
+            from combat.engine import join_or_lead
+            await join_or_lead(ctx, session)
             return CommandResult.ok()
 
         # Find the monster in this room
         monster = _monster_in_room(ctx)
         if monster is None:
+            await ctx.send("There's nothing to fight here.")
+            return CommandResult.fail(error='no_monster')
+
+        # Already dealt with, for this player: killed (maybe a moment ago,
+        # by another party in the same fight), scared off, or charmed --
+        # see combat.engine.monster_gone_for().
+        from combat.engine import monster_gone_for
+        gone = monster_gone_for(player, monster.get('number'),
+                                level=int(getattr(player, 'map_level', 1) or 1),
+                                room_no=getattr(ctx.client, 'room', None))
+        if gone == 'dead':
+            await ctx.send(f'{monster_display_name(monster, capitalize=True)} is already dead.')
+            return CommandResult.fail(error='monster_dead')
+        if gone:
             await ctx.send("There's nothing to fight here.")
             return CommandResult.fail(error='no_monster')
 
@@ -133,7 +150,7 @@ class AttackCommand(Command):
         # Warn if no weapon readied, but allow bare-hands combat
         weapon = getattr(player, 'readied_weapon', None)
         if weapon is None:
-            await ctx.send('(Fighting unarmed!  Use "ready" to equip a weapon.)')
+            await ctx.send('(Fighting unarmed!  Use |command|ready|reset| to equip a weapon.)')
 
         from combat import enter_combat
         await enter_combat(ctx, monster)

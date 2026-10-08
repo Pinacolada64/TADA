@@ -1,7 +1,7 @@
 """tests/commands/test_get_unconscious.py
 
 Covers commands/get.py's `_try_get_living()` player-target branch
-(SPUR.MISC.S get.plyr): GETting a conscious player says "skuttles out
+(SPUR.MISC.S get.plyr): GETting a conscious player says "scuttles out
 of reach!"; GETting an Unconscious one (PlayerFlags.UNCONSCIOUS -- a
 duel loss, see combat/duel.py's DuelSession._end()) says "won't fit in
 your sack.." instead (sentence-case per this port's convention, not
@@ -37,7 +37,7 @@ def _make_ctx(viewer, room_no, other_clients):
 
 
 class TestGetLivingPlayerTarget(unittest.IsolatedAsyncioTestCase):
-    async def test_conscious_player_skuttles_out_of_reach(self):
+    async def test_conscious_player_scuttles_out_of_reach(self):
         viewer = Player(name='Rulan')
         target = Player(name='Belwin')
         other_client = _room_client(target)
@@ -45,7 +45,7 @@ class TestGetLivingPlayerTarget(unittest.IsolatedAsyncioTestCase):
 
         await GetCommand()._try_get_living(ctx, 'belwin')
         sent = '\n'.join(str(a) for call in ctx.send.await_args_list for a in call.args)
-        self.assertIn('skuttles out of reach', sent.lower())
+        self.assertIn('scuttles out of reach', sent.lower())
         self.assertNotIn("won't fit", sent.lower())
 
     async def test_unconscious_player_wont_fit_in_sack(self):
@@ -58,7 +58,7 @@ class TestGetLivingPlayerTarget(unittest.IsolatedAsyncioTestCase):
         await GetCommand()._try_get_living(ctx, 'belwin')
         sent = '\n'.join(str(a) for call in ctx.send.await_args_list for a in call.args)
         self.assertIn("won't fit in your sack", sent.lower())
-        self.assertNotIn('skuttles', sent.lower())
+        self.assertNotIn('scuttles', sent.lower())
 
 
 if __name__ == '__main__':

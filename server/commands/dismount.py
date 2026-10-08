@@ -31,4 +31,8 @@ class DismountCommand(Command):
         player.clear_flag(PlayerFlags.MOUNTED)
         player.unsaved_changes = True
         await ctx.send('You dismount.')
+        from bar.allies import find_mount
+        from room_notices import dismount_line, notify
+        mount = find_mount(player)
+        await notify(ctx, dismount_line(player, getattr(mount, 'name', None)))
         return CommandResult.ok()

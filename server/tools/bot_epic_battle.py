@@ -141,6 +141,7 @@ class Bot:
         self.monster_present = False
         self.monster_dead = False
         self.last_prompt = ''
+        self.last_lines_text = ''
         self.done = False
 
         self.mount_captured = False
@@ -208,7 +209,8 @@ class Bot:
         msg = json.loads(raw.strip())
         _wrap_recv(self.label, msg)
         self.last_prompt = msg.get('prompt', '') or ''
-        self._update_belief(_text_of(msg))
+        self.last_lines_text = _text_of(msg)
+        self._update_belief(self.last_lines_text)
 
         # Auto-decline a shadow-ally recruit offer (encounters/monster.py's
         # try_shadow_ally(), ~50% chance right after ANY kill, PC or bystander,
@@ -235,11 +237,20 @@ class Bot:
         # name is actually given) until its message budget ran out,
         # overwriting last_prompt along the way and losing the prompt
         # entirely -- leaving it permanently unanswered.
+        #
+        # CAST's own long instructional text ("Cast which spell number?
+        # (?=list, Q to leave)") later moved out of prompt_text into
+        # preamble_lines (commands/cast.py, the alpha-tester too-long-
+        # prompt-lines fix) -- so it now arrives in THIS message's lines,
+        # not its prompt field, while prompt_text itself shrank to just
+        # 'Spell #'. Check both fields so this still matches regardless
+        # of which one carries it.
         low_prompt = self.last_prompt.lower()
+        low_lines  = self.last_lines_text.lower()
         if 'name your horse' in low_prompt:
             self.name_warning_seen = True
             self._bump('lasso_outcome_count')
-        if 'cast which spell number' in low_prompt:
+        if 'cast which spell number' in low_prompt or 'cast which spell number' in low_lines:
             self._bump('cast_prompt_count')
 
         return msg
@@ -641,9 +652,10 @@ async def phase_medusa(hero: Bot) -> None:
     """Hero solos this one -- thornshield staying elsewhere avoids the race
     where its bystander 'attack' lands the instant after hero's kill and
     opens a second, unwanted fresh fight against the same room/monster
-    number (see this module's docstring: _monster_in_room() has no
-    "already dead" gate, only per-player dead_monsters, so a second
-    attacker always gets a fresh full-HP copy). Not needed here anyway --
+    number (see this module's docstring: _monster_in_room() had no
+    "already dead" gate, so a second attacker got a fresh full-HP copy --
+    since fixed, ATTACK/LURK now check combat.engine.monster_gone_for()
+    and refuse with "is already dead"). Not needed here anyway --
     pendant/ambush/STORM/ammo are all leader-only mechanics hero gets
     fighting alone."""
     _log(f'\n\n{"#" * WIDTH}\n#  PHASE 1: MEDUSA -- Crystal Pendant + tactical ambush + STORM BOW\n{"#" * WIDTH}')
@@ -770,7 +782,8 @@ async def phase_ronney(hero: Bot, anchor: Bot) -> None:
     await bystander_action(hero, 'attack')
     if hero.is_attacker and not hero.monster_dead:
         await say_and_await(hero, 'cast', 'cast_prompt_count')
-        if 'cast which spell number' in hero.last_prompt.lower():
+        if ('cast which spell number' in hero.last_prompt.lower()
+                or 'cast which spell number' in hero.last_lines_text.lower()):
             await bystander_action(hero, '1')   # SLAUGHTER: M-type, 90% cast chance
 
     # LURK -- fire over BATMAN/ARTHUR DENT's shoulders and force RONNEY's

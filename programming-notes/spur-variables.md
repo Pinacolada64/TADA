@@ -142,17 +142,17 @@ same style, so the reference stays authoritative.
   only appears once a sigil has been added; `cln.ally` strips everything
   from `|` onward before display. Sigils seen so far (same sigil means
   the same thing whether the ally was bought from Fat Olaf, trained at
-  the Allys Guild, or lassoed/equipped at Jake's Stable):
+  the Allies' Guild, or lassoed/equipped at Jake's Stable):
 
   | Sigil | Meaning |
   |---|---|
   | `=` | MOUNT (only settable via LASSO) |
   | `@` | SADDLED (Jake's Stable: USE Saddle on a mount) |
-  | `$` | ARMORED (Jake's Stable Horse Armor, or Allys Guild Armor training — same sigil either way) |
-  | `!` | ELITE / Discipline trained (Allys Guild), or "trained mount" (Jake's Stable Train Horse — same sigil, same underlying flag) |
-  | `&` | TRACKING trained (Allys Guild; refused for MOUNT) |
-  | `%` | COMBAT trained (Allys Guild) |
-  | `#N` | Body Build level 1-8 (Allys Guild; N is a digit; `cln.ally` reads N and multiplies by 3 — matches the Allys Guild's "+3 STR per level" wording) |
+  | `$` | ARMORED (Jake's Stable Horse Armor, or Allies' Guild Armor training — same sigil either way) |
+  | `!` | ELITE / Discipline trained (Allies' Guild), or "trained mount" (Jake's Stable Train Horse — same sigil, same underlying flag) |
+  | `&` | TRACKING trained (Allies' Guild; refused for MOUNT) |
+  | `%` | COMBAT trained (Allies' Guild) |
+  | `#N` | Body Build level 1-8 (Allies' Guild; N is a digit; `cln.ally` reads N and multiplies by 3 — matches the Allies' Guild's "+3 STR per level" wording) |
   | `(` | GOOD alignment |
   | `)` | EVIL alignment |
   | `>xx` | GOD (xx = message # from the MESSAGES file, printed when the ally is first found; also flags that the party may not hold two gods/goddesses at once — `SPUR.MISC2.S:no.fem`) |
@@ -518,12 +518,18 @@ Related file-path variables, not in the original drive-specifier block:
   `SPUR.MISC5.S`'s come/follow.
 - **`td`** — Display BBS user stats on top of sysop screen
 - **`tm`** — The move number (in `mm` units) at which the current
-  protective-aura spell (Wizard Glow etc.) expires; `0` = no aura active.
+  protective-aura spell expires; `0` = no aura active.
   `SPUR.MISC3.S:187` (`cst.aura`) sets it to a *future* value of `mm`;
   `SPUR.MAIN.S:226` checks `if (tm<>0) and (tm<mm)` to expire it
   ("The aura protecting you is gone."); `SPUR.MISC.S:63` lets an active
   aura scare off the Thief. Cleared at login. Not the same counter as
-  `mm` — it's only meaningful *relative to* `mm`.
+  `mm` — it's only meaningful *relative to* `mm`. **Not Wizard Glow**
+  (that's `zu$` char 7, see below): `tm` is only set by `cst.aura`'s
+  generic fallthrough (`x=q4/10:tm=mm+x+c2`), and every `A`-type record
+  in `SPUR-data/spells.txt` (BOOTS OF SPEED, DISPELL POISON *, APPLE A
+  DAY @, DRUID HEALTH, WIZARD'S GLOW) is caught by one of the named
+  `instr()` checks above it — so as shipped, nothing ever sets `tm`.
+  Confirmed 2026-10-06 porting the aura spells.
 
 ## U
 
@@ -555,7 +561,12 @@ Related file-path variables, not in the original drive-specifier block:
   `ply.locD` (`vs=cl:vx=cr`, consumed at `SPUR.MAIN.S:379`
   `if (vs=cl) then if (vx=cr) then if (dc$<>"LOOK") then return`).
 - **`vt`** — # of duels per game?
-- **`vu`** — Round counter in combat? / Flag for money owed to Vinny; also
+- **`vu`** — Monster-attack counter in combat: `SPUR.COMBAT.S` `m.attack`
+  opens with `vu=vu+1`, so `vu=1` means "the monster's first swing of
+  this fight" — the gate for missile/pole (and, on skip, mounted) first
+  strike, and for `SPUR.MAIN.S` `travel`'s `if (vu=1) and (vn>0) and
+  (mw>0) print m$" charges!"`. Ported as `CombatSession.
+  _monster_attack_count`. / Flag for money owed to Vinny; also
   your initiative in a duel: `3`=Opponent has initiative, `4`=Neither
   has initiative, `5`=You have initiative.
 - **`vv`** — Civilian/Outlaw flag:
@@ -817,7 +828,17 @@ Related file-path variables, not in the original drive-specifier block:
   | `SS` | Salvage computer used |
   | `TR+` | Transporter used |
 
-- **`yt$`** — Characters following, `*` if none
+- **`yt$`** — Characters following, `*` if none. FOLLOW ME's (`SPUR.MISC5.S`
+  `come`) carried-follower list: `*`-delimited entries shaped
+  `<status letter><name>=<3-digit user id>` (status `C`/`D`/`E` =
+  unconscious, carried via `come.e`), appended by `come.f`. Drained by
+  `SPUR.MISC4.S`'s `stay.b` (STAY, and automatically as `LOGON.STAY` on
+  logoff), which rewrites each follower's `spur.users` level/room and
+  stores the leader's name in `misc.data` record 250 for their next
+  logon's "You followed <name>..." line. Also counted by `SPUR.DUEL.S`'s
+  `follow` guild-support loop and listed by `SPUR.SUB.S`'s `pr.guild`.
+  Capped at 210 chars (`come.d`). Python port: `guild_follow.py`
+  (`Player.carried_followers`).
 - **`yw` / `yx` / `yy` / `yz` (Bar modules only)** — 2-D map coordinates
   in `SPUR.BAR.S`, a completely separate overlay from every other
   meaning of these letters listed elsewhere in this file: `yw`=column,
@@ -968,7 +989,12 @@ Related file-path variables, not in the original drive-specifier block:
   in a duel, compared against `vw` — see `vw` above.
 - **`zs`** — Surprise-encounter state, set by `rd.mons` and consumed by
   `SPUR.COMBAT.S` once a fight actually starts:
-  - `999`: `m$` lost sight of you
+  - `999`: `m$` lost sight of you — rolled in `SPUR.MAIN.S` `advent` for a
+    Thief/Assassin (`instr(str$(pc),"68")`, `z=pc*10+5`) or Ring wearer
+    (`z=50`), `if random(100)>z zs=999`; no `m.attack` while set, `travel`
+    lets the player walk past (`if zs<990 ... blocks your way`), cleared
+    by `p.attack`'s `if zs=999 zs=0`. Ported as `combat/engine.py`'s
+    `lost_sight_roll()` / `CombatSession._lost_sight`.
   - `998`: `m$` is surprised (set by `rd.mons`'s surprise roll,
     `SPUR.MISC4.S:94` — the player caught the monster off guard) —
     consumed on the first combat exchange (`SPUR.COMBAT.S:23`
@@ -1034,8 +1060,15 @@ Related file-path variables, not in the original drive-specifier block:
   4. Diseased
   5. Thug attack
   6. Gauntlets worn
-  7. `0`=no spell active? / `1`|`2`=Wraith Master of Spur / `>2`=Wizard
-     Glow spell active
+  7. Wraith Master + Wizard Glow, packed into one digit: `0`=neither,
+     `1`=Wraith Master only, `2`=Wraith Master *and* Glow, `3`=Glow
+     only. `SPUR.MISC3.S:207` `wiz.glw` casts it (`if zw=0 zw=3:else
+     zw=2`, refusing if already `>1`); `SPUR.LOGON.S:238-240` ends it
+     each session ("Your Wizard's Glow spell has dissipated", `2`->`1`,
+     `3`->`0`); `instr(...,"23")` = glow active (`SPUR.COMBAT.S:267`
+     -2 monster damage, `SPUR.DUEL.S:79` +20 duel shield), `"12"` =
+     Wraith King slain (`SPUR.MISC7.S:17`, `SPUR.MISC5.S:215`).
+     Confirmed 2026-10-06.
   8. Amulet of Life
   9. Tut's Treasure — `0`=not examined, `1`=examined
   10. Guild Follow

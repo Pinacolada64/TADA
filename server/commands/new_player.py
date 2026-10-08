@@ -37,7 +37,6 @@ Design notes
 
 TODOs
 -----
-* summoning help staff for assistance
 * #newbies chat channel
 """
 
@@ -58,7 +57,7 @@ from commands.base_command import Command, CommandResult, Mode
 from commands.help import Help, HelpCategory
 from commands.quote import confirm_dollar_quote
 from items import Item, ItemCategory, Weapon
-from net_common import hash_password, user_dir
+from net_common import hash_password, petscii_unsafe_password_chars, user_dir
 from network_context import GameContext
 from starting_equipment import (STARTER_ARMOR_ITEM_NUMBER, STARTER_SHIELD_ITEM_NUMBER,
                                  roll_armor, roll_shield, starter_weapon_number)
@@ -132,9 +131,9 @@ async def _confirm_quit_or_continue(ctx) -> None:
     """
     can_resume = bool(getattr(ctx.player, 'id', None))
     if can_resume:
-        options, label = "(A)bandon, (R)esume later, or (C)ontinue (don't quit)?", "A/R/C"
+        options, label = "[A]bandon, [R]esume later, or [C]ontinue (don't quit)?", "A/R/C"
     else:
-        options = ("(A)bandon, or (C)ontinue (don't quit)? (Resuming later isn't "
+        options = ("[A]bandon, or [C]ontinue (don't quit)? (Resuming later isn't "
                    "possible yet -- a username hasn't been chosen.)")
         label = "A/C"
     choice = await ctx.prompt(label, preamble_lines=['', f"Do you want to {options}"])
@@ -191,8 +190,8 @@ class NewPlayerCommand(Command):
             ("new <username> <password>",  "Skip the username/password prompts."),
         ],
         notes = [
-            "Type 'help', 'h', or '?' at any prompt for assistance.",
-            "You may type 'quit' at any time to abandon character creation.",
+            "Type |command|help|reset|, |command|h|reset|, or |command|?|reset| at any prompt for assistance.",
+            "You may type |command|quit|reset| at any time to abandon character creation.",
         ],
     )
 
@@ -413,7 +412,7 @@ async def _handle_abandon_or_pause(ctx, step_num: int, prefill_password: Optiona
         try:
             await ctx.send(
                 '', "Character creation abandoned. Feel free to try again "
-                "any time with 'new'.",
+                "any time with |command|new|reset|.",
             )
         except Exception:
             pass
@@ -469,7 +468,7 @@ async def _prologue(ctx) -> bool:
         "persona in this world.  Your faithful servant |light_green|Verus|yellow| will assist you.",
         "",
         "If you need help at any point, type |white|'help'|yellow|, |white|'h'|yellow|, or |white|'?'|yellow|.",
-        # TODO: "Type 'helpstaff' to summon a live helper.",
+        "Once you're playing, type |command|helpstaff|yellow| to ask a live helper for a hand.",
         # TODO: "Type 'chat #join newplayers' to join the new-player chat channel.",
         "",
     ]
@@ -505,14 +504,14 @@ async def _choose_username(ctx, prefill: Optional[str] = None,
         if len(candidate) >= 3 and not _username_taken(candidate):
             default_username = candidate
 
-    preamble = ["", "('quit' or 'q' abandons choosing a user name.)",
+    preamble = ["", "(|command|quit|reset| or |command|q|reset| abandons choosing a user name.)",
                 "Your name must be at least 3 characters.",
                 "Choose a username (letters and numbers only).",
                 "(This is for a planned integration with CommodoreServer.com "
                 "<http://www.commodoreserver.com> and has no bearing on "
                 "gameplay yet.)"]
     if default_username:
-        preamble.append(f"Press Enter to use '{default_username}'.")
+        preamble.append(f"Press {ctx.player.return_key} to use '{default_username}'.")
     preamble.append("")
 
     # TODO: capture this from CommodoreServer account name
@@ -573,6 +572,14 @@ async def _validate_password(ctx: GameContext, pw: str) -> bool:
     if len(password) < 4:
         await ctx.send("Password must be at least 4 characters.  Try again.")
         return False
+    unsafe = petscii_unsafe_password_chars(password)
+    if unsafe:
+        await ctx.send(
+            f"Password can't contain: {unsafe}  (some clients, including "
+            "a real Commodore keyboard, can't type these -- stick to "
+            "letters, digits, and basic punctuation.)  Try again."
+        )
+        return False
     return True
 
 
@@ -586,7 +593,7 @@ async def _choose_password(ctx, prefill: Optional[str] = None) -> Optional[str]:
             "Choose a password",
             preamble_lines=[
                 "",
-                "Choose a password, or 'R' for a random pronounceable one.",
+                "Choose a password, or [R]andom for a pronounceable one.",
             ],
         )
         if pw1 is None:
@@ -656,7 +663,7 @@ async def _choose_age(ctx) -> bool:
     preamble = [
         "",
         "How old is your character?",
-        "Enter a number (15–50), or 'R' for a random age:",
+        "Enter a number (15–50), or [R]andom age:",
     ]
     while True:
         raw = await _prompt_or_quit(ctx, "age", preamble_lines=preamble)
@@ -675,7 +682,7 @@ async def _choose_age(ctx) -> bool:
                     break
         elif ans.isdigit():
             age = int(ans)
-            help_msg = "Please enter a number between 15 and 50, or 'R' to choose a random age."
+            help_msg = "Please enter a number between 15 and 50, or [R]andom to choose an age."
             if age < 15:
                 apostrophe = "'"
                 await ctx.send(f'"Oh, come off it! You{apostrophe}re not even old enough to handle a '
@@ -1203,7 +1210,7 @@ async def _roll_stats(ctx) -> bool:
             return True
         if ans in ("r", "reroll", "re-roll"):
             continue
-        await ctx.send("Enter 'Y' to accept or 'R' to re-roll.")
+        await ctx.send("Enter [Y] to accept or [R]e-roll.")
 
 
 async def _assign_equipment(ctx) -> bool:
@@ -1425,7 +1432,7 @@ async def _final_review(ctx) -> bool:
         if fn:
             await fn(ctx)   # re-run that step; loop back to summary afterwards
         else:
-            await ctx.send(f"Enter a number 1–{len(dispatch)}, or press Enter to accept.")
+            await ctx.send(f"Enter a number 1–{len(dispatch)}, or press {ctx.player.return_key} to accept.")
 
 
 # ---------------------------------------------------------------------------

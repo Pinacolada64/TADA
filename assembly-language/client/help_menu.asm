@@ -50,7 +50,8 @@ BOX_ROWS    = 25
 ; $2100, NOT $2000 -- see tada-client.asm's OVERLAY_BUF comment for why
 ; (BACKUP_COLORS overlaps $2000-$20cf; a real, live-reproduced bug this
 ; exact module first exposed).
-        orig $2900
+        orig $3800                ; must match OVERLAY_BUF -- see
+                                  ; tada-client.asm
 
 module_start:
         tsx                          ; save the real stack depth we were
@@ -197,9 +198,9 @@ draw_static:
         sta poke_src_lo
         lda #>top_border
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+0)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+0)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+0)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+0)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -219,9 +220,9 @@ draw_static:
         sta poke_src_lo
         lda #>row_help1
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+16)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+16)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+16)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+16)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -229,9 +230,9 @@ draw_static:
         sta poke_src_lo
         lda #>row_help2
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+17)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+17)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+17)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+17)*40)
         sta poke_dst_hi
         jsr poke_line
 
@@ -243,9 +244,9 @@ draw_static:
         sta poke_src_lo
         lda #>bottom_border
         sta poke_src_hi
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+24)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+24)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+24)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+24)*40)
         sta poke_dst_hi
         jmp poke_line
 
@@ -264,9 +265,9 @@ draw_blank_run:
         lda #>row_blank
         sta poke_src_hi
 dbr_loop:
-        lda #<(SCREEN_RAM+BOX_TOP_ROW*40)
+        lda #<(POPUP_SCREEN+BOX_TOP_ROW*40)
         sta dbr_dst_lo
-        lda #>(SCREEN_RAM+BOX_TOP_ROW*40)
+        lda #>(POPUP_SCREEN+BOX_TOP_ROW*40)
         sta dbr_dst_hi
         ldx dbr_row
 dbr_add_loop:
@@ -531,9 +532,9 @@ dp_page2:
 ; .a = title dest row offset is always BOX_TOP_ROW+2 -- poke_src_lo/hi
 ; already set by the caller.
 dp_title:
-        lda #<(SCREEN_RAM+(BOX_TOP_ROW+2)*40)
+        lda #<(POPUP_SCREEN+(BOX_TOP_ROW+2)*40)
         sta poke_dst_lo
-        lda #>(SCREEN_RAM+(BOX_TOP_ROW+2)*40)
+        lda #>(POPUP_SCREEN+(BOX_TOP_ROW+2)*40)
         sta poke_dst_hi
         jmp poke_line
 
@@ -545,9 +546,9 @@ dp_title:
 ; multiply.
 dp_content:
         sta dp_content_row
-        lda #<(SCREEN_RAM+BOX_TOP_ROW*40)
+        lda #<(POPUP_SCREEN+BOX_TOP_ROW*40)
         sta dp_content_dst_lo
-        lda #>(SCREEN_RAM+BOX_TOP_ROW*40)
+        lda #>(POPUP_SCREEN+BOX_TOP_ROW*40)
         sta dp_content_dst_hi
         ldx dp_content_row
 dp_content_add_loop:

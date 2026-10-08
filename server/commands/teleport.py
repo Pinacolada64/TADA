@@ -64,8 +64,8 @@ def _special_locations() -> dict[str, tuple[int, int]]:
         _ALLY_GUILD_LEVEL, _ALLY_GUILD_ROOM, _JAKES_LEVEL, _JAKES_ROOM,
     )
     return {
-        "Jake's Stable":        (_JAKES_LEVEL, _JAKES_ROOM),
-        "Bubba's Allys Guild":  (_ALLY_GUILD_LEVEL, _ALLY_GUILD_ROOM),
+        "Jake's Stable":         (_JAKES_LEVEL, _JAKES_ROOM),
+        "Bubba's Allies' Guild":  (_ALLY_GUILD_LEVEL, _ALLY_GUILD_ROOM),
     }
 
 
@@ -129,29 +129,29 @@ class TeleportCommand(Command):
         ],
         examples = [
             ('#37',           'TELEPORT jumps instantly to any room, by number or name '
-                               "fragment -- \"#37\" (the bare '#' form) goes straight to "
+                               "fragment -- |command|#37|reset| (the bare '#' form) goes straight to "
                                'room 37 on your current level.'),
-            ('#5 18',         "A second number is the level -- \"#5 18\" goes to room 18 "
+            ('#5 18',         "A second number is the level -- |command|#5 18|reset| goes to room 18 "
                                "on level 5 specifically, rather than assuming your "
                                "current level."),
-            ('teleport 1',    "'teleport'/'t' are longer aliases for the same '#' "
+            ('teleport 1',    "|command|teleport|reset|/|command|t|reset| are longer aliases for the same |command|#|reset| "
                                'command -- all three forms behave identically.'),
             ('teleport guild', 'A name (not a number) searches by fragment instead -- '
                                 'lists every room whose name contains "guild", or jumps '
                                 'straight there if only one matches.'),
-            ('#learn armory', "'#learn' saves your current room under a name of your "
+            ('#learn armory', "|command|#learn|reset| saves your current room under a name of your "
                                'choosing, so you can jump back to it later without '
                                'remembering its room number.'),
-            ('#learn',        'With no name given, #learn saves the current room under '
+            ('#learn',        'With no name given, |command|#learn|reset| saves the current room under '
                                'its own room name instead of a custom one.'),
             ('teleport armory', 'Typing a saved name later jumps straight to that '
                                  'remembered destination.'),
-            ('teleport #list', "'#list' (also '#show') lists every destination you've "
-                                'saved with #learn.'),
-            ('#forget armory', "'#forget' removes a saved destination -- with no name "
+            ('teleport #list', "|command|#list|reset| (also '#show') lists every destination you've "
+                                'saved with |command|#learn|reset|.'),
+            ('#forget armory', "|command|#forget|reset| removes a saved destination -- with no name "
                                 "given, it removes the current room's saved entry "
                                 "instead."),
-            ('t #find jakes', "'#find' searches room names across every level at once, "
+            ('t #find jakes', "|command|#find|reset| searches room names across every level at once, "
                                "unlike a bare name search (which only searches your "
                                "current level) -- finds every room whose name contains "
                                '"jakes", anywhere in the game. Purely informational: it '
@@ -166,23 +166,33 @@ class TeleportCommand(Command):
             await ctx.send('You lack the power to teleport.')
             return CommandResult.fail('Permission denied.', error='permission_denied')
 
-        # 'teleport #learn <name>' arrives as args=('#learn', <name...>);
-        # '#learn <name>' via the bare '#' alias loses its leading '#' in
-        # command_processor.process_command()'s '#<word>' splitting, so it
-        # arrives as args=('learn', <name...>) instead -- check the bare
-        # word either way rather than relying on parse_args' '#'-prefix
-        # switch detection. Same deal for '#list'/'#show'/'#find'/'#forget'.
-        first = args[0].lstrip('#').lower() if args else ''
-        if first == 'learn':
-            return await self._learn(ctx, args[1:])
-        if first in ('list', 'show'):
-            return await self._list_destinations(ctx)
-        if first == 'find':
-            return await self._find(ctx, args[1:])
-        if first == 'forget':
-            return await self._forget(ctx, args[1:])
+        # 'teleport #learn <name>' arrives as args=('#learn', <name...>),
+        # routed by self.parse_args() into switches; '#learn <name>' via
+        # the bare '#' alias loses its leading '#' in command_processor.
+        # process_command()'s '#<word>' splitting, so it arrives as
+        # args=('learn', <name...>) instead, routed into positional --
+        # check the bare word from whichever list parse_args() put it in,
+        # rather than assuming '#' survived. Same deal for '#list'/
+        # '#show'/'#find'/'#forget'. Same dual-list convention as
+        # map.py's own (documented) bare-or-'#' sub-words, and the same
+        # "if switches: ... else: positional[0] ..." shape as board.py/
+        # groups.py/whereat.py.
+        positional, switches = self.parse_args(*args)
+        if switches:
+            sub  = switches[0].lstrip('#').lower()
+            rest = positional
+        else:
+            sub  = positional[0].lower() if positional else ''
+            rest = positional[1:]
 
-        positional, _ = self.parse_args(*args)
+        if sub == 'learn':
+            return await self._learn(ctx, tuple(rest))
+        if sub in ('list', 'show'):
+            return await self._list_destinations(ctx)
+        if sub == 'find':
+            return await self._find(ctx, tuple(rest))
+        if sub == 'forget':
+            return await self._forget(ctx, tuple(rest))
 
         if not positional:
             await ctx.send('Usage: #<room number>  or  #<level> <room>  or  teleport <name fragment>')
@@ -321,8 +331,8 @@ class TeleportCommand(Command):
         lines = ['Saved teleport destinations:', '']
         for dest_name, (level, room) in sorted(destinations.items(), key=lambda kv: kv[0].lower()):
             lines.append(f'  {dest_name} -> level {level}, room {room}')
-        lines += ['', 'Use teleport <name> to jump there, #learn <name> to save the '
-                       'current room, or #<room number>.']
+        lines += ['', 'Use |command|teleport <name>|reset| to jump there, |command|#learn <name>|reset| to save the '
+                       'current room, or |command|#<room number>|reset|.']
         await ctx.send(lines)
         return CommandResult.ok()
 
@@ -383,6 +393,12 @@ class TeleportCommand(Command):
         # just looks puzzled. SPUR's own flavor text is ALL-CAPS
         # (screen-hardware artifact); sentence-cased here to match this
         # port's style.
+        #
+        # Port addition, not in SPUR: Admins and Dungeon Masters are
+        # immune to Freeze Adventurer -- the spell is still cast (so the
+        # room sees the same flavor), but it doesn't stop them. Otherwise
+        # staff standing next to a tough monster couldn't answer a
+        # commands/helpstaff.py request or get anywhere by TELEPORT.
         monster = _room_monster(ctx, old_level, old_room)
         if monster is not None:
             from monsters import monster_display_name
@@ -390,14 +406,20 @@ class TeleportCommand(Command):
             mname = monster_display_name(monster, capitalize=True)
             if flags.get('tough') and not flags.get('mechanical'):
                 await ctx.send(f"{mname} casts a 'Freeze Adventurer' spell!")
-                return CommandResult.fail('The teleport is blocked!', error='teleport_blocked')
+                if not (ctx.player.query_flag(PlayerFlags.ADMIN)
+                        or ctx.player.query_flag(PlayerFlags.DUNGEON_MASTER)):
+                    return CommandResult.fail('The teleport is blocked!', error='teleport_blocked')
+                await ctx.send('The spell has no effect on you.')
             if flags.get('mechanical'):
                 await ctx.send(f'Sensors on {mname} goes nuts as you dematerialize!')
             else:
                 await ctx.send(f'{mname} looks puzzled as you fade from view.')
 
+        # An on-duty helpstaffer shows as "Name [Helpstaff]" to onlookers.
+        from helpstaff.duty import tagged_name
+        shown = tagged_name(ctx.player, ctx.client)
         await ctx.send('You disappear in a flash of light.')
-        await ctx.send_room(f'{name} disappears in a flash of light.', exclude_self=True)
+        await ctx.send_room(f'{shown} disappears in a flash of light.', exclude_self=True)
         ctx.client.room        = dest
         ctx.player.map_room    = dest
         if level is not None and level != old_level:
@@ -412,7 +434,7 @@ class TeleportCommand(Command):
         log.info('%s teleported from level %s room %s to level %s room %s',
                   name, old_level, old_room, level if level is not None else old_level, dest)
         await ctx.send('You appear in a flash of light.')
-        await ctx.send_room(f'{name} appears in a flash of light.', exclude_self=True)
+        await ctx.send_room(f'{shown} appears in a flash of light.', exclude_self=True)
 
         # If the destination is the actual guild HQ door, trigger the HQ
         # session the same way movement.py does when walking into it --

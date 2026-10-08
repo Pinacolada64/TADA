@@ -32,6 +32,8 @@ import random
 from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
 
+from base_classes import PlayerClass
+from flags import PlayerFlags
 from item_system import weapon_sfx
 
 log = logging.getLogger(__name__)
@@ -251,6 +253,9 @@ class MonsterAttackResult:
     fire_shield_blocked: bool = False
     # SPUR & flag (experience_drain): drains ep on a hit (~20% chance)
     experience_drained: int  = 0
+    # SPUR.COMBAT.S:267 "[WIZARDS GLOW FLASHES]": damage the caster's
+    # Wizard's Glow aura (commands/cast.py) turned aside on this hit.
+    glow_absorbed:      int  = 0
     # SPUR line 212: taking damage > 4 has a chance to reduce player DEX
     dex_lost:           bool = False
     # SPUR.COMBAT.S:307: ps=ps-(a/2) — taking damage reduces player Strength (ps) by damage/2
@@ -765,31 +770,87 @@ def monster_attacks(monster: dict, player, *, stone_blocked: bool = False,
     raw = float((r1 + r2 + r3) / 3)
     raw += (8 - ma)                      # bigger monsters hit harder
 
-    # Shield block (SPUR lines 269-286)
-    # TODO: shield_thresh weighs the shield's condition rating and trained
-    # shield_proficiency (via shield_exp_bonus()) but never PlayerStat.STR
-    # or PlayerStat.DEX -- raw arm strength holding a shield steady, and
-    # agility keeping it positioned in time to block, both plausibly belong
-    # here too. combat/duel.py's _resolve_bash() has the same gap for its
+    # Wizard's Glow (SPUR.COMBAT.S:267: `if instr(mid$(zu$,7,1),"23")
+    # print "[WIZARDS GLOW FLASHES]":a=a-2`) -- applied ahead of the
+    # shield, same place SPUR has it. engine.py spends the round.
+    glow_absorbed = 0
+    if int(getattr(player, 'wizard_glow', None) or 0) > 0:
+        glow_absorbed = min(2, max(0, int(raw)))
+        raw -= glow_absorbed
+
+    # Shield block (SPUR lines 269-286) -- two distinct phases (see message
+    # #14, "Shields in Monster Combat"): phase 1 decides whether the shield
+    # gets a hand in this attack at all, phase 2 (only reached on a phase-1
+    # success) decides how much damage it soaks up.
+    #
+    # TODO: neither phase reads PlayerStat.STR or PlayerStat.DEX -- raw arm
+    # strength holding a shield steady, and agility keeping it positioned in
+    # time to block, both plausibly belong here too (not part of original
+    # SPUR). combat/duel.py's _resolve_bash() has the same gap for its
     # shield-bash tactic. Neither is read yet.
     shield           = int(getattr(player, 'shield', 0) or 0)
     shield_blocked   = 0
     shield_degraded  = 0
     shield_destroyed = False
     if shield > 0:
-        block_roll      = random.randint(1, 10)
+        shield_trained = bool(player.query_flag(PlayerFlags.SHIELD_TRAINED))
+
+        # Phase 1 (SPUR lines 270-273): z1 <= yz means the shield takes the
+        # hit; z1 > yz means the monster slips past it entirely. yz = 2 +
+        # xp_level (capped 8) is message #14's "20 + level*10%, max 80%"
+        # base probability. Formal shield training shifts z1 down (+20%
+        # effective block chance); ma>6 (small/swift monsters) shifts it up
+        # (harder to block); ma<4 (large/huge monsters) shifts it down
+        # (easier to block) -- message #14's Small/Swift/-, Large/Huge/+
+        # modifiers.
         active_shield_id = getattr(player, 'active_shield_id', None)
         prof_dict        = getattr(player, 'shield_proficiency', {}) or {}
         shield_prof      = int(prof_dict.get(str(active_shield_id), 0)) if active_shield_id is not None else 0
-        shield_thresh   = 2 + (shield // 25) + random.randint(0, 2) + shield_exp_bonus(shield_prof)
-        if block_roll <= shield_thresh:
-            shield_blocked  = min(int(raw), shield_thresh)
+        xp_level         = int(getattr(player, 'xp_level', 1) or 1)
+
+        z1 = random.randint(1, 10)
+        if shield_trained:
+            z1 -= 2
+        if ma > 6:
+            z1 += (ma - 6)
+        if ma < 4:
+            z1 -= (4 - ma)
+        # shield_exp_bonus() is TADA's own per-item proficiency system (not
+        # part of original SPUR) -- it stacks on top as extra effective
+        # block chance, same slot formal training uses.
+        z1 -= shield_exp_bonus(shield_prof)
+        yz = min(8, 2 + xp_level)
+
+        if z1 <= yz:
+            # Phase 2 (SPUR lines 277-286): damage absorbed.
+            z2 = 2 + (shield // 25) + random.randint(0, 2)
+            if getattr(player, 'char_class', None) == PlayerClass.PALADIN:
+                z2 += 2
+            if shield_trained:
+                z2 += 1
+            shield_blocked = min(int(raw), max(0, z2))
+            raw -= shield_blocked
+
+            # Shield condition lost this hit (SPUR line 281).
             shield_degraded = 1 + random.randint(0, max(0, 10 - ma))
-            # Small chance shield is smashed entirely (SPUR line 284)
-            if random.randint(0, 59) < shield_degraded * 2:
+            if shield_trained:
+                shield_degraded = max(0, shield_degraded - 1)
+
+            # Chance the shield is torn away and smashed outright (SPUR
+            # lines 283-284) -- fixed per monster size, *not* tied to the
+            # random degradation roll above. Message #14's rip-chance table
+            # (Huge=16%, Large=13%, Big=10%, Man sized=6%) is exactly
+            # 2*(7-ma)/60 for ma=2..5; formal training shaves 2 off (7-ma)
+            # before doubling, i.e. -3.3%.
+            rip_z = 0
+            if ma < 6:
+                rip_z = 7 - ma
+                if shield_trained:
+                    rip_z -= 1
+            rip_z = max(0, rip_z) * 2
+            if random.randint(0, 59) < rip_z:
                 shield_destroyed = True
                 shield_degraded  = shield
-            raw -= shield_blocked
 
     # Armor block (SPUR lines 288-299)
     armor           = int(getattr(player, 'armor', 0) or 0)
@@ -874,6 +935,7 @@ def monster_attacks(monster: dict, player, *, stone_blocked: bool = False,
         experience_drained=experience_drained,
         dex_lost=dex_lost,
         strength_lost=strength_lost,
+        glow_absorbed=glow_absorbed,
     )
 
 
@@ -977,8 +1039,14 @@ def flee_attempt(player, monster: dict, monster_is_following: bool = True,
     Can the player escape?
 
     Impassable if room has any of: water (@@), snow (**), no_flee (<<)
-    Monster blocks path if all of: hp > 7, monster is following, not mechanical,
-      random(1-10) < xp_level / 3
+    Monster blocks path if all of: hp > 7, monster is following, tough,
+      not mechanical, random(1-10) < xp_level / 3
+
+    SPUR.COMBAT.S flee (master): `if hp>7 if instr(".",wy$) then if not
+    instr(":",wy$) gosub rnd.10z:if z<(xp/3) print \\m$" BLOCKS THE PATH!"`
+    -- only a 'tough' (wy$ ".") monster ever blocks, with odds that grow
+    with the player's level. The skip branch's copy is harsher (z<xp,
+    plus a DJINN special case); master's is kept here.
     """
     # Impassable room check (SPUR.COMBAT.S:74)
     room_flags = set(getattr(room, 'flags', None) or [])
@@ -986,12 +1054,16 @@ def flee_attempt(player, monster: dict, monster_is_following: bool = True,
         return FleeResult(escaped=False, impassable_room=True)
 
     hp    = int(getattr(player, 'hit_points', 1) or 1)
-    xp    = 1   # TODO: replace with derived xp_level once levelling exists
-    flags = monster.get('flags', {})
+    # Was a hardcoded `xp = 1` stub ("TODO: replace with derived xp_level
+    # once levelling exists") -- which made random(1-10) < 1/3 impossible,
+    # so no monster could ever block a flee. xp_level exists now.
+    xp    = int(getattr(player, 'xp_level', 1) or 1)
+    flags = monster.get('flags', {}) or {}
 
     if (hp > 7 and monster_is_following
+            and flags.get('tough')
             and not flags.get('mechanical')
-            and random.randint(1, 10) < xp / 3):
+            and random.randint(1, 10) < xp // 3):   # BASIC integer division
         return FleeResult(escaped=False, blocked_by_monster=True)
 
     return FleeResult(escaped=True)

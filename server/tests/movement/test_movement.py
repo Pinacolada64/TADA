@@ -44,7 +44,11 @@ def test_move_broadcasts_and_changes_room():
     ctx.send      = AsyncMock()
     ctx.send_room = AsyncMock()
 
-    with patch('ally_events.try_ally_find_gold', new=AsyncMock()):
+    # The destination may hold a monster that now attacks on sight
+    # (encounters/monster.py's try_monster_engage()) -- not what this test
+    # covers, and a MagicMock player can't fight it.
+    with patch('ally_events.try_ally_find_silver', new=AsyncMock()), \
+         patch('encounters.monster.try_monster_engage', new=AsyncMock()):
         res = asyncio.run(MoveCommand().execute(ctx, direction))
 
     assert res.success is True
@@ -83,7 +87,7 @@ def test_moving_to_room_37_on_a_different_level_does_not_enter_bar():
     the player's level -- confirmed live, moving to room 49 on a
     different level dropped the player straight into the bar. The real
     trigger is level-gated in the original source (see the test above),
-    same as its Allys Guild/Jake's Stable siblings.
+    same as its Allies' Guild/Jake's Stable siblings.
     """
     s = Server('127.0.0.1', 0)
 

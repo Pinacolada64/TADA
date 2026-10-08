@@ -39,6 +39,8 @@ async def _remove_slot(ctx: GameContext, player, slot: str) -> None:
     refresh_equipped_rating(player, slot)
     player.unsaved_changes = True
     await ctx.send(f'You take off the {name}.')
+    from room_notices import notify, the, who
+    await notify(ctx, f'{who(player)} takes off {the(name)}.')
 
 
 class UnwearCommand(Command):
@@ -55,7 +57,7 @@ class UnwearCommand(Command):
             ('unwear shield', 'Take off your shield'),
         ],
         examples = [
-            ('unwear',        "UNWEAR (also 'remove'/'doff') takes off equipped armor "
+            ('unwear',        "UNWEAR (also |command|remove|reset|/|command|doff|reset|) takes off equipped armor "
                                "and/or a shield -- the item itself isn't lost or "
                                "damaged by this, it just stops being equipped and stays "
                                "in your pack. With both slots worn and no argument, it "
@@ -94,7 +96,8 @@ class UnwearCommand(Command):
             await _remove_slot(ctx, player, worn[0])
             return CommandResult.ok()
 
-        raw = await ctx.prompt('Take off which (armor/shield, Enter to cancel)')
+        raw = await ctx.prompt(preamble_lines=f'(armor/shield, {ctx.player.return_key} to cancel)',
+                               prompt_text="Take off which")
         if not raw or not raw.strip():
             return CommandResult.ok()
         slot = next((s for s in ('armor', 'shield') if s.startswith(raw.strip().lower())), None)

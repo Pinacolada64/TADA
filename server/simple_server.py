@@ -64,6 +64,17 @@ _WILD_HORSE_MONSTER_NUMBER = 136
 # wild_horse_events.py's own copy of _WILD_HORSE_MONSTER_NUMBER).
 _DWARF_MONSTER_NUMBER = 137
 
+# How long an unauthenticated connection may go without answering a terminal-
+# negotiation prompt before it's dropped. A real client (C64/SwiftLink or any
+# ANSI terminal) auto-responds almost instantly, so this only ever fires on a
+# connection that's dead/stuck at the socket level -- one that accepted the
+# TCP handshake but never got (or sent) another byte. Without this, such a
+# connection sits in server.clients forever showing as a bare "Guest" (found
+# live 2026-08-25: a stalled connection sat at this exact prompt for 44
+# minutes before finally erroring out), visible via 'who' as a phantom guest
+# alongside whatever connection the same player used to actually log in.
+_NEGOTIATION_TIMEOUT_SECONDS = 90
+
 # Terminal-negotiation 'H<letter>' help text (Server._negotiate_terminal()) --
 # an alpha tester reported being unsure which option to pick, so 'HA'/'HP'/
 # 'HQ' explain each one, matching the h<key> convention used elsewhere
@@ -177,6 +188,8 @@ class Server:
         self.port         = port
         self.petscii_port = petscii_port
         self.clients: dict = {}   # addr -> Client
+        # commands/helpstaff.py: requester name -> what they need help with
+        self.pending_help_requests: dict = {}
         self.server         = None   # set in start(): the JSON asyncio.Server
         self.petscii_server = None   # set in start(): the PETSCII asyncio.Server
 
@@ -199,7 +212,11 @@ class Server:
             self.banner_petscii = []
         try:
             self.game_map = Map()
-            for lvl in range(1, 8):
+            # SPUR shipped 7 dungeon levels; level 8 (Forest of Canolbarth /
+            # Sulidam) is this port's addition, built from the 2014 source
+            # by tools/build_level_8_json.py. The loop just skips any
+            # level_<N>.json that isn't present.
+            for lvl in range(1, 9):
                 level_file = script_dir / f'level_{lvl}.json'
                 if level_file.exists():
                     self.game_map.read_map(str(level_file), level=lvl)
@@ -215,6 +232,12 @@ class Server:
 
         self._place_wild_horse()
         self._place_dwarf()
+
+        try:
+            from board.migration import migrate_if_needed
+            migrate_if_needed()
+        except Exception:
+            logging.exception('Failed to migrate board data')
 
         def _try_load(cls, filename, method='read'):
             try:
@@ -301,7 +324,12 @@ class Server:
             # in-memory room.monster mutation from a prior session is gone.
             from encounters.dwarf import DWARF_LEVEL, MONSTER_NUMBER
             room = self.game_map.get_room(DWARF_LEVEL, current_room())
-            if room is not None:
+            if room is not None and getattr(room, 'monster', 0) not in (0, MONSTER_NUMBER):
+                # Someone else got there first this boot (e.g. the wild
+                # horse, placed just before this) -- move him on rather
+                # than overwrite it.
+                relocate(self.game_map)
+            elif room is not None:
                 room.monster = MONSTER_NUMBER
 
     # -----------------------------------------------------------------------
@@ -388,18 +416,39 @@ class Server:
         finally:
             if addr in self.clients:
                 del self.clients[addr]
+            # Drain any output a turn buffered but never flushed because an
+            # exception unwound past the normal end-of-dispatch flush.
+            # paginate=False: never block for a keypress on a closing socket.
+            try:
+                await ctx.flush_turn(paginate=False)
+            except Exception:
+                pass
             # combat/duel.py's DuelSession.forfeit(): a duelist who
             # disconnects mid-fight (crash, abrupt close, or a graceful
             # quit) is treated as an automatic loss, mirroring
             # SPUR.DUEL.S's "dropped" label (a lost carrier goes straight
             # to hell2 -- the same consequences as being defeated fairly).
             player = getattr(ctx, 'player', None)
+            # commands/helpstaff.py: a requester who leaves can't be helped,
+            # so drop their open request rather than let a staffer accept it.
+            pending_help = getattr(self, 'pending_help_requests', None)
+            if pending_help and getattr(player, 'name', None) in pending_help:
+                del pending_help[player.name]
             active_duel = getattr(player, 'active_duel', None)
             if active_duel is not None:
                 try:
                     await active_duel.forfeit(player)
                 except Exception:
                     logging.exception('%s: failed to forfeit duel on disconnect', addr)
+            # SPUR.LOGON.S:384's LOGON.STAY: a FOLLOW ME leader logging off
+            # (any exit path) drops carried guildmates here and releases
+            # live ones; a live follower's leader is told they're gone.
+            if player is not None:
+                try:
+                    import guild_follow
+                    await guild_follow.drop_off_on_logoff(ctx)
+                except Exception:
+                    logging.exception('%s: failed guild-follow drop-off on disconnect', addr)
             # Belt-and-suspenders save for any exit path that *isn't* a
             # clean quit (an uncaught exception/CancelledError anywhere in
             # _login()/_game_loop(), a raw socket error, etc.) -- those
@@ -439,7 +488,13 @@ class Server:
         try:
             await self.send_message(ctx.writer, self.server_init)
 
-            data = await self.receive_message(ctx.reader)
+            try:
+                data = await asyncio.wait_for(
+                    self.receive_message(ctx.reader), timeout=_NEGOTIATION_TIMEOUT_SECONDS)
+            except asyncio.TimeoutError:
+                logging.info('%s: handshake timed out waiting for client Init',
+                             getattr(ctx.client, 'addr', '?'))
+                data = None
             if not data:
                 logging.warning('no Init received')
                 logging.debug('EXIT False (no Init received)')
@@ -505,6 +560,16 @@ class Server:
         logging.debug('ENTER')
         translation = ctx.player.client_settings.translation
 
+        async def _prompt(*args, **kwargs):
+            """ctx.prompt(), but drop the connection if nothing comes back
+            within _NEGOTIATION_TIMEOUT_SECONDS -- see that constant."""
+            try:
+                return await asyncio.wait_for(
+                    ctx.prompt(*args, **kwargs), timeout=_NEGOTIATION_TIMEOUT_SECONDS)
+            except asyncio.TimeoutError:
+                logging.info('%s: terminal negotiation timed out', getattr(ctx.client, 'addr', '?'))
+                return None
+
         if translation == Translation.PETSCII:
             while True:
                 await ctx.send(
@@ -522,7 +587,7 @@ class Server:
                     # TODO: in case client connected to wrong port or user's terminal in wrong mode,
                     #  offer option to switch to ASCII/ANSI
                 )
-                raw = await ctx.prompt('Screen width [4/8]')
+                raw = await _prompt('Screen width [4/8]')
                 if raw is None:
                     logging.debug('EXIT False (disconnect)')
                     return False
@@ -559,7 +624,7 @@ class Server:
                 '',
             )
             while True:
-                raw = await ctx.prompt('Terminal type [A/P/C/Q]')
+                raw = await _prompt('Terminal type [A/P/C/Q]')
                 if raw is None:
                     logging.debug('EXIT False (disconnect)')
                     return False
@@ -593,7 +658,7 @@ class Server:
                         '|blue|This line should be BLUE.|reset|',
                         '',
                     )
-                    color_raw = await ctx.prompt('Did you see color above? (Y/N)')
+                    color_raw = await _prompt('Did you see color above? (Y/N)')
                     if color_raw is None:
                         logging.debug('EXIT False (disconnect)')
                         return False
@@ -634,12 +699,12 @@ class Server:
             await ctx.send(*banner)
         await ctx.send(
             '',
-            "Type 'connect <username> <password>' to log in.",
-            "Type 'connect guest' to look around as a guest.",
-            "Type 'new' to create a new character.",
-            "Type 'who' to see who is online.",
-            "Type 'prefs' to set terminal type, colors, and other display preferences.",
-            "Type 'help' for help, 'help about' to learn what this is, or 'quit' to leave.",
+            "Type |command|connect <username> <password>|reset| to log in.",
+            "Type |command|connect guest|reset| to look around as a guest.",
+            "Type |command|new|reset| to create a new character.",
+            "Type |command|who|reset| to see who is online.",
+            "Type |command|prefs|reset| to set terminal type, colors, and other display preferences.",
+            "Type |command|help|reset| for help, |command|help about|reset| to learn what this is, or |command|quit|reset| to leave.",
             '',
         )
 
@@ -659,7 +724,7 @@ class Server:
 
             if not result.success and result.error == 'unknown_command':
                 available = sorted(
-                    f"'{name}'" for name, cmd in processor.get_all_commands().items()
+                    f"|command|{name}|reset|" for name, cmd in processor.get_all_commands().items()
                     if cmd.is_available_in(processor.current_mode)
                 )
                 await ctx.send(
@@ -722,6 +787,11 @@ class Server:
     async def _game_loop(self, ctx: GameContext) -> None:
         """Main command loop for an authenticated (or guest) player."""
         logging.debug('ENTER')
+        # From here on, ctx.send() buffers a turn's output and defers the
+        # More-Prompt pagination decision to the combined total (see
+        # network_context.flush_turn). Login/negotiation output above stays
+        # on the old immediate-send path.
+        ctx._buffering_enabled = True
         if not getattr(ctx.client, 'room', None):
             ctx.client.room = int(getattr(ctx.player, 'map_room', 1) or 1)
 
@@ -752,6 +822,12 @@ class Server:
             from datetime import datetime
             ctx.client.last_input = datetime.now()
             result = await processor.process_input(raw, ctx=ctx)
+            # End of dispatch: flush this turn's buffered send() output as
+            # one screenful-aware block (see network_context.flush_turn).
+            # Covers command paths that return without a further prompt
+            # (e.g. 'quit'); the normal path re-flushes harmlessly at the
+            # next ctx.prompt('main').
+            await ctx.flush_turn()
 
             # QuitCommand sets data={'quit': True} to signal clean exit
             if result.data.get('quit'):
@@ -761,7 +837,7 @@ class Server:
 
             if not result.success and result.error == 'unknown_command':
                 await ctx.send(f"Unknown command '{raw.strip().split()[0]}'. "
-                               "Type 'help' for a list.")
+                               "Type |command|help|reset| for a list.")
                 await self._maybe_offer_help(ctx)
             elif not result.success and result.error == 'command_error':
                 # An uncaught exception in the command itself (see
@@ -783,18 +859,21 @@ class Server:
                 # lifetime total spread across an otherwise normal session.
                 ctx.client.unknown_command_count = 0
 
-            # Hunger/thirst tick (SPUR.COMBAT.S:12-20).
-            from survival import survival_tick
-            warnings = survival_tick(ctx.player)
-            if warnings:
-                await ctx.send(warnings)
-            logging.debug('survival tick: hp=%r food=%r drink=%r',
-                          getattr(ctx.player, 'hit_points', '?'),
-                          getattr(ctx.player, 'food', '?'),
-                          getattr(ctx.player, 'drink', '?'))
-            if getattr(ctx.player, 'hit_points', 1) <= 0:
-                logging.debug('death triggered')
-                await self._player_dies(ctx)
+            # Hunger/thirst tick (SPUR.COMBAT.S:12-20) -- only on moves/
+            # attacks (counts_as_move), not every command, so reading help
+            # or chatting doesn't burn food/drink (see survival.py).
+            if result.data.get('counts_as_move'):
+                from survival import survival_tick
+                warnings = survival_tick(ctx.player)
+                if warnings:
+                    await ctx.send(warnings)
+                logging.debug('survival tick: hp=%r food=%r drink=%r',
+                              getattr(ctx.player, 'hit_points', '?'),
+                              getattr(ctx.player, 'food', '?'),
+                              getattr(ctx.player, 'drink', '?'))
+                if getattr(ctx.player, 'hit_points', 1) <= 0:
+                    logging.debug('death triggered')
+                    await self._player_dies(ctx)
 
     # -----------------------------------------------------------------------
     # Unknown-command help offer
@@ -829,9 +908,9 @@ class Server:
         from formatting import titled_box
         tip_lines = titled_box(
             ctx, 'Need a Hand?',
-            "Having trouble finding a command? Try 'help' for the full "
-            "list, 'help #search <word>' to look something up by "
-            "keyword, or 'help #summary' for one-line descriptions of "
+            "Having trouble finding a command? Try |command|help|reset| for the full "
+            "list, |command|help #search <word>|reset| to look something up by "
+            "keyword, or |command|help #summary|reset| for one-line descriptions of "
             "everything.",
             frame_color='green', text_color='white', title_color='purple',
         )
@@ -993,7 +1072,9 @@ class Server:
                     # Monster fled this player's fight (loud weapon scared it
                     # off) -- SPUR's md==2 "tracks" state.
                     monster_and_seen += ['', f'You see {name} tracks here.']
-                elif mon_num is not None and mon_num in mk:
+                elif mon_num is not None and (
+                        mon_num in mk
+                        or getattr(player, 'slain_here', None) == (level, int(room_no), mon_num)):
                     # Monster is dead for this player
                     if flags.get('mechanical'):
                         monster_and_seen += ['', f'The wrecked remains of {name} lie here.']
@@ -1058,9 +1139,14 @@ class Server:
         # "X is here" list, so someone walking in immediately sees a fight
         # already in progress.
         try:
+            # Same level too, not just the same room number -- see
+            # room_notices.location_of().
+            from room_notices import location_of
+            here = (level, room_no, location_of(client)[2])
             others = []
+            on_duty_names: set = set()   # helpstaff/duty.py tag, below
             for addr, c in self.clients.items():
-                if c is client or getattr(c, 'room', None) != room_no:
+                if c is client or location_of(c) != here:
                     continue
                 if getattr(c, 'virtual_location', None):
                     continue
@@ -1075,6 +1161,9 @@ class Server:
                 other_player = getattr(getattr(c, 'ctx', None), 'player', None)
                 name = getattr(other_player, 'name', None) or getattr(c, 'username', None) or 'someone'
                 others.append((name, other_player))
+                from helpstaff.duty import on_duty
+                if on_duty(c):
+                    on_duty_names.add(name)
 
             session = (getattr(self, 'active_combats', {}) or {}).get(room_no)
             fighting = set()
@@ -1089,11 +1178,18 @@ class Server:
                 # SPUR.DUEL2.S ply.loc: a duel loser's name gets an
                 # "(Unconscious)" tag in room listings until they wake up
                 # at next login (logon_events/unconscious_wake.py).
+                # helpstaff/duty.py: an on-duty helpstaffer is tagged
+                # "[Helpstaff]" so players can see who to ask. On duty is
+                # per-connection (client.helpstaff_on_duty), not a flag.
                 from flags import PlayerFlags
-                display_names = [
-                    f'{n} (Unconscious)' if p is not None and p.query_flag(PlayerFlags.UNCONSCIOUS) else n
-                    for n, p in bystanders
-                ]
+                from helpstaff.duty import HELPSTAFF_TAG
+                display_names = []
+                for n, p in bystanders:
+                    if n in on_duty_names:
+                        n = f'{n} {HELPSTAFF_TAG}'
+                    if p is not None and p.query_flag(PlayerFlags.UNCONSCIOUS):
+                        n = f'{n} (Unconscious)'
+                    display_names.append(n)
                 tail += ['', list_players_in_room(display_names)]
                 # Each bystander's personal quote (SPUR.MAIN.S:398's
                 # gosub ply.loc7, shown right under "X is here" there);
@@ -1219,25 +1315,73 @@ class Server:
             return
 
         self._leave_combat_on_move(ctx, room_no)
+        ctx.player.slain_here = None    # a re_animates kill gets back up behind you
 
         from spells.charm import try_charm_join_offer
         await try_charm_join_offer(ctx, level=level, room_no=room_no)
 
+        # Tell the room being left which way the player went, and (below)
+        # the room reached where they came from -- see room_notices.py.
+        # The departure has to go out before the move and the arrival
+        # after (both go by the mover's *current* room).
+        #
+        # A FOLLOW ME leader (guild_follow.py) moves as one group with the
+        # followers: the rooms hear "Rulan leaves north, with Frodo and Sam
+        # following." / "Rulan arrives from the south, with ...", plus
+        # "Rulan carries Bilbo, who is unconscious." for anyone carried;
+        # the leader reads "You leave north, with ...". Followers aren't
+        # sent those -- they get "You follow Rulan north." and the new room
+        # once the leader is in it (show_followers). They're moved first,
+        # silently, so the leader's own view of the new room lists them.
+        import guild_follow
+        from room_notices import (arrival_line, carry_line, departure_line,
+                                  group_arrival_line, group_departure_line,
+                                  leader_departure_line, notify, notify_except,
+                                  you_carry_line)
+        group = guild_follow.gather_group(ctx, from_level=level, from_room=int(room_no))
+        await guild_follow.lose_track(ctx, group)
+        if group:
+            for line in (leader_departure_line(direction, group.following),
+                         you_carry_line(group.unconscious)):
+                if line:
+                    await ctx.send(line)
+            await notify_except(ctx, [group_departure_line(ctx.player, direction, group.following),
+                                      carry_line(ctx.player, group.unconscious)],
+                                group.clients)
+        else:
+            await notify(ctx, departure_line(ctx.player, direction))
+        guild_follow.relocate_followers(ctx, group, from_room=int(room_no),
+                                        to_level=target_level, to_room=int(dest))
+
+        async def announce_arrival():
+            if group:
+                await notify_except(ctx, [group_arrival_line(ctx.player, direction, group.following),
+                                          carry_line(ctx.player, group.unconscious)],
+                                    group.clients)
+            else:
+                await notify(ctx, arrival_line(ctx.player, direction))
+
         if target_level != level:
-            await self._teleport_to(ctx, target_level, int(dest), message_number=message_number)
+            await self._teleport_to(ctx, target_level, int(dest), message_number=message_number,
+                                    engage=False)
+            await announce_arrival()
+            await guild_follow.show_followers(ctx, group, direction)
+            await self._monster_engages(ctx)
             return
 
         ctx.client.room = int(dest)
         ctx.player.map_room = int(dest)
         ctx.player.unsaved_changes = True
+        await announce_arrival()
+        await guild_follow.show_followers(ctx, group, direction)
         from visited_rooms import mark_visited
         mark_visited(ctx.player, level, int(dest))
         logging.debug('EXIT moved to room=%r', dest)
         await self._show_room_then_encounter(ctx, level=level, room_no=int(dest))
         from encounters.desert import try_desert_sweat
         await try_desert_sweat(ctx)
-        from ally_events import try_ally_find_gold
-        await try_ally_find_gold(ctx)
+        from ally_events import try_ally_find_silver
+        await try_ally_find_silver(ctx)
         from wild_horse_events import try_wandering_horse_encounter
         await try_wandering_horse_encounter(ctx)
         from encounters.dwarf import maybe_relocate, try_steal
@@ -1255,6 +1399,14 @@ class Server:
         await try_djinn_sighting(ctx)
         from ally_events.starvation import try_encounter as try_ally_starvation
         await try_ally_starvation(ctx)
+        await self._monster_engages(ctx)
+
+    async def _monster_engages(self, ctx: GameContext) -> None:
+        """A hostile monster queued on room entry (encounters/monster.py's
+        try_monster_encounter()) starts its fight -- deliberately the last
+        room-entry step, see try_monster_engage()'s docstring."""
+        from encounters.monster import try_monster_engage
+        await try_monster_engage(ctx)
 
     @staticmethod
     def _room_has_flag(room, flag_prefix: str, direction: str) -> bool:
@@ -1294,7 +1446,13 @@ class Server:
         active  = getattr(self, 'active_combats', {})
         session = active.get(room_no)
         if session and not session._done.is_set() and ctx in session.attackers:
-            session._remove_attacker(ctx)
+            # Same exit as flee: out of the fight, which ends (and comes out
+            # of active_combats) if they were the last one in it -- a fight
+            # whose leader already left otherwise lingered, leaderless and
+            # unfinished, with nobody to take it over.
+            session._leave_fight(ctx)
+            if session._done.is_set() and active.get(room_no) is session:
+                del active[room_no]
 
     def _hidden_exit_target(self, room, direction: str, level: int) -> int | None:
         """Guess a hidden_exit_east/west flag's target room via +/-1 adjacency.
@@ -1324,16 +1482,21 @@ class Server:
         return None
 
     async def _teleport_to(self, ctx: GameContext, target_level: int, target_room: int,
-                            *, message_number: int | None = None) -> None:
+                            *, message_number: int | None = None, engage: bool = True) -> None:
         """Move the player to a confirmed cross-level hidden-exit destination.
 
         Prints the room's own pre-move message (e.g. level 1 room 89's
         message #18, server/messages.json) if any, then the same "YOU HAVE
         ENTERED <level>!" banner SPUR's travel4 always shows on a level
         change (SPUR.MISC.S:457-464).
+
+        *engage* False defers a hostile monster's attack (_monster_engages())
+        to the caller -- _move() passes it so its own arrival notices print
+        before the fight starts.
         """
         if message_number is not None:
             await send_message(ctx, message_number)
+        ctx.player.slain_here = None    # see _move()
         ctx.player.map_level = target_level
         try:
             ctx.client.map_level = target_level
@@ -1352,8 +1515,8 @@ class Server:
         await self._show_room_then_encounter(ctx, level=target_level, room_no=target_room)
         from encounters.desert import try_desert_sweat
         await try_desert_sweat(ctx)
-        from ally_events import try_ally_find_gold
-        await try_ally_find_gold(ctx)
+        from ally_events import try_ally_find_silver
+        await try_ally_find_silver(ctx)
         from wild_horse_events import try_wandering_horse_encounter
         await try_wandering_horse_encounter(ctx)
         from encounters.dwarf import maybe_relocate, try_steal
@@ -1371,6 +1534,8 @@ class Server:
         await try_djinn_sighting(ctx)
         from ally_events.starvation import try_encounter as try_ally_starvation
         await try_ally_starvation(ctx)
+        if engage:
+            await self._monster_engages(ctx)
 
     # -----------------------------------------------------------------------
     # Broadcast
@@ -1449,9 +1614,13 @@ class Server:
         player.food       = 20
         player.drink      = 20
 
-        # Respawn at room 1.
+        # Respawn at room 1 -- the room left and the room reached hear about
+        # it (room_notices.py).
+        from room_notices import notify, who
+        await notify(ctx, f"{who(player)}'s body fades away.")
         player.map_room   = 1
         ctx.client.room   = 1
+        await notify(ctx, f'{who(player)} staggers in, confused but alive.')
         # GuestPlayer has no map_level (or anything else persistence-related)
         # -- confirmed via audit 2026-08-19 that this crashed the whole
         # connection for any guest who died in combat, same bug class as
@@ -1475,6 +1644,9 @@ class Server:
         """Save player state and clean up on quit or disconnect."""
         logging.debug('ENTER hp=%r', getattr(ctx.player, 'hit_points', '?'))
         player = ctx.player
+        # Out of any fight they'd joined as a bystander (a leader's own
+        # round loop already took them out on disconnect).
+        self._leave_combat_on_move(ctx, getattr(ctx.client, 'room', None))
         if player and not isinstance(player, GuestPlayer):
             try:
                 # Sync room from client to player as a safety net in case any
@@ -1615,6 +1787,72 @@ class Server:
 
 # ---------------------------------------------------------------------------
 # Entry point
+async def run_until_stopped(server: 'Server', test_time: float = 0.0) -> None:
+    """Run *server* until SIGINT/SIGTERM (graceful_shutdown() first) or
+    until start() returns on its own.
+
+    Shared by simple_server.py's own __main__ and run_server.py (what the
+    live `tada` screen session actually runs) -- run_server.py used to do
+    a bare asyncio.run(server.start()), so Ctrl-C only cancelled the main
+    task: no shutdown notice, no graceful save, and start()'s
+    wait_closed() then sat waiting for every idle connection to drop on
+    its own (seen live 2026-10-07, a restart stalled minutes on one
+    player idle 11h).
+
+    test_time > 0 runs for that many seconds and exits (CI/diagnostics).
+    """
+    task = asyncio.create_task(server.start())
+
+    if test_time > 0:
+        await asyncio.sleep(test_time)
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        return
+
+    # SIGINT (Ctrl-C) / SIGTERM (`kill <pid>`, systemd/docker stop) --
+    # registered on the running loop so graceful_shutdown() can still
+    # await things (send to clients, save players) before the process
+    # exits. This replaces the old bare `except KeyboardInterrupt`
+    # below, which fired only *after* asyncio.run() had already torn
+    # the loop down -- too late to await anything. See
+    # Server.graceful_shutdown()'s own docstring for why SIGKILL can't
+    # be handled this way (or any way).
+    stop_event = asyncio.Event()
+    loop = asyncio.get_running_loop()
+    installed = []
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            loop.add_signal_handler(sig, stop_event.set)
+            installed.append(sig)
+        except NotImplementedError:
+            # Windows: add_signal_handler isn't supported. Ctrl-C
+            # still raises KeyboardInterrupt the old way in that case
+            # (see the bare except below) -- just without a graceful
+            # save, same as before this feature existed.
+            pass
+
+    try:
+        stop_waiter = asyncio.create_task(stop_event.wait())
+        done, pending = await asyncio.wait(
+            {task, stop_waiter}, return_when=asyncio.FIRST_COMPLETED)
+
+        if stop_waiter in done and not task.done():
+            await server.graceful_shutdown()
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        else:
+            stop_waiter.cancel()
+    finally:
+        for sig in installed:
+            loop.remove_signal_handler(sig)
+
+
 # ---------------------------------------------------------------------------
 
 if __name__ == '__main__':
@@ -1645,54 +1883,8 @@ if __name__ == '__main__':
 
     server = Server(args.host, args.port, args.petscii_port)
 
-    async def _run():
-        task = asyncio.create_task(server.start())
-
-        if args.test_time > 0:
-            await asyncio.sleep(args.test_time)
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
-            return
-
-        # SIGINT (Ctrl-C) / SIGTERM (`kill <pid>`, systemd/docker stop) --
-        # registered on the running loop so graceful_shutdown() can still
-        # await things (send to clients, save players) before the process
-        # exits. This replaces the old bare `except KeyboardInterrupt`
-        # below, which fired only *after* asyncio.run() had already torn
-        # the loop down -- too late to await anything. See
-        # Server.graceful_shutdown()'s own docstring for why SIGKILL can't
-        # be handled this way (or any way).
-        stop_event = asyncio.Event()
-        loop = asyncio.get_running_loop()
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            try:
-                loop.add_signal_handler(sig, stop_event.set)
-            except NotImplementedError:
-                # Windows: add_signal_handler isn't supported. Ctrl-C
-                # still raises KeyboardInterrupt the old way in that case
-                # (see the bare except below) -- just without a graceful
-                # save, same as before this feature existed.
-                pass
-
-        stop_waiter = asyncio.create_task(stop_event.wait())
-        done, pending = await asyncio.wait(
-            {task, stop_waiter}, return_when=asyncio.FIRST_COMPLETED)
-
-        if stop_waiter in done and not task.done():
-            await server.graceful_shutdown()
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
-        else:
-            stop_waiter.cancel()
-
     try:
-        asyncio.run(_run())
+        asyncio.run(run_until_stopped(server, test_time=args.test_time))
     except (KeyboardInterrupt, BrokenPipeError):
         pass
     logging.info('Server shut down.')

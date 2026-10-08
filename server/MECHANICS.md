@@ -36,7 +36,7 @@ and display function directly.
 | 9 | `new` (`SPUR.LOGON.S:50`) | New-player login MOTD/welcome text | Not yet wired in (current login flow has its own welcome text) |
 | 10 | login banner (`SPUR.LOGON.S:27`) | Original BBS-door splash/credits screen | Historical only, not applicable to this port |
 | 11 | `quote` (`SPUR.LOGON.S:619`) | QUOTE command instructions | `commands/quote.py` likely has its own help text already |
-| 13 | shield training confirm (`SPUR.MISC2.S:460`) | Shield training (Odin the Shield Master) result flavor | Not yet documented — new find |
+| 13 | shield training confirm (`SPUR.MISC2.S:460`) | Shield training (Odin the Shield Master) result flavor | ✅ Wired — `shoppe/school.py`'s Formal Shield Training purchase (`SCHOOL` command at the Shoppe) |
 | 16 | duel `H`elp (`SPUR.DUEL.S:26,43`) | Duel help screen text | Duels are implemented (`## Duels (PvP)`); this specific help text not yet ported |
 | 17 | monster #120 death (`SPUR.MISC.S:417`) | Disguised-old-man-monster transform-on-death flavor | Already tracked separately per this session's earlier GOD/GODDESS message work |
 | 18 | room 89 teleport (`SPUR.MISC.S:448`) | ✅ Implemented — level 1 Teleport Room → level 5 | `level_1.json` room 89's `hidden_exit_east.message_number` |
@@ -138,7 +138,12 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - ✅ **Stray round / friendly fire** — missed ammo shot may hit ally or bystander; chance scales by weapon XP: GREEN 1-in-3, VETERAN 1-in-6, ELITE 1-in-10; 1–4 HP damage; ally killed if HP reaches 0 (`engine.py` `_stray_round()`)
 - ✅ **Ammo recovery** — after killing a monster, bow/sling/blowgun weapons recover 1–max random rounds; message uses weapon-specific term (arrows/stones/darts) (`SPUR.MISC.S` `rec.ammo`, actually `:426` not `:427` (off-by-one in a prior pass) master / `:434` skip, logic byte-identical, `engine.py` `_recover_ammo()`)
 - ✅ **USE ammo command** — loads ammo into a readied ranged weapon; checks `used_with`; STORM refuses physical ammo (`SPUR.USE.S:147–162` master / `:229–250` skip, unchanged, `commands/use.py`)
-- ✅ **Missile: first strike** — when ammo is loaded and monster hasn't attacked yet, monster skips its first swing; "MISSILE: FIRST STRIKE!" message (`SPUR.COMBAT.S:219` master / `:246` skip, unchanged, `engine.py`)
+- ✅ **Monsters strike first** — a hostile monster attacks on sight: entering its room queues the fight (`encounters/monster.py` `try_monster_encounter()` → `player.pending_engage`), which starts as the last room-entry step (`try_monster_engage()`, called from `Server._move()`/`_teleport_to()`) via `enter_combat(monster_initiated=True)`, and the monster swings before the player's first prompt (`SPUR.MAIN.S` `advent` → `advent5` `gosub m.attack`, run before every command). Not after a successful surprise roll (the player keeps the initiative, as SPUR's `zs=998` skips that first `m.attack`), nor for a charmable ("AC", e.g. OLD MAN "waits patiently") or alignment-friendly monster (SPUR `zq`), a saluting turf guard, or the TADA-only WILD HORSE (#136) / THE DWARF (#137). Mechanical monsters still skip the surprise/charm rolls but do attack (SPUR's `advent` never checks `:`).
+- ✅ **Commands at the combat prompt** — besides the menu letters (now matched by whole first word, so `cast` is no longer read as `c`harge nor `use potion` as `a`ttack), the prompt hands USE/CAST/EAT/DRINK/WEAR/UNWEAR/READY/UNREADY/QUIT to the normal command processor, each spending the turn; INV/STATS/LOOK/HELP are free; anything else (movement included) is refused for free (`SPUR.COMBAT.S:68` `if i$="CAST" goto lnk.msc3`, everything else `goto lnk.main` → `SPUR.MAIN.S` `advent3`'s full command set; `combat/engine.py` `_run_command_mid_fight()`). A command that kills the monster (CAST, a grenade), kills the player, moves them (a teleport item), or a confirmed QUIT ends the fight. QUIT sets `ctx.closing`, as does a JSON client's `Mode.bye` at any prompt (`network_context.py`), so every later prompt returns None and the main loop saves via `_player_quit()` — before, `bye` mid-fight read as a blank answer, i.e. one last Attack.
+- ✅ **Tactical ambush once per encounter** — rolled on room entry for a hostile monster the player didn't surprise (`rd.mon2` `if zq=0 if zs=0 gosub tactical`; `encounters/monster.py` `_queue_engage()` → `combat/engine.py` `roll_tactical_ambush()`), its "caught off guard" result carried into the fight via `enter_combat(ambushed=)`. Previously rolled twice — a lighter room-entry copy (`_try_ally_tactical`, random ally positions, removed) plus the engine's at fight start — doubling the warning shout and the horse-bolt roll, and re-rolled after a surprise. Fights started outside room entry (bar thug ambush, wraith stalking, little girl) no longer roll it.
+- ✅ **Round order** — `CombatSession._run_loop()` runs the monster's turn (`_monster_turn()`) at the top of every round, before the prompt, matching SPUR's `advent5`; only the opening round of a fight the player started (ATTACK/LURK on a monster that hadn't engaged them) puts the player's swing first. READY, e[X]it, and a blocked FLEE therefore cost a turn (SPUR: each goes back through `advent`); a refused CHARGE/LURK just re-prompts.
+- ✅ **"Lost sight of you"** — before the monster swings, a Thief (~34%), Assassin (~14%), or Ring of Invisibility wearer (~49%, overriding class) may slip out of its sight: no swing, and it can't block a FLEE, until the player attacks again; on room entry it means no fight starts at all (`SPUR.MAIN.S` `advent`, `zs=999`, `z=pc*10+5`/`z=50`, `random(100)>z`; never vs. a 'tough' monster or after a surprise; `combat/engine.py` `lost_sight_roll()`)
+- ✅ **Missile: first strike** — when ammo is loaded and monster hasn't attacked yet, monster skips its first swing; "MISSILE: FIRST STRIKE!" message. Not after a surprise or an ambush, and never for a LIGHT-named weapon (`if vu=1 if vn>0 if vz<>1 if zs<>997 if not instr("LIGHT",wr$)`; `SPUR.COMBAT.S:219` master / `:246` skip, unchanged, `engine.py` `_monster_turn()`). An ambush (caught off guard) suppresses all first-strike rolls, per skip's `if ((vu>1) or (vz=1)) goto vu>1`.
 - ✅ **Pole weapon: first strike** — roll + (monster agility × 3) + 2 < player DEX → first strike; otherwise monster swings normally (`SPUR.COMBAT.S:221` on master; on skip this roll is merged with the CHARGE first-strike roll at `SPUR.COMBAT.S:250–254` and the formula itself changes to roll + (monster agility × 4) < player DEX — multiplier 3→4, the +2 constant dropped, plus a mounted/charging ±4 adjustment layered on top — a real mechanic change, not just relocation, `engine.py`)
 - ✅ **Fireball/energy weapon secondary damage** — 10% chance of secondary heat damage (`SPUR.COMBAT.S:160`, not `:143` as a prior pass cited — that line is unrelated damage-scaling code; master `:160` / skip `:179`, unchanged, `resolution.py:511-514`)
 - ✅ **LURK mode** — standalone `lurk`/`lurk <name>` command (`commands/lurk.py`, SPUR.MAIN.S:87 — same dispatch as `attack`/`kill`/`fight`/`k`, works to open a fight, continue one as leader via the `[L]urk` combat-menu option, or join one as a bystander via `CombatSession.join(ctx, is_lurking=True)`); requires at least one living ally ("No allies — no LURK!" if none); costs Honor (base 2, +1 Assassin, +1 HP>20, -1 HP<10, -1 more HP<5, -1 if the swing won't fire; no deduction if Honor isn't strictly greater than the cost); a loaded, non-STORM, non-LIGHT-named projectile/energy weapon fires over the ally's head at a -2 to-hit/-2 damage penalty (`player_attacks(is_lurking=True)`, ease-of-use fast path disabled); any other weapon (melee, empty ammo weapon, or LIGHT SABRE) skips the player's own swing entirely and only the allies attack (`SPUR.COMBAT.S:82–96` master / `:96–110` skip, unchanged, `combat/lurk.py` `resolve_swing()`, `has_living_ally()`). While lurking, the monster's counter-attack is guaranteed to redirect off the player and onto a random living ally instead — the ally takes the same damage the player would have, minus 1 (2 more for an Elite/"!"-flagged ally, which also skips the roll below entirely) (`SPUR.COMBAT.S:247–262, 324–341` master; relocated/expanded to `:283–301` and `m.a1`/`m.a2` at `:368–413` on skip — skip adds a mount-redirect variant ("MOUNTED- ATTACKS YOU, BUT STRIKES ally INSTEAD") and a morale-flee-while-mounted "carried away" (`run.h`) branch not present on master at all, ties into the mount-redirect bullet in the Horses section below; `lurk.a`/`m.a1`, `combat/lurk.py` `try_redirect_to_ally()`, `combat/engine.py` `CombatSession._is_lurking_this_round`). A surviving non-Elite ally then rolls for morale failure — a 0–9 roll shifted by the player's current Honor (lower Honor raises the odds) that flees the ally outright (reverting to `AllyStatus.FREE`, same as `encounters/monster.py`'s desertion roll) if it exceeds the ally's remaining hit points (`SPUR.COMBAT.S:328–330, 341` master, core roll unchanged on skip but now wrapped inside the mount-aware `m.a1`/`m.a2` split above)
@@ -158,7 +163,7 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - **Wizard's glow** — item `zu$[7]` values 2/3 reduce incoming damage by 2 (`SPUR.COMBAT.S:266` master / `:306` skip, unchanged)
 - **Lazer shield** — energized shield variant; blocks laser fire at half damage (`SPUR.USE.S:86` master, includes an "ALREADY ENERGIZED" duplicate-use guard; skip's `lazer.sh` moves to `:147–151` and drops that duplicate-energize message — silently no-ops instead — core 50% reduction unchanged)
 - **Power armor** — specific item; halves blast damage (`SPUR.USE.S:124` master / `:206` skip, unchanged verbatim)
-- ✅ **Crystal Pendant** (item #82) — resolved once per encounter, not per round (`SPUR.MISC4.S` `mon.set`/`stone`, called when the monster is first set up): if the player carries it and the monster can `petrify`, 90% chance to permanently disable that monster's turn-to-stone for the rest of the fight ("The CRYSTAL PENDANT flashes, preventing TURN TO STONE by `<monster>`!"), 10% chance the monster "happens to see" it and dons anti-pendant glasses that one time (petrification remains possible for the rest of the fight either way) (`combat/engine.py` `CombatSession._check_crystal_pendant()`)
+- ✅ **Crystal Pendant** (item #82) — resolved once per encounter, not per round (`SPUR.MISC4.S` `mon.set`/`stone`, called when the monster is first set up): if the player has it *worn* (`PlayerFlags.PENDANT_WORN`, toggled via `WEAR` — see the Weapons & Readying section; SPUR.MISC4.S:194's own "glasses" flavor already calls this "wearing the CRYSTAL PENDANT", so a bare inventory check isn't enough) and the monster can `petrify`, 90% chance to permanently disable that monster's turn-to-stone for the rest of the fight ("The CRYSTAL PENDANT flashes, preventing TURN TO STONE by `<monster>`!"), 10% chance the monster "happens to see" it and dons anti-pendant glasses that one time (petrification remains possible for the rest of the fight either way) (`combat/engine.py` `CombatSession._check_crystal_pendant()`)
 
 #### Monster abilities
 - **Monster spellcasting** — monsters with `+` flag in `wy$` can cast spells when low HP (`SPUR.COMBAT.S` `lnk.msc4`)
@@ -211,7 +216,7 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - Basic flee command exists (`commands/flee.py`)
 
 ### Not Implemented
-- ✅ **Monster blocks path** — if player HP > 7 and the monster is following, may block flee (`SPUR.COMBAT.S:75` on master, formula `random(1,10) < xp/3`, `combat/resolution.py` `flee_attempt()`, `combat/engine.py` — "`{mname} blocks your escape!`"). **Branch divergence**: skip reworks this substantially at `SPUR.COMBAT.S:82–89` — adds a Blue-Djinn-specific case that always blocks flee unless a separate roll succeeds ("'COWARD!' SHOUTS ... BLOCKING THE EXIT!"), inverts the HP gate to `if hp<7 goto no.dot` (net-same threshold, different control flow), drops master's exemption for `:`-flagged/wrecked monsters entirely, and — most importantly — changes the formula to `random(1,10) < xp` (no ÷3), making escape meaningfully harder at higher XP than master's cited formula. **Note**: the XP-scaling term is currently hardcoded to `xp=1` in this port (`resolution.py:800`, `# TODO: replace with derived xp_level`), so higher-level players don't yet get an easier time slipping past — the core block-or-not mechanic works, but the level scaling isn't wired up, and whichever branch's formula (÷3 or not) this is meant to eventually match hasn't been decided.
+- ✅ **Monster blocks path** — if player HP > 7 and the monster is following, may block flee — only a 'tough' (`.`) monster, never a mechanical one, and never one that lost sight of the player (`SPUR.COMBAT.S:75` on master, formula `random(1,10) < xp/3`, `combat/resolution.py` `flee_attempt()`, `combat/engine.py` — "`{mname} blocks your escape!`"). **Branch divergence**: skip reworks this substantially at `SPUR.COMBAT.S:82–89` — adds a Blue-Djinn-specific case that always blocks flee unless a separate roll succeeds ("'COWARD!' SHOUTS ... BLOCKING THE EXIT!"), inverts the HP gate to `if hp<7 goto no.dot` (net-same threshold, different control flow), drops master's exemption for `:`-flagged/wrecked monsters entirely, and — most importantly — changes the formula to `random(1,10) < xp` (no ÷3), making escape meaningfully harder at higher XP than master's cited formula. The port follows master's `xp//3` (integer division). It used to hardcode `xp=1` (`# TODO: replace with derived xp_level`), which made the roll impossible to pass — no monster could ever block a flee; it now reads `player.xp_level`. Note the scaling runs the other way from what that TODO implied: a *higher*-level player is blocked more often (level 6+ for any chance at all).
 - ✅ **Energy cost** — fleeing costs 1 energy (`SPUR.COMBAT.S:76` master / `:89` skip, unchanged, `engine.py` `flee()`)
 - ✅ **Impassable rooms** — rooms flagged `@@` (water), `**` (snow), or `<<` (no_flee) cannot be fled from (`SPUR.COMBAT.S:74` master / `:81` skip, unchanged, `resolution.py` `flee_attempt()`); flags parsed by `convert_from_gbbs_tool.py` and stored as `Room.flags`. **Note**: on level 6, `@@` doesn't mean water at all — see "Special room traversal requirements" below.
 
@@ -237,7 +242,58 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
   `SPUR.LOGON.S:77`), not the Assassin class at all. So the description as written only
   matches skip's code; master's line 137 penalizes Orcs with bows, not Assassins. Worth
   confirming which branch's rule the port is meant to follow before treating this as settled.
-- ✅ **UNREADY command** — clears readied weapon; "No weapon readied!" if nothing's equipped (`SPUR.MAIN.S:84-85`, `commands/unready.py`)
+- ✅ **UNREADY command** — bare `unready` (alias `unwield`) repacks the player's
+  own readied weapon ("You repack the X."), or "No weapon readied!" if nothing is
+  (`SPUR.MAIN.S:84-85` master / `:90-91` skip, unchanged). No confirm, no STORM
+  special-casing (STORM only resists being *replaced*, not repacked). **TADA
+  extension**: since allies no longer auto-ready a GIVEn weapon, the player drives
+  both ends — when any party ally also has a weapon readied, bare `unready` shows a
+  numbered menu of *every* readied weapon (yours first, then each ally's) instead of
+  the direct repack; `unready <ally>` targets that ally's weapon by name
+  (`commands/unready.py`).
+- ✅ **READY / UNREADY an ally's weapon** — READY and UNREADY both operate on the
+  player's pack *plus* every party ally's pack (`inventory_select.gather_items(
+  include_allies=True)`); readying a weapon that's already an ally's readied weapon
+  toggles it back off. GIVE no longer auto-readies — the player decides who wields
+  what and when (alpha-tester feedback). Ally ammo counters
+  (`ammo_rounds`/`ammo_max`/`ammo_damage`) reset on every ally ready/unready
+  (`commands/ready.py` `_toggle_ally_weapon()`, `commands/unready.py`).
+- ✅ **Ally projectile-weapon no-ammo warning** — when an ally is directed to ready a
+  projectile/energy weapon (weapon class `projectile`/`energy`, STORM excluded), the
+  freshly-readied weapon always starts at zero rounds and an ally has no USE command
+  to load its own — so READY warns immediately ("`<ally>` has no ammunition loaded
+  for the X.") rather than letting it surface mid-fight as an auto-miss
+  (`combat/resolution.py` `ally_attacks()` misses on `rounds < 1`). Non-expert
+  players also get a follow-up hint naming a matching ammo item in the pack to GIVE
+  the ally, or "will need ammunition before it fires" if none is carried
+  (`commands/ready.py` `_weapon_needs_ammo()`/`_matching_ammo_in_inventory()`). TADA
+  addition — SPUR allies never carried their own unloaded ranged weapons.
+- ✅ **`inventory_select.py` — shared item picker** — READY/UNREADY, USE, DROP, GIVE,
+  and TAKE all resolve "pick an item of type X" through one helper:
+  `gather_items()` builds the numbered list (own pack, optionally `+` every party
+  ally's pack), `resolve_or_prompt()` turns a typed name or an interactive numbered
+  prompt into exactly one choice with uniform empty/one-match/ambiguous/cancel/
+  bad-input handling. A `predicate=` callable filters to the acting command's item
+  kind. Commands keep all their own domain logic (STR gates, STORM tantrums, water
+  rooms, …) and stop re-implementing the list and menu.
+- ✅ **WEAR / UNWEAR** (`commands/wear.py`, `commands/unwear.py`) — the armor-slot
+  counterpart to READY/UNREADY, added alongside the 2026-08-08 per-item durability
+  redesign (equipping is now non-consuming, so there has to be a way to take a piece
+  back off). `WEAR` (ports `SPUR.SUB.S`'s `wear` label) equips an `objects.json`
+  armor item: `player.active_armor_id` is set and `player.armor` mirrors that item's
+  own `.condition` (0–100, degrades from combat hits), capped by class/race per
+  `SPUR.SUB.S:33-35` — Pixie/Hobbit/Gnome 50%, Assassin/Elf 60%, everyone else 100%.
+  Battle armor (#113) = flat 125%, power armor (#115) = flat 150% (SPUR flavor
+  exceptions, keep their rating regardless of condition). Swapping in a different
+  piece leaves the old one in the pack at its last condition. `WEAR` also toggles two
+  items moved here from USE at Ryan's call ("wear" reads better than "use"): the ring
+  of invisibility (#67 → `PlayerFlags.RING_WORN`, see survival tick / Ringwraith) and
+  the crystal pendant (#82 → `PlayerFlags.PENDANT_WORN`, the petrify-block flag the
+  Combat section's Crystal Pendant bullet now requires). `UNWEAR` (new in TADA,
+  sibling of `unready`) takes armor and/or shield back off — the item is untouched,
+  just no longer `active_armor_id`/`active_shield_id`; a bare `unwear` disambiguates
+  when both slots are filled. Not ported: the separate `SPUR.COMBAT.S` `gauntlet`
+  hit-absorption mechanic (no engine hook yet).
 
 ### Not Implemented
 - ✅ **Battle experience accumulation** — `vp`/`weapon_experience` for the currently-readied weapon goes up by 1 only on landing the killing blow (not per swing -- `vp=vp+1` is only ever reached at SPUR.MISC.S:384 `p.a3`, confirmed by grepping every .S file); VETERAN at 40 kills, ELITE at 99 (`SPUR.MISC.S:384`, `player.py` `gain_weapon_experience()`, `engine.py` `_monster_dies()`). Corrected this session -- an earlier version incremented it after every swing (hit or miss) and even credited every other attacker in the room for the swinger's weapon; see `tests/test_battle_experience.py`.
@@ -260,13 +316,77 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - ✅ **Grenade** — hurl at room monster; damage = 1d10 + 5 + (xp_level × 2); no monster: "harmlessly"; kills monster if HP reaches 0; item consumed (`SPUR.USE.S:91`, `commands/use.py`)
 - **Potion** — restore HP or stats (`SPUR.USE.S`)
 - **Rocket** — single-use ranged explosive; several variants (TOW, LAW, Redeye, plasma, nuclear) (`SPUR.USE.S:97–130`)
-- **Scrolls / spellcasting** (`SPUR.MISC3.S`)
+- ✅ **Scrolls / spellcasting** (`SPUR.MISC3.S`) — `CAST` is implemented; see the
+  **Spellcasting** section below.
 - **Spacesuit assembly** — combine parts 134 + 135 with tool into item 122 (`SPUR.USE.S:58–72`)
 - **Communicator repair** — USE tool on item 141 produces item 66 (`SPUR.USE.S:70`)
 - **Ruby slippers** — teleport-home to level 1 room 1 (`SPUR.USE.S:25,142–145`)
 - **Palintar** — links to misc6 (`SPUR.USE.S:20`)
 - **Crystal vial** — location-specific effect (`SPUR.USE.S:23–24`)
 - ✅ **Ammo consumption in combat** — projectile/energy weapons check `player.ammo_rounds` before swinging; "NO AMMO READY" blocks attack; `ammo_damage` added to hit damage; one round decremented per swing (`SPUR.COMBAT.S:44,84,99,144`)
+
+---
+
+## Spellcasting
+
+Ported from `SPUR.MISC3.S`'s `cast`/`cst.outc`/`cast.spl` labels (verified against
+source, both branches). Related shop/inventory plumbing — buying spells from the
+Wizard, the TADA Spell Book, `spellbook.ensure_spellbook()`/`spell_entries()` — is
+covered under **Merchant Shoppe → Wizard** and **Spell Book** above; this section is
+the CAST mechanic itself.
+
+### Implemented — `CAST` (`commands/cast.py`)
+- ✅ **One-shot spells** — a spell is removed from wherever `spellbook.spell_entries()`
+  found it (Spell Book, or the main inventory for non-Adepts / legacy saves) *before*
+  the outcome roll runs, so a fizzle or backfire still costs it — matching SPUR
+  clearing the known-spell entry (`xs$`) before it even reads the spell record.
+- ✅ **Outcome roll** (`cst.outc`) — `b = max(3, 20 − INT)`, `+2` if the caster's race
+  is Ogre (SPUR `pr=2` — a race, not a class); `a = random(b×100)/100 + 1` compared
+  against the spell's 1–9 success stat (`Spell.cast_chance` is that value ×10 for
+  display, so the threshold is `cast_chance/10`). `a < threshold` → success; else a
+  second `random(10)`: `<5` → backfire, otherwise → fizzle. A fizzle never reaches an
+  effect handler at all (SPUR `if (not b) goto spl.fail`); only success and backfire
+  do.
+- ✅ **Bonuses** (`cast.spl`, success only) — Druids `+2` ("DRUID POWER!") on every
+  non-monster-damage spell; a Wizard with a staff readied (`commands/get.py`'s
+  `_STAFF_IDS`) gets `+1` on stat spells ("The staff trembles..") or `+4` on
+  monster-damage, plus (Wizard only) `+5` XP and a damage bump on monster-damage.
+- ✅ **Effect scope built** (Ryan's choice) — stat spells S/W/D/C/E/I (with per-stat
+  success/backfire flavor and race-aware caps in `_stat_cap()`), heal (P),
+  monster-damage (M — requires an active `CombatSession`, a deliberate simplification
+  vs. SPUR's "any time a monster is in the room"), gold-to-bank transfer (T),
+  CONJURE FOOD / CONJURE DRINK (F/K), RESURRECT (V), and ENCHANT ARMOR / ENCHANT
+  SHIELD (Y/Z — adapted from `origin/skip`'s otherwise-unreachable `enchant` aura
+  sub-effect; TADA additions, not SPUR-sourced).
+- ⏸️ **Deferred, refused without consuming the spell** — level up/down (U/L),
+  teleport-to-shoppe (R), and the non-BOOTS Aura sub-effects (DISPEL POISON / APPLE A
+  DAY / DRUID HEALTH / WIZARD'S GLOW — each has a real hook already, just not wired
+  into CAST this pass).
+- ⏸️ **Deferred but flavor-stubbed** (rolls normally, spell *is* consumed, success
+  text with no mechanical payload) — SUMMON SPUR (G, no NPC to summon) and Aura's
+  BOOTS OF SPEED (no session-countdown clock to extend).
+
+### Implemented — `CHARM` (`spells/charm.py`)
+- ✅ **CHARM POTION** (rations.json #68) — drinking it targets the monster in the
+  current room and sets `player.pending_charm` (SPUR `zq=2`), unless the monster is
+  mechanical or `tough` (`SPUR.SUB.S:146-147`). While charmed, room descriptions show
+  `<monster> is charmed: "Gosh, er... hi, <player>!"` (SPUR prints only the quoted
+  half; the `<monster> is charmed:` prefix is a TADA clarity addition). Trying to
+  leave the room prompts a Y/N join offer: yes → the monster becomes an
+  `AllyStatus.SERVANT` ally; no → an honor penalty and the charm wears off.
+  (`SPUR.SUB.S`/`SPUR.MISC5.S` `charm`, `SPUR.MISC4.S:246`, `SPUR.MAIN.S:192`, both
+  branches identical.)
+- ✅ **Spontaneous potion-less charm** — `encounters/monster.py` also sets
+  `player.pending_charm` from `SPUR.MISC4.S rd.mons`'s own charm-on-encounter roll
+  (`d.charm`, gated on the monster's `charmable` AC flag); both routes converge on the
+  same join-offer flow, matching `SPUR.MAIN.S:192`.
+- ✅ **Shared-map safety** — a charmed-and-recruited monster is tracked per-player via
+  `player.charmed_monsters` (mirrors `player.dead_monsters`) rather than clearing
+  `room.monster`, so other players still see the monster normally. Bystander room
+  broadcasts on all three outcomes (charm / accept / decline) are a TADA addition.
+- **Note**: CHARM is not yet a `CAST`-able spell — potion and spontaneous roll only.
+  `charm.py`'s docstring still says "no spell-casting system at all yet", which is now
+  stale (CAST exists; it just has no CHARM effect handler).
 
 ---
 
@@ -495,13 +615,24 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
      itself isn't implemented, so this gate is a hard blocker today.
   2. Objective item carried, only when `config.victory_type` is `item`
      or `both` — checks `player.inventory` for `config.victory_item_number`.
-  3. Silver in hand, only when `victory_type` is `gold` or `both` —
-     checks against `config.victory_gold_amount`. SPUR's actual gate here
-     was a "riches of Tut" flag (`zu$` position 9), never wired up in
-     this port (`player.tuts_treasure_looted` / `flags.py`'s
-     `TutTreasure` dataclass are both dead code) — `config.py` deliberately
+  3. Silver in hand, only when `victory_type` is `silver` or `both` —
+     checks against `config.victory_silver_amount`. SPUR's actual gate here
+     was a "riches of Tut" flag (`zu$` position 9); `config.py` deliberately
      generalized this into a plain silver threshold instead, predating
-     `victory.py`.
+     `victory.py`, so `victory.py` does **not** consult the Tut flag.
+     (`flags.py`'s `TutTreasure` dataclass and `player.tuts_treasure` are
+     *not* dead code, contrary to an earlier note here — they now back the
+     standalone quest #16 "Tut's Treasure" mechanic; see below.)
+- ✅ **Quest #16 — Tut's Treasure** (`quests/tuts_treasure.py`, ported from
+  `SPUR.MISC.S`'s `pandora`/`get.itm`/`treasure` and `SPUR.MISC3.S`'s
+  `exam3`/`treasure`) — item #86 "Tut's Treasure" in level 2 room 158
+  "Secret Chamber", guarded by monster #102 KING TUT in the adjacent room
+  157. `EXAMINE` it first disarms a trap and gives +2 INT (only under 25);
+  `GET` it afterward awards a ~1000× gold bonus; `GET` without examining
+  first triggers the Mummy's curse (the standard cursed-item XP/CON/INT/HP
+  penalties). State on `player.tuts_treasure` (`flags.py`'s `TutTreasure`,
+  mirroring SPUR's `zu$[9]`), round-tripped through save/load and surfaced
+  on the STAT screen. Wired into `commands/examine.py` and `commands/get.py`.
 - ✅ **On success** (`declare_victory()`): records the win
   (`winners.py`'s `record_win()` → `run/server/winners.json`), appends a
   `battle.log` entry, and posts a permanent news item ("A Winner!") —
@@ -560,6 +691,37 @@ gap: level 5's header declares 400 rooms but `level_5.json` only has 1–373.
 - ✅ **Territory capture** (Ryan's own extension, no SPUR precedent) — a
   guild-vs-guild duel win flips the room's `RoomAlignment` to the
   winner's guild, except HQ/`FREE_FIRE` rooms (`room_alignment.py`).
+- ✅ **Shield Bash knockdown contest** — full port of `SPUR.DUEL.S:424-484`
+  "tac.bash" (`combat/duel.py`'s `_resolve_bash_contest()`, resolved once
+  per round in `_resolve_round()` ahead of the normal per-side swing
+  loop, whenever either side chose Bash). A wide advantage score
+  (clamped 60-140) built from shield-condition differential,
+  carrying-capacity/"size" differential (`_carrying_capacity()`, the same
+  flat per-race table `SPUR.LOGON.S:208-212` uses for the player's own
+  value), predictability streaks (`_DuelSide.parry_streak`/
+  `attack_streak`/`bash_streak`, SPUR's `xu`/`zn`/`zp` — uncapped, reset
+  on any tactic switch), EGY/DEX/STR mismatches, and initiative, rolled
+  against a d100+50 in three bands (basher overextends and falls,
+  defender falls, clean whiff). Choosing Bash is gated on ≥6% shield
+  (`DUEL.S:32`, `_submit_tactic()`) and always costs the basher 3% shield
+  whether it lands or not (`DUEL.S:434-435`), routed through the same
+  `apply_equipment_degradation()` the rest of combat uses. Covers both
+  `DUEL.S:443-449` (modifiers keyed on the opponent's tactic) and
+  `:450-454` (modifiers keyed on the defending side's own reaction —
+  standing or attacking into a bash costs advantage, parrying cancels
+  the penalty out), evaluated as independent `if`s exactly like the
+  source, which also makes a mutual bash (both sides choose Bash)
+  resolve correctly — the two sides' flat base terms cancel
+  algebraically, leaving only the streak-predictability terms. **One
+  deliberate scope limit vs. source**: SPUR's bash never costs the
+  basher their normal swing — it always falls through into a regular
+  attack/attack1 exchange the same round (`DUEL.S:485`), with a
+  just-downed opponent getting a near-guaranteed follow-up hit. This
+  port keeps Bash as a turn-consuming action instead (the basher's own
+  swing this round is a no-op; a defender who reacted with something
+  else still gets their normal swing unless the contest itself knocked
+  them down) rather than restructuring the shared round-resolution loop
+  every duel tactic depends on.
 
 ### Not Implemented
 - **Autoduel** — offline defender; best weapon auto-selected by `zt+zs` score (`SPUR.DUEL2.S auto.c/opnt.wp:130-158` master / same lines skip, unchanged besides a `dx$`→`dw$` disk-var rename). `PlayerFlags.GUILD_AUTODUEL` exists but has no consuming logic yet. Per `TODO.md`'s existing AUTODUEL entry, this is really a **skip-exclusive command living in `SPUR.MISC5.S`**, not something master's mainline duel flow exposes on its own — worth MECHANICS.md eventually cross-linking that TODO.md entry directly.
@@ -583,7 +745,21 @@ No SPUR-source mechanic exists for wager/stakes (gold only changes hands via win
 - **Annex** — visitor area (`SPUR.ANNEX.S`) — see **Annex** section below
 - **Shop** — buy/sell items, ammo, shields (`SPUR.SHOP.S`) — see **Merchant Shoppe** section below
 - **Bulletin board / news log** (`SPUR.MISC2.S`) — see expanded design in **News & Mail** and **Threaded Message Boards** sections below
-- **Pray / Rest** — recover HP or stats out of combat (`SPUR.MISC2.S`)
+- ✅ **PRAY** (`commands/pray.py`, `SPUR.MISC2.S`'s `pray`) — beg the Spirit of the
+  Dungeons for a top-up when genuinely low on HP, Strength, or Energy. A `random(10)−3`
+  roll (−3..6) adjusted by honor (−1 under 800, −1 more under 400; +1 over 1200, +2
+  more over 1600 — SPUR's `xy>1600` is a transcription typo for `vk>1600`, corrected)
+  and class (Druid +2, Paladin +1). If the roll still beats HP, STR *and* EGY (nothing
+  actually critically low) the prayer is declined with a random SPUR flavor line
+  (harsher below 700 honor). Otherwise, once per session (twice for Druid/Paladin), a
+  second 6–10 roll per stat grants HP +10 and STR/EGY/CON +1 each where it beats the
+  current value (logged `PRAY` / `PIOUS PRAY`). Carrying real unused rations (any but
+  RED SERUM #44 / BLUE PILL #45 / POTION OF SKILL #65 / CHARM POTION #68) → "eat what
+  you're carrying first". Pray past the allowance and you get one warning
+  ("Buggest me oncest more and thou art toast!"); the next prayer is death by
+  lightning. TADA scaling: STR/EGY/CON grants are +1 (not SPUR's +10) since they're
+  1–18 attributes here, not vitality gauges; `prayed_count`/`prayer_punished` are
+  transient per-session (reset at login, like SPUR's `ys$`).
 - ✅ **READ command** — lists/reads book-type inventory items; item #69 "scrap of paper" is special-cased (see **Elevator Combination** section) (`commands/read.py`). **Not yet implemented**: the tips.txt claim that reading "increases your wisdom" — other books currently just print "there's nothing more to learn from it," per `read.py`'s own docstring (`SPUR.MISC3.S`; tips.txt: "READ books to increase your wisdom!")
 - ✅ **QUOTE command** — player sets a short quote (60 char max) shown to others who see them in a room; `$` substituted with the *reading* player's name; View/Write/Quit menu (`SPUR.MISC2.S:488-503` master / `:523-538` skip, byte-identical; also wired into character creation, `SPUR.LOGON.S:410,618-624`) (`commands/quote.py`, `commands/new_player.py`)
 - ✅ **LOOT command** — steal an item from another player in the room, once per session (twice for Outlaws); a fellow guild member of the target's guardian-blocks the theft; docks the thief's own Honor either way (`commands/loot.py`). Works against any player sharing the room regardless of consciousness -- no separate gating was needed once `PlayerFlags.UNCONSCIOUS` existed (see the Unconscious/duel-loss entry below), since the existing guardian-block already covers SPUR's "a guildmate protects you from being looted while unconscious" framing generically. The room-mate picker list also tags each name "watches you.." or "lies unconscious." (`SPUR.MISC3.S:539-559` `ply.locD`/`ply.loc3`), and looting an unconscious victim sends them a "while you were unconscious, you were robbed of your `<item>`!" mail notice from `mail.SYSTEM_SENDER` (`SPUR.MISC3.S:485-493`'s direct `dm$+"mail"` file write, routed through this port's real mail system instead). **Not yet implemented**: Civilians barred from the Shoppe after looting (tips.txt)
@@ -614,7 +790,12 @@ No SPUR-source mechanic exists for wager/stakes (gold only changes hands via win
 - ✅ **Wraith Master title** — players with `WRAITH_MASTER` flag get ", Wraith Master of Spur!" appended to their name at login (`commands/connect.py:251`)
 - ✅ **Login-time equipped-shield notice** — a currently-readied shield prints a sentence-cased "\<name\> is readied." line at login (`SPUR.LOGON.S`'s misc.data armor/shield reload loop — present in `origin/skip`'s fuller LOGON.S revision, absent from this repo's own SPUR-code copy); looked up by `player.active_shield_id` against `ctx.server.items`. No armor-side counterpart yet — `player.armor` is only a flat condition %, not tied to a specific item id (`commands/connect.py`'s `_login_equipment_lines()`).
 - **WHO command** — lists currently online players; replaces the SPUR "last adventurer" login display (stubbed in `commands/connect.py:247`)
-- **Guild follow** — player character automatically follows guild members to their location when logged off; toggle in settings (stubbed in `commands/connect.py:274`)
+- ✅ **Guild follow toggle** — `commands/follow.py` (`follow`, alias `fl`) ports
+  `SPUR.MISC5.S:240-245`'s `follow`: a guild-members-only (`vv<3` gate excludes
+  Civilian/Outlaw) toggle of `PlayerFlags.GUILD_FOLLOW_MODE`, also surfaced read-only
+  by `commands/stats.py` and settable via EditPlayer's Flags menu. **Still not done**:
+  the actual "follow guild members to their location when logged off" behaviour the
+  flag is meant to drive — only the toggle exists.
 - **DIG command** — dig for buried items or gold (`SPUR.MISC7.S:161 dig.a`
   master / `:173 skip`, unchanged — `SPUR.MISC7.S` exists on master too, it's
   not one of skip's five brand-new files, contrary to what the bare filename
@@ -648,7 +829,20 @@ No SPUR-source mechanic exists for wager/stakes (gold only changes hands via win
 - ✅ **Booby-trapped item pickup** — strange weapon (#70) / funny doll (#72): "BOOOMM!!" → INT−5, HP→5; Pandora's Box (#71): smoke → XP capped at 100, CON→5, INT−5, HP→5; Gold Rose (#41): DEX check, fail → −5 HP + poison; Fireplace (#81): "USE only" (can't be picked up); Obelisk (#139): too large (`SPUR.MISC.S get.itm`, `commands/get.py`)
 - ✅ **Fireplace USE** — room 103 "East Hall"; `use` or `use fireplace` while in room: restores Strength to 20 and heals +4 HP if both were low; room message shown to bystanders (`SPUR.USE.S:187`, `commands/use.py`)
 - ✅ **DROP command** — drop items into the room; water rooms (`@@` flag or keyword match on name/desc) show float/sink messages: metal weapons and heavy items sink and are lost, wooden weapons/food/books/darts/arrows float and remain retrievable; well rooms always lose the item; buoyancy inferred from category+name until a per-item flag exists (`SPUR.MISC.S`, `commands/drop.py`)
-- ✅ **GIVE / TAKE** — `give <item> to <ally/player/monster>` transfers item to ally's carried list or co-located player's inventory; giving to a monster yields humorous responses (food eaten, gold kept by greedy types, etc.); `take [<item>] from <ally>` retrieves items ally is holding (`SPUR.MISC.S:72-141` master / `:73-142` skip, byte-identical, `commands/give.py`, `commands/take.py`)
+- ✅ **GIVE / TAKE** — `give <item> to <ally/player/monster>` transfers item to ally's carried list or co-located player's inventory; giving to a monster yields humorous responses (food eaten, gold kept by greedy types, etc.); `take [<item>] from <ally>` retrieves items ally is holding (`SPUR.MISC.S:72-141` master / `:73-142` skip, byte-identical, `commands/give.py`, `commands/take.py`). Item selection on both is now the shared `inventory_select.py` picker (see the Weapons & Readying section). **TADA extensions**:
+  - GIVE no longer auto-readies a weapon given to an ally (alpha-tester feedback) —
+    the player readies it explicitly via READY, which now reaches into ally packs.
+  - `take` with no `from <ally>` (the *browse* forms — bare `take` or
+    `take from <ally>`), when more than one servant is in play, follows the item pick
+    with a "give to whom?" step: pick another ally and the item goes straight into
+    their pack, skipping the take-to-self-then-give-again shuffle (`take <item> from
+    <ally>` — the direct form — never offers this). The ally→ally hop is a plain
+    cargo move: no auto-ready / auto-wear / ammo-load, since those model the *player*
+    equipping an ally, not shuffling cargo (`take.py` `_reroute_between_allies()`).
+  - Mount carry capacity (no SPUR precedent): a MOUNT ally carries nothing until it
+    has `AllyFlags.SADDLEBAGS` (USE saddlebags), then holds up to
+    `_MOUNT_CAPACITY_WITH_SADDLEBAGS = 5` items; GIVE and the ally→ally reroute both
+    enforce it. Non-mount allies keep the unlimited `ally.items` list.
 - ✅ **ORDER command** — deploy up to 3 owned servants as Point Man / Flank Guard / Rear Guard; every owned servant must be placed somewhere (a slot can be left NONE if you own fewer than three), matching SPUR's "You didn't deploy ALL your servants!" retry loop; position persists across save/load (`bar.ally_data.Ally.position`, `party.py` to_json/from_json) (`SPUR.MISC2.S:36-70` master, `commands/order.py`). **Branch divergence**: skip (`:66,73-74` — offsets differ, same `order.a` label) adds an escape hatch master doesn't have — instead of an unconditional forced retry loop, skip prompts `"Dismiss the remainder? y/[N] :"` and, on "Y", lets the player proceed with unplaced servants dismissed outright (and logs the dismissal via `add.log`) rather than looping back to `order.a` every time.
 - ✅ **Tactical ambush** (`SPUR.MISC4.S:140-158` master `tactical`/`desert` / `:147-164` skip, core formula unchanged) — once per encounter, before the first exchange, an ambush falls on a random ORDER slot (Point 50% / Flank 20% / Rear 30%, `i$="1111122333"`). Whoever's deployed there shouts a warning and rolls to hold (an ELITE-flagged servant is always immune -- SPUR's literal "!" in the servant's name); failing that roll leaves the *player* caught off guard too (a bonus monster attack on the first swing, SPUR.COMBAT.S:31 "Surprise attack..") and a 1-in-10 chance the servant actually deserts (room-flavor text: ordinary/water/level-6+-vacuum). An empty slot puts the player alone at risk, rolled against Intelligence + character level plus a flat 10%. Skipped for a friendly encounter (same race/alignment affinity as the monster-quote greeting) and for any monster number already in `player.dead_monsters` (this port's equivalent of SPUR's xm$ rolling-kill-history gate) (`combat/engine.py` `CombatSession._check_tactical_ambush()`/`_ally_deserts()`, wired into `_run_loop()`). Skip-only additions are flavor, not mechanic: an extra `>`-flagged (incorporeal/undead ally?) case with its own SHOUTS text, and "TOO DISCIPLINED" replacing "TOO CLEVER" in the elite-immunity line — the 50/20/30 split, hold roll, and 1-in-10 desertion odds are otherwise identical.
 - **Ally payment** — allies require weekly payment (gold) to remain loyal; non-payment triggers desertion (`SPUR.MISC2.S`, confirmed real and unchanged on skip, not yet ported). Trigger gate: `SPUR.MISC.S:423` master / `:431` skip — flat 50% chance per non-water-room move (`gosub rnd.10z:if z>5 link dy$,"servant"`) to enter `ally` in `SPUR.MISC2.S:85-86` (master, same area skip); a further `random(100)>40` (60% of triggers) routes to the payment-demand path (`ally6`→`ally9`, master `SPUR.MISC2.S:~96-149`, skip `~174-216`). Demand amount `xu=gl/3` capped at 100 gold, identical both branches. Refusal consequence: honor (`vk`) penalty, ~30% honor-scaled chance of "looks grumpy," or full REVOLT/desertion+combat if honor drops low enough (`zs<41` after scaling) — formula unchanged both branches. Skip's only real addition: `>`-flagged (god/incorporeal) allies skip the payment demand entirely (`instr(">",zt$)` check folded into the `ally6` gate, skip `:178`).
@@ -656,7 +850,53 @@ No SPUR-source mechanic exists for wager/stakes (gold only changes hands via win
 - ✅ **Ally gold finding** — on each room move, any party ally has a 5% chance to find a gold sack (52–250 gp); fires at most once per day via `once_per_day` `'AYF'` tag; suppressed in water rooms (`SPUR.MISC6.S al.find:541-554` master / `:430-445` skip, `ally_events.py`, `simple_server._move()`). Gold formula (`z=(z*2)+50`, i.e. 52–250 gp) confirmed identical both branches; port's `ally_events/__init__.py` `_CHANCE = 0.05` is the port's own simplified standalone roll, not a literal SPUR percentage — real SPUR gating is compound (2%-per-move dispatcher entry at `SPUR.MAIN.S:239`, times a further ~15%-wide slice within it on master / ~17%-wide on skip), so "5%" doesn't trace to a specific SPUR source figure on either branch. **Branch divergence**: once-per-day tag semantics changed — master only marks the day's `*AYF` tag used on an *actual* gold find (an absent ally bails out before tagging); skip marks its `*AF` tag unconditionally, before even checking whether an ally is present, so on skip a move with no ally deployed still burns the day's allowance.
 - ✅ **Ally body building** — giving food/drink to an ally with strength < 11 raises their strength by 1; cursed rations poison the ally instead (strength −1, floor 1) (`SPUR.SUB.S hun.slv:370-384` master / `:500-518` skip, `commands/give.py _try_body_build()`). The port's own `+= 1` per feeding (vs. SPUR's `+4`) is a deliberate, already-documented port simplification, not a citation error. **Branch divergence**: skip replaces the hardcoded `<11` threshold with a variable (`if a2<b-4`, `b` not fully traced — likely a per-ally-type max-strength stat) and adds a new `ck.horse` gate (skip `SPUR.SUB.S:520-528`) that blocks the attempt with `"(<name> CAN NOT CONSUME THE <item>)"` unless the item is on a mount-appropriate allowlist (`objects.json` #4,14,16,20,23,24,25,39,41,50,61,63,77-82) — reads as skip's allies now including rideable/horse-type allies that can't eat ordinary rations, a case master's version doesn't handle.
 - **Ally desertion / death** — allies may die or leave if unpaid, injured, or mistreated; status reverts to FREE (`SPUR.MISC6.S dead.al:566-586` master / `:518-536` skip, formula unchanged: `a1<8`/`a2<8`/`a3<8` HP-below-8 check, honor/wisdom/intelligence penalties, battle-log write; not yet ported). **Branch divergence**: master only reaches `dead.al` through the same ~15%-of-2%-per-move random-event slice as galad/meteor/al.find/enforce; skip's `random` dispatcher (`SPUR.MISC6.S:141`) calls `dead.al` **unconditionally on every dispatcher fire**, in addition to then separately rolling galad/meteor/al.find/enforce/djinn — so ally starvation-death checks run far more often on skip. Skip also adds a `>`-flagged (incorporeal ally) branch at `dead.al2` (`:527-528`): "`<name>` looks annoyed, and flies away!" instead of "stumbles and falls," routed to a `god.lv` label instead of the normal "DIED IN `<room>`" battle-log line.
-- **Random events** — location-triggered events: little girl encounter, meteor strike, Enforcer arrival, Galadriel appearance (`SPUR.MISC6.S`, dispatcher at `no.test`/`random`, master `:152-159`: `z<15` galad, `z<30` meteor, `z<45` dead.al, `z<60` al.find, `z<80` enforce, else girl; not yet ported). **Branch divergence**: skip adds a sixth event, `djinn` (skip `SPUR.MISC6.S:554-567`, dispatcher `:143-149`: `z<15` galad, `z<32` meteor, `z<49` al.find, `z<66` enforce, `z<83` djinn, else girl), each individually gated by its own once-per-day tag (`*GA`/`*ME`/`*AF`/`*EN`/`*VN`) — master only gates `girl` (`*gi`) and `al.find` (`*AYF`) that way. `djinn` ("You think you see the Blue Djinn in the distance!") checks the player's honor/progress record (`spur.a1$` fields `g7`/`g8`) and, if low enough, silently deploys a hitman NPC named VINNEY against the player (writes a `thug` file, sets a thug-attack flag in `zu$`) — a bounty-hunter mechanic tied to the Bar's hired-hits feature (see **Bar** section) rather than a purely new random encounter.
+- ⚠️ **Random events** — location-triggered events off `SPUR.MAIN.S:239`'s 2%-per-move
+  world-event roll and its d100 sub-roll (`SPUR.MISC6.S` dispatcher at
+  `no.test`/`random`, master `:152-159`: `z<15` galad, `z<30` meteor, `z<45` dead.al,
+  `z<60` al.find, `z<80` enforce, else girl). **Partly ported, per-event, as separate
+  modules** — the real single-fire dispatcher isn't built yet, so each ported
+  sub-event currently flat-rolls its own composite share (e.g. Galadriel ≈ 0.3%/move)
+  and, unlike the original, more than one can fire on the same move:
+  - ✅ **Test of Galadriel** (`encounters/galadriel.py`, quest #8) — `*GAL` once-per-session tag.
+  - ✅ **Meteor / flying banshee** (`encounters/meteor.py`) — a dodge check, not a fight; `*ME` tag.
+  - ✅ **Little girl** (`encounters/little_girl.py`) — `*gi` tag.
+  - ✅ **Ally finds gold** — see the "Ally gold finding" bullet above (`ally_events/`).
+  - ✅ **Blue Djinn sighting** (`encounters/djinn_sighting.py`, skip-only `djinn`) — an
+    alternate trigger for the Bar's existing debt-collection ambush (`bar/thug_attack.py`).
+  - ❌ **The Enforcer** and ❌ **ally starvation-death** random-event path — documented, not built (`TODO.md`).
+- **Original "Random events" branch-divergence note (dispatcher shape)**: skip adds a sixth event, `djinn` (skip `SPUR.MISC6.S:554-567`, dispatcher `:143-149`: `z<15` galad, `z<32` meteor, `z<49` al.find, `z<66` enforce, `z<83` djinn, else girl), each individually gated by its own once-per-day tag (`*GA`/`*ME`/`*AF`/`*EN`/`*VN`) — master only gates `girl` (`*gi`) and `al.find` (`*AYF`) that way. `djinn` ("You think you see the Blue Djinn in the distance!") checks the player's honor/progress record (`spur.a1$` fields `g7`/`g8`) and, if low enough, silently deploys a hitman NPC named VINNEY against the player (writes a `thug` file, sets a thug-attack flag in `zu$`) — a bounty-hunter mechanic tied to the Bar's hired-hits feature (see **Bar** section) rather than a purely new random encounter.
+- ✅ **Desert / labyrinth / open-water direction loss** (`encounters/desert.py`,
+  `SPUR.MAIN.S`'s `rd.room2`/`coat`/`rd.room3`, master) — a room whose name contains
+  "DESERT" or "LABYRINTH", or carrying the `water`/`water_with_rocks` flag, hides its
+  exit list ("You lost your sense of direction.") unless the player has a compass
+  readied (USE), is a Ranger tracking, or — even in ordinary terrain — has
+  Wisdom+Intelligence < 10 (below that the gauntlet runs in *every* room). On map
+  level 6 ("outer space") neither compass nor tracking helps and the line becomes
+  "Star-filled blackness engulfs you." Ties to the "Special room traversal
+  requirements" and MAP-command entries.
+- ✅ **Mechanical-monster salvage** (`encounters/droid_salvage.py`,
+  `SPUR.MISC.S:406-415` `no.gold`/`no.salvg`, both branches) — killing a `:`-flagged
+  (mechanical) monster: 50% roll drops SALVAGE PARTS (item #146) into the room; and if
+  the killing weapon is an energy weapon (`wa=10`), a further roll leaves its power pak
+  "still energized" and recharges the readied weapon, else "destroyed".
+- ✅ **Guild turf-guard special cases** (`encounters/turf_guards.py`,
+  `SPUR.MISC4.S`/`SPUR.COMBAT.S`) — on top of `encounters/monster.py`'s friendly
+  turf-guard salute for monsters #65/66/67 (FIST/SWORD/CLAW guards): a 20% chance
+  (`SPUR.MISC4.S:69` `claw` label) the guard spawns as its guild's captain instead of
+  rank-and-file, and a surprised guard calls for backup.
+- ✅ **Gollum riddle guard** (`encounters/gollum.py`) — level 4 room 17 "Gollum's
+  Cave" holds both monster #71 and the ring (#67). Gollum now refuses to let the ring
+  be taken from under him (a real fight, like King Tut / the Dwarf guard their
+  hoards), and `SAY`/`ASK` a riddle in the cave opens a riddle exchange with him. The
+  riddle content is TADA-original — no SPUR "ask Gollum a riddle" source exists (the
+  Test of Galadriel is the one SPUR-sourced riddle mechanic, unrelated).
+- ✅ **Ringwraith (monster #70) special-case** (`encounters/ringwraith.py`,
+  `SPUR.MISC4.S`'s `wraith`, run before the turf-guard/mechanical checks at the top of
+  monster load) — sets the wraith's fixed ability string; if the player carries the
+  ring (`zu$` position 2) the monster is buffed (`ms += xp×7`) with an "(..oh, oh...
+  The ring..)" line; with honor ≤ 800 an alignment roll (Orc/Assassin +100) decides
+  whether "The Ringwraith recognizes one of his own kind!" and lets the player pass,
+  or it attacks.
 - ✅ **Turn to stone attack** — a `petrify`-flagged monster (e.g. Medusa) has a
   20% chance per attack to attempt petrification instead of a normal swing, 10% chance to
   succeed once attempted; either way this replaces the normal hit/damage roll entirely for
@@ -693,7 +933,29 @@ No SPUR-source mechanic exists for wager/stakes (gold only changes hands via win
   already matches this port's own sentence-case convention (see CLAUDE.md) here; skip
   regressed it, so master is the one to follow if porting the raw string verbatim mattered.
 - **STATS / STAT2** — two-level stat display; STAT2 shows extended information (`SPUR.MISC5.S`)
-- **FOLLOW ME command** — causes nearby players or allies to follow the player (`SPUR.MISC5.S`)
+- ✅ **FOLLOW ME / STAY** (`guild_follow.py`, `commands/follow.py`, `commands/stay.py`,
+  9/24/26) — `SPUR.MISC5.S`'s `come` + `SPUR.MISC4.S`'s `stay`: recruits same-guild
+  characters in the room whose Guild Follow toggle (see "Guild follow toggle" above)
+  is on. Ported as a hybrid: online guildmates follow the leader live on every map
+  exit; logged-off ones are carried and dropped off by STAY or automatically on
+  logoff (SPUR's LOGON.STAY), then see "You followed <name> to your current
+  location" at their next login. Carried followers also count toward duel guild
+  support. Unconscious-carry case and guild-leader verification gate still open
+  (TODO.md).
+- ✅ **MAP** (`commands/map.py`) — the Ranger's wilderness sense, `SPUR.MISC5.S:13`'s
+  `#`-bound `ranger` ability (gated `xp>2` / character level 3+), given a real command
+  name here since this port's `#` is the admin TeleportCommand. SPUR just `show.file`d
+  a static pre-rendered `map.<level>` ASCII file plus "Room #<n>" and (level 1) a
+  Dwarf-location hint; this port instead computes a live "nearby rooms" listing by BFS
+  over each room's real resolved `.exits` links (no grid-stride metadata needed, works
+  on all loaded levels). Room *numbers* are shown only to Admin/DM — an ordinary
+  player gets the direction path and room name.
+- ✅ **ASK** (`commands/ask.py`) — like `SAY` but always uses the "asks" verb. Inside
+  Gollum's cave, while he's alive, a bare `ASK` (or `ASK RIDDLE` / `ASK GOLLUM`) opens
+  the riddle menu instead of broadcasting (see the Gollum riddle-guard bullet above).
+- ✅ **HISTORY + `^N` re-run** (`commands/history.py`) — lists the player's last
+  `Player.COMMAND_HISTORY_CAP` typed commands, most recent first; `^1` re-runs the most
+  recent, `^3` the third-most-recent, etc. Player convenience, no SPUR precedent.
 
 ### Future
 - **Chat channels** — named, persistent channels players can join/leave (e.g. `#general`, `#claw`,
@@ -717,7 +979,14 @@ No SPUR-source mechanic exists for wager/stakes (gold only changes hands via win
 
 ### Implemented
 - ✅ **General Store** — sells rations 1–10 (safe food/drink); duplicate check; silver deduction; pack-full guard (`SPUR.SHOP.S:293-325 general` master / `:317-348` skip, byte-identical logic besides string-padding cosmetics)
-- ✅ **Elevator** — travel between levels 1–5 (`shoppe/elevator.py`)
+- ✅ **Elevator** — travel between levels 1–5 (`shoppe/elevator.py`); level 6 is
+  reached via the ship transporter (`ship/transporter.py`, see the Elevator
+  Combination section). **Map data for levels 7 and 8 is now loaded** —
+  `simple_server.py` reads `level_<N>.json` for `N` in 1..8 (level 7 = SPUR's 7th
+  dungeon level; level 8 = "Forest of Canolbarth", a TADA addition built by
+  `tools/build_level_8_json.py`, non-grid breadth-first layout) — but neither the
+  elevator nor a traced in-game entrance reaches them yet; the hidden-exit
+  row-arithmetic method in the Flee/Travel section still only covers levels 1/2/5/6.
 - ✅ **Player List** — browse online/offline players by wildcard pattern
 - ✅ **Private Locker** (`shoppe/locker.py`) — personal item storage, reached
   by typing `LOCKER` at the Shoppe prompt (a free-text command, like
@@ -928,7 +1197,8 @@ item numbering, not master's, so it was evidently captured from a skip-era build
   / skip `:105-107`) are not boards of any kind, threaded or otherwise — all three
   dispatch to static admin-authored help screens via the same `rd.msg` mechanism as
   item 2 above: item 10 → Message #15 (guild-membership perks), item 11 → Message #14
-  ("Shields in Monster Combat" probability reference), item 12 → Message #32 ("The
+  ("Shields in Monster Combat" probability reference — ✅ wired, `annex/main.py`'s
+  `_message_board_2()`; items 10/12 still stubbed), item 12 → Message #32 ("The
   EXAMINE command in Spur" help text). There is no multi-author/postable board system
   anywhere in `SPUR.ANNEX.S`; this doc's separate "Threaded Message Boards" section is
   a forward-looking design idea, not a port of an existing SPUR Annex mechanic.
@@ -1038,7 +1308,7 @@ for exactly this reason.
 - ✅ **Startup display** — `commands/connect.py`'s `_login_news_lines()` shows applicable news
   items automatically at login, before the game loop starts.
 - ✅ **`news` command** (`commands/news.py`) — `news` lists currently-active items, `news <id>`
-  reads one in full, `news post` / `news edit <id>` / `news delete <id>` are admin-only.
+  reads one in full, `news #post` / `news #edit <id>` / `news #delete <id>` are admin-only.
 - ✅ **Display lifetime** — each post (`news.py`) carries one of three lifetime modes:
   - *once* — shown once per player, then silently suppressed (tracked via `seen_by`).
   - *permanent* — always shown until manually deleted.
@@ -1049,7 +1319,7 @@ for exactly this reason.
 - ✅ **Per-player display preference** — `command_settings.news_show_all` (PREFS key `N`)
   chooses between a full directory every login vs. just what's new since
   `player.last_connection`.
-- ✅ **Post editing via the shared line editor** — admin authoring (`news post` / `news edit
+- ✅ **Post editing via the shared line editor** — admin authoring (`news #post` / `news #edit
   <id>`) uses `text_editor.run_editor()`, the same `ed`-style line editor used by MAIL's long-form
   composing below (`commands/news.py`).
 
@@ -1195,9 +1465,11 @@ joke, no horse-strength gate, no per-class attack bonus table) — the master br
 - ✅ **Eligibility roll** (`combat/engine.py` `_roll_charge_first_strike()`) — only checked
   on the first exchange (`monster_attack_count == 0`) while `PlayerFlags.MOUNTED`: d10
   roll, −4 for a projectile weapon or +4 otherwise, eligible if
-  `roll + (monster_agility × 4) < player Dexterity`. Printed before the prompt each round
-  ("MOUNTED- YOU MANAGE TO GET FIRST STRIKE! (CHARGE if you want)" / "...OOPS, DIDN'T GET
-  FIRST STRIKE.."), and offered as `[C]harge` in the attack prompt when eligible.
+  `roll + (monster_agility × 4) < player Dexterity`. Rolled once per fight — on the
+  monster's opening swing of a fight it started, or before the first prompt of one the
+  player started ("Mounted- you manage to get first strike! (CHARGE if you want)", the
+  CHARGE hint hidden in expert mode / "Mounted- oops, didn't get first strike.."), and
+  offered as `[C]harge` in the attack prompt when eligible.
   Independent of whether the player then picks CHARGE or a plain attack, achieving first
   strike skips the monster's retaliation this round (same effect as the existing
   missile/pole first-strike checks).
@@ -1245,6 +1517,11 @@ joke, no horse-strength gate, no per-class attack bonus table) — the master br
 - **Saddlebags** — bit 7 of `v2+189`; without saddlebags the horse carries no gold and no items;
   with saddlebags it can carry things (extra inventory).  Gold display routines explicitly check
   for this flag before showing horse gold.
+  - ✅ **Partly done (items only)**: a MOUNT ally with `AllyFlags.SADDLEBAGS` (via
+    `USE` saddlebags) can hold up to 5 items — `_MOUNT_CAPACITY_WITH_SADDLEBAGS` in
+    `commands/give.py`, enforced by GIVE and the TAKE ally→ally reroute (see the
+    GIVE/TAKE entry in Social/World). No SPUR precedent for a mount carry *limit*;
+    Ryan's number. Horse-carried *gold* is still unported.
 - ✅ **Saddle / Horse Armor** — bought at Jake's Stable, then `USE`d on a mount ally to
   equip it (`AllyFlags.SADDLED` / `AllyFlags.ARMORED` — the latter shared with the
   Allies' Guild's Armor training, same "$" sigil in SPUR either way); refuses without a
@@ -1263,7 +1540,8 @@ joke, no horse-strength gate, no per-class attack bonus table) — the master br
   instead of silently falling back to hack/slash/bash's.
 - Seed real mount Constitution/HP so "mount redirects a hit" can apply actual damage
   instead of being narrative-only.
-- Wire saddlebags into inventory as an extra carry slot on the horse.
+- Wire saddlebags into inventory as an extra carry slot on the horse — *item* carry
+  (5-slot cap) is done (see Saddlebags above); horse-carried gold is still open.
 - Add horseshoe service to the Blacksmith shoppe section.
 
 ---
@@ -1416,6 +1694,14 @@ above.
 
 #### World editing
 - **`editmonsters`** — in-game monster editor; admin only (`commands/editmonsters.py`).
+- ✅ **`list` / `find`** (`commands/list_locations.py`) — Admin/DM tool: scans every
+  room on every loaded level and reports where instances of a thing are placed.
+  `list #w[eapons]` / `#a[rmor]` / `#s[hield]` / `#i[tems]` / `#<objtype>` /
+  `#m[onsters]` / `#r[ations]`, plus an optional case-insensitive name substring
+  (`list #m goblin`). `list #w #tel` then prompts to pick a match and teleport there
+  (calls `TeleportCommand` with an explicit `(level, room)` pair). New in TADA — a
+  moderation/debug convenience, distinct from `editplayer`'s catalog browser (which
+  lists the *definitions*, not their placements).
 
 #### Development / ops
 - ✅ **`reload <module> [module...]`** — hot-reload command/support modules
@@ -1518,3 +1804,53 @@ Leading `from` is stripped.  Example: `from Jul 1 to Dec 31`.
   relative prevalence of each denomination before committing to a design.  The existing
   `PlayerMoneyTypes` enum and `player.silver` dict are the main touch-points; shop prices,
   bank transfers, and all display strings would also need updating.
+
+---
+
+## Display / Color Markup (`|token|` syntax)
+
+TADA-native (no SPUR equivalent — SPUR's screen output was raw PETSCII with no
+abstraction layer). `formatting.py`'s `|token|` / `|token:count|` syntax lets
+game text carry color/control codes that render correctly on ANSI terminals,
+real Commodore hardware (PETSCII), and plain-text clients alike, without each
+call site caring which. See `commands/help.py`'s in-game `help colors` topic
+for the player-facing explainer.
+
+### Implemented
+- **Fixed named colors** — `|red|`, `|cyan|`, `|yellow|`, etc. (`formatting.
+  ANSI_COLOR_CODES` / `PETSCII_CONTROL_CODES`) always render as that exact
+  color regardless of player preference. `|tab|` / `|tab:5|` and other
+  non-color control tokens share the same `:count`-repeat syntax.
+- **`|reset|`** — not a fixed color; resolves to *the player's own* PREFS 'C'
+  Colors → Text choice (`ANSICodec`/`PETSCIICodec.reset_color`, threaded
+  through `codec_for_settings()`), so text returns to whatever that player
+  has set as their normal color rather than an uncontrolled terminal default.
+- **`|command|`** (added 2026-09) — a second player-configurable token,
+  alongside `|reset|`: resolves to PREFS 'C' Colors → Command (default
+  cyan), for coloring literal in-game command syntax in help/status text
+  (e.g. `|command|.h h|reset|`, `|command|reload <module>|reset|`) — kept
+  distinct from `[bracket]`-highlighted entities/emphasis, which use a
+  separate PREFS 'C' Colors → Highlight color. Editable via PREFS 'C' →
+  Colors & Graphics → Colors (`commands/prefs.py`'s `_pick_colors()`).
+  Swept into `text_editor.py`'s dot-command help table, and into
+  `commands/{mail,reload,news}.py` and `commands/board/board.py`'s
+  `Usage:`/`Help(notes=)` player-facing strings referencing command syntax.
+  Not yet swept into every command module's `Help(usage=/examples=)` left
+  -hand columns — those render through a separate, uniform two-column table
+  convention (`commands.help.format_two_column()`/`format_summary_table()`),
+  so converting them is a broader systemic decision rather than a targeted
+  sweep.
+- **`[bracket]` auto-highlighting** — a *different* mechanism from `|token|`:
+  literal `[text]` in any player-facing string gets colored via PREFS 'C'
+  Colors → Highlight (`formatting.highlight_brackets()`), no explicit token
+  needed. `[[escaped]]` renders as literal `[escaped]` brackets.
+- **Visible-length-aware wrapping** — `formatting.wrap_text()`/`_visible_len()`
+  treat `|token|` sequences (and `[bracket]`/`{glyph}` markup) as zero-width
+  when computing word-wrap and column-padding, so embedding a token in text
+  that gets column-aligned or wrapped doesn't throw off the layout. Used by
+  `text_editor.py`'s dot-leader help lines and `commands/help.py`'s
+  `format_two_column()`/`format_summary_table()`/description/notes/see-also
+  rendering (all previously used raw `textwrap.wrap()`, which double-counted
+  token characters against the wrap width — fixed 2026-09 alongside the
+  `|command|` sweep, since several `|command|`-bearing `Usage:`/`notes=`
+  strings now exercise that path).

@@ -144,3 +144,38 @@ class TestRemoveSpell(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestSpellBookSurvivesASaveRoundTrip(unittest.TestCase):
+    """Inventory.to_json()/from_json() dropped a container's capacity, and
+    is_container needs capacity > 0 -- so after a relogin INV listed a bare
+    "Spell Book" with none of its pages (found by tools/bot_spells.py)."""
+
+    def _book_inventory(self):
+        from items import Spell
+        inv = Inventory(capacity=8)
+        inv.add(spellbook.make_spellbook_item())
+        book = inv.find(item_id=spellbook.SPELLBOOK_ITEM_NUMBER)[0]
+        book.contents.add(Spell(id_number=2, name='WHEATIES', cast_chance=70,
+                                effect_type='S', effect_magnitude=6,
+                                charges=1, max_charges=1))
+        return inv
+
+    def _reloaded_book(self, data):
+        inv = Inventory.from_json(data, capacity=8)
+        return inv.find(item_id=spellbook.SPELLBOOK_ITEM_NUMBER)[0]
+
+    def test_capacity_and_contents_round_trip(self):
+        book = self._reloaded_book(self._book_inventory().to_json())
+        self.assertTrue(book.is_container)
+        self.assertEqual(book.item.capacity, spellbook.SPELLBOOK_CAPACITY)
+        self.assertEqual(book.contents.capacity, spellbook.SPELLBOOK_CAPACITY)
+        self.assertEqual([e.item.name for e in book.contents], ['WHEATIES'])
+
+    def test_old_save_without_item_capacity_falls_back_to_the_book_capacity(self):
+        data = self._book_inventory().to_json()
+        for entry in data:
+            entry.pop('item_capacity', None)
+        book = self._reloaded_book(data)
+        self.assertTrue(book.is_container)
+        self.assertEqual(book.item.capacity, spellbook.SPELLBOOK_CAPACITY)

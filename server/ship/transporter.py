@@ -55,7 +55,7 @@ async def main(ctx: GameContext) -> bool:
             break
         await ctx.send('Wrong!')
 
-    raw = await ctx.prompt('LEVEL: [1] [2] [3] [4] [5]->')
+    raw = await ctx.prompt('LEVEL ->', preamble_lines=['LEVEL: [1] [2] [3] [4] [5]->'])
     if raw is None:
         return False
     try:
@@ -84,6 +84,8 @@ async def main(ctx: GameContext) -> bool:
         player.unsaved_changes = True
 
     await ctx.send('...........')
+    from room_notices import beam_in_line, beam_out_line, notify
+    await notify(ctx, beam_out_line(player))
     ctx.player.map_level = target
     try:
         ctx.client.map_level = target
@@ -94,6 +96,7 @@ async def main(ctx: GameContext) -> bool:
     player.unsaved_changes = True
     from visited_rooms import mark_visited
     mark_visited(player, target, 1)
+    await notify(ctx, beam_in_line(player))   # before the Shoppe's menu
 
     from shoppe.elevator import level_name
     name = level_name(target)
@@ -125,4 +128,7 @@ async def _malfunction(ctx: GameContext, player) -> None:
     rooms = (game_map.levels.get(target_level, {}) if game_map else {}) or {}
     target_room = (random.choice(list(rooms.keys())) if rooms
                    else getattr(player, 'map_room', 1))
+    from room_notices import beam_in_line, beam_out_line, notify
+    await notify(ctx, beam_out_line(player, malfunction=True))
     await ctx.server._teleport_to(ctx, target_level, target_room)
+    await notify(ctx, beam_in_line(player, malfunction=True))

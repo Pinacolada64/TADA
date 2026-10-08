@@ -428,7 +428,7 @@ async def search_by_flag(ctx, monsters: list[dict]):
                 await ctx.send(f'\nMonsters with [{lbl}]:')
                 for m in results:
                     await ctx.send(f"  #{m['number']:>3} {m['name']}")
-                await ctx.prompt('Press Enter to continue')
+                await ctx.prompt(f'Press {ctx.player.return_key} to continue')
 
             return _show
 
@@ -446,13 +446,13 @@ async def show_special_weapons(ctx, monsters: list[dict], weapons: dict[int, str
     results = [(m, m['special_weapon']) for m in monsters if m.get('special_weapon')]
     if not results:
         await ctx.send('No monsters currently require a special weapon.')
-        await ctx.prompt('Press Enter to continue')
+        await ctx.prompt(f'Press {ctx.player.return_key} to continue')
         return
     await header(ctx, f'Special weapons ({len(results)} monsters)')
     for m, wid in results:
         wname = weapons.get(wid, f'#{wid} (unknown)')
         await ctx.send(f"  #{m['number']:>3}  {m['name']:<25}  requires: {wname}")
-    await ctx.prompt('Press Enter to continue')
+    await ctx.prompt(f'Press {ctx.player.return_key} to continue')
 
 
 async def search_by_attribute(ctx, monsters: list[dict], weapons: dict[int, str]):
@@ -504,7 +504,7 @@ async def search_by_attribute(ctx, monsters: list[dict], weapons: dict[int, str]
                         wpn_str = (f'  [{weapons.get(wpn_id, f"#{wpn_id}")}]'
                                    if wpn_id and weapons else '')
                         await ctx.send(f"  #{m['number']:>3} {m['name']}{wpn_str}")
-                await ctx.prompt('Press Enter to continue')
+                await ctx.prompt(f'Press {ctx.player.return_key} to continue')
 
             return _search
 

@@ -18,14 +18,13 @@ from __future__ import annotations
 
 import logging
 import re
-import textwrap
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from commands.base_command import Command, Mode
-from formatting import hrule_char, _visible_len
+from formatting import hrule_char, _visible_len, wrap_text
 
 if TYPE_CHECKING:
     from network_context import GameContext
@@ -42,7 +41,7 @@ log = logging.getLogger(__name__)
 
 def _heading(text: str) -> str:
     """Section headings and titles: 'Usage:', category names, etc."""
-    return f'|yellow|{text}|reset|'
+    return f'|heading|{text}|reset|'
 
 
 def _rule(text: str) -> str:
@@ -304,17 +303,26 @@ register_topic(
             "A token starting with '#' is a switch instead: a flag or "
             "sub-option that changes how the command behaves, rather than "
             "data the command acts on. Switches are usually specific to "
-            "the command they're used with -- `groups #add friends Alice`, "
-            "`ban #view`, `wa #hide` -- so check a command's own `help "
-            "<command>` for what its switches do.\n\n"
-            "In a command's own Usage line, angle brackets and square "
-            "brackets mean two different things: <name> marks a "
-            "required placeholder -- type your own value there, not "
+            "the command they're used with -- |command|groups #add friends "
+            "Alice|reset|, |command|ban #view|reset|, |command|wa #hide|reset| "
+            "-- so check a command's own |command|help <command>|reset| for "
+            "what its switches do.\n\n"
+            "In a command's own |heading|Usage|reset| line, angle "
+            "brackets and square brackets mean two different things: "
+            "<name> marks a required placeholder -- type your own value there, not "
             "the brackets themselves -- while [[name]] marks something "
             "optional you can leave out entirely. 'page <name[[,name2]]>"
             "=<message>' means: name is required, a second comma-"
             "separated name is optional, and so is everything after it "
-            "up to the message."
+            "up to the message.\n\n"
+            # A bare '|' only renders literally while it can't pair up
+            # into a |token| -- 'on|off' is safe, but a 3-way 'a|b|c'
+            # needs 'a||b||c' (the ||b|| escape), same as text_editor.py's
+            # '.j <l||c||r||e||p||i||u>' usage message.
+            "A '|' between choices means pick exactly one of them: "
+            "'say #split [[on|off]]' takes either 'on' or 'off' (or "
+            "neither, since it's in square brackets). Type just the word "
+            "you want, never the '|' itself."
         ),
         category=HelpCategory.CONCEPT,
         usage=[
@@ -322,6 +330,7 @@ register_topic(
             ("<command> #<switch>",    "A '#'-prefixed flag: changes command behavior."),
             ("<required>",             "Angle brackets: type your own value here, not the brackets."),
             ("[optional]",             "Square brackets: this part can be left out."),
+            ("<this|that>",            "A '|' separates choices: type exactly one of them."),
         ],
         examples=[
             ("page Alice=Hello",        "Page (send a message to a player in a different room) "
@@ -332,7 +341,7 @@ register_topic(
                                          "saying you want to add Bob to a group named "
                                          "'friends'."),
             ("connect Alice",           "To log in as Alice and be prompted for the password "
-                                         "separately, type 'connect Alice'."),
+                                         "separately, type |command|connect Alice|reset|."),
         ],
         notes=[
             "A command-specific switch (like '#hide' or '#add') only makes "
@@ -435,6 +444,20 @@ register_topic(
             "(+1 to-hit, +1 damage), ELITE at 99 (+2 to-hit, +damage "
             "scaling with your level). This is separate from character "
             "experience, which you earn every swing regardless of outcome.",
+            "Most monsters attack on sight: walk into one's room and it "
+            "swings before you can act -- unless you surprise it, it's "
+            "friendly or charmed, or (for a Thief, an Assassin, or anyone "
+            "wearing the Ring) it loses sight of you. A loaded missile "
+            "weapon, a pole weapon, or being mounted can win you the first "
+            "strike instead.",
+            "Each round the monster swings first, then you choose. Besides "
+            "the [A]ttack/[L]urk/[F]lee/[R]eady/e[X]it menu you can "
+            "|command|USE|reset|, |command|CAST|reset|, |command|EAT|reset|, "
+            "|command|DRINK|reset|, |command|WEAR|reset| or "
+            "|command|READY|reset| something -- each takes your turn -- or "
+            "check |command|INV|reset|, |command|STATS|reset|, "
+            "|command|LOOK|reset| or |command|HELP|reset| for free. "
+            "To get away, |command|FLEE|reset|.",
         ],
         see_also=["weaponclass", "basedamage", "easeofuse", "weaponaffinity", "bhr"],
     ),
@@ -448,7 +471,7 @@ register_topic(
             "Every weapon belongs to one of six classes, and each class is "
             "naturally suited to certain monster sizes -- READY's "
             "\"Best targets\" line translates this into plain English for "
-            "whatever weapon you're about to ready (see Notes below for "
+            "whatever weapon you're about to ready (see |heading|Notes|reset| below for "
             "the full table).\n\n"
             "Fighting a monster your weapon class favors raises your hit "
             "threshold (easier to hit); fighting outside it lowers that "
@@ -488,8 +511,7 @@ register_topic(
         summary="What \"Base damage\" on READY means",
         description=(
             "Base damage is the ceiling on the random damage roll a hit "
-            "draws from -- shown on READY as a score of 3-9 (weapons.json "
-            "stores it as that digit x10, e.g. 60 for a score of 6). "
+            "draws from -- shown on READY as a score of 3-9. "
             "Higher Base damage means a wider range of possible damage per "
             "hit, not a bigger guaranteed number: a hit always rolls "
             "somewhere between a small floor and (Base damage + 2), then "
@@ -520,10 +542,9 @@ register_topic(
         summary="What \"Ease of use\" on READY means",
         description=(
             "Ease of use is a multiplier applied on top of a hit's random "
-            "damage roll ('help basedamage') -- shown on READY as a score "
-            "of 5-9 (weapons.json stores it as that digit x10, e.g. 90 for "
-            "a score of 9). A higher score means more of that roll's raw "
-            "damage actually lands.\n\n"
+            "damage roll (|command|help basedamage|reset|) -- shown on READY as a score "
+            "of 5-9. A higher score means more of that roll's raw damage "
+            "actually lands.\n\n"
             "There's also a hidden perk: on a strong enough attack roll, "
             "\"ease of use helps!\" kicks in and applies this same damage "
             "formula through a faster, slightly more forgiving path -- a "
@@ -677,6 +698,13 @@ register_topic(
             "code always renders as its exact named color regardless of "
             "your personal color preferences, while [brackets] pick up "
             "whatever colors you've chosen.\n\n"
+            "||command|| is a third kind, alongside ||reset|| -- rather "
+            "than a fixed color, it resolves to *your own* PREFS 'C' "
+            "Colors -> Command choice (cyan by default), the same way "
+            "||reset|| resolves to your Text color. Game commands "
+            "referenced in help text and messages (e.g. |command|.h h"
+            "|reset|) use it, so you can tell command syntax apart from "
+            "[bracketed] entities at a glance.\n\n"
             "Some codes can also repeat with a count -- ||tab:5|| means "
             "five tabs in a row instead of one.\n\n"
             "Doubled pipes like the examples above (||red||...||reset||) "
@@ -689,6 +717,9 @@ register_topic(
         category=HelpCategory.CONCEPT,
         usage=[
             ("||color||some text||reset||", "Colors 'some text'; 'reset' returns to normal after it."),
+            ("||command||some text||reset||", "Colors 'some text' in *your* command color (PREFS 'C')."),
+            ("||heading||some text||reset||", "Colors 'some text' like a help section heading "
+                                            "(|heading|Usage:|reset|, |heading|Notes:|reset|)."),
             ("||tab||",                     "A tab -- a real Tab character or simulated spaces, per PREFS 'K'."),
             ("||tab:5||",                   "A count after the code repeats it -- five tabs in a row here."),
             ("||code||...||code||",         "Doubled pipes: show raw ||code|| syntax literally instead of applying it."),
@@ -696,6 +727,8 @@ register_topic(
         examples=[
             ("You find |red|a ruby|reset| on the floor.",
              "'a ruby' renders in red; the rest is normal text."),
+            ("Type |command|.h h|reset| for help on the Help command.",
+             "'.h h' renders in your PREFS command color; the rest is normal text."),
             ("Name:|tab|Alice", "Lines up 'Alice' at the next tab stop."),
         ],
         notes=[
@@ -704,6 +737,10 @@ register_topic(
             "light_green, light_blue, light_gray, dark_gray, mid_gray. "
             "ANSI terminals also get magenta, light_cyan, light_yellow, "
             "light_white, bold, and dim.",
+            "'reset' and 'command' aren't fixed colors -- they resolve to "
+            "your own PREFS 'C' Colors choices (Text and Command). "
+            "'heading' is always yellow, the color of these help pages' "
+            "own section headings.",
             "A misspelled or unsupported code (e.g. ||glorp||) is left "
             "as plain text rather than breaking the rest of the line.",
         ],
@@ -1060,14 +1097,17 @@ register_topic(
             "opportunities the other guilds don't get. Civilian is the "
             "safest choice and the one recommended for a first "
             "character.\n\n"
-            "GUILD FOLLOW MODE (an on/off toggle, see FOLLOW) is "
+            "GUILD FOLLOW MODE (an on/off toggle, see |command|FOLLOW|reset|) is "
             "separate from which guild you're in -- it controls whether "
-            "you automatically tag along when a fellow guild member "
-            "moves, not membership itself."
+            "you're willing to tag along when a fellow guild member says "
+            "|command|FOLLOW ME|reset|, not membership itself. A leader's |command|STAY|reset| (or "
+            "logging off) leaves their followers where they stand."
         ),
         category=HelpCategory.CONCEPT,
         usage=[
             ("follow",          "Toggle Guild Follow Mode."),
+            ("follow me",       "Lead willing guildmates in your room."),
+            ("stay",            "Drop off the guildmates following you."),
             ("duel <player>",   "Challenge a player in your room to a SPORT DUEL."),
             ("duel #standings", "Show guild win/loss duel standings."),
         ],
@@ -1082,7 +1122,8 @@ register_topic(
             "commands/new_player.py's _choose_guild() (_GUILD_INFO). "
             "PlayerFlags.GUILD_MEMBER/GUILD_AUTODUEL/GUILD_FOLLOW_MODE "
             "(flags.py) -- GUILD_FOLLOW_MODE is wired to live behavior "
-            "(commands/follow.py); GUILD_AUTODUEL is set but has no "
+            "(commands/follow.py's FOLLOW ME, commands/stay.py, "
+            "guild_follow.py); GUILD_AUTODUEL is set but has no "
             "consuming logic yet. Guild HQ virtual area: "
             "guild_hq/main.py. combat/duel.py's DuelCommand.execute() "
             "has no guild-eligibility check on who can challenge whom -- "
@@ -1151,7 +1192,7 @@ register_topic(
         category=HelpCategory.CONCEPT,
         usage=[
             ("mp",                "Quickly toggle More Prompt on/off."),
-            ("prefs",             "Open PREFS; 'M' also toggles More Prompt."),
+            ("prefs",             "Open |command|PREFS|reset|; 'M' also toggles More Prompt."),
         ],
         admin_notes=[
             "PlayerFlags.MORE_PROMPT (flags.py); toggled by "
@@ -1184,7 +1225,7 @@ register_topic(
         ),
         category=HelpCategory.CONCEPT,
         usage=[
-            ("prefs", "Open PREFS; Client Type is on the Terminal Settings submenu."),
+            ("prefs", "Open |command|PREFS|reset|; Client Type is on the Terminal Settings submenu."),
         ],
         see_also=["colors"],
         admin_notes=[
@@ -1250,10 +1291,13 @@ register_topic(
         category=HelpCategory.CONCEPT,
         admin_notes=[
             "player.item_history / player.ration_history (player.py) -- "
-            "session ring buffers, reseeded from current inventory on "
-            "login. commands/get.py's _room_available_items() and "
-            "simple_server.py's room-item display both hide any item ID "
-            "present in the relevant history list; record_item_pickup()/"
+            "session ring buffers (60/20, SPUR xt$/xo$), reset on login: "
+            "ration_history reseeded from carried rations, item_history "
+            "from worn armor/shield only. commands/get.py's "
+            "_room_available_items() and simple_server.py's room-item "
+            "display both hide a static item whose ID is in the relevant "
+            "history list *or* already in inventory (same category) -- "
+            "SPUR.MAIN.S:244's xi$/xt$ check; record_item_pickup()/"
             "record_ration_pickup() append to it on GET.",
         ],
     ),
@@ -1345,7 +1389,7 @@ register_topic(
             "game's own flavor text is that you need to personally "
             "defeat SPUR himself to win -- that's not actually checked "
             "anywhere; only the Wraith King's death (plus whatever "
-            "item/gold gate applies) matters."
+            "item/silver gate applies) matters."
         ),
         category=HelpCategory.CONCEPT,
         admin_notes=[
@@ -1354,8 +1398,8 @@ register_topic(
             "117 ('Shimmering Portal', the only rc==1 'Ladder Up' room "
             "in the dataset). Gates: PlayerFlags.WRAITH_KING_ALIVE must "
             "be False (unconditional); config.victory_type "
-            "('gold'/'item'/'both') then further requires "
-            "config.victory_gold_amount silver in hand and/or carrying "
+            "('silver'/'item'/'both') then further requires "
+            "config.victory_silver_amount silver in hand and/or carrying "
             "objects.json item #config.victory_item_number. On success: "
             "winners.py records the win, a battle.log entry and "
             "permanent news post follow.",
@@ -1458,7 +1502,7 @@ register_topic(
         notes=[
             "Lost or forgot a combination you already have? It isn't "
             "rerolled or consumed by checking it again -- Locker's is "
-            "reprinted on your claim tag (READ it), and Elevator's "
+            "reprinted on your claim tag (|command|READ|reset| it), and Elevator's "
             "stays the same if you still have the scrap of paper to "
             "re-read.",
         ],
@@ -1579,7 +1623,7 @@ def format_two_column(items: List[Tuple[str, str]], width: int) -> List[str]:
     for left, right in items:
         pad = " " * max(0, left_col - _visible_len(left))
         if right:
-            wrapped = textwrap.wrap(right, width=right_col) or [""]
+            wrapped = wrap_text(right, width=right_col)
             out.append(f"  {left}{pad}  {wrapped[0]}")
             for cont in wrapped[1:]:
                 out.append(f"  {'':{left_col}}  {cont}")
@@ -1608,7 +1652,7 @@ def format_summary_table(items: List[Tuple[str, str]], width: int) -> List[str]:
 
     for i, (name, summary) in enumerate(items):
         stripe  = 'dark_gray' if i % 2 else 'mid_gray'
-        wrapped = textwrap.wrap(summary, width=right_col) or [""]
+        wrapped = wrap_text(summary, width=right_col)
         name_col = _vis_ljust(_cmd(name), left_col)
         out.append(f"  {name_col}  |{stripe}|{wrapped[0]}|reset|")
         for cont in wrapped[1:]:
@@ -1678,7 +1722,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
     if help_obj is None:
         return None
     if isinstance(help_obj, str):
-        return textwrap.fill(help_obj.strip(), width=width)
+        return '\n'.join(wrap_text(help_obj.strip(), width=width))
 
     wrap_width = width - 4
     lines: List[str] = []
@@ -1699,7 +1743,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
                 lines.append(_cmd(command_name))
                 if cat_str:
                     lines.append(_heading(cat_str.rjust(width)))
-        lines.extend(textwrap.wrap(str(summary).strip(), width=width))
+        lines.extend(wrap_text(str(summary).strip(), width=width))
         lines.append(_rule(rule_char * width))
 
     # Aliases -- other names this same command answers to
@@ -1716,7 +1760,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
         for i, para in enumerate(paragraphs):
             if i:
                 lines.append("")
-            lines.extend(textwrap.wrap(" ".join(para.split()), width=wrap_width))
+            lines.extend(wrap_text(" ".join(para.split()), width=wrap_width))
 
     # Usage
     usage = getattr(help_obj, "usage", None)
@@ -1736,7 +1780,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
         for item in examples:
             lines.append(f"  {_auto_escape(item[0])}")
             if len(item) > 1 and item[1]:
-                lines.extend(textwrap.wrap(
+                lines.extend(wrap_text(
                     _auto_escape(str(item[1])),
                     width=wrap_width,
                     initial_indent=" " * 6,
@@ -1764,7 +1808,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
             if note == '':
                 lines.append('')
             else:
-                lines.extend(textwrap.wrap(
+                lines.extend(wrap_text(
                     _auto_escape(str(note)),
                     width=wrap_width,
                     initial_indent=" " * 4,
@@ -1795,10 +1839,12 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
         lines.append("")
         lines.append(_heading("See Also:"))
         joined = ", ".join(_cmd(name) for name in see_also)
-        lines.extend(textwrap.wrap(
+        # wrap_text() never breaks mid-word or on hyphens (it only splits on
+        # spaces), so it already matches the old textwrap.wrap(
+        # break_long_words=False, break_on_hyphens=False) behavior here.
+        lines.extend(wrap_text(
             joined, width=wrap_width,
             initial_indent=" " * 4, subsequent_indent=" " * 4,
-            break_long_words=False, break_on_hyphens=False,
         ))
 
     return lines if lines else None
@@ -1836,20 +1882,20 @@ class HelpCommand(Command):
         ],
         examples = [
             ("help",          "Show all commands"),
-            ("help say",      "Help for the 'say' command"),
+            ("help say",      "Help for the |command|say|reset| command"),
             ("help #cat",     "List all categories"),
             ("help #summary", "List all commands with their summaries"),
             ("help #search caravan", "Search for commands mentioning 'caravan'"),
         ],
         notes = [
-            "You can use 'help', 'h', or '?' interchangeably.",
+            "You can use |command|help|reset|, |command|h|reset|, or |command|?|reset| interchangeably.",
             "Command names are case-insensitive.",
             "A category name (with or without '#cat') accepts a "
             "substring if it's unambiguous, in either direction -- "
-            "'help admin' and 'help concepts' both work, same as the "
+            "|command|help admin|reset| and |command|help concepts|reset| both work, same as the "
             "full 'help administrative'/'help concept'.",
-            "A concept topic name (e.g. 'help easeofuse') also accepts "
-            "an unambiguous substring, e.g. 'help ease'.",
+            "A concept topic name (e.g. |command|help easeofuse|reset|) also accepts "
+            "an unambiguous substring, e.g. |command|help ease|reset|.",
         ],
     )
 
@@ -1867,6 +1913,19 @@ class HelpCommand(Command):
 
         token = args[0].lower()
         rest  = args[1:]
+
+        # Multi-word topic phrase (e.g. "help weapon affinity") -- some
+        # topics are registered under a spaced alias (see register_topic()'s
+        # "weapon affinity"/"best weapon"/"class weapon" call below) as well
+        # as a squashed one ("weaponaffinity"), but every other branch here
+        # only ever looks at args[0], so a spaced phrase never reached
+        # _TOPICS without this. Exact full-phrase match only -- no substring
+        # fuzzing, that's _find_topic_by_substring()'s job for the
+        # single-word case in _show_command_help()'s fallback.
+        if rest:
+            full = " ".join(args).lower()
+            if full in _TOPICS:
+                return await self._show_topic_help(ctx, full)
 
         # Category listing
         if token in ("categories", "category", "cat", "#cat", "#c"):
@@ -1918,9 +1977,11 @@ class HelpCommand(Command):
         rchar = hrule_char(ctx)
         title = f"{'Available Commands by Category':^{width}}"
         lines = [f"\n{_heading(title)}",
-                 "  help <command>: detailed help   |   help #cat: list categories\n"]
+                 "  help <command>: detailed help   |   help #cat: list categories",
+                 "  (command aliases are in parentheses)\n"]
 
         current_mode = getattr(processor, "current_mode", None)
+        privileged   = _is_privileged_viewer(ctx)
         all_cmds = [
             cmd for cmd in (processor.get_all_commands().values() if processor else [])
     if current_mode is None or _is_available(cmd, current_mode)
@@ -1929,6 +1990,8 @@ class HelpCommand(Command):
         for cmd in all_cmds:
             help_obj = getattr(cmd, "help", None)
             cat      = getattr(help_obj, "category", HelpCategory.GENERAL)
+            if cat == HelpCategory.ADMINISTRATIVE and not privileged:
+                continue
             by_cat[cat].append(cmd)
 
         for cat in sorted(by_cat, key=lambda c: c.value):
@@ -1947,7 +2010,7 @@ class HelpCommand(Command):
             for i in range(0, len(entries), n_cols):
                 lines.append("  " + "  ".join(_vis_ljust(e, col_w) for e in entries[i : i + n_cols]))
 
-        lines += ["", "Type 'help <command>' for more detail."]
+        lines += ["", "Type |command|help <command>|reset| for more detail."]
         await ctx.send(*lines)
         return CommandResult.ok("General help displayed.")
 
@@ -1961,6 +2024,7 @@ class HelpCommand(Command):
         lines = [f"\n{_heading(title)}"]
 
         current_mode = getattr(processor, "current_mode", None)
+        privileged   = _is_privileged_viewer(ctx)
         all_cmds = [
             cmd for cmd in (processor.get_all_commands().values() if processor else [])
             if current_mode is None or _is_available(cmd, current_mode)
@@ -1969,6 +2033,8 @@ class HelpCommand(Command):
         for cmd in all_cmds:
             help_obj = getattr(cmd, "help", None)
             cat      = getattr(help_obj, "category", HelpCategory.GENERAL)
+            if cat == HelpCategory.ADMINISTRATIVE and not privileged:
+                continue
             by_cat[cat].append(cmd)
 
         for cat in sorted(by_cat, key=lambda c: c.value):
@@ -1981,7 +2047,7 @@ class HelpCommand(Command):
             ]
             lines.extend(format_summary_table(items, width))
 
-        lines += ["", "Type 'help <command>' for full detail on one command."]
+        lines += ["", "Type |command|help <command>|reset| for full detail on one command."]
         await ctx.send(*lines)
         return CommandResult.ok("Summary table displayed.")
 
@@ -1995,12 +2061,17 @@ class HelpCommand(Command):
         # which would otherwise mangle manual alignment and treat embedded
         # '\n' characters as just more text instead of line breaks.
         width = self._screen_width(ctx)
-        items = [(cat.value, _CATEGORY_DESCRIPTIONS.get(cat, "")) for cat in HelpCategory]
+        privileged = _is_privileged_viewer(ctx)
+        items = [
+            (cat.value, _CATEGORY_DESCRIPTIONS.get(cat, ""))
+            for cat in HelpCategory
+            if cat != HelpCategory.ADMINISTRATIVE or privileged
+        ]
 
         lines = [_heading("Available categories:"), ""]
         lines.extend(format_two_column(items, width))
         lines.append("")
-        lines.append("Type 'help #cat <category>' to list its commands/topics.")
+        lines.append("Type |command|help #cat <category>|reset| to list its commands/topics.")
         await ctx.send(*lines)
         return CommandResult.ok()
 
@@ -2019,7 +2090,13 @@ class HelpCommand(Command):
 
         if not matched:
             await ctx.send(
-                f"Unknown category '{category_name}'. Type 'help #cat' for a list."
+                f"Unknown category '{category_name}'. Type |command|help #cat|reset| for a list."
+            )
+            return CommandResult.fail(error="unknown_category")
+
+        if matched == HelpCategory.ADMINISTRATIVE and not _is_privileged_viewer(ctx):
+            await ctx.send(
+                f"Unknown category '{category_name}'. Type |command|help #cat|reset| for a list."
             )
             return CommandResult.fail(error="unknown_category")
 
@@ -2065,6 +2142,12 @@ class HelpCommand(Command):
         from commands.base_command import CommandResult
 
         matches = processor.search_commands(term) if processor else []
+        if not _is_privileged_viewer(ctx):
+            matches = [
+                cmd for cmd in matches
+                if getattr(getattr(cmd, "help", None), "category", HelpCategory.GENERAL)
+                != HelpCategory.ADMINISTRATIVE
+            ]
         if not matches:
             await ctx.send(f"No commands found matching '{term}'.")
             return CommandResult.ok()
@@ -2111,7 +2194,7 @@ class HelpCommand(Command):
 
             await ctx.send(
                 f"No help found for '{command_name}'. "
-                "Type 'help' for a list of commands."
+                "Type |command|help|reset| for a list of commands."
             )
             return CommandResult.fail(error="no_help")
 

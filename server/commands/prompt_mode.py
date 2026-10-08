@@ -24,7 +24,7 @@ class PromptModeCommand(Command):
     help = Help(
         summary  = 'Toggle Prompt Mode on/off.',
         description = (
-            'When on, reading a thread on the message board (BOARD command) '
+            'When on, reading a thread on the message board (|command|BOARD|reset| command) '
             'shows one message at a time with a [R]eply/[M]ail poster/<#>/'
             'Enter menu after each, instead of dumping the whole thread at '
             'once.'

@@ -40,6 +40,7 @@ from combat import lurk
 from combat.rewards import gold_from_monster, exp_per_swing
 from flags import PlayerFlags
 from monsters import monster_display_name
+from tada_utilities import is_or_are
 
 if TYPE_CHECKING:
     from network_context import GameContext
@@ -378,6 +379,30 @@ def _record_kill(player, monster: dict) -> None:
             player.unsaved_changes = True
 
 
+def monster_gone_for(player, monster_no, *, level: int, room_no) -> Optional[str]:
+    """Is the room's monster *monster_no* already dealt with, for *player*?
+    Returns 'dead', 'fled' or 'charmed', or None if it's still there to
+    fight. room.monster is shared, but whether it's dead is per player
+    (dead_monsters etc.), so ATTACK/LURK must check this before opening a
+    fresh CombatSession -- each session fights its own full-HP copy.
+
+    'dead' also covers a re_animates kill in this same room visit
+    (player.slain_here): those never go into dead_monsters (see
+    _record_kill()), but SPUR still shows "YOU SEE A DEAD m$" (md=1) until
+    the player leaves; it re-animates on re-entry (rd.mons runs again).
+    """
+    if monster_no is None:
+        return None
+    if (monster_no in (getattr(player, 'dead_monsters', None) or [])
+            or getattr(player, 'slain_here', None) == (int(level), int(room_no), monster_no)):
+        return 'dead'
+    if monster_no in (getattr(player, 'fled_monsters', None) or []):
+        return 'fled'
+    if monster_no in (getattr(player, 'charmed_monsters', None) or []):
+        return 'charmed'
+    return None
+
+
 def _record_flee(player, monster: dict) -> None:
     """Mark a monster scared off by a loud weapon as tracks-only for this
     player -- SPUR's md==2 state (SPUR.COMBAT.S scare subroutine). Per-player,
@@ -415,8 +440,72 @@ def _ammo_term(weapon_name: str) -> str:
     return 'bullet'
 
 
+# The combat prompt's own menu choices, by first word (lowercased). An
+# empty answer means Attack. Anything else goes to
+# CombatSession._run_command_mid_fight(). 'l' stays LURK here even though
+# LOOK also claims it as an alias -- type LOOK in full mid-fight.
+_COMBAT_MENU_WORDS = {
+    'a': 'a', 'att': 'a', 'attack': 'a', 'k': 'a', 'kill': 'a', 'fight': 'a',
+    'c': 'c', 'charge': 'c',
+    'l': 'l', 'lurk': 'l',
+    'f': 'f', 'flee': 'f', 'run': 'f',
+    'r': 'r',
+    'x': 'x',
+}
+
+# Regular commands the combat prompt hands to the command processor
+# (by canonical command name). SPUR.COMBAT.S's own prompt handled CAST
+# itself (`if i$="CAST" goto lnk.msc3`) and sent everything else through
+# `i$="advent3":goto lnk.main` to SPUR.MAIN.S's full command set -- USE,
+# EAT, DRINK, WEAR, READY, QUIT, ... -- each landing back at `advent`,
+# i.e. the monster swings again before the next prompt. TURN commands
+# spend the player's action for the round the same way; FREE ones only
+# look at things and re-prompt without a monster swing (SPUR was
+# inconsistent here -- HELP went to advent2, LOOK to advent -- so this
+# port just keeps reading your own sheet free). Everything else, notably
+# movement (FLEE is the way out), is refused for free.
+_COMBAT_TURN_COMMANDS = frozenset({
+    'use', 'cast', 'eat', 'drink', 'wear', 'unwear', 'ready', 'unready', 'quit',
+})
+_COMBAT_FREE_COMMANDS = frozenset({'inv', 'stat', 'look', 'help'})
+
+
+def lost_sight_roll(player, monster: dict, *, is_surprise: bool = False) -> bool:
+    """SPUR.MAIN.S advent: `i$=str$(pc):if not instr(i$,"68") then if
+    mid$(zu$,2,1)="0" goto advent4` / `z=pc*10+5:if mid$(zu$,2,1)="1"
+    z=50` / `if random(100)>z zs=999` -- a Thief (pc=6, ~34%), an Assassin
+    (pc=8, ~14%), or anyone wearing the Ring of Invisibility (~49%,
+    overriding the class odds) may slip out of the monster's sight before
+    it swings ("m$ LOST SIGHT OF YOU!"). A 'tough' monster (wy$ ".") never
+    loses sight (`if instr(".",wy$) zs=0:goto advent4`), nor does one the
+    player surprised (zs=997 skips the roll). Everyone else: always False.
+    """
+    if (monster.get('flags') or {}).get('tough') or is_surprise:
+        return False
+    from base_classes import PlayerClass
+    char_class = getattr(player, 'char_class', None)
+    if player.query_flag(PlayerFlags.RING_WORN):
+        z = 50
+    elif char_class == PlayerClass.THIEF:
+        z = 65
+    elif char_class == PlayerClass.ASSASSIN:
+        z = 85
+    else:
+        return False
+    return random.randint(0, 99) > z
+
+
 def _monster_hp(monster: dict) -> int:
-    return int(monster.get('strength') or monster.get('hit_points') or 5)
+    # Not "strength or hit_points or 5": 0 is falsy, so a hit landing the
+    # monster on exactly 0 read back as 5 HP -- it "healed" instead of
+    # dying, and only an overshoot below 0 ever killed it (found by
+    # tests/e2e/test_shared_monster_kill_e2e.py: a 4-HP TROLL took 20-30
+    # blows). Same trap monsters.py's monster_is_alive() already avoids.
+    for key in ('strength', 'hit_points'):
+        value = monster.get(key)
+        if value is not None:
+            return int(value)
+    return 5
 
 
 def _set_monster_hp(monster: dict, hp: int) -> None:
@@ -456,6 +545,23 @@ class CombatSession:
         # (skip branch SPUR.COMBAT.S m.attack instr("*MNT",ys$) branch).
         # Only ever True on the first exchange (monster_attack_count == 0).
         self._charge_eligible = False
+        # The mounted first-strike roll happens at most once per fight --
+        # before the first prompt of a fight the player started, or on the
+        # monster's opening swing of one it started (see _monster_turn()).
+        self._charge_rolled = False
+        # True when the monster started this fight itself on room entry
+        # (encounters/monster.py's try_monster_engage(), via
+        # enter_combat(monster_initiated=True)) -- SPUR.MAIN.S advent's
+        # normal case, where m.attack runs before the player's very first
+        # prompt. False when the player typed ATTACK/LURK on a monster that
+        # hadn't engaged them, so the player's swing comes first.
+        self.monster_initiated = False
+        # SPUR zs=999 ("m$ LOST SIGHT OF YOU!", SPUR.MAIN.S advent): a
+        # Thief, Assassin, or Ring of Invisibility wearer can slip out of
+        # the monster's view. While set, the monster doesn't swing and
+        # can't block a FLEE; the player's next attack clears it
+        # (SPUR.COMBAT.S p.attack `if zs=999 zs=0`). See _roll_lost_sight().
+        self._lost_sight = False
         # Crystal Pendant (item #82): resolved once per encounter (SPUR.MISC4.S
         # mon.set/stone, called when the monster is first set up, not per
         # round) -- if it blocks, the monster can never attempt turn-to-stone
@@ -550,22 +656,43 @@ class CombatSession:
                     result = self._swing(ctx, is_lurking=True)
             else:
                 result = self._swing(ctx)
-            if result is None:
-                return
-            await _add_exp(ctx, exp_per_swing())
-            await self._narrate_player_swing(ctx, result, bystander=True)
-            if result.hit:
-                self._record_hit(_player_name(ctx))
-            if result.round_max > 0 and result.round_count is not None:
-                bystander_player = ctx.player
-                bystander_player.ammo_rounds = result.round_count
-                bystander_player.unsaved_changes = True
-                if not result.hit:
-                    await self._stray_round(ctx, result.weapon_name,
-                                            weapon_id=result.weapon_id)
-            _set_monster_hp(self.monster, _monster_hp(self.monster) - result.damage)
+            if result is not None:
+                await _add_exp(ctx, exp_per_swing())
+                await self._narrate_player_swing(ctx, result, bystander=True)
+                if result.hit:
+                    self._record_hit(_player_name(ctx))
+                if result.round_max > 0 and result.round_count is not None:
+                    bystander_player = ctx.player
+                    bystander_player.ammo_rounds = result.round_count
+                    bystander_player.unsaved_changes = True
+                    if not result.hit:
+                        await self._stray_round(ctx, result.weapon_name,
+                                                weapon_id=result.weapon_id)
+                _set_monster_hp(self.monster, _monster_hp(self.monster) - result.damage)
+                if _monster_hp(self.monster) <= 0:
+                    await self._monster_dies(ctx)
+                    return
+
+            # The joining player's own party fights alongside them -- one
+            # swing each per ATTACK/LURK, the same as the leader's allies get
+            # each round in _run_loop(). Before, only the leader's allies
+            # ever swung, so a second party's allies just stood there. (A
+            # LURK whose own shot doesn't fire still sends the allies in,
+            # also as in _run_loop().)
+            await self._ally_swings(ctx)
             if _monster_hp(self.monster) <= 0:
-                await self._monster_dies(ctx)
+                await self._monster_dies(ctx, player_killed=False)
+
+    async def take_over(self, ctx: 'GameContext') -> None:
+        """*ctx* becomes this fight's leader and runs its round loop, after
+        the previous leader left (fled, died, disconnected, ...) while
+        others were still fighting. Same monster, same HP -- the fight just
+        carries on with a new player at the prompt, swinging first this
+        round (they chose to attack). Blocks until the fight ends for them,
+        like start()."""
+        self.leader = ctx
+        await self._join_attacker(ctx)
+        await self._run_loop(ctx, resumed=True)
 
     async def flee(self, ctx: 'GameContext') -> bool:
         """Attempt to flee.  Returns True if the player escaped."""
@@ -574,7 +701,10 @@ class CombatSession:
         room_no   = getattr(ctx.client, 'room', None)
         game_map  = getattr(ctx.server, 'game_map', None)
         room      = game_map.rooms.get(int(room_no)) if game_map and room_no else None
-        result    = flee_attempt(ctx.player, self.monster, monster_is_following=True, room=room)
+        # A monster that lost sight of the player (SPUR zs=999) isn't in a
+        # position to block the way out.
+        result    = flee_attempt(ctx.player, self.monster,
+                                 monster_is_following=not self._lost_sight, room=room)
         if result.impassable_room:
             await ctx.send("Can't flee from here.")
             return False
@@ -613,8 +743,12 @@ class CombatSession:
             return False
 
         mname = self.monster.get('name', '')
+        from monsters import monster_display_name
+        from room_notices import notify
+        who = getattr(ctx.player, 'name', None) or 'Someone'
         if 'HORSE' not in mname.upper():
             await ctx.send('You practice with the lasso.')
+            await notify(ctx, f'{who} swings a lasso at {monster_display_name(self.monster)}.')
             return False
 
         from ally_events.capture_horse import mount_slot_available, capture_mount
@@ -626,6 +760,7 @@ class CombatSession:
         mount = await capture_mount(ctx, self.monster)
         if mount is None:
             return False
+        await notify(ctx, f'{who} lassoes {monster_display_name(self.monster)}!')
         self._done.set()
         self._remove_attacker(ctx)
         return True
@@ -721,8 +856,8 @@ class CombatSession:
         return game_map.get_room(level, int(self.room_no))
 
     async def _check_tactical_ambush(self, ctx: 'GameContext') -> None:
-        """SPUR.MISC4.S "tactical": once per encounter, before the first
-        exchange, an ambush falls on a random deployment slot -- POINT 50%,
+        """SPUR.MISC4.S "tactical": once per encounter (on room entry --
+        see roll_tactical_ambush()), an ambush falls on a random deployment slot -- POINT 50%,
         FLANK 20%, REAR 30%. Whichever servant ORDER has posted there
         shouts a warning and rolls to hold (SPUR: roll vs. the servant's
         hit points); failing that roll either scares them off for good
@@ -867,16 +1002,40 @@ class CombatSession:
     # Internal: turn loop
     # ------------------------------------------------------------------
 
-    async def _run_loop(self, ctx: 'GameContext') -> None:
-        """Main per-leader combat loop.  Runs until monster dies, player dies, or fled."""
+    async def _run_loop(self, ctx: 'GameContext', *, resumed: bool = False) -> None:
+        """Main per-leader combat loop.  Runs until monster dies, player dies, or fled.
+
+        *resumed*: this fighter is taking over a fight already in progress
+        (take_over()) -- skip the encounter intro (opening line, greeting,
+        Crystal Pendant check), which already happened for this monster."""
+        mname = monster_display_name(self.monster)
+        player = ctx.player
+        if resumed:
+            await ctx.send(f'You take the lead against {mname}!')
+            await ctx.send_room(f'{_player_name(ctx)} takes the lead against {mname}!',
+                                exclude_self=True)
+            await self._lead_rounds(ctx)
+            return
+        await self._intro_then_rounds(ctx)
+
+    async def _intro_then_rounds(self, ctx: 'GameContext') -> None:
         mname = monster_display_name(self.monster)
         player = ctx.player
 
-        await ctx.send(f'Combat begins!  You face {mname}!')
-        await ctx.send_room(
-            f'{_player_name(ctx)} attacks {mname}!',
-            exclude_self=True,
-        )
+        if self.monster_initiated:
+            mname_cap = monster_display_name(self.monster, capitalize=True)
+            verb = 'attack' if is_or_are(self.monster.get('name', '')) == 'are' else 'attacks'
+            await ctx.send(f'Combat begins!  {mname_cap} {verb} you!')
+            await ctx.send_room(
+                f'{mname_cap} {verb} {_player_name(ctx)}!',
+                exclude_self=True,
+            )
+        else:
+            await ctx.send(f'Combat begins!  You face {mname}!')
+            await ctx.send_room(
+                f'{_player_name(ctx)} attacks {mname}!',
+                exclude_self=True,
+            )
 
         # GUARDIAN (#103) shapeshifts to mirror the player -- not in the
         # SPUR source's own `guardian` gosub (SPUR.MISC4.S), just flavor
@@ -894,21 +1053,36 @@ class CombatSession:
         # when the monster is first set up for this encounter.
         await self._check_crystal_pendant(ctx)
 
-        # Tactical ambush (SPUR.MISC4.S "tactical") -- resolved once, here,
-        # same timing as the Crystal Pendant check above. May set
-        # self._ambush_first_strike, consumed on the monster's first swing
-        # this fight, below.
-        await self._check_tactical_ambush(ctx)
+        # Tactical ambush (SPUR.MISC4.S "tactical") is no longer rolled
+        # here: SPUR only runs it from rd.mons on room entry, so it's
+        # rolled once there (roll_tactical_ambush(), called from
+        # encounters/monster.py) and handed in via enter_combat(ambushed=)
+        # -> self._ambush_first_strike. Rolling it again at fight start
+        # doubled the ally's warning shout on every room-entry fight, and
+        # re-rolled it after a surprise, which SPUR never does (`if zq=0
+        # if zs=0 gosub tactical`).
 
+        await self._lead_rounds(ctx)
+
+    async def _lead_rounds(self, ctx: 'GameContext') -> None:
+        """The per-round loop itself -- after the intro, or straight away
+        for a fighter taking over (take_over())."""
+        mname = monster_display_name(self.monster)
+        player = ctx.player
+        first_round = True
+        # Set when the player's input was refused (CHARGE not available,
+        # LURK with no allies) -- re-prompt without it costing a turn, so
+        # the monster doesn't get a free swing off a typo.
+        reprompt = False
         while not self._done.is_set():
             # ---- Druid/Ranger passive taming (TADA original, not SPUR) ----
-            if await self._try_class_tame(ctx):
+            if not reprompt and await self._try_class_tame(ctx):
                 return
 
             # ---- Per-round status warnings (SPUR.COMBAT.S lines 21-25, 88) ----
             hp = getattr(player, 'hit_points', 1)
             if hp < 9:
-                await ctx.send('[+] HP DANGEROUSLY LOW [+]  (FLEE might be wiser!)')
+                await ctx.send('[+] HP DANGEROUSLY LOW [+]  (|command|FLEE|reset| might be wiser!)')
             for warn in _survival_warnings(player):
                 await ctx.send(warn)
 
@@ -918,6 +1092,22 @@ class CombatSession:
             if _ps < 4 and getattr(player, 'readied_weapon', None) is not None:
                 player.readied_weapon = None
                 await ctx.send('You are too weak to wield your weapon!')
+
+            # ---- Monster's turn (SPUR.COMBAT.S advent5) ----
+            # SPUR's main loop runs `gosub m.attack` at the top of every
+            # turn, before the player's command is even read -- so the
+            # monster swings first each round, and READY, skipping a turn,
+            # or a blocked FLEE all cost the player a swing from it. The
+            # one exception is the opening round of a fight the player
+            # started (ATTACK on a monster that hadn't engaged them): there
+            # p.attack runs first and the monster's first m.attack follows.
+            if (self.monster_initiated or not first_round) and not reprompt:
+                if await self._monster_turn(ctx):
+                    return
+                if self._done.is_set():
+                    break
+            first_round = False
+            reprompt = False
 
             # ---- STORM asserts its will (SPUR.COMBAT.S line 59) ----
             # Early in the fight (monster attacked fewer than 6 times), a Storm
@@ -937,14 +1127,13 @@ class CombatSession:
             # first exchange. Independent of whether the player then picks
             # CHARGE or a plain attack, achieving first strike here means
             # the monster doesn't get to retaliate this round (see the
-            # missile/pole first-strike checks below).
-            self._charge_eligible = False
-            if self._monster_attack_count == 0 and player.query_flag(PlayerFlags.MOUNTED):
-                self._charge_eligible = _roll_charge_first_strike(player, self.monster)
-                if self._charge_eligible:
-                    await ctx.send('MOUNTED- YOU MANAGE TO GET FIRST STRIKE! (CHARGE if you want)')
-                else:
-                    await ctx.send("MOUNTED- OOPS, DIDN'T GET FIRST STRIKE..")
+            # missile/pole first-strike checks in _monster_turn()).
+            # Rolled here only for a fight the player started -- in one the
+            # monster started, _monster_turn() already rolled it on the
+            # monster's opening swing, same as SPUR's m.attack vu=1.
+            if (not self._charge_rolled and self._monster_attack_count == 0
+                    and player.query_flag(PlayerFlags.MOUNTED)):
+                await self._roll_mounted_first_strike(ctx)
 
             # ---- player prompt (skipped if weapon auto-attacked) ----
             is_charge = False
@@ -959,19 +1148,39 @@ class CombatSession:
                     f'(HP:{getattr(player, "hit_points", "?")}'
                     f'  {mname} HP:{_monster_hp(self.monster)})',
                 ]
+                if not getattr(player, 'is_expert', False):
+                    preamble.append('(Or |command|USE|reset|, |command|CAST|reset|, '
+                                    '|command|EAT|reset|, |command|DRINK|reset|, '
+                                    '|command|INV|reset|...)')
                 raw = await ctx.prompt('Command', preamble_lines=preamble)
                 if raw is None:
-                    # Client disconnected mid-fight
+                    # Client disconnected mid-fight (or sent bye): out of the
+                    # fight, which goes on for anyone else still in it.
+                    self._leave_fight(ctx)
                     break
-                cmd = (raw.strip().lower() or 'a')[0]
+                text = raw.strip()
+                word = text.split()[0].lower() if text else 'a'
+                cmd = _COMBAT_MENU_WORDS.get(word)
+                if cmd is None:
+                    # Not a combat-menu choice -- maybe a regular command
+                    # (USE a potion, CAST a spell, ...), see
+                    # _run_command_mid_fight().
+                    outcome = await self._run_command_mid_fight(ctx, text)
+                    if outcome == 'ended':
+                        return
+                    if outcome == 'free':
+                        reprompt = True
+                    continue
                 if cmd == 'c' and not self._charge_eligible:
                     await ctx.send('You can not CHARGE now.')
+                    reprompt = True
                     continue
                 # LURK (SPUR.COMBAT.S:82 "NO ALLIES - NO LURK!") -- refused
                 # and re-prompted, same as an ineligible CHARGE, rather than
                 # spending the round.
                 if cmd == 'l' and not lurk.has_living_ally(player):
                     await ctx.send('No allies — no LURK!')
+                    reprompt = True
                     continue
                 if cmd == 'f':
                     fled = await self.flee(ctx)
@@ -984,10 +1193,17 @@ class CombatSession:
                     continue
                 if cmd == 'x':
                     # Exit this menu for the round: no attack, no flee
-                    # attempt -- just skip the turn and re-prompt.
+                    # attempt -- just skip the turn and re-prompt. Like
+                    # READY or a blocked FLEE, this still gives the monster
+                    # its swing at the top of the next round.
                     continue
                 is_charge = cmd == 'c'
                 is_lurking = cmd == 'l'
+
+            # Any attack (including a STORM weapon's auto-attack) brings the
+            # monster's eyes back onto the player (SPUR.COMBAT.S p.attack:
+            # `if zs=999 zs=0`).
+            self._lost_sight = False
 
             # Consumed by _resolve_monster_hit()'s ally-redirect check below
             # (SPUR.COMBAT.S lurk.a) -- must survive past this round's
@@ -1076,165 +1292,290 @@ class CombatSession:
                     if await self._charge_unseat_check(ctx):
                         return
 
-                # Mounted first strike achieved this round (see the CHARGE
-                # eligibility roll at the top of the loop) -- the monster's
-                # retaliation is skipped regardless of whether the player
-                # chose CHARGE or a plain attack (SPUR.COMBAT.S m.attack:
-                # achieving first strike `return`s before the real attack).
-                if self._charge_eligible:
+    async def _run_command_mid_fight(self, ctx: 'GameContext', text: str) -> str:
+        """Run a regular command typed at the combat prompt (see
+        _COMBAT_TURN_COMMANDS/_COMBAT_FREE_COMMANDS). Returns:
+
+          'turn'  -- done; the round goes on to the monster's next swing
+          'free'  -- re-prompt without spending the turn (an info command,
+                     or a refused one)
+          'ended' -- the fight is over for this player: the command killed
+                     the monster (CAST/a grenade via the active session),
+                     the player died, left the room (a teleport item), or
+                     confirmed QUIT
+        """
+        processor = getattr(getattr(ctx, 'client', None), 'command_processor', None)
+        command = processor.find_command(text.split()[0])[0] if processor else None
+        name = getattr(command, 'name', None)
+        if name not in _COMBAT_TURN_COMMANDS and name not in _COMBAT_FREE_COMMANDS:
+            if command is None:
+                await ctx.send('Huh?')
+            else:
+                await ctx.send("You can't do that in the middle of a fight! "
+                               "(|command|FLEE|reset| to get away.)")
+            return 'free'
+
+        player = ctx.player
+        level_before = getattr(player, 'map_level', None)
+        result = await processor.process_input(text, ctx=ctx)
+
+        if (getattr(result, 'data', None) or {}).get('quit'):
+            # SPUR.MISC2.S cnf.quit clears the monster (mw=0) and leaves.
+            # ctx.closing makes every later prompt return None, so the
+            # main game loop unwinds straight into _player_quit()'s save.
+            ctx.closing = True
+            self._leave_fight(ctx)
+            return 'ended'
+        if self._done.is_set():
+            return 'ended'
+        if getattr(player, 'hit_points', 1) <= 0:
+            await self._player_dies(ctx)
+            return 'ended'
+        if (getattr(ctx.client, 'room', None) != self.room_no
+                or getattr(player, 'map_level', None) != level_before):
+            self._leave_fight(ctx)
+            return 'ended'
+        return 'free' if name in _COMBAT_FREE_COMMANDS else 'turn'
+
+    def _leave_fight(self, ctx: 'GameContext') -> None:
+        """Drop *ctx* from this fight, ending it if nobody's left (same
+        bookkeeping as a successful flee())."""
+        self._remove_attacker(ctx)
+        if not self.attackers:
+            self._done.set()
+
+    async def _roll_mounted_first_strike(self, ctx: 'GameContext') -> bool:
+        """Mounted CHARGE eligibility roll (skip branch SPUR.COMBAT.S
+        m.attack, instr("*MNT",ys$) branch) -- at most once per fight.
+        Success sets self._charge_eligible, offering [C]harge at the next
+        prompt and skipping the monster's next swing."""
+        self._charge_rolled = True
+        self._charge_eligible = _roll_charge_first_strike(ctx.player, self.monster)
+        if self._charge_eligible:
+            # The CHARGE hint is for players still learning the commands --
+            # [C]harge also shows in the prompt's option list either way.
+            hint = '' if ctx.player.is_expert else ' (|command|CHARGE|reset| if you want)'
+            await ctx.send(f'Mounted- you manage to get first strike!{hint}')
+        else:
+            await ctx.send("Mounted- oops, didn't get first strike..")
+        return self._charge_eligible
+
+    def _roll_lost_sight(self, player) -> bool:
+        """Once per round, before the monster swings: has it lost sight of
+        the player (lost_sight_roll())? Once lost, it stays lost until the
+        player attacks again (see _run_loop())."""
+        if not self._lost_sight:
+            self._lost_sight = lost_sight_roll(player, self.monster, is_surprise=self.is_surprise)
+        return self._lost_sight
+
+    async def _monster_turn(self, ctx: 'GameContext') -> bool:
+        """The monster's swing for this round (SPUR.COMBAT.S m.attack, run
+        from advent5 at the top of every turn, before the player's prompt).
+
+        Returns True if the fight ended (player killed, petrified, or
+        teleported away) -- the caller just returns. Otherwise the round
+        continues on to the player's prompt.
+
+        Skipped entirely, with no swing, when:
+          - the monster lost sight of the player (_roll_lost_sight());
+          - it's the monster's very first swing of the fight
+            (SPUR vu=1) and the player wins first strike: CHARGE
+            eligibility already rolled in a player-started fight, a
+            mounted roll, a loaded missile weapon, or a pole weapon roll.
+            Skip branch SPUR.COMBAT.S m.attack bypasses all of these when
+            the player was caught off guard (`if ((vu>1) or (vz=1)) goto
+            vu>1`) -- an ambush can't be out-drawn.
+        """
+        player = ctx.player
+        async with self._lock:
+            if self._done.is_set():
+                return False
+
+            # CHARGE eligibility only lasts for the one prompt it was
+            # offered at -- consumed here, at the next monster turn.
+            charge_first_strike = self._charge_eligible
+            self._charge_eligible = False
+
+            mname_cap = monster_display_name(self.monster, capitalize=True)
+            if self._roll_lost_sight(player):
+                await ctx.send(f'{mname_cap} lost sight of you!')
+                return False
+
+            first_swing = self._monster_attack_count == 0
+            if first_swing and not self._ambush_first_strike:
+                # Mounted first strike achieved at a player-started
+                # fight's opening prompt (see the CHARGE eligibility roll
+                # in _run_loop()) -- the monster's swing is skipped
+                # regardless of whether the player chose CHARGE or a plain
+                # attack (SPUR.COMBAT.S m.attack: achieving first strike
+                # `return`s before the real attack).
+                if charge_first_strike:
                     self._monster_attack_count += 1
-                    continue
+                    return False
+
+                # Mounted first strike on the monster's own opening swing
+                # (a fight it started): the roll happens here instead, and
+                # success offers [C]harge at the prompt that follows.
+                if not self._charge_rolled and player.query_flag(PlayerFlags.MOUNTED):
+                    if await self._roll_mounted_first_strike(ctx):
+                        self._monster_attack_count += 1
+                        return False
 
                 # Missile first strike: if ammo is loaded and monster hasn't
                 # attacked yet, player's opening shot counts as first strike
-                # and the monster skips its swing this round (SPUR.COMBAT.S:219).
-                if (self._monster_attack_count == 0
-                        and int(getattr(player, 'ammo_rounds', 0) or 0) > 0):
+                # and the monster skips its swing this round (SPUR.COMBAT.S:219
+                # -- `if vu=1 if vn>0 if vz<>1 if zs<>997 if not
+                # instr("LIGHT",wr$)`: not after a surprise, and never for a
+                # LIGHT SABRE-style energy weapon).
+                weapon_name = (getattr(getattr(player, 'readied_weapon', None), 'name', '') or '').upper()
+                if (int(getattr(player, 'ammo_rounds', 0) or 0) > 0
+                        and not self.is_surprise
+                        and 'LIGHT' not in weapon_name):
                     await ctx.send('MISSILE: FIRST STRIKE!')
                     self._monster_attack_count += 1
-                    continue
+                    return False
 
                 # Pole weapon first strike: chance to outreach monster on the
                 # first exchange. Roll + (monster agility × 3) + 2 < player DEX
                 # → first strike; otherwise monster still swings (SPUR.COMBAT.S:221).
-                if self._monster_attack_count == 0:
-                    _pw = getattr(player, 'readied_weapon', None)
-                    _wc = getattr(_pw, 'weapon_class', None)
-                    _wc_val = (_wc.value if hasattr(_wc, 'value') else str(_wc)).lower()
-                    if _wc_val == 'pole/range':
-                        _ma  = int(self.monster.get('to_hit', 4) or 4)
-                        _pd  = int((getattr(player, 'stats', None) or {}).get('Dexterity', 10))
-                        _roll = random.randint(1, 10)
-                        await ctx.send('POLE WEAPON: ', end='')
-                        if _roll + (_ma * 3) + 2 < _pd:
-                            await ctx.send('YOU MANAGE TO GET FIRST STRIKE!')
-                            self._monster_attack_count += 1
-                            continue
-                        else:
-                            await ctx.send("OOPS, DIDN'T GET FIRST STRIKE..")
+                _pw = getattr(player, 'readied_weapon', None)
+                _wc = getattr(_pw, 'weapon_class', None)
+                _wc_val = (_wc.value if hasattr(_wc, 'value') else str(_wc)).lower()
+                if _wc_val == 'pole/range':
+                    _ma  = int(self.monster.get('to_hit', 4) or 4)
+                    _pd  = int((getattr(player, 'stats', None) or {}).get('Dexterity', 10))
+                    _roll = random.randint(1, 10)
+                    # await ctx.send('POLE WEAPON: ', end='')
+                    if _roll + (_ma * 3) + 2 < _pd:
+                        await ctx.send('Pole weapon: you manage to get first strike!')
+                        self._monster_attack_count += 1
+                        return False
+                    else:
+                        await ctx.send("OOPS, DIDN'T GET FIRST STRIKE..")
 
-                # Monster swings back at leader
-                was_first_monster_attack = self._monster_attack_count == 0
+            # Monster swings back at leader
+            was_first_monster_attack = self._monster_attack_count == 0
 
-                # SPUR.COMBAT.S m.attack: `if zs=997 print m$ IS/ARE FURIOUS`
-                # -- a monster the player surprised (encounters/monster.py's
-                # _try_surprise, is_surprise here) is furious every round it
-                # swings back; a surprised Guild turf guard (#65/66/67) also
-                # calls for backup the first time (SPUR's mad.gd -- see
-                # encounters/turf_guards.py).
-                if self.is_surprise:
-                    mname_f = monster_display_name(self.monster, capitalize=True)
-                    verb = 'are' if self.monster.get('name', '')[-1:].upper() == 'S' else 'is'
-                    await ctx.send(f'{mname_f} {verb} furious!')
-                    from encounters.turf_guards import try_call_reinforcements
-                    await try_call_reinforcements(ctx, self.monster)
+            # SPUR.COMBAT.S m.attack: `if zs=997 print m$ IS/ARE FURIOUS`
+            # -- a monster the player surprised (encounters/monster.py's
+            # _try_surprise, is_surprise here) is furious every round it
+            # swings back; a surprised Guild turf guard (#65/66/67) also
+            # calls for backup the first time (SPUR's mad.gd -- see
+            # encounters/turf_guards.py).
+            if self.is_surprise:
+                mname_f = monster_display_name(self.monster, capitalize=True)
+                verb = 'are' if self.monster.get('name', '')[-1:].upper() == 'S' else 'is'
+                await ctx.send(f'{mname_f} {verb} furious!')
+                from encounters.turf_guards import try_call_reinforcements
+                await try_call_reinforcements(ctx, self.monster)
 
-                m_result = monster_attacks(self.monster, player,
-                                           stone_blocked=self._turn_to_stone_blocked,
-                                           spells_used=self._spells_used)
+            m_result = monster_attacks(self.monster, player,
+                                       stone_blocked=self._turn_to_stone_blocked,
+                                       spells_used=self._spells_used)
 
-                # Monster spellcasting teleport (SPUR.MISC4.S mon.cst,
-                # ++-only): ends the fight outright, ahead of the normal
-                # hit/miss resolution below.
-                if m_result.spell_cast == 'teleport':
-                    await self._monster_teleports_player(ctx, m_result)
-                    return
+            # Monster spellcasting teleport (SPUR.MISC4.S mon.cst,
+            # ++-only): ends the fight outright, ahead of the normal
+            # hit/miss resolution below.
+            if m_result.spell_cast == 'teleport':
+                await self._monster_teleports_player(ctx, m_result)
+                return True
 
-                # Turn to stone (SPUR.COMBAT.S "medusa" section): replaces the
-                # rest of the monster's attack this round entirely.
-                if m_result.turn_to_stone_attempted:
-                    mname_ts = monster_display_name(self.monster, capitalize=True)
-                    await ctx.send(f'{mname_ts} CASTS TURN TO STONE ON YOU!')
-                    if m_result.turned_to_stone:
-                        await self._player_petrified(ctx)
-                        return
-                    await ctx.send('...IT FAILED!')
-                    self._monster_attack_count += 1
-                    continue
+            # Turn to stone (SPUR.COMBAT.S "medusa" section): replaces the
+            # rest of the monster's attack this round entirely.
+            if m_result.turn_to_stone_attempted:
+                mname_ts = monster_display_name(self.monster, capitalize=True)
+                await ctx.send(f'{mname_ts} CASTS TURN TO STONE ON YOU!')
+                if m_result.turned_to_stone:
+                    await self._player_petrified(ctx)
+                    return True
+                await ctx.send('...IT FAILED!')
+                self._monster_attack_count += 1
+                return False
 
-                # Druid regeneration: when nearly dead, 10% chance to heal
-                # instead of taking damage (SPUR.COMBAT.S lines 204-207:
-                # pc=2, (hp+a)<30, rnd.10z z=5 → "YO! YOU REGENERATE HIT POINTS!")
-                # Not applicable to a monster spellcasting Destroy hit --
-                # SPUR.MISC4.S's destroy branch applies hp=hp-z directly
-                # and exits (pop:goto c.return) without ever reaching this
-                # check, which lives entirely inside the normal medusa/
-                # dragon swing-resolution section mon.cst bypasses.
-                druid_regen = False
-                if m_result.hit and m_result.damage > 0 and not m_result.spell_cast:
-                    try:
-                        from base_classes import PlayerClass
-                        hp_now = int(getattr(player, 'hit_points', 1) or 1)
-                        if (getattr(player, 'char_class', None) == PlayerClass.DRUID
-                                and (hp_now + m_result.damage) < 30
-                                and random.randint(1, 10) == 5):
-                            druid_regen = True
-                    except Exception:
-                        pass
-
-                if druid_regen:
+            # Druid regeneration: when nearly dead, 10% chance to heal
+            # instead of taking damage (SPUR.COMBAT.S lines 204-207:
+            # pc=2, (hp+a)<30, rnd.10z z=5 → "YO! YOU REGENERATE HIT POINTS!")
+            # Not applicable to a monster spellcasting Destroy hit --
+            # SPUR.MISC4.S's destroy branch applies hp=hp-z directly
+            # and exits (pop:goto c.return) without ever reaching this
+            # check, which lives entirely inside the normal medusa/
+            # dragon swing-resolution section mon.cst bypasses.
+            druid_regen = False
+            if m_result.hit and m_result.damage > 0 and not m_result.spell_cast:
+                try:
+                    from base_classes import PlayerClass
                     hp_now = int(getattr(player, 'hit_points', 1) or 1)
-                    player.hit_points = hp_now + m_result.damage
-                    player.unsaved_changes = True
-                    await ctx.send('YO!  YOU REGENERATE HIT POINTS!')
-                else:
-                    if await self._resolve_monster_hit(ctx, m_result):
-                        return
+                    if (getattr(player, 'char_class', None) == PlayerClass.DRUID
+                            and (hp_now + m_result.damage) < 30
+                            and random.randint(1, 10) == 5):
+                        druid_regen = True
+                except Exception:
+                    pass
 
+            if druid_regen:
+                hp_now = int(getattr(player, 'hit_points', 1) or 1)
+                player.hit_points = hp_now + m_result.damage
+                player.unsaved_changes = True
+                await ctx.send('YO!  YOU REGENERATE HIT POINTS!')
+            else:
+                if await self._resolve_monster_hit(ctx, m_result):
+                    return True
+
+            self._monster_attack_count += 1
+
+            # Tactical ambush bonus attack (SPUR.COMBAT.S:31 "gosub
+            # m.attack: if vz=1 ... SURPRISE ATTACK.. gosub m.attack"):
+            # the pre-combat ambush check caught the player off guard --
+            # the monster gets one immediate extra swing, but only on
+            # its very first attack of the fight.
+            if was_first_monster_attack and self._ambush_first_strike:
+                self._ambush_first_strike = False
+                await ctx.send('Surprise attack..')
+                m_result_ambush = monster_attacks(self.monster, player,
+                                                   stone_blocked=self._turn_to_stone_blocked,
+                                                   spells_used=self._spells_used)
+                if m_result_ambush.spell_cast == 'teleport':
+                    await self._monster_teleports_player(ctx, m_result_ambush)
+                    return True
+                if m_result_ambush.turn_to_stone_attempted:
+                    mname_ts3 = monster_display_name(self.monster, capitalize=True)
+                    await ctx.send(f'{mname_ts3} CASTS TURN TO STONE ON YOU!')
+                    if m_result_ambush.turned_to_stone:
+                        await self._player_petrified(ctx)
+                        return True
+                    await ctx.send('...IT FAILED!')
+                elif await self._resolve_monster_hit(ctx, m_result_ambush):
+                    return True
                 self._monster_attack_count += 1
 
-                # Tactical ambush bonus attack (SPUR.COMBAT.S:31 "gosub
-                # m.attack: if vz=1 ... SURPRISE ATTACK.. gosub m.attack"):
-                # the pre-combat ambush check caught the player off guard --
-                # the monster gets one immediate extra swing, but only on
-                # its very first attack of the fight.
-                if was_first_monster_attack and self._ambush_first_strike:
-                    self._ambush_first_strike = False
-                    await ctx.send('Surprise attack..')
-                    m_result_ambush = monster_attacks(self.monster, player,
-                                                       stone_blocked=self._turn_to_stone_blocked,
-                                                       spells_used=self._spells_used)
-                    if m_result_ambush.spell_cast == 'teleport':
-                        await self._monster_teleports_player(ctx, m_result_ambush)
-                        return
-                    if m_result_ambush.turn_to_stone_attempted:
-                        mname_ts3 = monster_display_name(self.monster, capitalize=True)
-                        await ctx.send(f'{mname_ts3} CASTS TURN TO STONE ON YOU!')
-                        if m_result_ambush.turned_to_stone:
-                            await self._player_petrified(ctx)
-                            return
-                        await ctx.send('...IT FAILED!')
-                    elif await self._resolve_monster_hit(ctx, m_result_ambush):
-                        return
-                    self._monster_attack_count += 1
+            # Double attack: some monsters swing twice per round (SPUR: ] flag, 40%)
+            # (SPUR.COMBAT.S: if instr("]",wy$) rnd.10a: if a<5 → DOUBLE ATTACK!)
+            m_flags = self.monster.get('flags', {}) or {}
+            if (m_flags.get('double_attacks')
+                    and random.randint(1, 10) <= 4
+                    and not self._done.is_set()):
+                m_result2 = monster_attacks(self.monster, player,
+                                            stone_blocked=self._turn_to_stone_blocked,
+                                            spells_used=self._spells_used)
+                if m_result2.spell_cast == 'teleport':
+                    await self._monster_teleports_player(ctx, m_result2)
+                    return True
+                await ctx.send('DOUBLE ATTACK!')
+                if m_result2.turn_to_stone_attempted:
+                    mname_ts2 = monster_display_name(self.monster, capitalize=True)
+                    await ctx.send(f'{mname_ts2} CASTS TURN TO STONE ON YOU!')
+                    if m_result2.turned_to_stone:
+                        await self._player_petrified(ctx)
+                        return True
+                    await ctx.send('...IT FAILED!')
+                elif await self._resolve_monster_hit(ctx, m_result2):
+                    return True
+                self._monster_attack_count += 1
 
-                # Double attack: some monsters swing twice per round (SPUR: ] flag, 40%)
-                # (SPUR.COMBAT.S: if instr("]",wy$) rnd.10a: if a<5 → DOUBLE ATTACK!)
-                m_flags = self.monster.get('flags', {}) or {}
-                if (m_flags.get('double_attacks')
-                        and random.randint(1, 10) <= 4
-                        and not self._done.is_set()):
-                    m_result2 = monster_attacks(self.monster, player,
-                                                stone_blocked=self._turn_to_stone_blocked,
-                                                spells_used=self._spells_used)
-                    if m_result2.spell_cast == 'teleport':
-                        await self._monster_teleports_player(ctx, m_result2)
-                        return
-                    await ctx.send('DOUBLE ATTACK!')
-                    if m_result2.turn_to_stone_attempted:
-                        mname_ts2 = monster_display_name(self.monster, capitalize=True)
-                        await ctx.send(f'{mname_ts2} CASTS TURN TO STONE ON YOU!')
-                        if m_result2.turned_to_stone:
-                            await self._player_petrified(ctx)
-                            return
-                        await ctx.send('...IT FAILED!')
-                    elif await self._resolve_monster_hit(ctx, m_result2):
-                        return
-                    self._monster_attack_count += 1
-
-                if getattr(player, 'hit_points', 1) <= 0:
-                    await self._player_dies(ctx)
-                    return
+            if getattr(player, 'hit_points', 1) <= 0:
+                await self._player_dies(ctx)
+                return True
+            return False
 
     # ------------------------------------------------------------------
     # Internal: single swing
@@ -1366,7 +1707,7 @@ class CombatSession:
             wn   = result.weapon_name or 'weapon'
             term = _ammo_term(wn).upper() + 'S'
             await ctx.send(f'NO {term} READY for the {wn}!')
-            await ctx.send('(Try USE to load ammunition first.)')
+            await ctx.send('(Try |command|USE|reset| to load ammunition first.)')
             return
         if result.bad_weapon_choice:
             await ctx.send('(bad weapon choice)')
@@ -1459,8 +1800,9 @@ class CombatSession:
         if result.hit and not result.spell_cast and (result.damage + result.fire_damage) >= hp:
             from ally_events import try_ally_death_save
             if await try_ally_death_save(ctx, result.damage + result.fire_damage):
-                self._done.set()
-                self._remove_attacker(ctx)
+                # Saved and carried out of the fight -- which goes on for
+                # anyone else still in it (see _player_dies()).
+                self._leave_fight(ctx)
                 return True
 
         await self._narrate_monster_swing(ctx, result)
@@ -1677,6 +2019,12 @@ class CombatSession:
             return
 
         lines = []
+        if getattr(result, 'glow_absorbed', 0):
+            lines.append("|cyan|[Wizard's glow flashes]|reset|")
+            # _apply_monster_damage() (called right after this) spends the
+            # round -- the last one is announced here, ahead of it.
+            if int(getattr(ctx.player, 'wizard_glow', None) or 0) <= 1:
+                lines.append('The shimmering glow around you fades.')
         if result.shield_blocked:
             lines.append(f'Your shield absorbs {result.shield_blocked} damage.')
             if result.shield_destroyed:
@@ -1735,6 +2083,13 @@ class CombatSession:
 
         if not result.hit:
             return
+
+        # Wizard's Glow (commands/cast.py): each blow it turns aside uses
+        # up one of its rounds -- see commands/stats.py's display.
+        if getattr(result, 'glow_absorbed', 0):
+            rounds = int(getattr(player, 'wizard_glow', None) or 0) - 1
+            player.wizard_glow = rounds if rounds > 0 else None
+            player.unsaved_changes = True
 
         # Shield degradation -- writes to the equipped item's own
         # .condition (2026-08-08 durability redesign), not just the flat
@@ -1814,6 +2169,19 @@ class CombatSession:
         # slain" message (Ryan's report: an ally-killed Dwarf stayed in the
         # room, fully healed, for the next `attack`).
         skill_notes = {id(b_ctx): _award_hit_based_skill(self, b_ctx) for b_ctx in credited}
+
+        # Record the kill for everyone in the fight *now*, before the first
+        # await below. self._done is already set, so a late ATTACK no longer
+        # finds this session -- if the monster weren't already dead for the
+        # attacker by then (dead_monsters / slain_here, see
+        # monster_gone_for()), that ATTACK opened a second, fresh full-HP
+        # fight against it. Recording it at the end of this method left a
+        # window as wide as every send below plus the shadow-ally recruit's
+        # Y/N prompt to the killer (found by tests/e2e/
+        # test_shared_monster_kill_e2e.py: a bystander who'd joined and
+        # missed re-fought the TROLL while the killer was being asked about
+        # APOLLO). The "is slain!" notices still go out last.
+        self._record_kill_for(credited)
 
         if player_killed:
             await ctx.send(f'|green|You have slain {mname}!{hits_note}{skill_notes[id(ctx)]}|reset|')
@@ -1961,12 +2329,28 @@ class CombatSession:
         # self.attackers (e.g. a grenade thrown at another room's fight via
         # commands/use.py) -- credited exactly once either way, since
         # _record_kill no longer dedupes (each kill is its own log entry).
+        # (The recording itself happened up top, in _record_kill_for(), so
+        # there's no window for a late ATTACK -- only the notices are here.)
         for b_ctx in credited:
-            _record_kill(b_ctx.player, self.monster)
             if b_ctx is ctx:
                 continue
             Mname = monster_display_name(self.monster, capitalize=True)
             await b_ctx.send(f'|green|{Mname} is slain!{skill_notes[id(b_ctx)]}|reset|')
+
+    def _record_kill_for(self, credited: list) -> None:
+        """_record_kill() plus slain_here for every credited participant --
+        synchronous on purpose (see _monster_dies()'s call site)."""
+        mid = self.monster.get('number') or self.monster.get('id_number') or self.monster.get('id')
+        for b_ctx in credited:
+            _record_kill(b_ctx.player, self.monster)
+            # Dead for this player until they leave the room, re_animates or
+            # not (see monster_gone_for()) -- without this, a bystander's
+            # ATTACK landing just after the kill opened a second, fresh
+            # full-HP fight against the same monster (tools/
+            # bot_epic_battle.py documented the race and worked around it).
+            if mid is not None and self.room_no is not None:
+                b_ctx.player.slain_here = (int(getattr(b_ctx.player, 'map_level', 1) or 1),
+                                           int(self.room_no), mid)
 
     async def _reveal_hidden_exit(self, ctx: 'GameContext') -> None:
         """Reveal a hidden_exit_east/west room's secret passage on monster death.
@@ -2045,8 +2429,14 @@ class CombatSession:
         )
 
     async def _player_dies(self, ctx: 'GameContext') -> None:
-        """Handle player death during combat."""
-        self._done.set()
+        """Handle player death during combat.
+
+        Takes only this player out of the fight (_leave_fight()): anyone
+        else still in it fights on against the same wounded monster, and
+        the next of them to ATTACK/LURK takes the lead (take_over()). This
+        used to end the fight outright, so their next ATTACK opened a fresh
+        full-HP one."""
+        self._leave_fight(ctx)
         mname = monster_display_name(self.monster)
         # TADA addition: a gendered sendoff on the closing line. Not SPUR-
         # sourced (see server/GENDER_AUDIT.md's "death message variant"
@@ -2083,8 +2473,10 @@ class CombatSession:
         separate per-room registry: the same monster showing up
         elsewhere on the map displays the same statue there too, exactly
         like SPUR.
+
+        Like _player_dies(), takes only this player out of the fight.
         """
-        self._done.set()
+        self._leave_fight(ctx)
         mname = monster_display_name(self.monster)
         await ctx.send([
             f'|red|...ARGG!! YOU ARE TURNED TO STONE!|reset|',
@@ -2188,11 +2580,22 @@ class CombatSession:
 # Module-level convenience
 # ---------------------------------------------------------------------------
 
-async def enter_combat(ctx: 'GameContext', monster: dict) -> None:
+async def enter_combat(ctx: 'GameContext', monster: dict, *,
+                       monster_initiated: bool = False,
+                       ambushed: bool = False) -> None:
     """Start a CombatSession for *ctx* against *monster*.
 
     Stores the session in server.active_combats[room_no] so bystanders
     can join with join_combat().  Cleans up on completion.
+
+    *monster_initiated* is True when the monster started the fight itself
+    on room entry (encounters/monster.py's try_monster_engage()) rather
+    than the player typing ATTACK/LURK -- the monster then swings before
+    the player's first prompt (see CombatSession.monster_initiated).
+
+    *ambushed* carries in a "caught off guard" result from the room-entry
+    tactical roll (roll_tactical_ambush()): the monster gets a bonus
+    second swing on its first attack (CombatSession._ambush_first_strike).
     """
     room_no = getattr(ctx.client, 'room', None)
 
@@ -2204,10 +2607,12 @@ async def enter_combat(ctx: 'GameContext', monster: dict) -> None:
         existing = ctx.server.active_combats[room_no]
         if not existing._done.is_set():
             await ctx.send('There is already a fight in progress here — joining!')
-            await existing.join(ctx)
+            await join_or_lead(ctx, existing)
             return
 
     session = CombatSession(monster, room_no)
+    session.monster_initiated = monster_initiated
+    session._ambush_first_strike = ambushed
 
     # SPUR.MISC4.S:69 -- a turf guard (#65/66/67) has a 20% chance to spawn
     # as its guild's captain instead, boosted and reflagged. Rolled here,
@@ -2239,8 +2644,60 @@ async def enter_combat(ctx: 'GameContext', monster: dict) -> None:
     try:
         await session.start(ctx)
     finally:
-        if room_no is not None and ctx.server.active_combats.get(room_no) is session:
-            del ctx.server.active_combats[room_no]
+        release_leader(ctx, session)
+
+
+def release_leader(ctx: 'GameContext', session: CombatSession) -> None:
+    """Tidy up after *ctx*'s turn leading *session* ends (its round loop
+    returned, however it ended).
+
+    A fight that's over comes out of server.active_combats. One that
+    isn't -- the leader fled, died or disconnected while others were
+    still fighting -- stays registered with no leader, so the next of
+    them to ATTACK/LURK takes over (join_or_lead()) against the same
+    wounded monster. Dropping it here used to let that next ATTACK open
+    a fresh, full-HP fight instead."""
+    if not session._done.is_set() and ctx in session.attackers:
+        session._leave_fight(ctx)        # left some other way, e.g. an exception
+    if session.leader is ctx:
+        session.leader = None
+    active = getattr(ctx.server, 'active_combats', None) or {}
+    room_no = session.room_no
+    if session._done.is_set() and room_no is not None and active.get(room_no) is session:
+        del active[room_no]
+
+
+async def join_or_lead(ctx: 'GameContext', session: CombatSession, *,
+                       is_lurking: bool = False) -> None:
+    """ATTACK/LURK on a fight already in progress: one bystander swing
+    (join()), or -- if its leader has left -- take over as leader."""
+    if session.leader is None:
+        try:
+            await session.take_over(ctx)
+        finally:
+            release_leader(ctx, session)
+        return
+    if is_lurking:
+        await session.join(ctx, is_lurking=True)
+    else:
+        await session.join(ctx)
+
+
+async def roll_tactical_ambush(ctx: 'GameContext', monster: dict, room_no: int) -> bool:
+    """SPUR.MISC4.S rd.mons's `if zq=0 if zs=0 gosub tactical`: the ally
+    warning shout / "caught off guard" roll, run once per encounter on
+    room entry (encounters/monster.py) rather than when the fight starts.
+    Returns True if the player was caught off guard -- pass that on to
+    enter_combat(ambushed=True).
+
+    Reuses CombatSession._check_tactical_ambush() on a throwaway session
+    (its constructor only sets attributes) so the routine and its tests
+    stay in one place; the session itself is discarded, never registered
+    in active_combats.
+    """
+    probe = CombatSession(monster, room_no)
+    await probe._check_tactical_ambush(ctx)
+    return probe._ambush_first_strike
 
 
 async def join_combat(ctx: 'GameContext') -> bool:
@@ -2252,6 +2709,6 @@ async def join_combat(ctx: 'GameContext') -> bool:
     active  = getattr(ctx.server, 'active_combats', {})
     session = active.get(room_no)
     if session and not session._done.is_set():
-        await session.join(ctx)
+        await join_or_lead(ctx, session)
         return True
     return False

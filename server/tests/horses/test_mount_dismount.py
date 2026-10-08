@@ -59,6 +59,7 @@ def make_ctx(player, *, room_flags: list | None = None) -> MagicMock:
     ctx.client.room = 1
     ctx.server.game_map = make_map(room_flags)
     ctx.send = AsyncMock()
+    ctx.send_room = AsyncMock()   # room_notices' mount/dismount lines
     return ctx
 
 
@@ -89,6 +90,9 @@ class TestMountCommand(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(res.success)
         self.assertTrue(player.query_flag(PlayerFlags.MOUNTED))
         self.assertIn('climb onto', _sent(ctx).lower())
+        said = ctx.send_room.await_args
+        self.assertTrue(said.args[0].startswith('Tester climbs onto '), said)
+        self.assertEqual(said.kwargs, {'exclude_self': True})
 
     async def test_refuses_if_already_mounted(self):
         player = make_player()
@@ -124,6 +128,8 @@ class TestDismountCommand(unittest.IsolatedAsyncioTestCase):
         res = await DismountCommand().execute(ctx)
         self.assertTrue(res.success)
         self.assertFalse(player.query_flag(PlayerFlags.MOUNTED))
+        said = ctx.send_room.await_args
+        self.assertTrue(said.args[0].startswith('Tester dismounts'), said)
 
     async def test_noop_when_not_mounted(self):
         player = make_player()
@@ -165,6 +171,8 @@ class TestAutoDismount(unittest.IsolatedAsyncioTestCase):
         await _auto_dismount_if_needed(ctx)
         self.assertFalse(player.query_flag(PlayerFlags.MOUNTED))
         self.assertIn('balks at the water', _sent(ctx).lower())
+        ctx.send_room.assert_awaited_once_with(
+            "Tester's horse balks at the water, and he dismounts.", exclude_self=True)
 
     async def test_stays_mounted_on_dry_room_with_healthy_mount(self):
         player = make_player()

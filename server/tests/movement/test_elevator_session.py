@@ -203,47 +203,52 @@ class TestElevatorLook(unittest.IsolatedAsyncioTestCase):
 # ---------------------------------------------------------------------------
 
 class TestElevatorLeave(unittest.IsolatedAsyncioTestCase):
+    """Leaving the elevator says nothing to the open room: the elevator is
+    inside the Shoppe, and presence.leave_area('Elevator') tells the
+    Shoppe the player stepped out (tests/movement/test_room_notices_
+    actions.py's TestPresenceNesting). These used to require a "steps
+    away from the elevator" broadcast to the open room -- the lobby
+    upstairs, which never saw the player leave."""
 
     @_PATCH_COMBO
     @_PATCH_ULINE
     async def test_l_exits(self, *_):
         player = make_player()
         ctx    = make_ctx(player, ['l'])
-        with patch('shoppe.elevator.broadcast_open_room', new_callable=AsyncMock) as broadcast_mock:
+        with patch('presence.broadcast_open_room', new_callable=AsyncMock) as broadcast_mock:
             await _elevator_session(ctx, player)
         self.assertIn('steps aside', _sent(ctx))
-        broadcast_mock.assert_awaited_once()
-        self.assertIn('steps away', broadcast_mock.await_args.args[1])
+        broadcast_mock.assert_not_awaited()
 
     @_PATCH_COMBO
     @_PATCH_ULINE
     async def test_x_exits(self, *_):
         player = make_player()
         ctx    = make_ctx(player, ['x'])
-        with patch('shoppe.elevator.broadcast_open_room', new_callable=AsyncMock) as broadcast_mock:
+        with patch('presence.broadcast_open_room', new_callable=AsyncMock) as broadcast_mock:
             await _elevator_session(ctx, player)
         self.assertIn('steps aside', _sent(ctx))
-        broadcast_mock.assert_awaited_once()
+        broadcast_mock.assert_not_awaited()
 
     @_PATCH_COMBO
     @_PATCH_ULINE
     async def test_leave_word_exits(self, *_):
         player = make_player()
         ctx    = make_ctx(player, ['leave'])
-        with patch('shoppe.elevator.broadcast_open_room', new_callable=AsyncMock) as broadcast_mock:
+        with patch('presence.broadcast_open_room', new_callable=AsyncMock) as broadcast_mock:
             await _elevator_session(ctx, player)
         self.assertIn('steps aside', _sent(ctx))
-        broadcast_mock.assert_awaited_once()
+        broadcast_mock.assert_not_awaited()
 
     @_PATCH_COMBO
     @_PATCH_ULINE
     async def test_empty_input_exits(self, *_):
         player = make_player()
         ctx    = make_ctx(player, [''])
-        with patch('shoppe.elevator.broadcast_open_room', new_callable=AsyncMock) as broadcast_mock:
+        with patch('presence.broadcast_open_room', new_callable=AsyncMock) as broadcast_mock:
             await _elevator_session(ctx, player)
         self.assertIn('steps aside', _sent(ctx))
-        broadcast_mock.assert_awaited_once()
+        broadcast_mock.assert_not_awaited()
 
     @_PATCH_COMBO
     @_PATCH_ULINE
@@ -353,7 +358,7 @@ class TestElevatorFallThrough(unittest.IsolatedAsyncioTestCase):
         player = make_player()
         ctx    = make_ctx(player, ['gibberish', 'l'], processor=None)
         await _elevator_session(ctx, player)
-        self.assertIn('L to leave', _sent(ctx))
+        self.assertIn('[L] Leave', _sent(ctx))
 
     @_PATCH_COMBO
     @_PATCH_ULINE

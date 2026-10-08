@@ -43,6 +43,15 @@ def make_player(*, with_scrap: bool = True, honor: int = 1000, intelligence: int
     p.inventory = Inventory(capacity=10)
     if with_scrap:
         p.inventory.add(Item(number=_SCRAP_ID, name='scrap of paper', type=ItemType.BOOK, price=4))
+
+    def _adjust_honor(adjustment):
+        if adjustment == 0:
+            return None
+        p.honor += adjustment
+        p.unsaved_changes = True
+        phrase = 'less' if adjustment < 0 else 'more'
+        return p.honor, f'(You feel {phrase} honorable) ({adjustment:+d})'
+    p.adjust_honor = _adjust_honor
     return p
 
 
@@ -50,6 +59,7 @@ def make_ctx(player, prompts: list) -> MagicMock:
     ctx = MagicMock()
     ctx.player = player
     ctx.send = AsyncMock()
+    ctx.send_room = AsyncMock()   # room_notices' "reads the ..." line
     ctx.server.books = {}  # no recovered book text by default; tests opt in explicitly
     it = iter(prompts)
     ctx.prompt = AsyncMock(side_effect=lambda *a, **kw: next(it, None))
@@ -103,6 +113,8 @@ class TestReadOrdinaryBook(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(res.success)
         self.assertNotIn(CombinationTypes.ELEVATOR, player.combinations)
         self.assertIn('howling', _sent(ctx).lower())
+        ctx.send_room.assert_awaited_once_with(f'{player.name} reads The Howling.',
+                                               exclude_self=True)
 
     async def test_reading_other_book_does_not_consume_it(self):
         """Deliberate deviation from SPUR: reference books stay re-readable

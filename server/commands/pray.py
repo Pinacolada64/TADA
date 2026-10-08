@@ -180,6 +180,8 @@ class PrayCommand(Command):
         player = ctx.player
 
         await ctx.send(["", "Thunder rumbles overhead and a vision appears...", ""])
+        from room_notices import notify, who
+        await notify(ctx, f'Thunder rumbles overhead as {who(player)} prays.')
 
         if getattr(player, 'prayer_punished', False):
             await ctx.send([
@@ -192,6 +194,7 @@ class PrayCommand(Command):
             ])
             player.hit_points = 0
             player.unsaved_changes = True
+            await notify(ctx, f'{who(player)} is struck by a huge lightning bolt!')
             net_common.append_battle_log(f'{player.name} was FRIED for pestering the Spirit of the Dungeons.')
             return CommandResult.ok()
 

@@ -109,8 +109,8 @@ def _ctx_with_processor(*commands):
 
 class TestColorHelpers(unittest.TestCase):
 
-    def test_heading_is_yellow(self):
-        self.assertEqual(help_mod._heading("Usage:"), "|yellow|Usage:|reset|")
+    def test_heading_uses_heading_token(self):
+        self.assertEqual(help_mod._heading("Usage:"), "|heading|Usage:|reset|")
 
     def test_rule_is_dark_gray(self):
         self.assertEqual(help_mod._rule("---"), "|dark_gray|---|reset|")
@@ -839,6 +839,7 @@ class TestHelpCommandExecute(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result.success)
         output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
         self.assertIn("Available Commands by Category", output)
+        self.assertIn("command aliases are in parentheses", output)
 
     # --- specific command ---
 
@@ -1118,6 +1119,21 @@ class TestHelpTopics(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result.success)
         self.assertIn("No help found", " ".join(
             str(a) for call in ctx.send.await_args_list for a in call.args))
+
+    async def test_spaced_multi_word_topic_alias_resolves(self):
+        # 'help weapon affinity' -- register_topic() registers this topic
+        # under the spaced alias "weapon affinity" as well as the squashed
+        # "weaponaffinity", but execute() previously only ever looked at
+        # args[0] ('weapon') outside the categories/search branches, so the
+        # spaced phrase never reached _TOPICS and fell through to "No help
+        # found for 'weapon'" -- see test_ambiguous_substring_falls_through_
+        # to_no_help_found above for that single-word case, which must
+        # still behave the same way.
+        ctx, _ = _ctx_with_processor()
+        result = await HelpCommand().execute(ctx, "weapon", "affinity")
+        self.assertTrue(result.success)
+        output = " ".join(str(a) for call in ctx.send.await_args_list for a in call.args)
+        self.assertIn("suit your class and race", output)
 
     async def test_topic_works_with_no_processor_state(self):
         # No real commands registered at all -- the LOGIN-mode scenario

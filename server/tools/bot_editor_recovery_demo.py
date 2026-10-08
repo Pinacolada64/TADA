@@ -8,7 +8,7 @@ Two phases against the real running server (default port 34083, same as
 simple_server.py's live JSON port -- NOT a throwaway test server, since
 this needs to actually trigger a real SHUTDOWN):
 
-  --phase crash    Connection A (botdummy) starts 'news post', types a
+  --phase crash    Connection A (botdummy) starts 'news #post', types a
                     title/lifetime/body line, but never saves. Connection
                     B (botlasso) issues 'shutdown #time now', which fires
                     Server.graceful_shutdown() and (per this feature)
@@ -108,7 +108,7 @@ async def phase_crash(host, port):
     a_reader, a_writer = await _login(host, port, 'botdummy', load_password('botdummy'))
     b_reader, b_writer = await _login(host, port, 'botlasso', load_password('botlasso'))
 
-    await _say('A', a_writer, a_reader, 'news post')
+    await _say('A', a_writer, a_reader, 'news #post')
     await _say('A', a_writer, a_reader, 'Recovery Demo')          # title
     await _say('A', a_writer, a_reader, 'permanent')              # lifetime
     await _say('A', a_writer, a_reader, 'Testing crash recovery.')  # body line

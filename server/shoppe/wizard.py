@@ -11,7 +11,7 @@ _SPELL_MAX           = 10  # SPUR xs=10 gate
 _SPELL_NON_ADEPT_MAX =  6  # SPUR if pc>2 then if xs>5 goto wiz2b
 
 # SPUR wiz3: non-adepts (Fighter/Paladin/Ranger/Thief/Archer/Assassin/
-# Knight) can actually fail to learn a spell -- gold is already spent by
+# Knight) can actually fail to learn a spell -- silver is already spent by
 # this point (SPUR: `gosub sub.gold` runs before any of this), and a
 # failure grants nothing back. Wizards/Druids (pc<3) skip this roll
 # entirely ("Your calling makes learning simple!"). Never ported until
@@ -43,7 +43,7 @@ SPELLS: list[dict] = [
     {'number':  8, 'name': 'SLAUGHTER',           'effect': 'M', 'magnitude': 4, 'cast_chance': 90, 'price':  100,
      'description': 'High-accuracy monster attack. Less power than KILL, but rarely misses.'},
     {'number':  9, 'name': 'DEPOSIT',             'effect': 'T', 'magnitude': 4, 'cast_chance': 80, 'price':   50,
-     'description': 'Instantly transfers your gold to the bank from anywhere in the dungeon.'},
+     'description': 'Instantly transfers your silver to the bank from anywhere in the dungeon.'},
     {'number': 10, 'name': 'WELL-BEING',          'effect': 'C', 'magnitude': 9, 'cast_chance': 70, 'price':  170,
      'description': 'Improves Constitution, boosting health and stamina.'},
     {'number': 11, 'name': 'BALANCE',             'effect': 'D', 'magnitude': 4, 'cast_chance': 60, 'price':   80,
@@ -59,11 +59,11 @@ SPELLS: list[dict] = [
     {'number': 16, 'name': 'DISPEL POISON',       'effect': 'A', 'magnitude': 5, 'cast_chance': 90, 'price':  100,
      'description': 'Aura spell that neutralizes poison affecting the caster.'},
     {'number': 17, 'name': 'APPLE A DAY',         'effect': 'A', 'magnitude': 7, 'cast_chance': 90, 'price':  100,
-     'description': 'Healing aura that slowly restores health over time.'},
+     'description': 'Aura that cures disease -- keeps the doctor away.'},
     {'number': 18, 'name': 'DRUID HEALTH',        'effect': 'A', 'magnitude': 9, 'cast_chance': 90, 'price':  200, 'druid_only': True,
-     'description': 'Druid-only aura. Channels nature to significantly restore hit points.'},
+     'description': 'Druid-only aura. Restores hit points, strength, energy and health, and cures poison and disease.'},
     {'number': 19, 'name': "WIZARD'S GLOW",       'effect': 'A', 'magnitude': 9, 'cast_chance': 90, 'price':  200, 'wizard_only': True,
-     'description': "Wizard-only aura. Surrounds the caster in magical light, enhancing all spell effects."},
+     'description': "Wizard-only aura. A shimmering glow that turns aside 2 damage per monster hit and adds 20 to your shield in duels."},
     {'number': 20, 'name': 'BOOTS OF SPEED',      'effect': 'A', 'magnitude': 9, 'cast_chance': 50, 'price': 2000,
      'description': 'Aura spell that dramatically increases movement and combat speed. Rare and expensive.'},
     {'number': 21, 'name': 'CONJURE FOOD',        'effect': 'F', 'magnitude': 0, 'cast_chance': 80, 'price':   90,
@@ -209,6 +209,14 @@ async def main(ctx: GameContext) -> None:
             return max(1, base * 2 // 3)   # SPUR: q4=q4*2:q4=q4/3
         return base
 
+    def _cast_pct(sp: dict) -> int:
+        """This player's cast % for a catalog spell: its base chance, or
+        their practice-raised one (spellbook.py) if they've cast it."""
+        from types import SimpleNamespace
+        import spellbook
+        return spellbook.cast_chance(
+            ctx.player, SimpleNamespace(id_number=sp['number'], cast_chance=sp['cast_chance']))
+
     def _spell_list_lines() -> list[str]:
         from formatting import border_style_for_ctx
         from table import Table, Column, Align
@@ -217,11 +225,15 @@ async def main(ctx: GameContext) -> None:
         except AttributeError:
             width = 78
 
+        # A Cast column makes the table 42 wide -- past a 40-column C64
+        # screen -- so narrow screens get the cast % from i# instead.
+        show_cast = width >= 60
         t = Table(
             headers=[
                 Column('#',      align=Align.RIGHT,  min_width=2),
                 Column('Name',                       min_width=10),
                 Column('Effect',                     min_width=6),
+                *([Column('Cast', align=Align.RIGHT, min_width=4)] if show_cast else []),
                 Column('Cost',   align=Align.RIGHT,  min_width=4),
             ],
             title='Available Spells  (i# for description)',
@@ -240,6 +252,7 @@ async def main(ctx: GameContext) -> None:
                 str(sp['number']),
                 sp['name'] + tag + known,
                 _EFFECT_LABELS.get(sp['effect'], sp['effect']),
+                *([f"{_cast_pct(sp)}%"] if show_cast else []),
                 f"{price}s",
             ])
         t.set_footer('* Wizard only   † Druid only   ✓ known')
@@ -284,7 +297,7 @@ async def main(ctx: GameContext) -> None:
 
         raw = await ctx.prompt(
             'Learn which spell?',
-            preamble_lines=[f'(?=List, i#=Info, BOOK=Buy Spell Book, Q to leave{shop_menu_hint(player)})'])
+            preamble_lines=[f'(?=List, i#=Info, BOOK=Buy Spell Book, [Q] Leave{shop_menu_hint(player)})'])
         if raw is None:
             return
         choice = raw.strip()
@@ -310,6 +323,7 @@ async def main(ctx: GameContext) -> None:
                     f"  Spell {sp_info['number']}: {sp_info['name']}{known}",
                     f"  Effect  : {_EFFECT_LABELS.get(sp_info['effect'], sp_info['effect'])}",
                     f"  Cost    : {price}s",
+                    f"  Cast    : {_cast_pct(sp_info)}%",
                     f"  {sp_info['description']}",
                     '',
                 ])
@@ -322,7 +336,7 @@ async def main(ctx: GameContext) -> None:
         except ValueError:
             if await try_global_command(ctx, raw):
                 continue
-            await ctx.send('Enter a spell number, ? to list, i# for info, or Q to leave.')
+            await ctx.send('Enter a spell number, ? to list, i# for info, or [Q] Leave.')
             continue
 
         sp = next((s for s in SPELLS if s['number'] == num), None)
