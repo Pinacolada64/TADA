@@ -14,7 +14,7 @@ Sections: Open PRs → Feature branches (no PR) → Direct commits to master →
 
 | PR | Branch | Tip | Summary |
 |----|--------|-----|---------|
-| [#82](https://github.com/Pinacolada64/TADA/pull/82) | `feature/docs-pdf` | `c4ab714` | `server/tools/gen_help_pdf.py` (written 2026-09-20, unmerged until now): exports every in-game help entry (74 commands, 29 concept topics) via `format_help()` + ReportLab to `TADA_Help_Reference.pdf`, player view, resolving `\|tokens\|`/`[[..]]`/`%%` like a real client; `reportlab~=5.0` in requirements.txt; 3 player-text typo fixes (scrapping/not/hit hit). Master merged in clean; full suite incl. e2e passes. |
+| [#82](https://github.com/Pinacolada64/TADA/pull/82) | `feature/docs-pdf` | `08d7684` | `server/tools/gen_help_pdf.py` (written 2026-09-20, unmerged until now): exports every in-game help entry (74 commands, 29 concept topics) via `format_help()` + ReportLab to `TADA_Help_Reference.pdf`, player view, plus `TADA_Editor_Reference.pdf` (the line editor's `.h` help: 19 dot commands, `.h colors`, 4 admin-only; `EDITOR_INTRO_LINES`/`EDITOR_HELP_HINT` constants in text_editor.py), resolving `\|tokens\|`/`[[..]]`/`%%` like a real client; `reportlab~=5.0` in requirements.txt; 3 player-text typo fixes (scrapping/not/hit hit). Master merged in clean; full suite incl. e2e passes. |
 
 ---
 
