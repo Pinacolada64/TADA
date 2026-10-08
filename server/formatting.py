@@ -244,45 +244,32 @@ PETSCII_CODE_NAMES: dict[int, str] = {
 # The escaped group is checked first (named 'etoken'/'ecount') since regex
 # alternation tries left-to-right and ||x|| would otherwise partially match
 # the plain |x| branch instead.
-_TOKEN_RE = re.compile(
-    r'\|\|(?P<etoken>[a-z_]+)(?::(?P<ecount>\d+))?\|\|'
-    r'|\|(?P<token>[a-z_]+)(?::(?P<count>\d+))?\|'
-)
+#
+# '!' works exactly like '|' on every terminal (!red!, !tab:5!, escape
+# !!red!!), but only around a real token name, since '!' is everyday
+# punctuation -- see markup_tokens.py, which owns the pattern (shared with
+# table.py/menu_system.py). Groups: d/etoken/ecount (escaped), d2/token/
+# count (real).
+from markup_tokens import TOKEN_RE as _TOKEN_RE, escaped_literal as _escaped_literal
 
 
 def _token_strip_replace(match: re.Match) -> str:
     """Shared re.sub() replacement for contexts that just want tokens gone
     (petscii_encode's no-cbmcodecs2 fallback, plain_encode, _visible_len):
-    a real |token| vanishes, but an escaped ||token|| survives as the
-    literal |token| it's meant to display -- same asymmetry as
-    highlight_brackets()'s [[x]] -> [x]."""
+    a real |token| vanishes, but an escaped ||token|| (or !!token!!)
+    survives as the literal |token| (!token!) it's meant to display --
+    same asymmetry as highlight_brackets()'s [[x]] -> [x]."""
     if match.group('etoken') is not None:
-        literal = '|' + match.group('etoken')
-        if match.group('ecount'):
-            literal += ':' + match.group('ecount')
-        return literal + '|'
+        return _escaped_literal(match)
     return ''
 
 
-# New in TADA: PETSCII-only alternate delimiter. '|' needs Shift+- on a
-# real Commodore keyboard -- cumbersome enough that Ryan asked for an
-# easier-to-type substitute for PETSCII clients specifically. '!' works
-# the same as '|' here: !red!, !tab:5!, and the doubled-delimiter escape
-# !!red!! (-> literal !red!), matching '|red|'/'|tab:5|'/'||red||' one
-# for one. The two delimiters can't be mixed within one token (backreference
-# (?P=d)/(?P=d2) requires the closing delimiter(s) to match the opening
-# one) -- '|red!' is not a token, just literal text.
-#
-# Deliberately NOT wired into ansi_encode()/plain_encode(): '!' is common
-# in ordinary game text ("Welcome, Alice!", "PILLAGE!"), unlike '|', so
-# broadening this beyond PETSCII (where the whole point is avoiding an
-# awkward keystroke, not typing convenience for its own sake) would raise
-# real collision risk for no corresponding benefit -- ANSI/plain clients
-# don't have the Commodore keyboard's Shift+- friction to begin with.
-_PETSCII_TOKEN_RE = re.compile(
-    r'(?P<d>[|!])(?P=d)(?P<etoken>[a-z_]+)(?::(?P<ecount>\d+))?(?P=d)(?P=d)'
-    r'|(?P<d2>[|!])(?P<token>[a-z_]+)(?::(?P<count>\d+))?(?P=d2)'
-)
+# '!' as an alternate delimiter was first added for PETSCII clients only
+# ('|' needs Shift+- on a real Commodore keyboard), then made to work on
+# every terminal so a Commodore player's !red! text renders for everyone --
+# see markup_tokens.py. _PETSCII_TOKEN_RE is now just _TOKEN_RE, kept as a
+# name for petscii_encode()'s _PETSCII_GLYPH_RE union below.
+_PETSCII_TOKEN_RE = _TOKEN_RE
 
 # New in TADA: {$XX} / {DDD} / {NAME} -- a raw PETSCII byte literal, for
 # ASCII-art-heavy files (graphics/banner-petscii.txt and friends) that
@@ -328,16 +315,9 @@ def _resolve_glyph_byte(match: re.Match) -> Optional[int]:
     return _get_named_petscii_glyphs().get(name)
 
 
-def _petscii_token_strip_replace(match: re.Match) -> str:
-    """_token_strip_replace()'s PETSCII counterpart -- see _PETSCII_TOKEN_RE's
-    comment. Preserves whichever delimiter ('|' or '!') was actually used."""
-    if match.group('etoken') is not None:
-        d = match.group('d')
-        literal = d + match.group('etoken')
-        if match.group('ecount'):
-            literal += ':' + match.group('ecount')
-        return literal + d
-    return ''
+# Same as _token_strip_replace() now that '!' works on every terminal --
+# both preserve whichever delimiter ('|' or '!') an escape used.
+_petscii_token_strip_replace = _token_strip_replace
 
 
 # Characters that cbmcodecs2's petscii_c64en_lc codec has no mapping for
@@ -675,11 +655,9 @@ def ansi_encode(text: str, reset_color: str | None = None, command_color: str | 
 
     def _replace(match) -> str:
         if match.group('etoken') is not None:
-            # ||token|| / ||token:count|| escape -- literal |token[:count]|.
-            literal = '|' + match.group('etoken')
-            if match.group('ecount'):
-                literal += ':' + match.group('ecount')
-            return literal + '|'
+            # ||token|| / ||token:count|| (or !!token!!) escape -- literal
+            # |token[:count]| (!token[:count]!), same delimiter.
+            return _escaped_literal(match)
         token = match.group('token')
         count = int(match.group('count')) if match.group('count') else 1
         if token == 'reset' and reset_color is not None:
@@ -1020,21 +998,20 @@ def format_line(text: str, width: int, codec: ColorCodec) -> list[str]:
 # live markup instead of preserving it as the literal text it's meant to
 # display (found while writing commands/help.py's 'colors' topic, whose
 # usage table showed |tab| examples that vanished under plain_encode()).
-_TAB_TOKEN_RE = re.compile(r'(?<!\|)\|tab(?::(?P<n>\d+))?\|(?!\|)')
-
-# PETSCII-only: also accepts '!tab!'/'!tab:N!' -- see _PETSCII_TOKEN_RE's
-# comment on why '!' is scoped to PETSCII instead of joining _TAB_TOKEN_RE
-# above for every codec. Matches '|tab|' too (petscii_encode()/plain_encode()
-# still accept '|' as well), just with '!' additionally recognized.
-_TAB_TOKEN_RE_PETSCII = re.compile(
+#
+# Also accepts '!tab!'/'!tab:N!' -- '!' works like '|' on every terminal
+# (see markup_tokens.py).
+_TAB_TOKEN_RE = re.compile(
     r'(?<![|!])(?P<d>[|!])tab(?::(?P<n>\d+))?(?P=d)(?![|!])'
 )
+# Once PETSCII-only; now the same pattern for every codec.
+_TAB_TOKEN_RE_PETSCII = _TAB_TOKEN_RE
 
 
 def _expand_tab_tokens(text: str, settings, codec: 'ColorCodec | None' = None) -> str:
     """
-    Replace |tab| / |tab:N| (or, for PETSCII clients only, !tab! / !tab:N! --
-    see _TAB_TOKEN_RE_PETSCII's comment) with the player's actual tab
+    Replace |tab| / |tab:N| (or !tab! / !tab:N! -- see markup_tokens.py)
+    with the player's actual tab
     output -- see PREFS 'K' (Tab Key), which sets
     client_settings.tab_settings.has_tab_key/tab_width.
 
@@ -1065,7 +1042,7 @@ def _expand_tab_tokens(text: str, settings, codec: 'ColorCodec | None' = None) -
     tab_output = getattr(tab_settings, 'tab_output', '\t') if tab_settings else '\t'
     tab_width = getattr(tab_settings, 'tab_width', 0) if tab_settings else 0
 
-    pattern = _TAB_TOKEN_RE_PETSCII if isinstance(codec, PETSCIICodec) else _TAB_TOKEN_RE
+    pattern = _TAB_TOKEN_RE
 
     if has_tab_key or tab_width <= 0:
         # Real Tab key (or a degenerate 0-width simulated tab): no stop

@@ -787,16 +787,13 @@ register_topic(
             "own section headings.",
             "A misspelled or unsupported code (e.g. ||glorp||) is left "
             "as plain text rather than breaking the rest of the line.",
-        ],
-        # PETSCII-only -- see Help.petscii_notes / format_help()'s
-        # is_petscii parameter. Not shown to ANSI/plain-text players,
-        # since '!' isn't recognized as a code delimiter for them at all
-        # (see formatting._PETSCII_TOKEN_RE's own comment for why).
-        petscii_notes=[
-            "'!' works exactly like '|' here -- !!red!!some text!!reset!! "
-            "-- since '|' needs an awkward Shift+- on a Commodore "
-            "keyboard. The two can't be mixed within one code (|red! "
-            "isn't valid).",
+            # Was a Commodore-only petscii_note until '!' started working
+            # on every terminal (2026-10-07, see markup_tokens.py).
+            "'!' works exactly like '|' -- !!red!!some text!!reset!! -- "
+            "handy on a Commodore, where '|' needs an awkward Shift+-. It "
+            "only counts around a real code name, so an ordinary '!' in "
+            "your text is left alone, and the two can't be mixed within "
+            "one code (|red! isn't valid).",
         ],
     ),
 )

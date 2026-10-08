@@ -1268,11 +1268,23 @@ _COLOR_TOPIC_TEXT = (
     # actually demonstrating it must stay double-piped -- a bare, unescaped
     # |command| (or any other real color token) left unclosed here would
     # bleed that color into every paragraph after it instead of just
-    # naming it. Only the Examples: block's pairs are meant to render live.
-    "Text the game sends you can use ||token|| markup: |red|word|reset| "
+    # naming it. Syntax a player should *type* is escaped too (||red||word
+    # ||reset|| shows as |red|word|reset|) -- rendered live it would just
+    # show a colored word, hiding the markup it's teaching. Only the
+    # Examples' explanations, and the two sentences pointing at real
+    # colored text ('.h h above', 'Examples: below'), render live.
+    "Text the game sends you can use ||token|| markup: ||red||word||reset|| "
     "colors 'word' red, then ||reset|| returns to your normal text color. "
     "[bracket] text is a separate mechanism -- it's auto-highlighted in "
     "your PREFS Highlight color with no token needed.\n\n"
+    # '!' works like '|' on every terminal (markup_tokens.py) -- handy on
+    # a Commodore, where '|' needs Shift+-. Escaped '!!red!!' shows as
+    # '!red!' everywhere, same as '||red||' shows as '|red|'.
+    "! works exactly like | -- !!red!!word!!reset!! is the same as "
+    "||red||word||reset||, and saves the awkward Shift+- that | needs on "
+    "a Commodore. It only counts around a real color name, so an ordinary "
+    "! in your text is left alone. The two can't be mixed in one code "
+    "(!red| isn't one).\n\n"
     "||reset|| and ||command|| aren't fixed colors -- they resolve to "
     "your own PREFS 'C' Colors choices (Text and Command). Fixed colors "
     "always render the same regardless of preference: red, cyan, green, "
@@ -1285,8 +1297,8 @@ _COLOR_TOPIC_TEXT = (
     "||heading||...||reset|| is the fixed yellow of section headings like "
     "|heading|Examples:|reset| below.\n\n"
     "Examples:\n"
-    "  |red|Warning!|reset|   Colors 'Warning!' red, then resets\n"
-    "  |command|.h h|reset|   Colors '.h h' in your command color"
+    "  ||red||Stop!||reset||    Shows |red|Stop!|reset| in red, then resets\n"
+    "  ||command||.s||reset||   Shows |command|.s|reset| in your command color"
 )
 
 
@@ -1361,7 +1373,11 @@ def _format_examples_table(examples: List[str], screen_width: int) -> List[str]:
     # padding=2: borderless, that's the whole gap between the columns --
     # 1 lets an example like '.e j 3 " - " Join...' run together on a
     # terminal with no color to set the command apart.
-    t = Table(headers=[Column('', max_width=command_width), ''], show_header=False,
+    # min_width too: on a narrow screen only the explanation column gives
+    # way -- a squeezed command column truncated syntax like
+    # '|command|.s|reset|' (the '.h colors' examples) to '|command|.s||r…'.
+    t = Table(headers=[Column('', min_width=command_width, max_width=command_width), ''],
+              show_header=False,
               border=False, padding=2)
     for row in rows:
         t.add_row(row)

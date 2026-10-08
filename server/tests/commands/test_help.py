@@ -1212,13 +1212,23 @@ class TestColorsTopic(unittest.IsolatedAsyncioTestCase):
         self.assertIn("tab", result.message.lower())
         self.assertIn(":5", result.message)
 
-    async def test_bang_note_hidden_from_non_petscii_viewer(self):
-        """Help.petscii_notes (the '!' alternate-delimiter note) should not
-        show up for an ANSI/plain-text viewer -- it's PETSCII-specific
-        keyboard trivia that's just noise otherwise."""
+    async def test_bang_note_shown_to_every_viewer(self):
+        """The '!' alternate-delimiter note was PETSCII-only until '!'
+        started working on every terminal (markup_tokens.py) -- now an
+        ANSI/plain-text viewer gets it too."""
         ctx, _ = _ctx_with_processor()
         result = await HelpCommand().execute(ctx, "colors")
-        self.assertNotIn("Shift+-", result.message)
+        self.assertIn("Shift+-", result.message)
+        self.assertIn("!!red!!", result.message)
+
+    def test_full_pipeline_ansi_bang_note_renders_literally(self):
+        """The note's !!red!! example must show as literal '!red!' text on
+        an ANSI terminal too, now that '!' is a delimiter there."""
+        from formatting import ansi_encode
+        from commands.help import _TOPICS
+        text = "\n".join(format_help(_TOPICS["colors"], command_name="colors", width=78) or [])
+        rendered = ansi_encode(text)
+        self.assertIn("!red!some text!reset!", rendered)
 
     async def test_bang_note_shown_to_petscii_viewer(self):
         from terminal import Translation

@@ -24,17 +24,19 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Callable, List, Optional, Union
 
 _BRACKET_RE    = _re.compile(r'\[([^\]]*)\]')   # matches [text] in menu strings
-_TOKEN_RE_MENU = _re.compile(r'\|[a-z_]+\|')    # matches |token| color sequences
+# |token| / !token! color markup -- see markup_tokens.py
+from markup_tokens import displayed as _displayed_tokens
 
 
 def _vis_len(s: str) -> int:
     """Visible column width of a menu string.
 
-    Strips |token| color sequences (zero-width) and converts [text] → text
+    Strips |token| / !token! color sequences (zero-width; an escaped
+    ||token|| shows as |token|) and converts [text] → text
     (highlight_brackets removes the bracket delimiters), matching what the
     terminal actually renders.
     """
-    s = _TOKEN_RE_MENU.sub('', s)
+    s = _displayed_tokens(s)
     s = _BRACKET_RE.sub(r'\1', s)
     return len(s)
 

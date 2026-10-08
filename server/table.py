@@ -34,8 +34,15 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Iterable, List, Optional, Sequence
 
-# Strip |pipe-token| color markers before measuring visible width.
-_TOKEN_RE = re.compile(r'\|[a-z_]+\|')
+# Strip |pipe-token| (and !bang-token!) color markers before measuring
+# visible width. An escaped ||token|| / !!token!! is not a marker: it
+# displays as the literal |token| / !token!, so it counts as that many
+# visible characters -- or a cell *showing* markup, like the line
+# editor's '.h colors' examples, gets too narrow a column. The pattern
+# lives in markup_tokens.py, shared with formatting.py, so this module
+# still has no dependency on formatting.py itself.
+from markup_tokens import TOKEN_RE as _TOKEN_RE, displayed as _displayed_tokens, \
+    strip_real as _strip_real_tokens
 
 # formatting.py's [bracket] highlighting convention (highlight_brackets()):
 # a cell can carry raw '[LOOT]'-style markup that ctx.send()'s pipeline
@@ -54,7 +61,7 @@ def _resolve_brackets(text: str) -> str:
     return _BRACKET_RE.sub(_replace, text)
 
 def _visible_len(text: str) -> int:
-    return len(_TOKEN_RE.sub('', _resolve_brackets(text)))
+    return len(_displayed_tokens(_resolve_brackets(text)))
 
 
 # ---------------------------------------------------------------------------
@@ -176,10 +183,11 @@ def _fit(text: str, width: int, align: Align) -> str:
     """
     vis = _visible_len(text)
     if vis > width:
-        # Strip tokens first so we can truncate visible chars cleanly.
-        text = _TOKEN_RE.sub('', text)
+        # Strip tokens first so we can truncate visible chars cleanly
+        # (escaped ||tokens|| stay escaped -- see _strip_real_tokens()).
+        text = _strip_real_tokens(text)
         text = text[: max(width - 1, 0)] + ("…" if width > 1 else "")
-        vis  = len(text)
+        vis  = _visible_len(text)
     pad = width - vis
     if align == Align.RIGHT:
         return ' ' * pad + text
@@ -203,8 +211,34 @@ def _wrap_cell(text: str, width: int) -> list[str]:
             # Visible content fits — don't wrap (tokens inflate len() artificially).
             lines.append(paragraph)
         else:
-            lines.extend(textwrap.wrap(paragraph, width=width) or [""])
+            lines.extend(_wrap_visible(paragraph, width))
     return lines
+
+
+def _wrap_visible(paragraph: str, width: int) -> list[str]:
+    """Greedy word wrap measured in *visible* characters: textwrap.wrap()
+    counts |token| markup as width, so a cell holding color tokens broke
+    early -- and mid-word ('Warnin' / 'g!'). A word that is itself wider
+    than the cell is only split when it carries no markup (splitting
+    '||red||', '|reset|' or '!red!' would leave broken tokens on screen)."""
+    out: list[str] = []
+    line, line_len = "", 0
+    for word in paragraph.split():
+        wlen = _visible_len(word)
+        if wlen > width and not _TOKEN_RE.search(word) and '[' not in word:
+            pieces = textwrap.wrap(word, width=width, break_long_words=True)
+        else:
+            pieces = [word]
+        for piece in pieces:
+            plen = _visible_len(piece)
+            if line and line_len + 1 + plen > width:
+                out.append(line)
+                line, line_len = "", 0
+            line = f"{line} {piece}" if line else piece
+            line_len += plen + (1 if line_len else 0)
+    if line or not out:
+        out.append(line)
+    return out
 
 
 # ---------------------------------------------------------------------------
