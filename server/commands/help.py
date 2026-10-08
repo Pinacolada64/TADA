@@ -54,6 +54,13 @@ def _cmd(text: str) -> str:
     return f'|cyan|{text}|reset|'
 
 
+def _syntax(text: str) -> str:
+    """Command syntax in a Usage/Examples row ("helpstaff #faq [<n>]"), in
+    the viewer's own command color (PREFS 'C' -- see formatting.py and
+    the 'markup' help topic), unlike _cmd()'s fixed cyan for names."""
+    return f'|command|{text}|reset|'
+
+
 def _alias(text: str) -> str:
     """A command's alias(es) -- deliberately darker/dimmer than _cmd()."""
     return f'|dark_gray|{text}|reset|'
@@ -100,6 +107,38 @@ _CATEGORY_DESCRIPTIONS: Dict["HelpCategory", str] = {
 # ---------------------------------------------------------------------------
 # Help metadata dataclass
 # ---------------------------------------------------------------------------
+
+@dataclass
+class HelpSection:
+    """A flag-gated block of a command's help -- e.g. the "Helpstaff"
+    section of 'help helpstaff', with the switches only helpstaff members
+    can use. Shown only to a viewer who has at least one of `flags` set
+    (PlayerFlags members), or who is privileged (Admin/Dungeon Master, the
+    same viewers who see admin_notes -- see format_help()'s
+    is_privileged/viewer_flags params). Everyone else doesn't see the
+    section at all, heading included.
+
+    Keep anything a section hides out of the Help's summary/description
+    too: those two are what 'help #search' searches (see
+    CommandProcessor.search_commands() / _search_snippet()).
+
+    usage/examples/notes render exactly like the Help fields of the same
+    names (auto-escaped -- see Help's docstring), under a heading of
+    `title` + ':'.
+    """
+    title:       str
+    flags:       Tuple                 = ()
+    description: str                   = ""
+    usage:       List[Tuple[str, str]] = field(default_factory=list)
+    examples:    List[Tuple[str, str]] = field(default_factory=list)
+    notes:       List[str]             = field(default_factory=list)
+
+    def visible_to(self, viewer_flags=(), is_privileged: bool = False) -> bool:
+        if is_privileged:
+            return True
+        held = set(viewer_flags or ())
+        return any(f in held for f in self.flags)
+
 
 @dataclass
 class Help:
@@ -173,6 +212,11 @@ class Help:
     # registered in either order), so a typo here just silently 404s if a
     # player follows it -- double-check names exist via 'help <name>'.
     see_also:    List[str]             = field(default_factory=list)
+    # Flag-gated sections, each under its own heading and shown only to a
+    # viewer holding one of that section's flags (or an Admin/DM) -- see
+    # HelpSection. For switches or notes a regular player shouldn't even
+    # see, e.g. 'help helpstaff''s "Helpstaff" section.
+    sections:    List["HelpSection"]   = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -1555,6 +1599,25 @@ def _is_privileged_viewer(ctx) -> bool:
         return False
 
 
+def _viewer_flags(ctx) -> set:
+    """The PlayerFlags members ctx's player has set -- gates
+    Help.sections (see HelpSection.visible_to() and format_help()'s
+    viewer_flags param). Empty for a ctx with no real player."""
+    player     = getattr(ctx, "player", None)
+    query_flag = getattr(player, "query_flag", None)
+    if not callable(query_flag):
+        return set()
+    from flags import PlayerFlags
+    held = set()
+    for flag in PlayerFlags:
+        try:
+            if query_flag(flag) is True:
+                held.add(flag)
+        except Exception:
+            pass
+    return held
+
+
 def _is_petscii_viewer(ctx) -> bool:
     """Whether ctx's player is on a real Commodore (PETSCII) connection --
     gates Help.petscii_notes (see format_help()'s is_petscii param). Safe
@@ -1624,8 +1687,17 @@ def format_two_column(items: List[Tuple[str, str]], width: int) -> List[str]:
         pad = " " * max(0, left_col - _visible_len(left))
         if right:
             wrapped = wrap_text(right, width=right_col)
-            out.append(f"  {left}{pad}  {wrapped[0]}")
-            for cont in wrapped[1:]:
+            if _visible_len(left) > left_col:
+                # Too wide for the column (e.g. "helpstaff #accept <name>"
+                # on a 40-column screen): the syntax gets its own line and
+                # the description starts under the column, so no line
+                # overruns `width` and gets re-wrapped to the left margin.
+                out.append(f"  {left}")
+                wrapped_lines = wrapped
+            else:
+                out.append(f"  {left}{pad}  {wrapped[0]}")
+                wrapped_lines = wrapped[1:]
+            for cont in wrapped_lines:
                 out.append(f"  {'':{left_col}}  {cont}")
         else:
             out.append(f"  {left}")
@@ -1699,7 +1771,8 @@ def _search_snippet(cmd, term: str, context: int = 20) -> str:
 def format_help(help_obj: Help, command_name: str = "", width: int = 78,
                 rule_char: str = "-", is_privileged: bool = False,
                 is_petscii: bool = False,
-                aliases: Optional[List[str]] = None) -> Optional[str]:
+                aliases: Optional[List[str]] = None,
+                viewer_flags=()) -> Optional[str]:
     """Format a Help instance into a display string.
 
     :param help_obj: Help (or a str, or None)
@@ -1718,6 +1791,10 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
         inline (_show_general_help()'s 'name (alias1, alias2)'); this is
         the same information surfaced on the per-command detail view,
         which previously never read cmd.aliases at all.
+    :param viewer_flags: the PlayerFlags the viewer has set -- each of
+        help_obj.sections is rendered only if the viewer holds one of its
+        flags (or is_privileged); pass _viewer_flags(ctx) from a call site
+        that has a live ctx. Omitted, only privileged viewers see sections.
     """
     if help_obj is None:
         return None
@@ -1767,7 +1844,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
     if usage:
         lines.append("")
         lines.append(_heading("Usage:"))
-        items = [(_auto_escape(str(u[0])),
+        items = [(_syntax(_auto_escape(str(u[0]))),
                    _auto_escape(str(u[1])) if len(u) > 1 and u[1] else "")
                  for u in usage]
         lines.extend(format_two_column(items, width))
@@ -1778,7 +1855,7 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
         lines.append("")
         lines.append(_heading(singular if len(examples) == 1 else plural))
         for item in examples:
-            lines.append(f"  {_auto_escape(item[0])}")
+            lines.append(f"  {_syntax(_auto_escape(item[0]))}")
             if len(item) > 1 and item[1]:
                 lines.extend(wrap_text(
                     _auto_escape(str(item[1])),
@@ -1827,6 +1904,31 @@ def format_help(help_obj: Help, command_name: str = "", width: int = 78,
     # background/implementation detail reads as clearly separate from
     # player-facing notes (see Help.admin_notes and this function's
     # is_privileged parameter)
+    # Flag-gated sections (see HelpSection) -- each under its own
+    # heading, after the player-facing Notes and before Admin Notes, and
+    # left out entirely (heading too) for a viewer without the flag.
+    for section in list(getattr(help_obj, "sections", None) or []):
+        if not section.visible_to(viewer_flags, is_privileged):
+            continue
+        lines.append("")
+        lines.append(_heading(f"{section.title}:"))
+        if section.description:
+            lines.extend(wrap_text(" ".join(section.description.split()),
+                                   width=wrap_width, initial_indent=" " * 2,
+                                   subsequent_indent=" " * 2))
+        if section.usage:
+            items = [(_syntax(_auto_escape(str(u[0]))),
+                       _auto_escape(str(u[1])) if len(u) > 1 and u[1] else "")
+                     for u in section.usage]
+            lines.extend(format_two_column(items, width))
+        _render_examples("Example:", "Examples:", list(section.examples))
+        if section.notes:
+            for note in section.notes:
+                lines.extend(wrap_text(
+                    _auto_escape(str(note)), width=wrap_width,
+                    initial_indent=" " * 4, subsequent_indent=" " * 4,
+                ))
+
     if is_privileged:
         _render_notes("Admin Notes:", list(getattr(help_obj, "admin_notes", None) or []))
 
@@ -2206,7 +2308,8 @@ class HelpCommand(Command):
             als = [a for a in (getattr(cmd, "aliases", []) or []) if a != command_name]
             formatted = format_help(help_obj, command_name=command_name, width=width,
                                     rule_char=rchar, is_privileged=_is_privileged_viewer(ctx),
-                                    is_petscii=_is_petscii_viewer(ctx), aliases=als)
+                                    is_petscii=_is_petscii_viewer(ctx), aliases=als,
+                                    viewer_flags=_viewer_flags(ctx))
             if formatted:
                 await ctx.send(*formatted)
                 return CommandResult.ok("\n".join(formatted))
@@ -2230,7 +2333,8 @@ class HelpCommand(Command):
         help_obj  = _TOPICS[topic_name]
         formatted = format_help(help_obj, command_name=topic_name, width=width,
                                 rule_char=rchar, is_privileged=_is_privileged_viewer(ctx),
-                                is_petscii=_is_petscii_viewer(ctx))
+                                is_petscii=_is_petscii_viewer(ctx),
+                                viewer_flags=_viewer_flags(ctx))
         if formatted:
             await ctx.send(*formatted)
             return CommandResult.ok("\n".join(formatted))

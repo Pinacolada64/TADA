@@ -45,7 +45,8 @@ disconnect.
 """
 
 from commands.base_command import Command, CommandResult, Mode
-from commands.help import Help, HelpCategory
+from commands.help import Help, HelpCategory, HelpSection
+from flags import PlayerFlags
 from helpstaff import duty, faq
 from helpstaff import queue as help_queue
 from helpstaff.duty import HELPSTAFF_TAG, tagged_name  # noqa: F401  (re-exported)
@@ -89,6 +90,12 @@ def _plural(n: int, word: str) -> str:
     return f'{n} {word}{"" if n == 1 else "s"}'
 
 
+# Switches only staff (helpstaff members, Admins, DMs) can use; a plain
+# player gets "Unknown option" for these, same as for a made-up switch.
+STAFF_SWITCHES = frozenset({'#list', '#accept', '#decline', '#on', '#off',
+                            '#queue', '#faq'})
+
+
 class HelpstaffCommand(Command):
     name    = 'helpstaff'
     aliases = []
@@ -105,29 +112,43 @@ class HelpstaffCommand(Command):
         category = HelpCategory.COMMUNICATION,
         usage    = [
             ('helpstaff',                  'Ask for help; describes what you need.'),
-            ('helpstaff #ask',             'The same -- and how staff ask for help themselves.'),
+            ('helpstaff #ask',             'The same as a bare |command|helpstaff|reset|.'),
             ('helpstaff #show',            "Show who's on helpstaff duty right now."),
             ('helpstaff #cancel',          'Withdraw your open or saved question.'),
-            ('helpstaff #list',            '(on duty) Show every open request.'),
-            ('helpstaff #accept <name>',   "(on duty) Claim <name>'s request and go help."),
-            ('helpstaff #decline <name>',  "(on duty) Pass on <name>'s request."),
-            ('helpstaff #on',              '(staff) Go on helpstaff duty.'),
-            ('helpstaff #off',             '(staff) Go off helpstaff duty.'),
-            ('helpstaff #queue',           '(staff) Answer saved questions by mail.'),
-            ('helpstaff #faq [<n>]',       '(staff) List saved answers, or show one.'),
-            ('helpstaff #faq #add',        '(staff) Write a new saved answer.'),
-            ('helpstaff #faq #edit <n>',   '(staff) Rewrite saved answer <n>.'),
-            ('helpstaff #faq #delete <n>', '(staff) Remove saved answer <n>.'),
         ],
         notes = [
             'Asking again replaces your earlier question.',
             'Answers to saved questions arrive by |command|mail|reset|, from '
             '"<name>, Helpstaff member".',
-            '"Staff" means helpstaff members, Admins and Dungeon Masters.',
-            'Staff who type a bare |command|helpstaff|reset| get a reminder of '
-            '|command|helpstaff #show|reset| and |command|helpstaff #list|reset| '
-            'instead -- use |command|helpstaff #ask|reset| to ask for help yourself.',
         ],
+        # Staff-only switches: shown only to helpstaff members (and to
+        # Admins/DMs, who see every gated section). Plain players don't see
+        # them in help, and the command answers them like any unknown
+        # option -- see STAFF_SWITCHES below.
+        sections = [HelpSection(
+            title = 'Helpstaff',
+            flags = (PlayerFlags.HELPSTAFF,),
+            usage = [
+                ('helpstaff #on',              'Go on helpstaff duty.'),
+                ('helpstaff #off',             'Go off helpstaff duty.'),
+                ('helpstaff #list',            '(on duty) Show every open request.'),
+                ('helpstaff #accept <name>',   "(on duty) Claim <name>'s request and go help."),
+                ('helpstaff #decline <name>',  "(on duty) Pass on <name>'s request."),
+                ('helpstaff #queue',           'Answer saved questions by mail.'),
+                ('helpstaff #faq [<n>]',       'List saved answers, or show one.'),
+                ('helpstaff #faq #add',        'Write a new saved answer.'),
+                ('helpstaff #faq #edit <n>',   'Rewrite saved answer <n>.'),
+                ('helpstaff #faq #delete <n>', 'Remove saved answer <n>.'),
+            ],
+            notes = [
+                'You are asked at login whether to go on duty, and offered any '
+                'saved questions.',
+                'A bare |command|helpstaff|reset| reminds you of '
+                '|command|helpstaff #show|reset| and |command|helpstaff #list|reset| -- '
+                'use |command|helpstaff #ask|reset| to ask for help yourself.',
+                'Admins and Dungeon Masters can use these switches too.',
+            ],
+        )],
         admin_notes = [
             'Mark a player as a helpstaff member from |command|editplayer|reset| '
             '(Flags/Counters, Player Status). Members are asked at login whether '
@@ -157,6 +178,12 @@ class HelpstaffCommand(Command):
             return await self._request(ctx)
 
         sub = switches[0]
+        if sub in STAFF_SWITCHES and not duty.can_go_on_duty(ctx.player):
+            # Don't confirm staff-only switches exist to a plain player --
+            # the same reply as a made-up one (help hides them too).
+            await ctx.send(f"Unknown option '{sub}'. "
+                           f"See |command|help helpstaff|reset|.")
+            return CommandResult.fail('Unknown option.', error='bad_option')
         if sub == '#ask':
             return await self._request(ctx)
         if sub in ('#accept', '#decline'):
