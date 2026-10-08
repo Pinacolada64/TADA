@@ -12,9 +12,7 @@ Sections: Open PRs → Feature branches (no PR) → Direct commits to master →
 
 ## Open PRs
 
-| PR | Branch | Tip | Summary |
-|----|--------|-----|---------|
-| [#84](https://github.com/Pinacolada64/TADA/pull/84) | `fix/armory-stock-first-ten` | `42343a5` | Weapons Master's buy list (`shoppe/armory.py` `_buy`) lists and sells only the first ten weapons (`_SHOP_STOCK_MAX`, SPUR's own shop stock #1-10); higher-level gear is left for players to discover. Selling still recognizes every weapon; ship armory unaffected. Note: SPUR's for-sale set also had #25. 3 new tests (`tests/shoppe/test_armory_stock.py`); suite 5035 passed. |
+_(none)_
 
 ---
 
@@ -37,6 +35,7 @@ Sections: Open PRs → Feature branches (no PR) → Direct commits to master →
 
 | PR | Merge commit | Branch | Title |
 |----|--------------|--------|-------|
+| [#84](https://github.com/Pinacolada64/TADA/pull/84) | `94efe6c` | `fix/armory-stock-first-ten` | Weapons Master's buy list (`shoppe/armory.py` `_buy`) lists and sells only the first ten weapons (`_SHOP_STOCK_MAX`, SPUR's shop stock #1-10); higher-level gear left for players to discover. Selling still recognizes every weapon; ship armory unaffected. 3 new tests (`tests/shoppe/test_armory_stock.py`). |
 | [#83](https://github.com/Pinacolada64/TADA/pull/83) | `61bdbd8` | `fix/editor-colors-escape` | `!` markup works like `\|` on every terminal, only around real token names (new `markup_tokens.py`, shared by formatting.py/table.py/menu_system.py); `.h colors` shows the syntax it teaches and explains `!` to everyone; `table.py` measures escaped markup at its displayed width and wraps without splitting markup; `gen_help_pdf.py` strips via `plain_encode()`. |
 | [#82](https://github.com/Pinacolada64/TADA/pull/82) | `7bd3ab6` | `feature/docs-pdf` | `server/tools/gen_help_pdf.py`: exports in-game help as PDF manuals -- `TADA_Help_Reference.pdf` (74 commands, 29 concept topics, player view via `format_help()` + ReportLab) and `TADA_Editor_Reference.pdf` (the line editor's `.h` help: 19 dot commands, `.h colors`, 4 admin-only). `reportlab~=5.0` in requirements.txt; 3 player-text typo fixes. Written 2026-09-20, merged 2026-10-07. |
 | [#81](https://github.com/Pinacolada64/TADA/pull/81) | `d4bb66a` | `feature/help-flag-sections` | Flag-gated help (`HelpSection` / `Help.sections`, shown only to viewers with one of its `PlayerFlags` or Admins/DMs); `help helpstaff` hides staff switches from plain players (a **Helpstaff** section instead), and they read as "Unknown option"; too-long syntax at 40 columns gets its own line; usage/example syntax in `\|command\|` color. |
