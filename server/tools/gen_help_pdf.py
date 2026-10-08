@@ -41,7 +41,6 @@ Re-run this whenever help text changes; there's no cached/derived state to
 go stale otherwise.
 """
 import argparse
-import re
 import sys
 from types import SimpleNamespace
 from collections import defaultdict
@@ -59,18 +58,20 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
 
 from commands.command_processor import CommandProcessor
 from commands.help import _TOPICS, _TOPIC_PRIMARY_NAME, format_help
-from formatting import highlight_brackets, PlainCodec
+from formatting import highlight_brackets, plain_encode, PlainCodec
 
-TOKEN_RE = re.compile(r"\|[a-z_]+\|")
 _PLAIN_CODEC = PlainCodec()
 
 
 def strip_tokens(line: str) -> str:
     """Resolve a format_help() line down to what a player actually sees:
-    strip |color| tokens, collapse [[literal]] to [literal] (and apply
-    [highlight] as plain text, delimiters removed) via highlight_brackets(),
-    and collapse %% to a literal % -- see this module's docstring."""
-    line = TOKEN_RE.sub("", line)
+    strip |color| tokens via plain_encode() -- the plain-text client's own
+    pass, which also shows an escaped ||token|| as the literal |token| (a
+    bare |token| regex here used to eat it down to '||') -- collapse
+    [[literal]] to [literal] (and apply [highlight] as plain text,
+    delimiters removed) via highlight_brackets(), and collapse %% to a
+    literal % -- see this module's docstring."""
+    line = plain_encode(line)
     line = highlight_brackets(line, _PLAIN_CODEC)
     line = line.replace("%%", "%")
     return line
