@@ -1294,6 +1294,24 @@ _COLOR_TOPIC_TEXT = (
 )
 
 
+# Appended to '.h colors' only for a player on a real Commodore (PETSCII)
+# connection -- the same audience commands/help.py's 'colors' topic shows
+# its own '!' note to (Help.petscii_notes). '!' is a PETSCII-only alternate
+# for '|' (formatting._PETSCII_TOKEN_RE: '|' is an awkward Shift+- on a
+# Commodore keyboard), resolved when text is *sent to* a PETSCII client --
+# so a reader on any other terminal sees '!red!' as plain text, hence the
+# last sentence. Written with '!!' escapes, which only a PETSCII client
+# resolves; that's fine since nobody else is shown this paragraph.
+_COLOR_TOPIC_PETSCII_TEXT = (
+    "On a Commodore, ! works exactly like | -- !!red!!word!!reset!! is the "
+    "same as ||red||word||reset||, and saves the awkward Shift+- that | "
+    "needs. The two can't be mixed in one code (!red| isn't one).\n\n"
+    "Only Commodore screens read ! this way: someone on another terminal "
+    "sees !!red!! as plain text. In mail, posts or news others will read, "
+    "use | instead."
+)
+
+
 async def _cmd_help(editor: 'Editor', arg: str) -> Optional[str]:
     arg = arg.strip().lstrip('./')
     commands = list(editor.dot_command_table)
@@ -1310,6 +1328,9 @@ async def _cmd_help(editor: 'Editor', arg: str) -> Optional[str]:
 
     if arg.lower() in _COLOR_TOPIC_ALIASES:
         out = ['|cyan|Colors|reset|', ''] + _format_help_text(_COLOR_TOPIC_TEXT, editor.screen_width)
+        from commands.help import _is_petscii_viewer
+        if _is_petscii_viewer(editor.ctx):
+            out += [''] + _format_help_text(_COLOR_TOPIC_PETSCII_TEXT, editor.screen_width)
         await editor.ctx.send(out)
         return None
 

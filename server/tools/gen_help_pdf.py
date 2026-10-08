@@ -137,7 +137,17 @@ def collect_editor_entries():
 
     entries = [entry(f".{c.command_key}", c.command_text, "Commands", c.help_text)
                for c in editor.dot_command_table]
-    entries.append(entry(".h colors", "Colors", "Topics", text_editor._COLOR_TOPIC_TEXT))
+    colors = entry(".h colors", "Colors", "Topics", text_editor._COLOR_TOPIC_TEXT)
+    # The '!' paragraph '.h colors' adds for Commodore (PETSCII) players
+    # only. Its '!!token!!' escapes are PETSCII markup, which plain_encode()
+    # doesn't read, so resolve them the way a Commodore screen would.
+    import formatting
+    petscii = [highlight_brackets(formatting._PETSCII_TOKEN_RE.sub(
+                   formatting._petscii_token_strip_replace, l), _PLAIN_CODEC)
+               for l in text_editor._format_help_text(text_editor._COLOR_TOPIC_PETSCII_TEXT,
+                                                      EDITOR_WIDTH)]
+    colors["lines"] += ["", "Commodore (PETSCII) connections only:"] + petscii
+    entries.append(colors)
     entries += [entry(f".{c.command_key}", c.command_text, "Admin-only commands", c.help_text)
                 for c in editor.privileged_commands]
     intro = [strip_tokens(l) for l in text_editor.EDITOR_INTRO_LINES]
