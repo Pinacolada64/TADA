@@ -20,8 +20,12 @@
 --
 -- Usage: pandoc --lua-filter=scripts/autowidth.lua ... (md_to_pdf.sh does)
 
-local TEXT_WIDTH = 47.0   -- US Letter less 1in margins: 469.8pt
+local TEXT_WIDTH = 46.975 -- US Letter less 1in margins: 469.75pt
 local TABCOLSEP = 0.6     -- 6pt each side of a column
+-- room to spare in every column, so that rounding (pandoc writes each
+-- column's share to 4 decimals) can't leave a word a hair too wide for its
+-- column, which TeX would then break at a hyphen: -drive8type as - drive8type
+local SLACK = 0.2
 local EM_TEXT = 0.5       -- a character not in EM_CHAR (accented, emoji)
 local EM_SPACE = 0.333    -- interword space in Latin Modern Roman
 local EM_CODE = 0.525     -- every character in Latin Modern Mono
@@ -140,9 +144,9 @@ function Table(tbl)
   local room = TEXT_WIDTH - 2 * TABCOLSEP * (#nat - 1)
   local levels = { head, min, nat }
   for i = 1, #nat do
-    nat[i] = math.max(nat[i], 1)
-    min[i] = math.min(math.max(min[i], head[i], 1), nat[i])
-    head[i] = math.min(math.max(head[i], 1), min[i])
+    nat[i] = math.max(nat[i], 1) + SLACK
+    min[i] = math.min(math.max(min[i], head[i], 1) + SLACK, nat[i])
+    head[i] = math.min(math.max(head[i], 1) + SLACK, min[i])
   end
   local totals = {}
   for l, widths in ipairs(levels) do
