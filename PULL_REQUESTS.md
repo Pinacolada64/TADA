@@ -12,7 +12,9 @@ Sections: Open PRs → Feature branches (no PR) → Direct commits to master →
 
 ## Open PRs
 
-_(none)_
+| PR | Branch | Tip | Summary |
+|----|--------|-----|---------|
+| [#86](https://github.com/Pinacolada64/TADA/pull/86) | `feature/pdf-table-autowidth` | `f21676b` | `server/scripts/autowidth.lua`: pandoc filter (wired into `md_to_pdf.sh`, so `generate_docs.sh`) that sizes PDF table columns by their contents like a browser's auto-width table -- natural widths when everything fits, else headings on one line, then each column's longest word, then leftover room by need; widths from Latin Modern Roman's real character metrics. Replaces pandoc's dash-count widths that broke identifiers mid-word in FUNCTIONS.pdf. Adapted from ImageBBS3's `docbook-latex.lua` and `table-heading-widths.rb`. |
 
 ---
 

@@ -9,7 +9,11 @@
 # instead of coming out blank in Latin Modern. Tables get light zebra
 # striping (xcolor's `table` option + `\rowcolors`, applies to pandoc's
 # longtable output via colortbl) for readability in the long
-# module/function reference tables.
+# module/function reference tables. autowidth.lua sizes each table's
+# columns by their contents, so short columns stay narrow and long ones
+# get the room (pandoc otherwise splits a wide pipe table's width by the
+# dashes in its |---|---| line, or lets a narrow-source one run off the
+# page).
 #
 # Usage: scripts/md_to_pdf.sh FILE.md [FILE2.md ...]
 # Output: FILE.pdf next to each input FILE.md
@@ -43,5 +47,6 @@ for md in "$@"; do
     -t pdf --pdf-engine=lualatex \
     -V geometry:margin=1in -V colorlinks=true --toc \
     -H "$PREAMBLE_TEX" \
+    --lua-filter="$SCRIPT_DIR/autowidth.lua" \
     -o "$pdf"
 done
